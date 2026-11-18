@@ -90,4 +90,75 @@ const hades = {
   },
 };
 
-export const K15 = { ...hades };
+// ---- Hỏa Long (燎 p4): molten lava red with an orange-gold glow in dark basalt ---------------------------------------
+//   燎 p4: a ring of pale light round him with the armour (9 s), dark lava rocks with glowing cracks and a red fire swirl where
+//   he comes down and where the heat bursts (10-12 s), red lava left on the ground behind him (10-14 s).
+const HL_RED = C(2.4, 0.35, 0.06), HL_GOLD = C(2.6, 1.3, 0.25), HL_ROCK = 0x1a0b08, HL_SOOT = C(0.12, 0.04, 0.02), HL_PALE = C(2.4, 1.9, 1.3);
+const hoalong = {
+  // Phá Ngục Viêm Nhận: a dome of molten light round him for the 3 s, a pale ring at his feet, embers lifting off it
+  hlArmor: {
+    skill(kit, e, u) {
+      shell(kit, u.x, 0, u.z, 2.9, HL_RED, { c2: HL_RED, p: 1.1, core: 0.4, dome: true, bands: 1.2, follow: u, life: 3, grow: 0.12, pulse: 1.6, alpha: 0.85 });
+      sigil(kit, u.x, u.z, 3.4, HL_PALE, { c2: HL_GOLD, n: 0, ticks: 20, inner: 0.8, life: 3, rev: 0.12, spin: 1.2, fill: 0.1, follow: u, w: 0.09 });
+      spikes(kit, u.x, u.z, 9, 3.1, 1.9, HL_RED, 0.9, { core: HL_ROCK, up: 0.1 });
+      pillar(kit, u.x, u.z, 2.4, HL_GOLD, { c2: HL_RED, h: 4, life: 0.8, rings: 3, follow: u, alpha: 0.75 });
+      kit.follow(u, 3, () => { if (Math.random() < 0.4) { const a = Math.random() * 6.283; kit.glow(u.x + Math.cos(a) * 1.8, R(0.3, 1.6), u.z + Math.sin(a) * 1.8, Math.random() < 0.5 ? HL_RED : HL_GOLD, 0.45, 0.3, 1, kit.K.FLAME, 1.2, 0, R(1.5, 3), 0); } });
+      kit.chips(u.x, 0.4, u.z, kit.N(8), C(0.2, 0.08, 0.05), 5, 0.7, 0.18);
+      kit.flash(u.x, 1.5, u.z, HL_GOLD, 30, 0.2);
+      return true;
+    },
+  },
+  // Viêm Lưu Trụy Tinh: a red target ring while he crouches, a molten rock falling with him, and a crown of black lava spikes
+  // with glowing cracks bursting up where he lands
+  hlMeteor: {
+    pal: [HL_RED, HL_GOLD], hitR: 2.6,
+    skill(kit, e) { if (e.tx !== undefined) sigil(kit, e.tx, e.tz, 3, HL_RED, { c2: HL_GOLD, n: 0, ticks: 16, inner: 0.6, life: 0.9, rev: 0.25, spin: 2, fill: 0.15 }); return true; },
+    leap(kit, e) {
+      const T = e.dur || 0.45;
+      shell(kit, e.x, 6, e.z, 1.1, HL_GOLD, { c2: HL_RED, inv: 1.3, core: 1, life: T, step: (t, mm) => { mm.position.y = 6 * (1 - t / T) + 1; } });
+      return true;
+    },
+    nova(kit, e) {
+      spikes(kit, e.x, e.z, 9, e.r * 0.7, 2.2, HL_RED, 0.9, { core: HL_ROCK, up: 0.1 });
+      burst(kit, e.x, e.z, e.r * 1.1, HL_RED, HL_GOLD, { life: 0.35 });
+      slash(kit, e.x, e.z, Math.random() * 6.28, e.r * 1.1, HL_RED, { y: 0.6, life: 0.5, span: 3.1, w: e.r * 0.35, sweep: 0.25, edge: HL_GOLD, c2: HL_GOLD });
+      kit.puffs(e.x, 0.5, e.z, kit.N(8), HL_SOOT, 1.2, 2.5, 0.9, 1.4, 2.4, 0.6, 0.7, kit.K.SMOKE, 2);
+      kit.scorch(e.x, e.z, e.r * 0.8, 3, 1.4, HL_RED); kit.kick(e.x, e.z, 0.7);
+      return true;
+    },
+  },
+  // Viêm Chi Thẩm Phán: 2 s of heat (a red-hot shell that grows and throbs round him, a heat column, embers pulled in), then
+  // the vent: a wide ring of lava spikes and a fire swirl over the blast
+  hlJudge: {
+    skill() { return true; },
+    castMake(kit, u) {
+      const s = shell(kit, u.x, 1.2, u.z, 3, HL_RED, { c2: HL_GOLD, p: 1.2, core: 0.25, bands: 2, follow: u, life: 1e9, grow: 0.5, alpha: 0.85 });
+      const g = sigil(kit, u.x, u.z, 5, HL_RED, { c2: HL_GOLD, n: 0, ticks: 24, inner: 0.5, life: 1e9, rev: 0.35, spin: -1.5, fill: 0.32, w: 0.12, follow: u });
+      const p = pillar(kit, u.x, u.z, 2.2, HL_RED, { c2: HL_GOLD, h: 6, life: 1e9, rings: 3, follow: u, alpha: 0.6 });
+      return { s, g, p, k: 0, x: u.x, z: u.z };
+    },
+    cast(kit, v, u, s, k, dt) {
+      v.k = k; v.x = u.x; v.z = u.z;
+      if (Math.random() < dt * 40) { const a = Math.random() * 6.283, d = 4; kit.glow(u.x + Math.cos(a) * d, R(0.3, 1.5), u.z + Math.sin(a) * d, HL_GOLD, 0.4, 0.3, 1, kit.K.SPARK, 0.4, -Math.cos(a) * 9, 0, -Math.sin(a) * 9); }
+      if (Math.random() < dt * 6) kit.glow(u.x, 1.2, u.z, HL_RED, 0.3, 2.5 + 2 * k, 0.5, kit.K.GLOW, 1.2);
+    },
+    castDrop(kit, v) {
+      stop(v.s); stop(v.g); stop(v.p);
+      if (v.k < 0.85) return;
+      const r = 5;
+      spikes(kit, v.x, v.z, 14, r * 0.75, 2.6, HL_RED, 1.0, { core: HL_ROCK, up: 0.12 });
+      for (const d of [1, -1]) slash(kit, v.x, v.z, d * 1.2, r * 1.05, HL_RED, { y: 0.8, dir: d, life: 0.6, span: 3.1, w: r * 0.3, sweep: 0.3, edge: HL_GOLD, c2: HL_GOLD });
+      burst(kit, v.x, v.z, 3.2, HL_GOLD, HL_PALE, { life: 0.35 });
+      kit.puffs(v.x, 0.6, v.z, kit.N(12), HL_SOOT, 2.5, 3, 1, 1.6, 2.6, 0.6, 0.8, kit.K.SMOKE, 3);
+      kit.flash(v.x, 2, v.z, HL_RED, 70, 0.35); kit.kick(v.x, v.z, 1);
+    },
+  },
+  // Hỏa Diễm Chi Tức: a pool of dark red lava with a molten rim and embers
+  hlLava: {
+    zoneMake(kit, z) { return { s: sigil(kit, z.x, z.z, z.r, HL_RED, { c2: HL_GOLD, n: 0, ticks: 0, inner: 0.55, life: 1e9, rev: 0.15, spin: 0.3, fill: 0.55, w: 0.1, alpha: 0.9 }) }; },
+    zone(kit, v, z, dt) { if (Math.random() < dt * 6) kit.glow(z.x + R(-0.6, 0.6), 0.2, z.z + R(-0.6, 0.6), HL_GOLD, 0.6, 0.25, 1, kit.K.FLAME, 1, 0, R(1, 2), 0); },
+    zoneDrop(kit, v) { stop(v.s); },
+  },
+};
+
+export const K15 = { ...hades, ...hoalong };

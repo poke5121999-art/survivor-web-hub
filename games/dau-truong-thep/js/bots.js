@@ -1089,6 +1089,7 @@ function stuckLogic(m, u, b, now) {
 // Skill policy per `do` primitive. Each returns true when the skill makes sense now; it may fill c.b.sk with an aim point / aim angle / move override.
 const SKILL_AI = {
   shield(c, s) {
+    if (s.self && s.self.shots) return hlBotArmor(c, s);   // kit-remake G5 hoalong: armour + three empowered blows up close
     // a shield that goes off when it ends (burst): raise it with an enemy inside the blast so it does its work
     if (s.burst) return c.u.shield <= 0 && !!c.tgt && c.td < s.burst.radius + 3.5 && (c.underFire || c.near >= 1 || c.td < s.burst.radius);
     return c.u.shield <= 0 && c.underFire && c.enemies.length > 0;
@@ -2536,3 +2537,12 @@ function hdBotNova(c, s) {
   return true;
 }
 /* ===== end kit-remake G5 hades ===== */
+
+/* ===== kit-remake G5 hoalong: bot policy for the ported kit (sim.js "kit-remake G5 hoalong") ===== */
+// Phá Ngục Viêm Nhận: the lava armour and its three empowered blows, raised with a foe inside the fist's reach
+function hlBotArmor(c, s) {
+  const { u, tgt, td, w } = c;
+  if (!tgt || u.shield > 0 || td > w.range + 1) return false;
+  return c.underFire || c.hpFrac < 0.9 || c.near >= 2 || c.D.skill >= 0.6;
+}
+/* ===== end kit-remake G5 hoalong ===== */

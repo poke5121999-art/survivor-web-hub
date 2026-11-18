@@ -131,6 +131,7 @@ function clearStatus(u) {
   k13Clear(u);   // kit lane K13
   k14Clear(u);   // kit-remake K14
   hdClear(u);   // kit-remake G5 hades
+  hlClear(u);   // kit-remake G5 hoalong
 }
 
 function spawn(m, u, first) {
@@ -432,6 +433,7 @@ function stepUnit(m, u, inp) {
   k14Tick(m, u);   // kit-remake K14: Baymax's chain, Doraemon's flight
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   hdTick(m, u);   // kit-remake G5 hades: haste decay, cc cut, the other form's s2 cooldown
+  hlTick(m, u);   // kit-remake G5 hoalong: lava trail, buff per burning foe
   // counter: the window runs out without a hit and 40% of the cooldown comes back
   if (u.parryT > 0) {
     u.parryT -= dt;
@@ -663,6 +665,7 @@ function castHooks(u, s, i) {
   if (s.invuln && !(s.invuln === true && OWN_INVULN[s.do])) { const t = s.invuln === true ? actTime(u, s) : s.invuln; u.invulnT = Math.max(u.invulnT, t); u.ccT = Math.max(u.ccT, t); }
   if (s.unstoppable) u.ccT = Math.max(u.ccT, s.unstoppable === true ? actTime(u, s) : s.unstoppable);
   if (s.self && s.self.on !== 'hit') selfBuff(u, s.self);
+  if (u.passive === 'lava') hlCast(u);   // kit-remake G5 hoalong: the press starts the lava trail
   const P = u.pendCut;
   u.pressing = -1; u.pendCut = null;
   if (P) for (let k = 0; k < P.length; k += 2) applyCut(u, P[k + 1], P[k]);
@@ -1263,6 +1266,7 @@ function spawnShot(m, u, w, a, side, st, src, boost) {
     bn: !!w.bnWave,   // kit lane K10: Kirito's sword wave feeds his penetration stacks
     steal: src === 'w' ? w.steal || 0 : 0, pen: w.pen || 0, vol: src !== 'w' && (w.perTarget || w.sameDecay) ? u.volTag : null,
   });
+  if (w.hlCut) m.shots[m.shots.length - 1].hlCut = w.hlCut;   // kit-remake G5 hoalong: an empowered shot cuts s2
 }
 
 const aimPoint = (u, inp, range) => {
@@ -2018,6 +2022,7 @@ function stepShots(m) {
       if (s.hook && !s.hook.self && hitUnit.alive && owner && owner.alive) reel(m, owner, hitUnit, s.hook);
       if (owner) k4ShotHit(m, s, hitUnit, owner);   // kit-remake K4: orb shots, enbac's nth hit
       if (owner && s.src === 'w') hdShotHit(owner);   // kit-remake G5 hades: weapon hdCut
+      if (owner && s.hlCut) hlShotHit(owner, s);   // kit-remake G5 hoalong
     } else if (what === 'prop') damageProp(m, hitProp, dmg, owner);
     else if (hitZone) hitZone.hp -= dmg;
     // splashHit (weapon row): the burst goes off only round a mech it hit, not at the end of its range or on a wall
@@ -2092,6 +2097,7 @@ function stepZones(m) {
     } else if (z.kind === 'field') {
       if (z.follow) { z.x = owner.x; z.z = owner.z; if (!owner.alive) done = true; }
       if (z.hdDom) hdDomainStep(m, z, owner);   // kit-remake G5 hades
+      if (z.hlBurn) hlLavaStep(m, z, owner);   // kit-remake G5 hoalong
       z.acc += dt;
       const pulse = z.acc >= 0.5;
       if (pulse) z.acc -= 0.5;
@@ -2298,6 +2304,7 @@ export function applyFx(m, src, o, fx, ctx) {
     const st = typeof fx.stun === 'number' ? fx.stun : !ctx || ctx.core === undefined || ctx.core <= fx.stun.core ? fx.stun.dur : 0;
     o.stunT = Math.max(o.stunT, st);
   }
+  if (fx.hlCore) hlCoreStun(o, fx.hlCore, ctx);   // kit-remake G5 hoalong: stun only in the core
   if (fx.chain) chainHit(m, src, o, fx.chain, lastBase);
   if (fx.bcPop) { k10Pop(m, src, o, fx.bcPop); if (!o.alive) return; }   // kit lane K10: Bọ Cạp sets off her poison
   if (fx.burn) { o.burnT = fx.burn.dur; o.burnN = Math.min(fx.burn.max, o.burnN + 1); o.burnDps = fx.burn.dps; o.burnBy = src.id; }
@@ -2497,6 +2504,7 @@ function kill(m, u, src) {
   if (m.mode === 'trum') { if (u.def.boss) u.respawnT = 1e9; else m.lives--; }
   if (m.mode === 'pve') { if (u.team === 1) u.respawnT = 1e9; else m.lives--; }
   m.events.push({ t: 'death', id: u.id, by, assists, x: u.x, z: u.z });
+  if (u.burnT > 0 && u.burnBy >= 0) hlDeath(m, u);   // kit-remake G5 hoalong: a burning mech bursts
   clearStatus(u);
 }
 
@@ -3210,6 +3218,73 @@ function hdDomainStep(m, z, owner) {
   }
 }
 /* ===== end kit-remake G5 hades ===== */
+
+/* ===== kit-remake G5 hoalong (kit lane k15; ~/handoff/dtt-ref/kits/MECHANICS.md "Group 5": hoalong, clip p4 "1.燎").
+   Hooks elsewhere are one line each, marked "kit-remake G5 hoalong", and call into this block.
+     passive {do: 'lava', trail, step, puddle {radius, dur}, burn {dps, dur, max}, cap, per {dmg, guard}, death {radius, dmg, per}}:
+       every press (second stages too) starts `trail` s during which a lava puddle (field, vis 'hlLava') is left each `step` m
+       walked (the first at once); an enemy touching a puddle is lit once by that puddle (hitfx burn); a burn reaching max stacks
+       sets off `cap` (hitfx, confuse 1 s) once per burn (`hlCapT`); each enemy burning by this mech gives it dmg x (1 + per.dmg x
+       n) and guard per.guard x n (`hlN` = n); an enemy dying while it burns by this mech bursts round itself: true damage
+       death.dmg + death.per x its stacks (event explode why 'lava').
+     weapon / shots patch `hlCut: f`: each hit of such a shot on a mech cuts s2's cooldown by f of its length.
+     hitfx `hlCore {dur, r}`: a stun of dur only on a mech within r of the centre of the area that hit it (a nova's core).
+   New names: unit hlTrT, hlPx, hlPz, hlN, hlCapT; zone hlBurn, hlHit; shot hlCut. Sync: the puddles travel as fields (vis);
+   burnT, dmgT, guardT, stunT, locT are in the row already; hlTrT/hlN/hlCapT are host-only (nothing the guest draws or predicts
+   reads them). ===== */
+function hlClear(u) { u.hlTrT = 0; u.hlPx = 1e9; u.hlPz = 1e9; u.hlN = 0; u.hlCapT = 0; }
+// castHooks: a press starts the lava trail
+function hlCast(u) { u.hlTrT = u.def.passive.trail; u.hlPx = 1e9; u.hlPz = 1e9; }
+// stepUnit: the burn-cap lockout of every mech; for the lava mech the buff per burning foe and the trail
+function hlTick(m, u) {
+  if (u.hlCapT > 0) u.hlCapT = Math.max(0, u.hlCapT - TICK);
+  if (u.passive !== 'lava') return;
+  const P = u.def.passive;
+  let n = 0;
+  for (const o of m.units) if (o.alive && o.team !== u.team && o.burnT > 0 && o.burnBy === u.id) n++;
+  u.hlN = n;
+  if (n) {
+    const f = 1 + P.per.dmg * n, g = P.per.guard * n;
+    if (!(u.dmgT > 2 * TICK) || u.dmgF <= f) { u.dmgF = f; u.dmgT = Math.max(u.dmgT, 2 * TICK); }
+    if (!(u.guardT > 2 * TICK) || u.guardF <= g) { u.guardF = g; u.guardT = Math.max(u.guardT, 2 * TICK); }
+  }
+  if (!(u.hlTrT > 0)) return;
+  u.hlTrT = Math.max(0, u.hlTrT - TICK);
+  if (dist2(u.x, u.z, u.hlPx, u.hlPz) < P.step * P.step || (u.dash && u.dash.fly)) return;
+  u.hlPx = u.x; u.hlPz = u.z;
+  addZone(m, u, { kind: 'field', vis: 'hlLava', x: u.x, z: u.z, r: P.puddle.radius, dur: P.puddle.dur, hps: 0, dps: 0, slow: 0, hide: false, pull: 0, acc: 0,
+    haste: 0, blind: null, follow: false, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {}, hlBurn: 1, hlHit: {} });
+}
+// stepZones, a lava puddle: each enemy touching it is lit once; a full burn sets off the cap
+function hlLavaStep(m, z, owner) {
+  if (!owner || !owner.alive || owner.passive !== 'lava') return;
+  const P = owner.def.passive;
+  for (const o of m.units) {
+    if (!o.alive || o.team === z.team || z.hlHit[o.id]) continue;
+    const r = z.r + o.radius * 0.5;
+    if (dist2(o.x, o.z, z.x, z.z) > r * r) continue;
+    z.hlHit[o.id] = 1;
+    applyFx(m, owner, o, { burn: P.burn });
+    if (o.alive && o.burnN >= P.burn.max && !(o.hlCapT > 0)) { o.hlCapT = P.burn.dur; applyFx(m, owner, o, P.cap); }
+  }
+}
+// applyFx: the core stun of an area
+function hlCoreStun(o, C, ctx) {
+  if (!ctx || ctx.cx === undefined) return;
+  const r = C.r + o.radius * 0.6;
+  if (dist2(o.x, o.z, ctx.cx, ctx.cz) <= r * r) o.stunT = Math.max(o.stunT, C.dur);
+}
+// stepShots: an hlCut shot hurt a mech
+function hlShotHit(u, s) { if (u.def.skills[1]) applyCut(u, 1, { frac: s.hlCut }); }
+// kill: a mech burning by a lava mech bursts as it dies
+function hlDeath(m, u) {
+  const o = m.units[u.burnBy], P = o && o.def.passive;
+  if (!o || !o.alive || o.team === u.team || !P || P.do !== 'lava' || !P.death) return;
+  const D = P.death, was = curSrc;
+  m.events.push({ t: 'explode', id: o.id, x: u.x, z: u.z, r: D.radius, why: 'lava' });
+  curSrc = null; areaDamage(m, o, u.x, u.z, D.radius, 0, { fx: { trueDmg: D.dmg + D.per * u.burnN } }, u); curSrc = was;
+}
+/* ===== end kit-remake G5 hoalong ===== */
 
 /* ===== feat/dtt-modes: Phó bản waves ===== */
 // Every monster of every wave is in the roster from the start (an online mirror needs a fixed unit list). A later wave waits

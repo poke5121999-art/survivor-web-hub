@@ -5,6 +5,7 @@ import { allInputs } from '../js/bots.js';
 import { losClear, solidAt, MAP_ORDER, NHA_ORDER } from '../js/maps.js';
 import { MECHS, MECH_ORDER, MODES, TICK } from '../js/data.js';
 import { oldK13 } from './k13-cases.mjs';   // kit lane K13: the medic checks run on the old Đom Đóm kit (fixture)
+import { oldKit as oldKit15 } from './k15-cases.mjs';   // kit lane k15: hoalong's charge beam lives on as the fixture OLD_HOALONG
 
 let failed = 0, passed = 0;
 const check = (name, cond, detail = '') => {
@@ -312,7 +313,9 @@ section('4 siege');
 
 section('5 charge weapon');
 {
-  const rs = [...BY.tdm, ...BY.chiem, ...BY.tudo];
+  // hoalong plays its p4 lava kit now (kit lane k15): the charge-beam bot runs on the old kit, the fixture OLD_HOALONG, in its own matches
+  const CHG = ['hoalong', 'trau', 'soi', 'ung', 'hoalong', 'tho'], old = (m) => oldKit15(m, 'hoalong');
+  const rs = ['tdm', 'chiem', 'tudo'].flatMap((mode) => [1, 2, 3].map((s) => play(mode, s, CHG, ['hard', 'normal'], old)));
   const beams = sum(rs, (r) => r.beams.hoalong || 0), plays = sum(rs, (r) => r.m.units.filter((u) => u.mech === 'hoalong').length);
   const rel = { bot: sum(rs, (r) => r.releases.bot), auto: sum(rs, (r) => r.releases.auto), quick: sum(rs, (r) => r.releases.quick), full: sum(rs, (r) => r.releases.full) };
   console.log(`hoalong: ${beams} beams over ${plays} plays; released by the bot ${rel.bot}, by the auto-fire ${rel.auto}; quick (under 0.9 s) ${rel.quick}, full ${rel.full}`);
@@ -321,7 +324,7 @@ section('5 charge weapon');
   check('5c both quick shots and full charges happen', rel.quick >= 10 && rel.full >= 10, `${rel.quick} / ${rel.full}`);
   // scenario: far target at full health is shot at a full charge, a nearly dead one with a quick shot
   const run = (hpFrac, x) => {
-    const m = createMatch({ seed: 6, roster: [{ team: 0, mech: 'hoalong', name: 'L', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'T' }] });
+    const m = oldKit15(createMatch({ seed: 6, roster: [{ team: 0, mech: 'hoalong', name: 'L', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'T' }] }), 'hoalong');
     put(m.units[0], -7, -1); put(m.units[1], x, -1); m.units[1].hp = m.units[1].maxHp * hpFrac; m.units[0].cd.s1 = 99;
     let charge = 0, peak = 0, first = null;
     for (let i = 0; i < 150 && !first; i++) {

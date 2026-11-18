@@ -42,7 +42,7 @@ const SEQ = {
   holy: { d: 9, seq: [] },
   domdom: { d: 5, seq: [['s1', 0], ['s2', 0.6], ['ult', 0.7]] },   // kit lane K13: eye, spear, temple
   tacke: { d: 12, seq: [['s2', 0], ['ult', 0.3]] },
-  hoalong: { d: 14, seq: [['s1', 0, true], ['ult', 0.4]], fireAt: 0.1 },
+  hoalong: { d: 2.2, seq: [['s1', 0, true], ['ult', 0.1, true], ['s2', 2.3, true]] },   // kit lane k15: the p4 lava brawler (armour, heat, blast inside the stun core)
   khiphao: { d: 9, seq: [['s1', 0], ['ult', 0.2]] },
   quancong: { d: 5, seq: [['s1', 0], ['s2', 0.3], ['ult', 0.5]] },
   natra: { d: 7, seq: [['ult', 0, true], ['s1', 0.7], ['s2', 1.2]], fireAt: 0.7 },

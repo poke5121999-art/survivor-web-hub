@@ -341,20 +341,29 @@ export const MECHS = {
         desc: 'Che chở đồng đội trong 7 m (kể cả bạn): mỗi người được khiên 1080 trong 5 giây, chạy nhanh hơn 50% và miễn khống chế; khiên và tốc chạy nhạt dần tới hết 5 giây.' },
     ],
   },
+  // Hỏa Long: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p4 "1.燎", tooltips read at 0-6 s; AUDIT-b.md). The clip's Liêu
+  // is a lava brawler, not a charge lancer: the charge beam goes (kept as the fixture OLD_HOALONG in tools/k15-cases.mjs). Attack = one
+  // Nham Quyền blow, set to 150 as moclan: Hỏa Diễm Chi Tức 25% -> 37 a second per stack, the death burst 100% + 25% a stack -> 150 + 37,
+  // the lava armour 150% -> 225 and its three shots 150% -> 225, Trụy Tinh 229% -> 344, Thẩm Phán 725% -> 1088. Cooldowns 8 / 8 / 20 s
+  // in the clip -> 10 / 10 / 40. The true damage of the burn is a plain burn (armour cuts it); the 50% lifesteal cut on non-tanks is
+  // dropped. No MP here.
   hoalong: {
-    name: 'Hỏa Long', role: 'Pháo tia', roleKey: 'lancer', price: 1750, tint: 0xe0502a,
-    blurb: 'Giữ nút bắn để nạp, thả ra phóng tia xuyên giáp. Diệt xe giáp dày, đuối khi đánh trụ.',
-    hp: 1750, speed: 5.6, radius: 0.84,
-    armor: 0.08, accel: 0.9, turn: 8, towerMul: 0.6,
-    passive: { do: 'pierce', name: 'Xuyên Giáp', desc: 'Sát thương bỏ qua giáp.' },
-    weapon: { name: 'Tia Tụ', cd: 1.1, charge: { min: 0.25, max: 1.3, hold: 0.6, dmg: [100, 740], range: [13, 22], width: [0.5, 0.9], move: 0.7 }, range: 22, vis: 'lance' },
+    name: 'Hỏa Long', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1750, tint: 0xe0502a,
+    blurb: 'Đấu sĩ nham thạch: sau mỗi chiêu để lại vệt dung nham thiêu kẻ địch, bật giáp dung nham, nhảy từ trên cao giáng xuống đánh tung, rồi nóng rực 2 giây và phun hơi nham nổ tung quanh mình.',
+    hp: 2600, speed: 5.9, radius: 0.84,
+    armor: 0.1, accel: 1.0, turn: 10, towerMul: 1.0,
+    passive: { do: 'lava', name: 'Hỏa Diễm Chi Tức', trail: 2, step: 1.4, puddle: { radius: 1.3, dur: 3 }, burn: { dps: 37, dur: 3, max: 5 }, cap: { confuse: 1 }, per: { dmg: 0.1, guard: 0.1 }, death: { radius: 3.5, dmg: 150, per: 37 },
+      desc: 'Sau mỗi chiêu, 2 giây kế tiếp đi tới đâu để lại dung nham tới đó; kẻ địch giẫm vào dính Hỏa Diễm Chi Tức 3 giây, mỗi lớp 37 sát thương mỗi giây, cộng dồn tới 5 lớp; đủ 5 lớp thì hỗn loạn 1 giây. Mỗi kẻ địch đang cháy làm bạn gây thêm 10% sát thương và nhận ít hơn 10%. Kẻ đang cháy mà chết thì nổ, 150 sát thương chuẩn quanh nó, mỗi lớp thêm 37.' },
+    weapon: { name: 'Nham Quyền', cd: 0.6, dmg: 150, speed: 24, range: 7, r: 0.5, splash: 1.5, splashHit: true, vis: 'flame' },
     skills: [
-      { id: 'quatai', look: 'hlPrime', name: 'Quá Tải', cd: 9, do: 'buff', prime: 4, icon: 'charge',
-        desc: 'Trong 4 giây tới, phát Tia Tụ kế tiếp nạp đầy ngay lập tức.' },
-      { id: 'mansang', look: 'hlScreen', name: 'Màn Sáng', cd: 14, do: 'wall', screen: true, cast: 3.5, n: 5, r: 0.75, gap: 1.35, dur: 5, icon: 'screen',
-        desc: 'Dựng màn chắn trước mặt 5 giây. Màn chỉ chặn đạn địch: cỗ máy và đạn phe mình đi qua được.' },
-      { id: 'thienhoa', look: 'hlBreath', name: 'Thiên Hỏa Tuyến', cd: 46, do: 'sweep', windup: 0.5, dur: 2.6, range: 20, width: 1.2, dps: 520, turn: 1.4, move: 0.3, icon: 'beam',
-        desc: 'Phóng một tia liên tục 2,6 giây gây 520 sát thương mỗi giây lên mọi kẻ địch trên đường. Tháp xoay rất chậm khi đang bắn.' },
+      { id: 'phanguc', look: 'hlArmor', name: 'Phá Ngục Viêm Nhận', cd: 10, do: 'shield', amount: 225, dur: 3,
+        self: { on: 'cast', dur: 3, guard: 0.5, vs: 'weapon', shots: 3, shotsFor: 6, patch: { dmg: 225, splash: 2.6, splashHit: true, steal: 0.75, hlCut: 0.1, vis: 'shell' } }, icon: 'shield',
+        desc: 'Bật giáp dung nham hút 225 sát thương trong 3 giây, trong đó đòn đánh thường nhắm vào bạn chỉ còn một nửa. Ba đòn Nham Quyền kế tiếp nổ rộng 2,6 m, 225 sát thương, hồi máu bằng 75% sát thương gây ra; mỗi đòn trúng giảm 10% hồi chiêu Viêm Lưu Trụy Tinh.' },
+      { id: 'truytinh', look: 'hlMeteor', name: 'Viêm Lưu Trụy Tinh', cd: 10, do: 'leap', windup: 0.3, move: 0, cast: 9, flight: 0.45, radius: 3, dmg: 344, fx: { air: 0.5, slow: 0.5, slowDur: 2 },
+        self: { on: 'cast', dur: 2.75, haste: 2 }, icon: 'leap',
+        desc: 'Tụ lực 0,3 giây rồi nhảy tới chỗ con trỏ (xa nhất 9 m), giáng 344 sát thương vòng 3 m (gần tâm đau hơn), đánh tung kẻ trúng 0,5 giây rồi làm chậm 50% trong 1,5 giây. Hai giây sau khi đáp bạn chạy nhanh gấp đôi.' },
+      { id: 'thamphan', look: 'hlJudge', name: 'Viêm Chi Thẩm Phán', cd: 40, do: 'transform', dur: 2, nova: { windup: 2, radius: 5, dmg: 1088, fx: { hlCore: { dur: 1.5, r: 2.5 } } }, icon: 'quake',
+        desc: 'Nóng rực 2 giây rồi phun hơi nham nổ quanh mình: 1088 sát thương trong 5 m, càng gần càng đau; kẻ trong 2,5 m bị choáng 1,5 giây.' },
     ],
   },
   khiphao: {
@@ -1263,7 +1272,7 @@ export const PERKS = {
   holy: [perk('Bom Ảnh', 'Bản sao nổ 260.', 0, { dmg: 260 }), perk('Bước Xa', 'Xuyên Tường xa 9,5 m.', 1, { dist: 9.5 }), perk('Bốn Bóng', 'Vũ Điệu Ảo Ảnh thả bốn bản sao.', 2, { n: 4 })],
   domdom: [perk('Mắt Gió Rộng', 'Ai Nga La Tư Chi Nhãn mở rộng 3,6 m.', 0, { blast: 3.6 }), perk('Giáo Nặng', 'Phong Chi Đầu Thương gây 190.', 1, { dmg: 190 }), perk('Thần Điện Rộng', 'Phong Nha Thần Điện rộng 7 m.', 2, { radius: 7, ddTemple: { delay: 1, every: 1.5, n: 3, r: 7, block: 0.5, heal: 0.05, lostHp: 0.05, first: 2, pull: 1.5, step: 0.2, max: 0.5, dur: 1.75 } })],
   tacke: [perk('Vinh Quang Dài', 'Khiên vinh quang kéo dài 1,75 giây.', 0, { bubble: 1.75 }), perk('Khiên Nặng', 'Khiên bay về gây 280, choáng 1,2 giây.', 1, { back: { dmg: 280, fx: { stun: 1.2 }, cut: 0.15 } }), perk('Nảy Ba', 'Khiên Nảy nảy tường ba lần.', 'weapon', { bounce: 3 })],
-  hoalong: [perk('Tụ Nhanh', 'Quá Tải hồi trong 6,5 giây.', 0, { cd: 6.5 }), perk('Màn Rộng', 'Màn Sáng dài bảy tấm.', 1, { n: 7 }), perk('Tuyến Dài', 'Thiên Hỏa Tuyến kéo dài 3,4 giây.', 2, { dur: 3.4 })],
+  hoalong: [perk('Giáp Dày', 'Phá Ngục Viêm Nhận hút 300 sát thương.', 0, { amount: 300 }), perk('Sao Rơi Rộng', 'Viêm Lưu Trụy Tinh giáng rộng 3,6 m.', 1, { radius: 3.6 }), perk('Hơi Nham Rộng', 'Viêm Chi Thẩm Phán nổ rộng 5,8 m.', 2, { nova: { windup: 2, radius: 5.8, dmg: 1088, fx: { hlCore: { dur: 1.5, r: 2.5 } } } })],
   khiphao: [perk('Pháo Đằm', 'Pháo Tép làm chậm hoặc làm yếu với 45% quả.', 'weapon', { fx: { chance: 0.45, pick: [{ slow: 0.35, slowDur: 1.5 }, { weaken: { mul: 0.8, dur: 2 } }] } }), perk('Bẫy Dày', 'Mìn của Chuồn Lẹ nổ 360.', 1, { onStart: { mine: { trigger: 2, blast: 3, dmg: 360, arm: 0.4, life: 8, fx: { slow: 0.4, slowDur: 1.5 } } } }), perk('Mười Sáu Quả', 'Hội Pháo Hoa dội 16 quả.', 2, { n: 16 })],
   quancong: [perk('Đao Dài', 'Đao Khí bay xa 8 m.', 'weapon', { range: 8 }), perk('Xung Mạnh', 'Xung Phong gây 260 và choáng 0,8 giây.', 0, { dmg: 260, stun: 0.8 }), perk('Án Trảm', 'Trảm Tướng kết liễu dưới 32% máu.', 2, { fx: { execute: 0.32 } })],
   natra: [perk('Vòng Lớn', 'Càn Khôn Quyển gây 260.', 0, { dmg: 260 }), perk('Bánh Xe Dài', 'Phong Hỏa Luân lao xa 11 m.', 1, { dist: 11 }), perk('Giáng Mạnh', 'Thiên Giáng rộng 4 m, gây 760.', 2, { radius: 4, dmg: 760 })],

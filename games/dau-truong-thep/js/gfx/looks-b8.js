@@ -270,104 +270,6 @@ function flame(c, c2, seed = 0) {
 }
 const HF_EDGE = C(0.9, 0.12, 0.03), HF_MID = C(1, 0.45, 0.06), HF_CORE = C(1, 0.93, 0.6);
 
-// ---- Hỏa Long: molten lava red, charcoal crust ----------------------------------------------------------------------------
-const HL_RED = C(2.6, 0.5, 0.1), HL_GOLD = C(2.6, 1.6, 0.45), HL_CRUST = 0x1a0805;
-// a molten rock: a dark faceted crust with the glowing core poking through its seams (two jittered icosahedra)
-function rockGeo(seed) { const g = new THREE.IcosahedronGeometry(1, 1), p = g.attributes.position; let s = seed * 9301 + 49297; const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; const m = new Map(); for (let i = 0; i < p.count; i++) { const key = p.getX(i).toFixed(3) + p.getY(i).toFixed(3) + p.getZ(i).toFixed(3); if (!m.has(key)) m.set(key, 0.8 + 0.35 * rnd()); const k = m.get(key); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.85, p.getZ(i) * k); } g.computeVertexNormals(); return keep(g); }
-const ROCKS = [0, 1, 2, 3].map((i) => [rockGeo(i + 1), rockGeo(i + 7)]);
-function rock(i = 0) {
-  const [a, b] = ROCKS[i % 4], g = new THREE.Group();
-  const core = new THREE.Mesh(a, new THREE.MeshBasicMaterial({ color: HL_GOLD, toneMapped: false, transparent: true, opacity: 1 })), crust = new THREE.Mesh(b, new THREE.MeshBasicMaterial({ color: HL_CRUST, toneMapped: false, transparent: true, opacity: 1 }));
-  core.material.color.setRGB(1, 0.3, 0.05); crust.material.color.setHex(0x2a0d08); crust.scale.setScalar(1.1); crust.rotation.set(0.7, 1.1, 0.3); g.add(core, crust); return g;
-}
-const sphGeo = keep(new THREE.SphereGeometry(1, 16, 10));
-// a dragon scale standing upright: rounded bottom, flat top (local XY)
-const scaleGeo = (() => { const s = new THREE.Shape(); s.moveTo(-0.5, 0.55); s.lineTo(0.5, 0.55); s.lineTo(0.5, 0.1); s.quadraticCurveTo(0.48, -0.42, 0, -0.62); s.quadraticCurveTo(-0.48, -0.42, -0.5, 0.1); s.lineTo(-0.5, 0.55); return keep(new THREE.ShapeGeometry(s, 10)); })();
-// the lava stream: an open tube along +x whose bright bands flow outward, a gold core
-const LAVA_VERT = 'varying vec2 vUv; varying vec3 vN, vV; void main() { vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }';
-const LAVA_FRAG = `uniform vec3 uC, uC2; uniform float uA, uT, uL; varying vec2 vUv; varying vec3 vN, vV;
-  void main() { float f = abs(dot(normalize(vN), normalize(vV))); float flow = 0.55 + 0.45 * sin(vUv.y * uL * 1.3 - uT * 22.0 + sin(vUv.x * 18.85) * 1.5);
-    float tip = smoothstep(1.0, 0.9, vUv.y) * smoothstep(0.0, 0.04, vUv.y);
-    vec3 c = mix(uC, uC2, pow(f, 2.0) * flow); float a = (0.25 + 0.75 * pow(f, 0.7)) * uA * tip; gl_FragColor = vec4(c * a, a); }`;
-const tubeGeo = keep(new THREE.CylinderGeometry(1, 1, 1, 20, 1, true).rotateZ(-Math.PI / 2).translate(0.5, 0, 0));
-function lavaMat(c, c2) { return new THREE.ShaderMaterial({ vertexShader: LAVA_VERT, fragmentShader: LAVA_FRAG, transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, blending: THREE.NormalBlending, premultipliedAlpha: true, uniforms: { uC: { value: c }, uC2: { value: c2 }, uA: { value: 0 }, uT: { value: 0 }, uL: { value: 10 } } }); }
-const MV = new THREE.Vector3();
-const hlLen = new Map();
-const hoalong = {
-  // Quá Tải: five dragon-fire flames rise round him and circle, white-gold cores in red tongues, until the primed shot goes
-  hlPrime: {
-    skill(kit, e, u, row) {
-      const dur = row.prime || 4, fl = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => flame(HF_EDGE, HF_CORE, i * 1.7));
-      own(kit, fl, dur + 0.4, (t) => {
-        if (!u.alive) return false;
-        if (t > 0.3 && !(u.primeT > 0)) { for (const f of fl) kit.sparks(f.position.x, 1.2, f.position.z, kit.N(5), HL_GOLD, 8, 0.35, 0.06, 0.8, 6); return false; }
-        const k = Math.min(1, t / 0.25);
-        fl.forEach((f, i) => { const a = t * 2.2 + i * 0.7854; f.position.set(u.x + Math.cos(a) * 3.4, 0.2, u.z + Math.sin(a) * 3.4); f.scale.set(3 * k, 5 * k * (0.9 + 0.1 * Math.sin(t * 13 + i)), 1); f.material.uniforms.uT.value = t; f.material.uniforms.uA.value = 1; });
-        if (Math.random() < 0.5) { const a = Math.random() * 6.283; kit.glow(u.x + Math.cos(a) * 2.6, R(1.5, 3), u.z + Math.sin(a) * 2.6, HL_GOLD, 0.5, 0.2, 1, kit.K.SPARK, 0.5, 0, 2, 0); }
-      });
-      kit.flash(u.x, 1.6, u.z, HL_RED, 35, 0.25);
-      return true;
-    },
-  },
-  // Màn Sáng: a curtain of dragon fire stands along the line, tall red tongues behind and gold ones in front, flickering
-  hlScreen: {
-    zones: ['wall'],
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const p0 = z.pts[0], p1 = z.pts[z.pts.length - 1], L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) + z.r * 1.2, dx = (p1[0] - p0[0]) / (L - z.r * 1.2 || 1), dz = (p1[1] - p0[1]) / (L - z.r * 1.2 || 1);
-      const cx = (p0[0] + p1[0]) / 2, cz = (p0[1] + p1[1]) / 2, fl = [];
-      for (const [row, n, h, w, c, c2] of [[0, Math.ceil(L / 0.9), 4.8, 2.6, HF_EDGE, HF_MID], [1, Math.ceil(L / 1.2), 3.2, 2.3, HF_MID, HF_CORE]]) {
-        for (let i = 0; i < n; i++) { const f = flame(c, c2, i * 2.3 + row * 5), d = -L / 2 + (i + 0.5) * (L / n) + R(-0.15, 0.15); const off = (row ? 1 : -1) * (i % 2 ? 1.2 : 0.5); f.position.set(cx + dx * d - dz * off, 0.1, cz + dz * d + dx * off); f.userData.s = [w * R(0.85, 1.15), h * R(0.75, 1.15)]; f.rotation.z = (i % 2 ? 1 : -1) * R(0.2, 0.4); f.renderOrder = 7 + row; fl.push(f); }
-      }
-      for (let i = 0; i < kit.N(10); i++) { const t = Math.random(); kit.sparks(p0[0] + (p1[0] - p0[0]) * t, 0.3, p0[1] + (p1[1] - p0[1]) * t, 1, HL_GOLD, 5, 0.4, 0.05, 1, 6); }
-      return { fl, h: held(kit, fl), t: 0 };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt; const k = Math.min(1, v.t / 0.2), out = Math.min(1, (z.dur - z.age) * 4);
-      v.fl.forEach((f, i) => { const [w, h] = f.userData.s; f.scale.set(w, h * k * (0.85 + 0.15 * Math.sin(v.t * 11 + i * 1.3)), 1); f.material.uniforms.uT.value = v.t; f.material.uniforms.uA.value = out; });
-      if (Math.random() < dt * 8) { const f = v.fl[Math.floor(Math.random() * v.fl.length)]; kit.glow(f.position.x, R(2, 3.5), f.position.z, HL_GOLD, 0.6, 0.2, 1, kit.K.SPARK, 0.5, 0, 2.5, 0); }
-    },
-    zoneDrop(kit, v) { v.h.on = false; },
-  },
-  // Thiên Hỏa Tuyến: molten light gathers in the maw, then one thick lava stream pours down the lane, bands flowing out,
-  // dark smoke curling off its sides, molten rocks bubbling up where it lands
-  hlBreath: {
-    pal: [HL_RED, HL_GOLD], hitR: 1.8,
-    skill() { return true; },
-    castMake(kit) {
-      const outer = new THREE.Mesh(tubeGeo, lavaMat(C(1, 0.18, 0.03), C(1, 0.55, 0.12))), inner = new THREE.Mesh(tubeGeo, lavaMat(C(1, 0.45, 0.08), C(1, 0.95, 0.7)));
-      outer.renderOrder = 7; inner.renderOrder = 8; const g = new THREE.Group(); g.add(outer, inner); g.visible = false;
-      const rocks = [0, 1, 2, 3, 4, 5, 6].map((i) => rock(i)); rocks.forEach((r) => { r.visible = false; });
-      return { g, outer, inner, rocks, h: held(kit, [g, ...rocks]), t: 0 };
-    },
-    cast(kit, v, u, s, k, dt) {
-      v.t += dt;
-      kit.muzzle(u, 0, MV); const a = u.aim, ca = Math.cos(a), sa = Math.sin(a);
-      if (u.cast.t > s.dur) {   // the wind-up: light and embers drawn into the maw
-        kit.glow(MV.x + ca * 0.6, MV.y, MV.z + sa * 0.6, HL_RED, 0.08, 1 + 2 * k, 0.9, kit.K.GLOW, 1.1); kit.glow(MV.x + ca * 0.6, MV.y, MV.z + sa * 0.6, HL_GOLD, 0.06, 0.6 + k, 1, kit.K.STAR, 1.1);
-        if (Math.random() < 0.6) { const b = Math.random() * 6.283, d = R(2, 3); kit.str.emit(MV.x + Math.cos(b) * d, MV.y, MV.z + Math.sin(b) * d, -Math.cos(b) * 10, 0, -Math.sin(b) * 10, HL_GOLD, 0.2, 0.08, 0.05, 0, 1, 1); }
-        return;
-      }
-      const L = hlLen.get(u.id) ?? s.range, w = (s.width || 1.2) * 1.5;
-      v.g.visible = true; v.g.position.set(MV.x, 1.4, MV.z); v.g.rotation.y = -a;
-      const wob = 1 + 0.06 * Math.sin(v.t * 37);
-      v.outer.scale.set(L, w * 1.15 * wob, w * 1.15 * wob); v.inner.scale.set(L, w * 0.5, w * 0.5);
-      for (const m of [v.outer, v.inner]) { m.material.uniforms.uT.value = v.t; m.material.uniforms.uL.value = L; m.material.uniforms.uA.value = Math.min(1, u.cast.t * 4, (s.dur - u.cast.t) * 8 + 1); }
-      const ex = MV.x + ca * L, ez = MV.z + sa * L;
-      v.rocks.forEach((r, i) => {
-        r.visible = true;
-        if (i < 3) { const ph = (v.t * 1.6 + i / 3) % 1, b = i * 2.1 + v.t; r.position.set(ex + Math.cos(b) * 1.4, 0.3 + Math.sin(ph * Math.PI) * 1.8, ez + Math.sin(b) * 1.4); r.scale.setScalar(0.8 * Math.sin(ph * Math.PI) + 0.25); }
-        else { const f = ((v.t * 0.9 + (i - 3) / 4) % 1), d = L * (0.15 + 0.8 * f), sd = (i % 2 ? 1 : -1) * w * 0.9; r.position.set(MV.x + ca * d - sa * sd, 1.4 + 0.4 * Math.sin(f * 9 + i), MV.z + sa * d + ca * sd); r.scale.setScalar(0.55); }
-        r.rotation.set(v.t * 3 + i, v.t * 2, 0);
-      });
-      kit.glow(ex, 1, ez, HL_RED, 0.1, 3.4, 0.8, kit.K.GLOW, 1.1); kit.glow(MV.x + ca, 1.4, MV.z + sa, HL_GOLD, 0.06, 1.6, 1, kit.K.STAR, 1);
-      if (Math.random() < 0.7) { const t = R(0.15, 0.95), sd = Math.random() < 0.5 ? 1 : -1; kit.puffs(MV.x + ca * L * t - sa * sd * w, 1.6, MV.z + sa * L * t + ca * sd * w, 1, C(0.09, 0.05, 0.04), 0.2, 1.2, 0.7, 0.9, 2.4, 1.2, 0.55, kit.K.SMOKE, 1.5); }
-    },
-    castDrop(kit, v) { v.h.on = false; },
-    beam(kit, e, u) { const L = Math.hypot(e.x1 - e.x0, e.z1 - e.z0); hlLen.set(u.id, L); kit.scorch(e.x1, e.z1, 1.6, 3, 1.3, HL_RED); kit.sparks(e.x1, 0.6, e.z1, kit.N(4), HL_GOLD, 6, 0.4, 0.06, 1, 10); return true; },
-  },
-};
-
 // ---- Khỉ Pháo: gold, violet accent --------------------------------------------------------------------------------------
 const KP_GOLD = C(2.6, 1.75, 0.3), KP_VIO = C(1.3, 0.35, 2.5), KP_DEEP = 0x2c0f4a;
 // a grinning bomb: a violet ball, a gold band, a gold grin, a fuse spark
@@ -467,4 +369,4 @@ const khiphao = {
   },
 };
 
-export const B8 = { ...trau, ...tho, ...hoalong, ...khiphao };   // Khỉ Đột moved to looks-k1.js (Hulk kit remake), Đom Đóm to looks-k13.js (kit lane K13)
+export const B8 = { ...trau, ...tho, ...khiphao };   // Khỉ Đột moved to looks-k1.js (Hulk kit remake), Đom Đóm to looks-k13.js (kit lane K13), Hỏa Long to looks-k15.js (kit lane k15)

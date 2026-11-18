@@ -15,7 +15,19 @@ export const OLD_HADES = {
     { id: 'cuaamphu', cd: 44, do: 'zone', at: 'target', cast: 14, radius: 6, dur: 4, pull: 6, dps: 220, vis: 'magnet' },
   ],
 };
-const OLD = { hades: OLD_HADES };
+// The batch-1 Hỏa Long kit (pierce passive, Tia Tụ charge weapon, Quá Tải prime, Màn Sáng screen wall, Thiên Hỏa Tuyến sweep):
+// hoalong plays the p4 lava kit now, so the charge-weapon tests and bots run on this fixture.
+export const OLD_HOALONG = {
+  role: 'Pháo tia', roleKey: 'lancer', hp: 1750, speed: 5.6, armor: 0.08, accel: 0.9, turn: 8, towerMul: 0.6,
+  passive: { do: 'pierce' },
+  weapon: { name: 'Tia Tụ', cd: 1.1, charge: { min: 0.25, max: 1.3, hold: 0.6, dmg: [100, 740], range: [13, 22], width: [0.5, 0.9], move: 0.7 }, range: 22, vis: 'lance' },
+  skills: [
+    { id: 'quatai', cd: 9, do: 'buff', prime: 4 },
+    { id: 'mansang', cd: 14, do: 'wall', screen: true, cast: 3.5, n: 5, r: 0.75, gap: 1.35, dur: 5 },
+    { id: 'thienhoa', cd: 46, do: 'sweep', windup: 0.5, dur: 2.6, range: 20, width: 1.2, dps: 520, turn: 1.4, move: 0.3 },
+  ],
+};
+const OLD = { hades: OLD_HADES, hoalong: OLD_HOALONG };
 // Swap the old kit onto every unit of that mech (before the first step); the old hp comes with it.
 export function oldKit(m, mech) {
   const K = OLD[mech];
@@ -112,6 +124,59 @@ export function runK15Cases(check, section) {
     check('k15q another foe stepping in is feared (runs from Hades)', far.locT > 0 && far.locK === 2, `${far.locT} ${far.locK}`);
   }
   botsCast(check, 'k15r bots cast every skill of hades in 2 x 90 s', ['hades'], ['trau', 'ung']);
+  // ---- Hỏa Long ----
+  section('k15 kit lane k15: Hỏa Long (p4 燎) ported from the owner clip (literal expected values)');
+  const HL = MECHS.hoalong;
+  {
+    // Phá Ngục Viêm Nhận: a 225 shield for 3 s, weapon hits halved, three blows of 225 with a 2.6 m burst and 75% lifesteal, each cutting E 10%
+    const m = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 5, 0], [R('ung', 1), 6.5, 1]]), [a, v, b] = m.units;
+    a.cd.s2 = 10; a.hp = 1000;
+    go(m, 1, () => ({ 0: { s1: true } }));
+    check('k15s the press: shield 225 for 3 s, guard 0.5 vs weapon, three empowered blows armed, cooldown 10', a.shield === 225 && a.gvF === 0.5 && a.gvK === 'weapon' && a.shotN === 3 && near(a.cd.s1, 10, 1e-9), `${a.shield} ${a.gvF} ${a.gvK} ${a.shotN}`);
+    const cd0 = a.cd.s2, ev = go(m, 15, (i) => ({ 0: { fire: i === 0, aim: 0 } })), hits = only(ev, 'hit', (e) => e.by === 0 && e.amt > 0);
+    check('k15t the first blow: 225 x armor on the target and a burst on the foe beside it, healed, E cut by 1 s (the blow that hit, not its burst)', hits.length === 2 && hits.some((e) => e.id === 1 && near(e.amt, 225 * UF, 1e-6)) && a.hp > 1000 + 225 * UF * 0.75 && near(a.cd.s2, cd0 - 15 * TICK - 1, 1e-6) && a.shotN === 2, `${hits.map((e) => e.id + ':' + e.amt)} hp ${a.hp} cd ${a.cd.s2}`);
+  }
+  {
+    // the lava trail: puddles every 1.4 m walked for 2 s after a press; a foe on the path is lit once per puddle
+    const m = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 4, 0, 0]]), [a, v] = m.units;
+    go(m, 1, () => ({ 0: { s1: true } }));
+    go(m, 60, () => ({ 0: { mx: 1, aim: 0 } }));
+    const pud = m.zones.filter((z) => z.hlBurn);
+    check('k15u walking 2 s leaves puddles (vis hlLava) 1.4 m apart, none after the 2 s', pud.length >= 5 && pud.length <= 9 && pud.every((z) => z.vis === 'hlLava' && z.r === 1.3), `${pud.length}`);
+    check('k15v the foe standing on the path burns (several stacks, 37 a stack, by hoalong)', v.burnN >= 2 && v.burnDps === 37 && v.burnBy === 0, `${v.burnN} ${v.burnDps}`);
+    check('k15w one foe burning: hoalong does x1.1 and takes 10% less', near(a.dmgF, 1.1, 1e-9) && near(a.guardF, 0.1, 1e-9) && a.hlN === 1, `${a.dmgF} ${a.guardF}`);
+  }
+  {
+    // five stacks: confused 1 s, once per burn
+    const m = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 0.5, 0]]), [a, v] = m.units;
+    v.burnN = 4; v.burnT = 2; v.burnBy = 0; v.burnDps = 37;
+    go(m, 1, () => ({ 0: { s1: true } })); go(m, 1);
+    check('k15x the fifth stack from a puddle: confused 1 s', v.burnN === 5 && v.locK === 1 && v.locT > 0.9, `${v.burnN} ${v.locK} ${v.locT}`);
+  }
+  {
+    // a foe dying while it burns bursts: 150 + 37 x 3 stacks = 261 true damage on its neighbour
+    const m = arena([[R('hoalong', 0), -10, 0], [R('ung', 1), 4, 0], [R('ung', 1), 5.5, 0]]), [a, v, b] = m.units;
+    v.burnN = 3; v.burnT = 2; v.burnBy = 0; v.burnDps = 37; v.hp = 1;
+    const ev = go(m, 2);
+    check('k15y the burning foe dies and bursts (explode lava): 261 true damage on the one beside it', only(ev, 'explode', (e) => e.why === 'lava').length === 1 && near(UNG.hp - b.hp, 261, 1e-6), `${UNG.hp - b.hp}`);
+  }
+  {
+    // Viêm Lưu Trụy Tinh: 0.3 s wind-up, a jump to the cursor, 344 (falloff), knocked up 0.5 s, slowed; haste x2 for 2.75 s from the press
+    const m = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    go(m, 1, () => ({ 0: { s2: true, tx: 6, tz: 0 } }));
+    check('k15z the press: haste x2, the wind-up runs', a.hasteF === 2 && !!a.cast, `${a.hasteF}`);
+    const ev = go(m, 30), hit = only(ev, 'hit', (e) => e.id === 1 && e.amt > 10);   // the lava under it burns too
+    check('k15za lands on the foe: one hit of 344 x falloff x armor, knocked up, slowed 50%', hit.length === 1 && hit[0].amt > 344 * 0.9 * UF && hit[0].amt <= 344 * UF + 1e-6 && v.slowF === 0.5 && Math.hypot(a.x - 6, a.z) < 1.2, `${hit.map((e) => e.amt)} x ${a.x}`);
+  }
+  {
+    // Viêm Chi Thẩm Phán: 2 s of heat, then 1088 in 5 m (falloff); a stun only within 2.5 m
+    const m = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 2, 0], [R('ung', 1), 0, 4]]), [a, v, b] = m.units;
+    const ev = go(m, 59, (i) => ({ 0: { ult: i === 0 } }));
+    check('k15zb nothing for the first 2 s', only(ev, 'hit', (e) => e.by === 0).length === 0 && a.tfT > 0);
+    go(m, 3);
+    check('k15zc the blast: 1088 x 0.8 x armor at 2 m (stunned 1.5 s), 1088 x 0.6 x armor at 4 m (not stunned)', near(UNG.hp - v.hp, 1088 * 0.8 * UF, 1) && near(UNG.hp - b.hp, 1088 * 0.6 * UF, 1) && v.stunT > 1.3 && !(b.stunT > 0), `${UNG.hp - v.hp} ${UNG.hp - b.hp} stun ${v.stunT} ${b.stunT}`);
+  }
+  botsCast(check, 'k15zd bots cast every skill of hoalong in 2 x 90 s', ['hoalong'], ['trau', 'ung']);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

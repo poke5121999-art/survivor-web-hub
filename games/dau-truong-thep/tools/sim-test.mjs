@@ -13,7 +13,7 @@ import { runK10Cases, OLD_BOCAP, OLD_BONGUA, oldK10 } from './k10-cases.mjs';   
 import { runK6Cases } from './k6-cases.mjs';   // kit lane K6: section K6
 import { runK13Cases, oldK13, OLD_DOMDOM, OLD_DUONGTIEN } from './k13-cases.mjs';   // kit lane K13: section K13, old domdom/duongtien/mucma kits as fixtures
 import { runK14Cases, oldKit14 } from './k14-cases.mjs';   // kit lane k14: section 62, old gilgamesh/suatrang/chuottui kits as fixtures
-import { runK15Cases, oldKit as oldKit15 } from './k15-cases.mjs';   // kit lane k15: section k15, old hades/hoalong/kiemthan kits as fixtures
+import { runK15Cases, oldKit as oldKit15, OLD_HOALONG } from './k15-cases.mjs';   // kit lane k15: section k15, old hades/hoalong/kiemthan kits as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -2045,6 +2045,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
   {
     const onTower = (mech, script) => {
       const m = nhaM([solo('trau', 0), solo(mech, 1)]);
+      if (mech === 'hoalong') oldKit15(m, 'hoalong');   // the charge beam lives on as the fixture OLD_HOALONG (k15-cases.mjs)
       const T = m.towers[1], S = m.units[1], p = ringSpot(m, T, 9, 0.5, true);
       spend(S); put(S, p[0], p[1]); S.aim = toward(S, T);
       const ev = run(m, 24, (i) => [IN, inp({ aim: toward(S, T), ...script(i) })]);
@@ -2053,9 +2054,9 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     const th = onTower('thancong', (i) => ({ s2: i === 0 }));
     const DX = MECHS.thancong.skills[1].dmg * MECHS.thancong.towerMul;
     check('towerMul: thancong Dan Xuyen dmg x its towerMul on a sub tower of the 1v1 row (3600)', near(th.hp, TW.sub - DX, 1e-9) && th.amt.join() === String(DX), `hp ${th.hp} amt ${th.amt}`);
-    const HLB = MECHS.hoalong.weapon.charge.dmg[1];
+    const HLB = OLD_HOALONG.weapon.charge.dmg[1];
     const hl = onTower('hoalong', (i) => ({ s1: i === 0, fire: i === 1 }));
-    check(`towerMul: hoalong primed full beam ${HLB} x ${MECHS.hoalong.towerMul} = ${HLB * MECHS.hoalong.towerMul} on a sub tower of the 1v1 row (3600)`, near(hl.hp, TW.sub - HLB * MECHS.hoalong.towerMul, 1e-9) && hl.amt.join() === String(HLB * MECHS.hoalong.towerMul), `hp ${hl.hp} amt ${hl.amt}`);
+    check(`towerMul: hoalong primed full beam ${HLB} x ${OLD_HOALONG.towerMul} = ${HLB * OLD_HOALONG.towerMul} on a sub tower of the 1v1 row (3600)`, near(hl.hp, TW.sub - HLB * OLD_HOALONG.towerMul, 1e-9) && hl.amt.join() === String(HLB * OLD_HOALONG.towerMul), `hp ${hl.hp} amt ${hl.amt}`);
   }
   {
     const lvMatch = (mech, lv, target = 'ung') => arena([[R(mech, 0, lv), 0, 0], [R(target, 1), 8, 0]]);
@@ -2459,30 +2460,31 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     const evo = go(own, 25, () => ({ 5: { mx: -1, aim: 0 } }));
     check('wire: a mech of the wire owner team walks across freely (no zap, full hp, wire still has 3 charges)', own.units[5].hp === TRAU.hp && own.units[5].x < -1 && only(evo, 'zap').length === 0 && own.zones.some((z) => z.kind === 'wire' && z.left === 3), `x ${own.units[5].x} hp ${own.units[5].hp}`);
   }
+  // charge weapon, Quá Tải, Màn Sáng, Thiên Hỏa Tuyến: hoalong's batch-1 kit, now the fixture OLD_HOALONG (k15-cases.mjs)
   {
     const tap = (hold) => {
-      const m = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 12, 0], [R('ung', 1), 14, 0]]);
+      const m = oldKit15(arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 12, 0], [R('ung', 1), 14, 0]]), 'hoalong');
       const ev = go(m, hold + 6, (i) => ({ 0: { fire: i < hold } }));
       return { m, ev };
     };
-    const CH = MECHS.hoalong.weapon.charge;
+    const CH = OLD_HOALONG.weapon.charge;
     const t = tap(8);
     check('charge: a tap held 8 ticks (0.267 s, just past min 0.25) fires the min beam, dmg0 + (dmg1 - dmg0) x 0.0159 at range 13.14: the ung at 12 m is hit, the one at 14 m is not', near(t.m.units[1].hp, 1700 - (CH.dmg[0] + (CH.dmg[1] - CH.dmg[0]) * ((8 / 30 - CH.min) / (CH.max - CH.min))), 1e-3) && t.m.units[2].hp === 1700 && only(t.ev, 'beam').length === 1, `${t.m.units.map((u) => u.hp)}`);
     const early = tap(5);
     check('charge: released below min (5 ticks = 0.167 s) fires nothing and resets the charge', only(early.ev, 'fire').length === 0 && early.m.units[1].hp === 1700 && early.m.units[0].charge === 0, `fires ${only(early.ev, 'fire').length}`);
-    const full = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 21, 0]]);
+    const full = oldKit15(arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 21, 0]]), 'hoalong');
     let fired = -1;
     for (let i = 0; i < 100 && fired < 0; i++) { step(full, [inp({ fire: true }), inp({ aim: Math.PI })]); if (full.events.some((e) => e.t === 'fire')) fired = i; }
     check('charge: held fire auto-releases after max 1.3 + hold 0.6 = 1.9 s (tick 56 to 58) with the full beam at range 22', fired >= 56 && fired <= 58 && near(full.units[1].hp, 1700 - CH.dmg[1], 1e-9), `fired at ${fired} hp ${full.units[1].hp}`);
-    const rel = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 21, 0]]);
+    const rel = oldKit15(arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 21, 0]]), 'hoalong');
     go(rel, 45, (i) => ({ 0: { fire: i < 40 } }));
     check('charge: releasing at full charge (40 ticks > 1.3 s) also gives the full beam', near(rel.units[1].hp, 1700 - CH.dmg[1], 1e-9), `hp ${rel.units[1].hp}`);
-    const pr = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 21, 0]]);
+    const pr = oldKit15(arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 21, 0]]), 'hoalong');
     const evp = go(pr, 3, (i) => ({ 0: { s1: i === 0, fire: i === 1 } }));
     check('charge: Qua Tai makes the next press a full beam at once (the tick after the cast) and is used up', near(pr.units[1].hp, 1700 - CH.dmg[1], 1e-9) && only(evp, 'beam').length === 1 && pr.units[0].primeT === 0, `hp ${pr.units[1].hp} prime ${pr.units[0].primeT}`);
   }
   {
-    const cast = () => arena([[R('hoalong', 0), -4, 0], [R('ung', 1), 4, 0], [R('tho', 0), -7, 0.2]]);
+    const cast = () => oldKit15(arena([[R('hoalong', 0), -4, 0], [R('ung', 1), 4, 0], [R('tho', 0), -7, 0.2]]), 'hoalong');
     const m = cast();
     go(m, 1, () => ({ 0: { s2: true } }));
     const ev = go(m, 8, (i) => ({ 1: { fire: i === 0 } }));
@@ -2497,14 +2499,14 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('screen: movement is free for everybody (the enemy walks through to x < -6, the ally to x > 4)', w.units[1].x < -6 && w.units[2].x > 4, `${w.units[1].x} / ${w.units[2].x}`);
   }
   {
-    const s = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 10, 0]]);
+    const s = oldKit15(arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 10, 0]]), 'hoalong');
     const ev = go(s, 94, (i) => ({ 0: { ult: i === 0 } }));
     const lost = 1700 - s.units[1].hp, pulses = only(ev, 'hit', (e) => e.id === 1).length;
     check('sweep: a static ung on the line takes 520 x 2.6 = 1352 over the channel, within one 104 pulse', Math.abs(lost - 1352) <= 104 && near(lost, 104 * pulses, 1e-9), `lost ${lost} pulses ${pulses}`);
-    const w = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 10, 0]]);
+    const w = oldKit15(arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 10, 0]]), 'hoalong');
     const ew = go(w, 18, (i) => ({ 0: { ult: i === 0 } }));
     check('sweep: nothing is fired during the 0.5 s wind-up (no beam, no damage in the first 18 ticks)', only(ew, 'beam').length === 0 && w.units[1].hp === 1700, `beams ${only(ew, 'beam').length}`);
-    const t = arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 30, 15]]);
+    const t = oldKit15(arena([[R('hoalong', 0), 0, 0], [R('ung', 1), 30, 15]]), 'hoalong');
     go(t, 1, () => ({ 0: { ult: true, aim: 0 } }));
     go(t, 30, () => ({ 0: { aim: Math.PI } }));
     check('sweep: during the channel the turret follows at 1.4 rad/s (30 ticks turn 1.4 rad)', near(t.units[0].aim, 1.4, 1e-9), `aim ${t.units[0].aim}`);
@@ -2626,8 +2628,8 @@ section('39 burst kits delete a squishy healer, tanks resist (Addendum 13)');
     check('39b the same beam does not delete a full-hp Trau Sat (2850 hp, he lives with 1000 hp)', m.units[1].alive && m.units[1].hp > 900 && m.units[1].hp < 1100, `hp ${m.units[1].hp}`);
   }
   {
-    const need = MECHS.hoalong.weapon.charge.dmg[1];
-    const m = duel2('hoalong', 'domdom', 14);
+    const need = OLD_HOALONG.weapon.charge.dmg[1];
+    const m = oldKit15(duel2('hoalong', 'domdom', 14), 'hoalong');   // old kit fixture OLD_HOALONG (k15-cases.mjs)
     const hits = fire(m, 12, (i) => ({ s1: i === 0, fire: i > 0 })).filter((e) => e.t === 'hit' && e.by === 0);
     const top = Math.max(...hits.map((e) => e.amt));
     check(`39c a primed full Hoa Long beam (${need}, ignores armour) takes at least 40% of a full-hp Dom Dom (1700 hp) at level 0`, need === 740 && top >= 0.4 * MECHS.domdom.hp, `top ${top}`);
