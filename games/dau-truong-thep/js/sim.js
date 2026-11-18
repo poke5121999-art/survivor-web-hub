@@ -564,7 +564,7 @@ function stepUnit(m, u, inp) {
     const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.next : null;
     if (!nhSlotOk(u, i)) continue;   // kit lane K18: only the spin while reeling
     if (!inp[key] || (!skillReady(u, i) && !re && !nx)) continue;
-    const s = nx ? nx.row || u.def.skills[i].next.row : u.def.skills[i], at = m.events.length, wasHidden = u.stealthT;   // kit lane K13: nx.row, a later stage of a chain
+    const s = nx ? k16Next(u, nx.row || u.def.skills[i].next.row) : u.def.skills[i], at = m.events.length, wasHidden = u.stealthT;   // kit lane K13: nx.row, a later stage of a chain; k16Next: kit lane k16 (aoqBig)
     if (u.rootT > 0 && ROOT_BLOCKS[s.do] && !s.rootOk) continue;   // kit-remake G5 An Dương Vương: rootOk
     m.events.push({ t: 'skill', id: u.id, slot: i, skill: s.id, x: u.x, z: u.z, a: u.aim });
     u.stealthT = 0;
@@ -577,6 +577,7 @@ function stepUnit(m, u, inp) {
     // next.onHit: the second stage is armed only once this cast has hit an enemy (see damage); otherwise at once. It exists before
     // the cast runs, so a first stage that hits at once (warp.land) arms it in the same tick.
     const nextWas = u.next;
+    if (s.next) k16Park(u, i);   // kit lane k16: an armed second stage of another slot waits instead of being lost
     if (s.next) u.next = { slot: i, src: s.id, row: s.next.row, t: s.next.onHit ? (s.delay || 0) + 0.6 : s.next.window, armed: !s.next.onHit, up: false, target: -1 };
     // cdCut / self count this press's hits from zero; a cut of this slot by a hit inside the cast waits for its cooldown (pressing)
     if (s.cdCut || s.self) u.hitN[s.id] = 0;
@@ -1443,7 +1444,7 @@ const CAST = {
     // to: 'foe' | 'ally': fly to the unit under the cursor (pickUnit); nobody there, the skill does not happen.
     let [tx, tz] = aimPoint(u, inp, s.cast);
     if (s.to) {
-      const o = pickUnit(m, u, inp, s, (o) => (s.to === 'foe' ? o.team !== u.team && !(s.tthHold && o.tthHT > 0) : o.team === u.team));
+      const o = s.aoqNear ? k16Near(m, u, s) : pickUnit(m, u, inp, s, (o) => (s.to === 'foe' ? o.team !== u.team && !(s.tthHold && o.tthHT > 0) : o.team === u.team));   // aoqNear: kit lane k16
       if (!o) return false;
       tx = o.x; tz = o.z;
       if (s.tthHold) tthPick(m, u, s, o, inp);   // kit-remake G5 Tào Tháo
@@ -2046,6 +2047,7 @@ function stepShots(m) {
     // splashHit (weapon row): the burst goes off only round a mech it hit, not at the end of its range or on a wall
     if (s.splash && what !== 'dome' && owner && (!s.splashHit || what === 'unit')) areaDamage(m, owner, s.x, s.z, s.splash, dmg * 0.6, s.fx ? { fx: s.fx } : null, hitUnit);
     if (what === 'unit' && owner && s.src === 'w') krSplashHeal(m, owner, s);   // kit-remake G5 Kurumi: the burst heals allies
+    if (what === 'unit' && owner && s.src === 'w') k16Shot(m, owner);   // kit lane k16: Lạc Long Quân's water shells heal and stack
     if (s.hook && s.hook.self && owner && owner.alive && (what === 'wall' || what === 'unit' || what === 'prop' || what === 'tower')) reelSelf(m, owner, s.x, s.z, hitUnit || hitProp || hitTower, s.hook);
     m.events.push({ t: 'impact', vis: s.vis, on: what, x: s.x, z: s.z, dx: s.dx, dz: s.dz, splash: s.splash });
     m.shots.splice(i, 1);
@@ -4403,10 +4405,11 @@ const nhFree = (u) => !!(u.dash && u.dash.nh);
 const nhSlotOk = (u, i) => !u.dash || (nhFree(u) && !!u.def.skills[i].nhCombo);
 /* ===== end kit lane K18 ===== */
 /* ===== kit lane k16 (feat/dtt-k16; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-b.md kynhong, laclong, loi) =====
-   One-line hooks elsewhere are marked "kit lane k16". New state: unit ntsN, ntsT (Natsu). */
-function k16Clear(u) { u.ntsN = 0; u.ntsT = 0; }
+   One-line hooks elsewhere are marked "kit lane k16". New state: unit ntsN, ntsT (Natsu); aoqPark (Lạc Long Quân: a parked second stage). */
+function k16Clear(u) { u.ntsN = 0; u.ntsT = 0; u.aoqPark = null; }
 function k16Tick(m, u) {
   if (u.ntsT > 0) u.ntsT = Math.max(0, u.ntsT - TICK);
+  k16Unpark(u);
   const tf = u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
   if (tf && tf.ntsLost && u.hp < u.maxHp) heal(m, u, (u.maxHp - u.hp) * tf.ntsLost * TICK, u, true);
 }
@@ -4434,6 +4437,39 @@ function k16Armor(u) {
   if (!P) return 0;
   return P.armor * u.ntsN + (u.ntsT > 0 ? P.burst.armor * u.ntsT / P.burst.dur : 0);
 }
+// -- kit-remake G5 Lạc Long Quân: leap `aoqNear: true` with `to: 'foe'` (the leap lands on the nearest visible, targetable enemy within
+//    cast of the caster, a tank (roleKey 'tank') before any other; nobody: no cast), transform `aoqHeal: f` with `stack {on: 'aoqShot'}`
+//    (while it runs, each main-weapon shell that hits a mech heals f of the lost hp and adds a G3 transform stack), second stage
+//    `aoqBig {at, row}` (with at least `at` transform stacks the recast plays `row` instead; its own `then` follows as usual).
+function k16Near(m, u, s) {
+  let best = null, bd = 1e9;
+  for (const o of m.units) {
+    if (o.team === u.team || !o.alive || o.invulnT > 0 || !visibleTo(m, o, u.team)) continue;
+    const d = Math.sqrt(dist2(o.x, o.z, u.x, u.z));
+    if (d > s.cast) continue;
+    const k = d - (o.def.roleKey === 'tank' ? 100 : 0);
+    if (k < bd) { bd = k; best = o; }
+  }
+  return best;
+}
+function k16Shot(m, u) {
+  const tf = u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
+  if (!tf || !tf.aoqHeal || !u.alive) return;
+  if (u.hp < u.maxHp) heal(m, u, (u.maxHp - u.hp) * tf.aoqHeal, u, true);
+  if (tf.stack && tf.stack.on === 'aoqShot') tfStack(u, tf);
+}
+// A press of a row with `next` used to overwrite an armed second stage of another slot (Lạc Long Quân's E inside his ult's recast
+// window): that one is parked in `u.aoqPark` (its window keeps running) and comes back once the new one is over.
+function k16Park(u, i) { if (u.next && u.next.slot !== i && u.next.armed) u.aoqPark = u.next; }
+function k16Unpark(u) {
+  const P = u.aoqPark;
+  if (!P) return;
+  if (u.next === P) { u.aoqPark = null; return; }
+  P.t -= TICK;
+  if (P.t <= 0) u.aoqPark = null;
+  else if (!u.next) { u.next = P; u.aoqPark = null; }
+}
+const k16Next = (u, row) => (row.aoqBig && u.tfT > 0 && u.tfN >= row.aoqBig.at ? row.aoqBig.row : row);
 // -- the G3 transform patch, cached: k16PatchDef(base, s) is the def with s.patch merged into the other rows, one object per (base, s),
 //    so a guest's mirror (k16Mirror, called by netstate as tfT arrives) swaps in the very def the host plays.
 const PATCHED = new WeakMap();

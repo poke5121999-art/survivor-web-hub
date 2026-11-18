@@ -1,6 +1,7 @@
 // Looks, batch 7: the Vietnamese legends. Lạc Long Quân, Sơn Tinh, Thủy Tinh, An Dương Vương, Kim Quy, Hồ Ly. Render only
 // (see looks.js for the hooks). One main colour and one accent per tank, one strong shape per skill:
-//   Lạc Long Quân  azure water dragon, gold horns           (clip 68.敖广 p71: blue water shell, water jet, blue dragon, water sphere)
+//   Lạc Long Quân  looks moved to looks-k16.js with the kit ported from clip 68.敖广 p71 (kit lane k16); the water dragon's head and
+//                  body below stay here, exported for it
 //   Sơn Tinh       moss-green mountain rock, amber cracks    (clip 11.山精 p14: boulder with a gold rim, rock golem, rock-dust cloud)
 //   Thủy Tinh      looks moved to looks-k7.js with the kit ported from clip 67.海妖 p70 (kit lane K7)
 //   (An Dương Vương moved to looks-k9.js with the kit ported from clip p6)
@@ -14,7 +15,7 @@ const R = (a, b) => a + Math.random() * (b - a);
 const keep = (g) => { g.userData.keep = true; return g; };
 const basic = (c, add, op = 1) => new THREE.MeshBasicMaterial({ color: c, toneMapped: false, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending });
 function held(kit, objs) { const h = { on: true }; own(kit, objs, 1e9, () => h.on); return h; }
-function fadeAll(g, k) { g.traverse((m) => { if (m.material) { if (m.userData.op === undefined) m.userData.op = m.material.opacity; m.material.opacity = m.userData.op * k; } }); }
+export function fadeAll(g, k) { g.traverse((m) => { if (m.material) { if (m.userData.op === undefined) m.userData.op = m.material.opacity; m.material.opacity = m.userData.op * k; } }); }
 const flat = (pts, mirror = true) => {
   const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]);
   for (const p of pts.slice(1)) s.lineTo(p[0], p[1]);
@@ -63,7 +64,7 @@ const llHeadGeo = lay(flat([[1.3, 0], [1.12, 0.2], [0.78, 0.27], [0.55, 0.2], [0
 const llHornGeo = lay(flat([[0.1, 0.24], [-0.25, 0.42], [-0.6, 0.66], [-0.85, 0.74], [-0.62, 0.55], [-0.28, 0.3], [0.05, 0.14]], false), 1);
 const llHornGeo2 = keep(llHornGeo.clone().scale(1, 1, -1));
 const llEyeGeo = keep(new THREE.SphereGeometry(0.1, 8, 6));
-function dragonHead() {
+export function dragonHead() {
   const g = new THREE.Group();
   const halo = new THREE.Mesh(llHeadGeo, basic(LL_BLUE, true, 0.55)); halo.scale.setScalar(1.25); halo.position.y = -0.03;
   const skin = new THREE.Mesh(llHeadGeo, basic(LL_SKIN, false, 0.96));
@@ -77,7 +78,7 @@ function dragonHead() {
 // the dragon's body: a soft azure ribbon (trail) with a pale belly line, wiggling across the path
 // the dragon's body from the tail p0 to the neck p1: a solid azure ribbon swaying across the path, thick behind the head, with
 // a pale belly line; ends(t) -> [p0, p1] or null (then it fades out over 0.3 s)
-function dragonBody(kit, ends, w, life, amp) {
+export function dragonBody(kit, ends, w, life, amp) {
   const n = 28, body = ribbonMesh(n, LL_SKIN, false, 0.95), belly = ribbonMesh(n, LL_BLUE, true, 0.85), fin = ribbonMesh(n, LL_FOAM, true, 0.7);
   let last = null, dead = -1;
   own(kit, [body, belly, fin], life, (t) => {
@@ -101,78 +102,6 @@ const RIPPLE_FRAG = `uniform vec3 uC, uF; uniform float uT, uA; varying vec2 vUv
     vec3 c = mix(uC, uF, clamp(w * 0.55 + rim * 0.6, 0.0, 1.0));
     gl_FragColor = vec4(c * a, a);
   }`;
-const laclong = {
-  // Vòi Rồng: a water dragon's head leads a column of sea water down the lane, a foam line down its back
-  llJet: {
-    pal: [LL_BLUE, LL_FOAM], hitR: 2,
-    skill(kit, e, u) { const x = u.x + Math.cos(e.a) * 1.4, z = u.z + Math.sin(e.a) * 1.4; kit.glow(x, 1.3, z, LL_BLUE, 0.2, 2.6, 0.9, kit.K.GLOW, 1.2); kit.sparks(x, 1.3, z, kit.N(10), LL_FOAM, 7, 0.35, 0.06, 0.5, 6, Math.cos(e.a), Math.sin(e.a), 0.7); return true; },
-    shotMake(kit, s) {
-      const a = Math.atan2(s.dz, s.dx), h = dragonHead(); h.scale.setScalar(2.4);
-      const v = { h, hold: held(kit, [h]), a, x: s.x, z: s.z, x0: s.x, z0: s.z, t: 0, live: true };
-      dragonBody(kit, () => (v.live ? [[v.x0 + (v.x - v.x0) * 0.08, 1.1, v.z0 + (v.z - v.z0) * 0.08], [v.x, 1.25, v.z]] : null), 1.35, 1.6, 0.6);
-      return v;
-    },
-    shot(kit, v, s, x, y, z, dt) {
-      v.t += dt; v.x = x; v.z = z; v.h.position.set(x + Math.cos(v.a) * 0.6, 1.35, z + Math.sin(v.a) * 0.6); v.h.rotation.y = -v.a + Math.cos(v.t * 16) * 0.12;
-      if (Math.random() < 0.6) kit.glow(x + R(-0.8, 0.8), R(0.6, 1.8), z + R(-0.8, 0.8), LL_FOAM, 0.35, R(0.2, 0.4), 1, kit.K.SPARK, 0.4, 0, R(1, 3), 0);
-      return true;
-    },
-    shotEnd(kit, v, s, x, z) {
-      v.live = false; v.hold.on = false;
-      shell(kit, x, 1.1, z, 1.6, LL_BLUE, { c2: LL_FOAM, inv: 1.4, core: 0.8, life: 0.4, grow: 0.06 });
-      kit.sparks(x, 1.1, z, kit.N(14), LL_FOAM, 8, 0.45, 0.07, 0.8, 10); kit.ring(x, z, 2.2, LL_BLUE, 0.35);
-    },
-  },
-  // Xoáy Nước: sea rings ripple out from the spot; the dragon circles its rim, chasing its own tail
-  llWhirl: {
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const d = disc(kit, RIPPLE_FRAG, z.x, z.z, z.r, { uC: { value: n3(LL_BLUE) }, uF: { value: n3(LL_FOAM) } });
-      const body = ribbonMesh(30, LL_SKIN, false, 0.94), belly = ribbonMesh(30, LL_BLUE, true, 0.8), h = dragonHead(); h.scale.setScalar(1.5);
-      const hold = held(kit, [d, body, belly, h]);
-      return { d, body, belly, h, hold, a: (z.id || 0) * 1.7 };
-    },
-    zone(kit, v, z, dt) {
-      const k = Math.min(1, z.age / 0.3), end = Math.min(1, (z.dur - z.age) * 2.5), u = v.d.material.uniforms, rr = z.r * 0.82;
-      u.uT.value = z.age; u.uA.value = k * end; v.d.position.set(z.x, 0.13, z.z);
-      v.a += dt * 2.2;
-      const pts = [], n = 30, span = 4.6 * (0.4 + 0.6 * k);
-      for (let i = 0; i < n; i++) { const f = i / (n - 1), b = v.a - span * f, r2 = rr + Math.sin(f * 18 - z.age * 6) * 0.25; pts.push([z.x + Math.cos(b) * r2, 0.9 + 0.3 * Math.sin(f * 9 + z.age * 4), z.z + Math.sin(b) * r2]); }
-      fillRibbon(v.body, pts, (f) => 0.15 + 0.6 * Math.sin(Math.min(1, f * 1.15 + 0.15) * Math.PI) * (1 - 0.4 * f));
-      fillRibbon(v.belly, pts.map((p) => [p[0], p[1] + 0.04, p[2]]), (f) => 0.05 + 0.16 * Math.sin(Math.min(1, f + 0.1) * Math.PI));
-      v.h.position.set(z.x + Math.cos(v.a + 0.12) * rr, 1.1, z.z + Math.sin(v.a + 0.12) * rr); v.h.rotation.y = -(v.a + Math.PI / 2 + 0.25);
-      fadeAll(v.h, end); v.body.material.opacity = 0.94 * end; v.belly.material.opacity = 0.8 * end;
-      if (Math.random() < dt * 18) { const b = Math.random() * 6.283, r2 = z.r * R(0.3, 0.95); kit.glow(z.x + Math.cos(b) * r2, 0.4, z.z + Math.sin(b) * r2, LL_FOAM, 0.5, R(0.3, 0.55), 0.8, kit.K.SPARK, 0.6, -Math.sin(b) * 2, R(0.5, 1.5), Math.cos(b) * 2); }
-    },
-    zoneDrop(kit, v) { v.hold.on = false; },
-  },
-  // Long Quân Giá Lâm: he becomes the dragon: a great azure body coils along his charge, horned head in front; where he stops
-  // the dragon crashes into a churning sphere of sea water
-  llDragon: {
-    pal: [LL_BLUE, LL_FOAM], hitR: 2.2,
-    skill(kit, e, u) {
-      const a = e.a, ca = Math.cos(a), sa = Math.sin(a), h = dragonHead(); let done = false, t0 = -1;
-      const on = (t) => u.alive && t < 0.8 && (t < 0.06 || u.dash) && !done;
-      const x0 = u.x - ca * 1.5, z0 = u.z - sa * 1.5;
-      dragonBody(kit, (t) => (on(t) ? [[x0, 1.1, z0], [u.x + ca * 0.4, 1.4, u.z + sa * 0.4]] : null), 2.3, 1.4, 1.1);
-      own(kit, [h], 1.3, (t) => {
-        if (!u.alive) return false;
-        if (!done && t > 0.06 && !u.dash) {
-          done = true; t0 = t; const x = u.x + ca * 1.5, z = u.z + sa * 1.5;
-          shell(kit, x, 1.4, z, 3.4, LL_BLUE, { c2: LL_FOAM, p: 1.3, core: 0.22, bands: 1.6, life: 0.7, grow: 0.12 });
-          kit.sparks(x, 1.5, z, kit.N(22), LL_FOAM, 11, 0.6, 0.08, 1.2, 12); kit.ring(x, z, 3.6, LL_BLUE, 0.45); kit.flash(x, 2, z, LL_BLUE, 60, 0.3); kit.kick(x, z, 0.8);
-        }
-        h.position.set(u.x + ca * 1.6, 1.6, u.z + sa * 1.6); h.rotation.y = -a + Math.cos(t * 13) * 0.15; h.scale.setScalar(2.9);
-        if (done) fadeAll(h, Math.max(0, 1 - (t - t0) / 0.3));
-        if (!done && Math.random() < 0.7) kit.glow(u.x + R(-1.2, 1.2), R(0.4, 2.2), u.z + R(-1.2, 1.2), LL_FOAM, 0.4, R(0.25, 0.5), 1, kit.K.SPARK, 0.5, -ca * 4, R(1, 3), -sa * 4);
-        return !done || t - t0 < 0.3;
-      });
-      kit.flash(u.x, 1.6, u.z, LL_BLUE, 40, 0.25);
-      return true;
-    },
-  },
-};
-
 // ===== Sơn Tinh: the mountain spirit, moss-green rock, amber cracks ========================================================
 const ST_MOSS = C(0.75, 2.2, 0.3), ST_AMB = C(2.6, 1.55, 0.3), ST_DUST = C(0.5, 0.42, 0.3);
 const hash = (x, y, z) => { const s = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719) * 43758.5453; return s - Math.floor(s); };
@@ -376,4 +305,4 @@ const holy = {
   },
 };
 
-export const B7 = { ...laclong, ...sontinh, ...kimquy, ...holy };
+export const B7 = { ...sontinh, ...kimquy, ...holy };

@@ -3,7 +3,12 @@
 // Natsu (bilibili BV1Kp4y1b7i6 p78 "75.炎龙王", gameplay 25-45 s): flame orange, accent gold. Q leaps on a fire trail and spins
 //   gold-orange crescents round the landing; E pours a long orange stream of dragon fire with a fireball head (in Lôi Viêm a wide
 //   fan of fire); R lights a thick whirling ring of fire round him for the 8 s, the dragon coiling along its rim.
-import { C, stop, sigil, shell, slash, trail } from './lookkit.js';
+// Lạc Long Quân (p71 "68.敖广", gameplay 15-60 s): azure sea water, accent white foam. The passive and Q wrap him in a blue water
+//   shell; Q lands the greatsword in a crown of sea water; E charges on a foaming wake behind a blue crescent; R sends the water
+//   dragon (head and body from looks-b7.js) swimming round him in a water bubble for the 8 s; its recast slams a column of sea
+//   water down on a churning vortex.
+import { C, own, stop, sigil, shell, slash, cut, pillar, trail } from './lookkit.js';
+import { dragonHead, dragonBody, fadeAll } from './looks-b7.js';
 
 const R = (a, b) => a + Math.random() * (b - a);
 
@@ -95,4 +100,84 @@ const natsu = {
   },
 };
 
-export const K16 = { ...natsu };
+
+// ---- Lạc Long Quân ------------------------------------------------------------------------------------------------
+const LL_BLUE = C(0.3, 0.95, 2.6), LL_DEEP = C(0.03, 0.16, 0.55), LL_FOAM = C(2.0, 2.4, 2.6);
+const llDrop = () => (Math.random() < 0.6 ? LL_BLUE : LL_FOAM);
+// a crown of sea water bursting up round (x, z): a foam ring, a blue dome, droplets thrown out and up
+function waterCrown(kit, x, z, r, big = 1) {
+  shell(kit, x, 0.4, z, r * 0.8, LL_BLUE, { c2: LL_FOAM, p: 1.5, core: 0.15, bands: 1.4, life: 0.6, grow: 0.12, dome: true, alpha: 0.85 });
+  sigil(kit, x, z, r, LL_BLUE, { c2: LL_FOAM, n: 0, ticks: 18, inner: 0.7, fill: 0.55, w: 0.07, life: 0.7, rev: 0.1, spin: 1.5 });
+  sigil(kit, x, z, r * 0.62, LL_DEEP, { n: 0, ticks: 0, inner: 0, fill: 0.7, w: 0, life: 0.7, rev: 0.1, alpha: 0.6, y: 0.1 });
+  for (let i = 0; i < kit.N(Math.round(22 * big)); i++) { const a = Math.random() * 6.283, sp = R(5, 10) * big; kit.str.emit(x + Math.cos(a) * r * 0.4, 0.6, z + Math.sin(a) * r * 0.4, Math.cos(a) * sp, R(3, 7), Math.sin(a) * sp, llDrop(), R(0.4, 0.6), 0.14, 0.09, -14, 1, 1); }
+  kit.ring(x, z, r * 1.05, LL_FOAM, 0.4, 0.9); kit.flash(x, 2, z, LL_BLUE, 50, 0.25); kit.kick(x, z, 0.5 * big);
+}
+const laclong = {
+  // Lôi Long Chi Tức: a water shell wraps him (the 2 s shield), he leaps on a spray of water and brings the greatsword down: a
+  // blue blade cut and a crown of sea water where he lands
+  aoqSlam: {
+    pal: [LL_BLUE, LL_FOAM], hitR: 2,
+    skill(kit, e, u) { shell(kit, u.x, 1.0, u.z, 1.8, LL_BLUE, { c2: LL_FOAM, p: 1.6, core: 0.1, bands: 0.8, life: 2, follow: u, alpha: 0.7 }); return true; },
+    leap(kit, e, u) { const d = e.dur || 0.25; trail(kit, (t) => (t < d + 0.05 && u.alive ? [u.x, 1.4, u.z] : null), 2.4, LL_BLUE, d + 0.5, { c2: LL_DEEP, len: 12 }); sigil(kit, e.x, e.z, 3.5, LL_BLUE, { c2: LL_FOAM, n: 0, ticks: 12, inner: 0.82, fill: 0.3, w: 0.06, life: d + 0.5, rev: 0.1, spin: 2 }); return true; },
+    nova(kit, e, u) {
+      const r = e.r || 3.5, a = u ? u.aim : 0;
+      cut(kit, e.x, e.z, a, r * 1.1, LL_BLUE, { edge: LL_FOAM, sparks: 6, life: 0.3 });
+      slash(kit, e.x, e.z, a, r * 0.9, LL_BLUE, { y: 1.0, life: 0.4, w: 1.4, span: 1.2, sweep: 0.08, arcs: 1, c2: LL_DEEP, edge: LL_FOAM, wake: 1.6, tilt: 1.2 });
+      waterCrown(kit, e.x, e.z, r);
+      return true;
+    },
+  },
+  // Cuồng Long Xung Phong / Du Long Xuất Kích: a foaming wake behind him and a blue crescent riding in front of the charge
+  aoqCharge: {
+    pal: [LL_BLUE, LL_FOAM], hitR: 1.8,
+    skill(kit, e, u, row) {
+      const a = e.a, big = row && row.stun ? 1.3 : 1.15, L = (row && row.dist) || 6;
+      { const b = kit.beam(u.x, u.z, u.x + Math.cos(a) * L, u.z + Math.sin(a) * L, 3.4 * big, LL_BLUE, 0.85, 0, 0.6); b.fade = true; }
+      { const b = kit.beam(u.x, u.z, u.x + Math.cos(a) * L, u.z + Math.sin(a) * L, 0.9 * big, LL_FOAM, 0.8, 0, 0.4); b.fade = true; }
+      trail(kit, (t) => (t < 0.3 && u.alive ? [u.x, 0.5, u.z] : null), 2.4 * big, LL_BLUE, 0.7, { c2: LL_DEEP, len: 14 });
+      trail(kit, (t) => (t < 0.3 && u.alive ? [u.x, 0.6, u.z] : null), 0.9 * big, LL_FOAM, 0.55, { len: 10 });
+      slash(kit, u.x, u.z, a, 3.8 * big, LL_BLUE, { y: 1.0, life: 0.6, w: 2.6, span: 1.1, sweep: 0.06, arcs: 1, c2: LL_DEEP, edge: LL_FOAM, wake: 1.8, travel: 18 });
+      kit.follow(u, 0.3, () => { if (Math.random() < 0.8) kit.glow(u.x + R(-0.8, 0.8), R(0.3, 1.2), u.z + R(-0.8, 0.8), llDrop(), 0.4, R(0.3, 0.6), 1, kit.K.SPARK, 0.6, -Math.cos(a) * 5, R(1, 3), -Math.sin(a) * 5); });
+      kit.flash(u.x, 1.4, u.z, LL_BLUE, 35, 0.2);
+      return true;
+    },
+  },
+  // Giao Long Xuất Hải: the water dragon rises round him and swims circles about him in a water bubble for the 8 s
+  aoqDragon: {
+    pal: [LL_BLUE, LL_FOAM], hitR: 1.8,
+    skill(kit, e, u, row) {
+      const d = (row && row.dur) || 8, live = (t) => u.alive && (t < 0.5 || u.tfT > 0), R0 = 2.7;
+      const at = (t, lag) => { const a = t * 2.6 - lag; return [u.x + Math.cos(a) * R0, 1.5 + 0.3 * Math.sin(t * 3 - lag), u.z + Math.sin(a) * R0]; };
+      dragonBody(kit, (t) => (live(t) ? [at(t, 1.7), at(t, 0)] : null), 1.5, d + 0.6, 0.35);
+      const h = dragonHead(); h.scale.setScalar(2.1);
+      own(kit, [h], d + 0.6, (t) => { if (!live(t)) { fadeAll(h, 0); return false; } const p = at(t, 0), q = at(t + 0.05, 0); h.position.set(p[0], p[1] + 0.15, p[2]); h.rotation.y = -Math.atan2(q[2] - p[2], q[0] - p[0]); return true; });
+      shell(kit, u.x, 1.1, u.z, 2.3, LL_BLUE, { c2: LL_FOAM, p: 1.7, core: 0.08, bands: 0.8, life: d, follow: u, alpha: 0.65 });
+      sigil(kit, u.x, u.z, R0 + 1.6, LL_BLUE, { c2: LL_FOAM, n: 0, ticks: 14, inner: 0.62, fill: 0.55, w: 0.06, life: d, rev: 0.2, spin: 1.6, follow: u, alpha: 0.8 });
+      waterCrown(kit, u.x, u.z, 3.2, 1.2);
+      sigil(kit, u.x, u.z, R0 + 2.4, LL_DEEP, { c2: LL_BLUE, n: 0, ticks: 20, inner: 0.7, fill: 0.35, w: 0.04, life: d, rev: 0.3, spin: -0.8, follow: u, alpha: 0.6, y: 0.09 });
+      return true;
+    },
+    transform(kit, e) { if (!e.on) kit.ring(e.x, e.z, 2.6, LL_BLUE, 0.3, 0.6); return true; },
+  },
+  // Bào Hao Nộ Đào: a churning vortex of sea water marks the spot, then a column of sea water slams down into a crown of spray
+  aoqWave: {
+    zones: ['strike'], ownDisc: true, pal: [LL_BLUE, LL_FOAM], hitR: 2,
+    skill() { return true; },
+    zoneMake(kit, z) {
+      const v = {};
+      v.s = sigil(kit, z.x, z.z, z.r, LL_BLUE, { c2: LL_FOAM, n: 0, ticks: 10, inner: 0.25, fill: 0.35, w: 0.07, life: 1e9, rev: 0.25, spin: 5 });
+      v.d = sigil(kit, z.x, z.z, z.r * 0.9, LL_DEEP, { n: 0, ticks: 0, inner: 0, fill: 0.6, w: 0, life: 1e9, rev: 0.3, alpha: 0.55, y: 0.1 });
+      return v;
+    },
+    zone(kit, v, z) { if (Math.random() < 0.6) { const a = Math.random() * 6.283, q = z.r * R(0.3, 1); kit.glow(z.x + Math.cos(a) * q, 0.4, z.z + Math.sin(a) * q, llDrop(), 0.4, R(0.3, 0.5), 1, kit.K.SPARK, 0.6, -Math.sin(a) * 4, R(1, 3), Math.cos(a) * 4); } },
+    zoneDrop(kit, v) { stop(v.s); stop(v.d); },
+    land(kit, e) {
+      const r = e.r || 3.5;
+      pillar(kit, e.x, e.z, r * 0.55, LL_BLUE, { c2: LL_FOAM, h: 7, life: 0.5, drop: true, grow: 0.12, narrow: true, rings: 3 });
+      waterCrown(kit, e.x, e.z, r, 1.3);
+      return true;
+    },
+  },
+};
+
+export const K16 = { ...natsu, ...laclong };

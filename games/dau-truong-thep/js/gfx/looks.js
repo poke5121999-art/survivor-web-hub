@@ -209,6 +209,7 @@ export function lookRow(u, id) {
     for (let n = s.next; n; n = n.row.next) if (n.row.id === id) return n.row;   // kit lane K13: every stage of a next chain
     for (let t = s.then; t; t = t.then) if (t.id === id) return t;   // kit lanes k9, K10: follow-up rows (G3 then) with a look
     if (s.bgRe && s.bgRe.id === id) return s.bgRe;   // kit lane k9: Black Panther's second charge
+    for (let t = s.next && s.next.row.aoqBig && s.next.row.aoqBig.row; t; t = t.then) if (t.id === id) return t;   // kit lane k16: Lạc Long Quân's big recast
   }
   return null;
 }

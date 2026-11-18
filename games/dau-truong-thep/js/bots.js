@@ -1596,6 +1596,7 @@ const SKILL_AI = {
   },
   leap(c, s) {
     const { u, m, tgt, td } = c;
+    if (s.aoqNear) return k16BotNear(c, s);   // kit lane k16: Lạc Long Quân jumps on the nearest enemy himself
     if (s.to === 'ally') {
       // fly to a hurt ally who is in the fight and cover the group with the landing shield
       if (m.mode === 'trum' || c.state === 'grab') return false;
@@ -1858,6 +1859,7 @@ function chooseSkill(c) {
     const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.next.row || u.def.skills[i].next.row : null;   // kit lane K13: a later stage of a chain
     if (nx) {
       if (nx.to) { if (g4WarpTo(c, nx, u.next.t)) { sk.slot = i; return sk; } continue; }   // kit-remake G4: recast to an own object
+      if (nx.do === 'barrage') { if (k16BotStrike(c, nx, u.next.t)) { sk.slot = i; return sk; } continue; }   // kit lane k16: a strike recast (Lạc Long Quân)
       const o = m.units[u.next.target];
       // a warp second stage must reach its target; a sweep second stage (nova) must have it inside the blade (any hp: it heals)
       const reach = nx.dist ?? (nx.radius ? nx.radius * 0.9 : nx.range * 0.8), keen = nx.do === 'nova' || c.hpFrac > 0.35;
@@ -2634,3 +2636,20 @@ function k18BotSpin(c, s) {
   return n >= 1;
 }
 /* ===== end kit lane K18 bots ===== */
+/* ===== kit lane k16 bots: Lạc Long Quân's slam on the nearest enemy and his strike recast ===== */
+function k16BotNear(c, s) {
+  const { u } = c;
+  if (c.state === 'retreat' || c.state === 'grab' || (c.hpFrac < 0.3 && c.underFire)) return false;
+  for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.cast - 0.5) return true;
+  return false;
+}
+// the strike second stage (a barrage at the cursor): on the target while it stands in reach; with a stronger row at more transform
+// stacks (aoqBig), wait for them unless the window is nearly over
+function k16BotStrike(c, nx, left) {
+  const { u, tgt, td } = c;
+  if (!tgt || td > nx.cast + 3) return false;
+  if (nx.aoqBig && u.tfN < nx.aoqBig.at && left > 2.5) return false;
+  c.b.sk.x = tgt.x + (tgt.vx || 0) * 0.5; c.b.sk.z = tgt.z + (tgt.vz || 0) * 0.5; c.b.sk.aim = null; c.b.sk.mx = null; c.b.sk.mz = null;
+  return true;
+}
+/* ===== end kit lane k16 bots ===== */

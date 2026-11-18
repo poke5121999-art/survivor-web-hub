@@ -15,7 +15,16 @@ export const OLD_KYNHONG = {
     { id: 'longhoa', cd: 44, do: 'transform', dur: 5, armor: 0.15, haste: 1.15, weapon: { range: 11, dmg: 36, r: 0.5 } },
   ],
 };
-const OLD = { kynhong: OLD_KYNHONG };
+export const OLD_LACLONG = {
+  passive: { do: 'meter', name: 'Giáp Thủy', max: 1200, gain: { hurt: 1 }, spend: { kind: 'shield', amount: 450, dur: 5 } },
+  weapon: { name: 'Thủy Pháo', cd: 0.7, dmg: 180, speed: 26, range: 12, splash: 1.8, knock: 1.5, r: 0.32, vis: 'shell' },
+  skills: [
+    { id: 'voirong', cd: 8, do: 'volley', n: 1, dmg: 240, speed: 26, range: 12, r: 0.6, pierce: true, knock: 3, vis: 'wave' },
+    { id: 'xoaynuoc', cd: 13, do: 'zone', at: 'target', cast: 12, radius: 5, dur: 4, slow: 0.4, haste: 1.25, vis: 'slow' },
+    { id: 'longquan', cd: 42, do: 'dash', dist: 15, speed: 30, dmg: 380, stun: 0.8, knock: 3 },
+  ],
+};
+const OLD = { kynhong: OLD_KYNHONG, laclong: OLD_LACLONG };
 // Every old-kit mech of the match plays its old kit (the match must be fresh: nothing pressed yet).
 export function oldK16(m) {
   for (const u of m.units) {
@@ -150,6 +159,83 @@ export function runK16Cases(check, section) {
     const { used, ids } = botSlots('kynhong', 7);
     check('K16-r a Natsu bot uses Q, E and the ult in a 90 s fight', used.has(0) && used.has(1) && used.has(2) && ids.has('honglien') && ids.has('loiviem'), `${[...used]} ${[...ids]}`);
   }
+  // ---- Lạc Long Quân (laclong), clip p71 ----
+  const LL = MECHS.laclong, [LQ, LE, LU] = LL.skills, LLF = (o) => 1 - o.def.armor;
+  // passive Thủy Long Thuẫn: a shield of 15% of max hp from the start; broken, it bursts 416 in 3.5 m with a 50% slow, back 15 s later
+  {
+    const m = arena([[R('laclong', 0), 0, 0], [R('ung', 1), 2, 0]]), [a, v] = m.units;
+    go(m, 2);
+    check('K16-s Thuy Long Thuan: a 420 shield (15% of 2800) up from the start', near(a.shield, 0.15 * a.maxHp) && a.rsUp, `${a.shield}`);
+    a.shield = 1;
+    const ev2 = go(m, 12, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
+    const b = blows(ev2, 1, 0);
+    check('K16-t ... broken: it bursts on the foe 2 m away for 416 x falloff x armour, slowed 50% 2 s; it grows back in 15 s', b.length === 1 && near(b[0].amt, 416 * fall(2, 3.5) * UNG_F) && v.slowF === 0.5 && !a.rsUp && a.rsT > 14, `${b.map((e) => e.amt)} ${v.slowF} ${a.rsT}`);
+  }
+  // Lôi Long Chi Tức (Q): jumps on the nearest enemy within 7 m, a tank first: 367 in 3.5 m, slows moving and firing 50% for 2 s, a 2 s shield
+  {
+    const m = arena([[R('laclong', 0), 0, 0], [R('ung', 1), 3, 0], [R('laclong', 1), 6, 2]]), [a, v, tank] = m.units;
+    const ev = go(m, 20, (i) => ({ 0: { s1: i === 0, tx: 3, tz: 0 } }));
+    const bt = only(ev, 'hit', (e) => e.id === 2 && e.by === 0 && e.amt + e.absorbed > 100);
+    check('K16-u Loi Long Chi Tuc: past the nearer ung onto the tank 6.3 m away, 367 x its armour (shield included)', Math.hypot(a.x - 6, a.z - 2) < 0.5 && bt.length === 1 && near(bt[0].amt + bt[0].absorbed, 367 * LLF(tank), 0.5), `${a.x},${a.z} ${bt.map((e) => e.amt + e.absorbed)}`);
+    check('K16-v ... the tank moves and fires 50% slower for 2 s; his own shield holds 2 s', tank.slowF === 0.5 && tank.sfF === 0.5 && tank.sfT > 1.3 && a.shieldT > 1.3, `${tank.slowF} ${tank.sfF} ${tank.sfT} ${a.shieldT}`);
+  }
+  {
+    const m = arena([[R('laclong', 0), 0, 0], [R('ung', 1), 9, 0]]), a = m.units[0];
+    press(m, 0, 's1', { tx: 9, tz: 0 });
+    check('K16-w ... nobody within 7 m: no jump, a 0.4 s lockout', a.x === 0 && near(a.cd.s1, 0.4, 1e-9), `${a.x} ${a.cd.s1}`);
+  }
+  // Cuồng Long Xung Phong (E): a 6 m charge carrying the foe, 221; the hit opens Du Long Xuất Kích for 2 s: 283, carried, stun 1 s
+  {
+    const m = arena([[R('laclong', 0), 0, 0], [R('ung', 1), 2.5, 0]]), [a, v] = m.units;
+    const ev = go(m, 12, (i) => ({ 0: { s2: i === 0, tx: 9, tz: 0 } }));
+    const b = blows(ev, 1, 0);
+    check('K16-x Cuong Long Xung Phong: 221 x armour, the foe carried along (x > 5), the second stage armed', b.length === 1 && near(b[0].amt, 221 * UNG_F) && v.x > 5 && a.next && a.next.armed, `${b.map((e) => e.amt)} x ${v.x} ${JSON.stringify(a.next)}`);
+    let st = 0;
+    const ev2 = go(m, 15, (i) => { st = Math.max(st, v.stunT); return { 0: { s2: i === 0, tx: 20, tz: 0 } }; });
+    const b2 = blows(ev2, 1, 0);
+    check('K16-y ... Du Long Xuat Kich: 283 x armour, stun 1 s, the cooldown runs from the first press', b2.length === 1 && near(b2[0].amt, 283 * UNG_F) && st > 0.9 && a.cd.s2 > 8, `${b2.map((e) => e.amt)} stun ${st} cd ${a.cd.s2}`);
+  }
+  // Giao Long Xuất Hải (R): 8 s, armour +0.25, fire x1.5, water shells of 270 to 13 m; each hit heals 5% of the lost hp and adds a stack
+  {
+    const m = arena([[R('laclong', 0), 0, 0], [R('ung', 1), 10, 0]]), [a, v] = m.units;
+    a.hp = a.maxHp - 1000;
+    press(m, 0, 'ult');
+    const w = weaponOf(a);
+    check('K16-z Giao Long: 8 s, the water shell 270 reaches 13 m, fire rate x1.5, cooldown held at 55', near(a.tfT, 8) && w.dmg === 270 && w.range === 13 && a.rapidF === 1.5 && a.cd.ult === LU.cd, `${a.tfT} ${JSON.stringify(w)} ${a.cd.ult}`);
+    const h0 = a.hp, ev = go(m, 25, (i) => ({ 0: { fire: i === 0, tx: 10, tz: 0 } }));
+    const b = blows(ev, 1, 0);
+    check('K16-A ... the shell hits for 270 x armour, heals him 5% of his lost hp, one stack: damage x1.05', b.length === 1 && near(b[0].amt, 270 * UNG_F) && a.hp - h0 > 49 && a.hp - h0 < 51.5 && a.tfN === 1 && near(a.tfDmg, 1.05), `${b.map((e) => e.amt)} heal ${a.hp - h0} ${a.tfN} ${a.tfDmg}`);
+    check('K16-B ... the cooldown still stands at 55 (held while the dragon is out)', a.cd.ult === LU.cd, `${a.cd.ult}`);
+    put(v, 10, 0); v.kx = 0; v.kz = 0;
+    const ev2 = go(m, 40, (i) => ({ 0: { ult: i === 0, tx: 10, tz: 0 } }));
+    const b2 = blows(ev2, 1, 0, 100);
+    check('K16-C ... recast under 4 stacks: one strike at the cursor 1 s later, 389 x 1.05 x armour, slow 40%', only(ev2, 'skill', (e) => e.id === 0 && e.skill === 'baohao').length === 1 && b2.length === 1 && near(b2[0].amt, 389 * 1.05 * UNG_F) && v.slowF === 0.4, `${b2.map((e) => e.amt)} ${v.slowF}`);
+  }
+  {
+    const m = arena([[R('laclong', 0), 0, 0], [R('ung', 1), 10, 0]]), [a, v] = m.units;
+    press(m, 0, 'ult'); go(m, 2);
+    a.tfN = 4; a.tfDmg = 1 + 4 * 0.05;
+    let st = 0;
+    const ev = go(m, 75, (i) => { st = Math.max(st, v.stunT); return { 0: { ult: i === 0, tx: 10, tz: 0 } }; });
+    const b = blows(ev, 1, 0, 100);
+    check('K16-D ... recast on 4 stacks: 662 x 1.2 slow 60%, then a second slam 389 x 1.2 and a 1 s stun', only(ev, 'skill', (e) => e.id === 0 && e.skill === 'baohao4').length === 1 && b.length === 2 && near(b[0].amt, 662 * 1.2 * UNG_F) && near(b[1].amt, 389 * 1.2 * UNG_F) && st > 0.9, `${b.map((e) => e.amt)} stun ${st}`);
+    go(m, 240);
+    check('K16-E ... the cooldown starts once the 8 s are over', a.tfT === 0 && a.cd.ult < LU.cd && a.cd.ult > LU.cd - 6, `${a.cd.ult}`);
+  }
+  // the E press inside the ult's recast window parks the recast; it comes back once E's own second stage is over
+  {
+    const m = arena([[R('laclong', 0), 0, 0], [R('ung', 1), 2.5, 0]]), [a, v] = m.units;
+    press(m, 0, 'ult'); go(m, 2);
+    go(m, 12, (i) => ({ 0: { s2: i === 0, tx: 9, tz: 0 } }));
+    const parked = a.aoqPark && a.next && a.next.slot === 1;
+    go(m, 75);
+    check('K16-G ... E inside the ult window: the ult recast is parked, then back (slot 2) after the 2 s E window', parked && a.next && a.next.slot === 2 && a.next.armed && !a.aoqPark, `${parked} ${JSON.stringify(a.next)}`);
+  }
+  {
+    const { used, ids } = botSlots('laclong', 9);
+    check('K16-F a Lac Long Quan bot uses Q, E, the ult and Bao Hao No Dao', used.has(0) && used.has(1) && used.has(2) && ids.has('loilong') && (ids.has('baohao') || ids.has('baohao4')), `${[...used]} ${[...ids]}`);
+  }
+
 }
 
 // the burst share left and the armour without the burst (for K16-e)

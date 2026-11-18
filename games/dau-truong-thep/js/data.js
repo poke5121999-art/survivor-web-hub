@@ -762,21 +762,35 @@ export const MECHS = {
         desc: 'Mở kết giới ở con trỏ trong 5 giây: địch trong đó bị chậm 40% và mất 190 máu mỗi giây.' },
     ],
   },
+  // Lạc Long Quân = 敖广 Ngao Quảng: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p71 "68.敖广", tooltips in
+  // ~/handoff/dtt-ref/kits/AUDIT-b.md; the first character of skill 1's name is blurred, read as 雷龙之息). Attack = one Thủy Pháo shell (180,
+  // kept): Lôi Long Chi Tức 204% -> 367, the water shield's burst 231% -> 416, Cuồng Long Xung Phong 123% -> 221 then 157% -> 283, Bào Hao
+  // Nộ Đào 216% -> 389 (at 4 stacks 368% -> 662, then 389 again). Shields 15% of max hp. Cooldowns 6 / 8 / 30 s in the clip -> 8 / 10 / 55.
+  // The ult's +50% attack speed and basic damage live in its weapon row (270, rapid 1.5), not in a damage factor that would also lift skills.
+  // Kit-remake G5 fields (sim.js block "kit lane k16"): leap aoqNear (jumps on the nearest enemy, tanks first), transform aoqHeal (each
+  // water shell that hits heals that share of the lost hp and adds a stack `stack.on: 'aoqShot'`), second stage aoqBig (at that many
+  // stacks the recast is the bigger row).
   laclong: {
     name: 'Lạc Long Quân', role: 'Trụ', roleKey: 'tank', price: 1800, tint: 0x1f6f8f,
-    blurb: 'Máu mất hóa thành giáp thủy: đủ 1200 là tự khoác khiên 450. Xoáy nước làm chậm địch và tiếp sức đồng đội, Long Quân Giá Lâm húc xuyên nửa sân.',
+    blurb: 'Long vương mang trọng kiếm: thủy thuẫn tự mọc lại, vỡ thì nổ làm chậm. Nện kẻ gần nhất, lao hai đoạn kéo theo địch, rồi gọi thủy long 8 giây bắn thủy đạn lớn và nện sóng dữ.',
     hp: 2800, speed: 5.4, radius: 0.96,
     armor: 0.12, accel: 0.8, turn: 9, towerMul: 1.4,
-    passive: { do: 'meter', name: 'Giáp Thủy', desc: 'Mỗi điểm máu mất nạp một điểm, đủ 1200 thì tự khoác khiên 450 trong 5 giây.',
-      max: 1200, gain: { hurt: 1 }, spend: { kind: 'shield', amount: 450, dur: 5 } },
+    passive: { do: 'trait', name: 'Thủy Long Thuẫn', mods: { reShield: { frac: 0.15, regrow: 15, burst: { radius: 3.5, dmg: 416, slow: 0.5, slowDur: 2 } } },
+      desc: 'Khoác thủy thuẫn hút 15% máu tối đa, vỡ thì 15 giây sau mọc lại. Thuẫn vỡ thì nổ quanh mình: 416 sát thương, chậm 50% trong 2 giây.' },
     weapon: { name: 'Thủy Pháo', cd: 0.7, dmg: 180, speed: 26, range: 12, splash: 1.8, knock: 1.5, r: 0.32, vis: 'shell' },
     skills: [
-      { id: 'voirong', look: 'llJet', name: 'Vòi Rồng', cd: 8, do: 'volley', n: 1, dmg: 240, speed: 26, range: 12, r: 0.6, pierce: true, knock: 3, vis: 'wave', icon: 'quake',
-        desc: 'Tung một cột sóng rộng xuyên qua mọi kẻ địch phía trước, 240 sát thương và hất văng.' },
-      { id: 'xoaynuoc', look: 'llWhirl', name: 'Xoáy Nước', cd: 13, do: 'zone', at: 'target', cast: 12, radius: 5, dur: 4, slow: 0.4, haste: 1.25, vis: 'slow', icon: 'slow',
-        desc: 'Mở xoáy nước ở con trỏ trong 4 giây: địch trong đó chậm 40%, đồng đội trong đó chạy nhanh hơn 25%.' },
-      { id: 'longquan', look: 'llDragon', name: 'Long Quân Giá Lâm', cd: 42, do: 'dash', dist: 15, speed: 30, dmg: 380, stun: 0.8, knock: 3, icon: 'dash',
-        desc: 'Hóa rồng lao thẳng 15 m, mọi kẻ địch trên đường chịu 380 sát thương, choáng 0,8 giây và bị hất văng.' },
+      { id: 'loilong', look: 'aoqSlam', name: 'Lôi Long Chi Tức', cd: 8, do: 'leap', to: 'foe', aoqNear: true, cast: 7, pick: 7, flight: 0.25, radius: 3.5, dmg: 367,
+        fx: { slow: 0.5, slowDur: 2, slowFire: { mul: 0.5, dur: 2 } }, selfShield: { frac: 0.15, dur: 2 }, icon: 'quake',
+        desc: 'Nhảy lên kẻ địch gần nhất trong 7 m (ưu tiên tank), nện trọng kiếm: 367 sát thương lên kẻ địch trong 3,5 m, chúng chạy và bắn chậm 50% trong 2 giây. Bạn nhận khiên 15% máu tối đa trong 2 giây.' },
+      { id: 'cuonglong', look: 'aoqCharge', name: 'Cuồng Long Xung Phong', cd: 10, do: 'dash', dist: 6, speed: 30, dmg: 221, drag: true,
+        next: { window: 2, onHit: true, row: { id: 'dulong', look: 'aoqCharge', name: 'Du Long Xuất Kích', do: 'dash', dist: 6, speed: 30, dmg: 283, drag: true, stun: 1 } }, icon: 'dash',
+        desc: 'Lao 6 m, vung kiếm 221 sát thương, kéo theo kẻ bị va. Trúng địch thì trong 2 giây bấm lại để Du Long Xuất Kích: lao tiếp 6 m, 283 sát thương, kéo theo rồi choáng 1 giây.' },
+      { id: 'giaolong', look: 'aoqDragon', name: 'Giao Long Xuất Hải', cd: 55, do: 'transform', dur: 8, armor: 0.25, rapid: 1.5, cdAfter: true,
+        weapon: { name: 'Thủy Đạn', dmg: 270, range: 13, splash: 2.4, r: 0.5, slow: 0.3, slowDur: 1, vis: 'wave' }, aoqHeal: 0.05, stack: { on: 'aoqShot', max: 5, dmg: 0.05, armor: 0.03 },
+        next: { window: 8, row: { id: 'baohao', look: 'aoqWave', name: 'Bào Hao Nộ Đào', do: 'barrage', n: 1, radius: 0, blast: 3.5, dmg: 389, delay: 1, span: 0, cast: 13, fx: { slow: 0.4, slowDur: 2 },
+          aoqBig: { at: 4, row: { id: 'baohao4', look: 'aoqWave', name: 'Bào Hao Nộ Đào', do: 'barrage', n: 1, radius: 0, blast: 3.5, dmg: 662, delay: 1, span: 0, cast: 13, fx: { slow: 0.6, slowDur: 2 },
+            then: { id: 'baohao5', look: 'aoqWave', name: 'Bào Hao Nộ Đào', do: 'barrage', after: 0.5, n: 1, radius: 0, blast: 3.5, dmg: 389, delay: 1, span: 0, cast: 13, fx: { stun: 1 } } } } } }, icon: 'boost',
+        desc: 'Gọi thủy long hộ thân 8 giây: nhận ít hơn 25% sát thương, bắn nhanh hơn 50%, thủy đạn lớn 270 bay 13 m, nổ lan và làm chậm 30%. Mỗi thủy đạn trúng hồi 5% máu đã mất và cho 1 lớp (tối đa 5): +5% sát thương, cứng hơn. Trong 8 giây bấm lại để Bào Hao Nộ Đào: 1 giây sau nện vùng 3,5 m ở con trỏ, 389, chậm 40%; có từ 4 lớp thì nhát đầu 662 chậm 60% và nện thêm nhát 389 choáng 1 giây. Hồi chiêu chỉ chạy sau khi dùng xong.' },
     ],
   },
   // Black Panther = 黑豹 Hắc Báo: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p89 "86.黑豹", tooltips in ~/handoff/dtt-ref/kits/AUDIT-a.md).
@@ -1333,7 +1347,7 @@ export const PERKS = {
   cakiem: [perk('Đao Dài', 'Tam Đao bay xa 8,5 m.', 'weapon', { range: 8.5 }), perk('Ba Vòng Lốc', 'Lốc Kiếm xoay ba vòng.', 1, { repeat: 3 }), perk('Tia Rộng', 'Nhất Đao rộng 2 m, gây 1200.', 2, { width: 2, dmg: 1200 })],
   gilgamesh: [perk('Bảo Khí Nặng', 'Bảo Khí gây 170.', 'weapon', { dmg: 170 }), perk('Quai Ly Rộng', 'Thiên Địa Quai Ly xé vùng 4,2 m.', 1, { blast: 4.2, radius: 2.1 }), perk('Kho Báu Vô Tận', 'Vương Chi Tài Bảo xả 48 binh khí trong 4,8 giây.', 2, { burst: { n: 24, gap: 0.2 }, hasteDur: 4.8 })],
   buomdem: [perk('Tia Dài', 'Tia Bùa gây 420, bay xa 19 m.', 0, { dmg: 420, range: 19 }), perk('Cổng Nổ', 'Cổng Ảo xa 10 m, nổ rộng 3,6 m gây 300.', 1, { dist: 10, land: { radius: 3.6, dmg: 300, slow: 0.3, slowDur: 1.5 } }), perk('Kết Giới Rộng', 'Kết Giới Đa Chiều rộng 7 m, kéo dài 7 giây.', 2, { radius: 7, dur: 7 })],
-  laclong: [perk('Thủy Pháo Nặng', 'Thủy Pháo gây 210, nổ lan 2,4 m.', 'weapon', { dmg: 210, splash: 2.4 }), perk('Xoáy Mạnh', 'Xoáy Nước rộng 6 m, làm chậm 50%, đồng đội nhanh thêm 40%.', 1, { radius: 6, slow: 0.5, haste: 1.4 }), perk('Giá Lâm Xa', 'Long Quân Giá Lâm lao xa 18 m, gây 480.', 2, { dist: 18, dmg: 480 })],
+  laclong: [perk('Thủy Pháo Nặng', 'Thủy Pháo gây 210, nổ lan 2,4 m.', 'weapon', { dmg: 210, splash: 2.4 }), perk('Long Xung Mạnh', 'Cuồng Long Xung Phong gây 260.', 1, { dmg: 260 }), perk('Thủy Long Lâu', 'Giao Long Xuất Hải kéo dài 10 giây.', 2, { dur: 10 })],
   baogam: [perk('Ba Vuốt', 'Vuốt Rung bắn ba đường.', 'weapon', { n: 3, fan: 0.08 }), perk('Huyết Tập Xa', 'Dã Tính Huyết Tập lao xa 9 m.', 1, { dist: 9 }), perk('Săn Lâu', 'Vương Chi Thú Liệp vồ tám nhát.', 2, { n: 8 })],
   luondien: [perk('Roi Dài', 'Roi Điện bắn xa 14 m.', 'weapon', { range: 14 }), perk('Vùng Mạnh', 'Vùng Điện rộng 4,8 m, thiêu 230 mỗi giây.', 1, { radius: 4.8, dps: 230 }), perk('Mười Một Tia Sét', 'Sấm Sét giáng 11 tia, mỗi tia 380.', 2, { n: 11, dmg: 380 })],
   tegiac: [perk('Nắm Đấm Nặng', 'Đấm Thẳng gây 175.', 'weapon', { dmg: 175 }), perk('Húc Mạnh', 'Nhận Chân Đầu Chùy rộng 3,4 m, gây 400.', 1, { radius: 3.4, dmg: 400 }), perk('Quạt Rộng', 'Nhận Chân Ẩu Đả mở quạt rộng hơn, dài tới 14 m.', 2, { fan: [0.55, 0.7], charge: { min: 0.3, max: 3, dmg: [474, 948], range: [8, 14], width: [7, 14] } })],

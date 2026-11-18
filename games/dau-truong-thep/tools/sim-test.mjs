@@ -3132,7 +3132,7 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
     check('42j the armed bao khi hits trau for 175 x 1.6 = 280 x (1 - armor), stun 0.6 s, meter spent', near(MECHS.trau.hp - t.hp, 280 * (1 - MECHS.trau.armor), 1e-6) && t.stunT > 0 && t.stunT <= 0.6 && g.meter < 1500, `${MECHS.trau.hp - t.hp} stun ${t.stunT} meter ${g.meter}`);
   }
   {
-    const m = arena([[R('trau', 0), 0, 0], [R('laclong', 1), 8, 0]]), [t, l] = m.units;
+    const m = oldK16(arena([[R('trau', 0), 0, 0], [R('laclong', 1), 8, 0]])), [t, l] = m.units;
     l.meter = 1190;
     go(m, 14, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
     check('42k laclong: 1200 lost blood -> a 450 shield for 5 s at once, meter 0', l.shield === 450 && l.shieldT > 4.5 && l.shieldT <= 5 && l.meter === 0, `shield ${l.shield} meter ${l.meter}`);
@@ -3281,7 +3281,7 @@ section('42 batch 3 primitives: meter (shot, skill, shield, nova, chain), shield
   }
   // zone.haste (laclong E): allies in it speed up, foes slow down
   {
-    const m = arena([[R('laclong', 0), 0, 0], [R('trau', 0), 4, 0], [R('trau', 1), 4, 2]]), [a, ally, foe] = m.units;
+    const m = oldK16(arena([[R('laclong', 0), 0, 0], [R('trau', 0), 4, 0], [R('trau', 1), 4, 2]])), [a, ally, foe] = m.units;
     go(m, 3, (i) => ({ 0: { s2: i === 0, tx: 4, tz: 1 } }));
     check('42zr zone.haste: an ally inside has haste x1.25, the foe inside is slowed 40%', ally.hasteT > 0 && ally.hasteF === 1.25 && near(foe.slowF, 0.4), `haste ${ally.hasteT}/${ally.hasteF} slow ${foe.slowF}`);
   }
