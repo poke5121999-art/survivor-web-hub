@@ -111,6 +111,7 @@ for (const key of MECH_ORDER) {
   for (let i = 0; i < 3; i++) {
     const s = MECHS[key].skills[i], slot = SLOTS[i];
     if (s.recast) continue;   // dash.recast keeps the key ready after the first press: section 41 checks its cooldown
+    if (s.uses) continue;   // uses (skill charges): the next use waits for its gap, not the cooldown; sections 46 and 48 check them
     // leap.to 'ally' needs somebody to fly to: a third mech of the caster's team stands at 4 m
     const ally = s.to === 'ally';
     // a flurry needs somebody in reach: the foe stands 4 m away
@@ -2785,7 +2786,7 @@ section('40 batch 1 primitives: hitfx, mods (onKill, lowHp), souls, brittle.when
     check('40u the mine (arm 0.4, blast 3, 260, fx slow 0.4) hurts the one who steps on it', near(v.hp, UNG - 260, 1e-6) && v.slowF === 0.4 && v.slowT > 0, `hp ${v.hp} slowF ${v.slowF}`);
   }
   // volley.ret: out, back, two hits, gone afterwards
-  for (const [key, dmg, slow] of [['natra', 210, 0.35], ['athena', 250, 0]]) {
+  for (const [key, dmg, slow] of [['natra', 210, 0.35]]) {
     const m = arena([[R(key, 0), 0, 0], [R('ung', 1), 6, 0]]), v = m.units[1];
     const ev = go(m, 120, (i) => ({ 0: { s1: i === 0 } }));
     const hits = only(ev, 'hit', (e) => e.id === v.id && e.by === 0);
@@ -4934,6 +4935,97 @@ section('48 kit-remake G3 primitives (MECHANICS.md): loss of control, stacks icd
       return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.cd, u.locT, u.locK, u.stkN, u.shotN, u.tfN])]);
     };
     check('48e2 a scripted fight with every G3 field is deterministic', play() === play());
+  }
+}
+
+section('48 Athena ported from the owner\'s clip (p69), kit-remake G5: passive castHeal, barrage lock (rides the target), energy cost + uses, bless cleanse / shieldEn / undying + endHeal (literal expected values)');
+{
+  const R = (mech, team = 0) => ({ team, mech, name: mech + team });
+  function arena(units) {
+    const m = createMatch({ seed: 5, roster: units.map((u) => u[0]) });
+    m.map.walls.length = 0; m.map.rounds.length = 0; m.map.bushes.length = 0; m.map.hazards.length = 0;
+    for (const p of m.props) p.alive = false;
+    units.forEach(([, x, z, aim], i) => { const u = m.units[i]; put(u, x, z); u.aim = u.heading = aim ?? (u.team ? Math.PI : 0); u.combatT = 0; });
+    m.crateT = 1e9;
+    return m;
+  }
+  function go(m, ticks, f) {
+    const ev = [];
+    for (let i = 0; i < ticks; i++) {
+      const o = (f && f(i)) || {};
+      step(m, m.units.map((u, k) => inp({ aim: u.aim, tx: u.x, tz: u.z, ...o[k] })));
+      for (const e of m.events) ev.push(e);
+    }
+    return ev;
+  }
+  const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
+  const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
+  const REG = 10 / 3;
+  // an enemy with one test shot (200, under the 12% wound line of a 1700 hp Ưng, so no heal is halved)
+  const gunner = (u, dmg = 200) => { u.def = { ...u.def, passive: null, skills: [{ id: 'q', do: 'volley', cd: 8, n: 1, dmg, speed: 40, range: 14, r: 0.3, vis: 'rail' }, u.def.skills[1], u.def.skills[2]] }; u.passive = null; return u; };
+  const noRegen = (a) => { a.def = { ...a.def, energy: { ...a.def.energy, regen: 0 } }; };
+
+  // passive castHeal: a press heals the hurt ally 225 at once, Athena 225 over 2 s
+  {
+    const m = arena([[R('athena', 0), 0, 0], [R('ung', 0), 3, 0], [R('ung', 1), -20, 0]]), [a, al] = m.units;
+    a.hp = 1500; al.hp = 1000;
+    go(m, 1, () => ({ 0: { s2: true, tx: 3, tz: 0 } }));
+    check('48a castHeal: the press heals the lowest ally in 6 m by 225 at once', near(al.hp, 1225, 1e-9) && a.healT > 1.9, `${al.hp} ${a.healT}`);
+    go(m, 61);
+    check('48b ... and Athena 225 over 2 s (heal-over-time 112.5/s)', near(a.hp, 1725, 1e-6) && a.healT === 0, `${a.hp}`);
+  }
+  // barrage lock 12: nearest enemy, the strike rides it, 264 + 15% of the lost hp after the blow (true)
+  {
+    const m = arena([[R('athena', 0), 0, 0], [R('ung', 1), 8, 0], [R('ung', 1), -9, 0]]), [a, v, w] = m.units;
+    v.hp = 1000;
+    const ev = go(m, 1, () => ({ 0: { s1: true, tx: -9, tz: 0 } }));
+    const z = m.zones.find((q) => q.kind === 'strike');
+    check('48c lock: the strike goes on the nearest enemy (8 m), not the one under the cursor (9 m), and costs 50 energy and one use', !!z && z.on === 1 && near(a.en, 100, 1e-9) && a.use0 === 1 && near(a.gap0, 2, 1e-9) && only(ev, 'skill', (e) => e.id === 0).length === 1, `${z && z.on} ${a.en} ${a.use0} ${a.gap0}`);
+    go(m, 9);
+    put(v, 8, 3);
+    go(m, 5);
+    check('48d ... it rides the target: moved to (8, 3), the strike is there', near(z.x, 8, 1e-9) && near(z.z, 3, 1e-9), `${z.x} ${z.z}`);
+    go(m, 20);
+    check('48e ... lands after 1 s: 264, then 15% of the 964 lost = 144.6 true, the other enemy untouched', near(v.hp, 1000 - 264 - 144.6, 1e-6) && w.hp === w.maxHp && !m.zones.some((q) => q.kind === 'strike'), `${v.hp} ${w.hp}`);
+    check('48f energy: 100 after the cost, +10 per 3 s since (34 ticks)', near(a.en, 100 + 34 * TICK * REG, 1e-6), `${a.en}`);
+  }
+  {
+    const m = arena([[R('athena', 0), 0, 0], [R('ung', 1), 14, 0]]), [a] = m.units;
+    const ev = go(m, 1, () => ({ 0: { s1: true, tx: 14, tz: 0 } }));
+    check('48g lock with nobody in 12 m: no cast, no use, no energy spent, a 0.4 s gap', only(ev, 'skill', (e) => e.id === 0).length === 0 && a.use0 === 0 && near(a.en, 150, 1e-9) && a.gap0 > 0.3 && a.gap0 <= 0.4 && !m.zones.length, `${a.use0} ${a.en} ${a.gap0}`);
+  }
+  {
+    const m = arena([[R('athena', 0), 0, 0], [R('ung', 1), 8, 0]]), [a] = m.units;
+    a.en = 60;
+    go(m, 1, () => ({ 0: { s1: true } }));
+    const e2 = go(m, 61, () => ({ 0: { s1: true } }));
+    check('48h energy gates the uses: 60 pays one 50 cast, the next waits for 50 (12 s of regen), not the 2 s gap', a.use0 === 1 && only(e2, 'skill', (e) => e.id === 0).length === 0 && !skillReady(a, 0), `${a.use0} ${a.en}`);
+  }
+  // bless cleanse + shield 750 / 2 s + shieldEn {0.03, 15}: 200 absorbed = 200 / 75 x 15 = 40 energy
+  {
+    const m = arena([[R('athena', 0), 0, 0], [R('ung', 0), 3, 0], [R('ung', 1), 8, 0]]), [a, al, v] = m.units;
+    gunner(v); noRegen(a); a.en = 0;
+    al.stunT = 2; al.rootT = 2; al.slowT = 2; al.slowF = 0.5; al.silenceT = 2;
+    go(m, 1, () => ({ 0: { s2: true, tx: 3, tz: 0 } }));
+    check('48i Thánh Thuẫn: the ally is cleansed (stun, root, slow, silence) and shielded 750 for 2 s (the ally steps after Athena: one tick already run)', al.stunT === 0 && al.rootT === 0 && al.slowT === 0 && al.silenceT === 0 && al.shield === 750 && near(al.shieldT, 2 - TICK, 1e-9) && al.shBy === 0, `${al.stunT} ${al.shield} ${al.shieldT}`);
+    go(m, 10, (i) => ({ 2: { s1: i === 0, aim: Math.PI } }));
+    check('48j ... a 200 blow is absorbed (hp kept) and gives Athena 40 energy', al.hp === al.maxHp && near(al.shield, 550, 1e-9) && near(a.en, 40, 1e-9), `${al.hp} ${al.shield} ${a.en}`);
+    go(m, 60);
+    check('48k ... the shield ends after 2 s and the bookkeeping goes with it', al.shield === 0 && al.shBy === -1, `${al.shield} ${al.shBy}`);
+  }
+  // bless undying 3 s + endHeal 0.3: a lethal blow leaves 1 hp; when it ends the ally heals 30% of Athena's 2500 = 750
+  {
+    const m = arena([[R('athena', 0), 0, 0], [R('ung', 0), 3, 0], [R('ung', 1), 8, 0]]), [a, al, v] = m.units;
+    gunner(v);
+    go(m, 1, () => ({ 0: { ult: true, tx: 3, tz: 0 } }));
+    check('48l Anh Hùng Bất Hủ: the ally is blessed 3 s (one tick already run)', near(al.undyT, 3 - TICK, 1e-9) && near(al.udHeal, 750, 1e-9) && al.udBy === 0, `${al.undyT} ${al.udHeal}`);
+    al.hp = 50;
+    go(m, 10, (i) => ({ 2: { s1: i === 0, aim: Math.PI } }));
+    check('48m ... a 200 blow on 50 hp leaves it at 1 hp, alive', al.alive && al.hp === 1, `${al.hp}`);
+    go(m, 78);
+    check('48n ... still blessed just before 3 s, no heal yet', al.hp === 1 && al.undyT > 0, `${al.hp} ${al.undyT}`);
+    go(m, 3);
+    check('48o ... when the blessing ends the ally heals 750 (1 -> 751)', near(al.hp, 751, 1e-9) && al.udHeal === 0, `${al.hp}`);
   }
 }
 

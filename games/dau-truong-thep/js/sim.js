@@ -120,6 +120,7 @@ function clearStatus(u) {
   u.shotN = 0; u.shotT = 0; u.shotRow = null; u.thenQ = []; u.hsN = 0; u.hsT = 0; u.hsAcc = 0; u.tfN = 0; u.tfAcc = 0; u.volTag = null;
   if (u.tfBase) u.def = formDef(u.tfBase, 0);
   u.tfBase = null;
+  k2Clear(u);   // kit-remake G5 Athena
 }
 
 function spawn(m, u, first) {
@@ -471,6 +472,7 @@ function stepUnit(m, u, inp) {
   if (u.def.heavy) { u.stunT = 0; u.kx = 0; u.kz = 0; }
   if (u.ccT > 0) { u.stunT = 0; u.slowT = 0; u.rootT = 0; u.kx = 0; u.kz = 0; }
   g2Tick(m, u);   // kit-remake G2: tags, saves, onHurt cc, energy, slowG, slowFire timers
+  k2Tick(m, u);   // kit-remake G5 Athena: the heal when a bless.undying ends
   if (u.stance) { u.kx = 0; u.kz = 0; }
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
@@ -553,6 +555,7 @@ function stepUnit(m, u, inp) {
     // meter castShield {frac, dur}: every cast (a second stage too) wraps the mech in a shield of frac of its max hp
     if (P && P.castShield) { u.shield = Math.max(u.shield, u.maxHp * P.castShield.frac); u.shieldMax = Math.max(u.shieldMax, u.shield); u.shieldT = Math.max(u.shieldT, P.castShield.dur); }
     g4Cast(m, u, s);
+    if (u.passive === 'castHeal') k2CastHeal(m, u);   // kit-remake G5 Athena
     if (nx) { castHooks(u, s, i); u.next = null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }
     if (amped) meterSpent(m, u);
     if (P) meterAdd(m, u, 'cast', 1);
@@ -1060,6 +1063,54 @@ function onKillMore(m, o, K) {
   if (K.cast) o.thenQ.push({ row: K.cast, slot: -1, t: 0 });
 }
 // ---- end kit-remake G3 ----
+// ---- kit-remake G5 Athena (kit lane K2; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-a.md athena) ----
+// passive do 'castHeal' {r, ally, self, selfDur}: every press heals the ally with the lowest hp share within r (not the caster) by
+//   `ally`, and the caster `self` over selfDur s (healT / healRate, the heal item's fields).
+// barrage `lock: r`: the strikes go on the nearest visible enemy within r of the caster (lowest id on a tie) and ride it (zone `on`)
+//   until they land; nobody in reach = no cast (a 0.4 s lockout, no use, no energy spent).
+// bless `cleanse: true` (the G2 save's cleanse on the target), `shieldEn {per, en}` (each `per` of the caster's max hp the shield
+//   absorbs gives the caster `en` energy; only the last caster's shield counts: shBy / shEn), `undying: s` (the target's hp cannot
+//   drop under 1 for s: G2 undyT) and `endHeal: f` (when that runs out the target heals f of the caster's max hp: udHeal / udBy).
+// None of this is in netstate STATUS (shBy, shEn, udHeal, udBy are host-side bookkeeping; undyT is G2's, also host-side).
+function k2Clear(u) { u.shBy = -1; u.shEn = 0; u.udHeal = 0; u.udBy = -1; }
+function k2Tick(m, u) {
+  if (!(u.shieldT > 0) || u.shield <= 0) u.shBy = -1;
+  if (u.udHeal > 0 && !(u.undyT > 0)) { const by = m.units[u.udBy]; heal(m, u, u.udHeal, by && by.alive ? by : u); u.udHeal = 0; u.udBy = -1; }
+}
+function k2CastHeal(m, u) {
+  const P = u.def.passive;
+  let best = null, bf = 2;
+  for (const o of m.units) {
+    if (o === u || o.team !== u.team || !o.alive || o.hp >= o.maxHp || dist2(o.x, o.z, u.x, u.z) > P.r * P.r) continue;
+    const f = o.hp / o.maxHp;
+    if (f < bf) { bf = f; best = o; }
+  }
+  if (best) heal(m, best, P.ally, u);
+  if (P.self) { u.healRate = Math.max(u.healT > 0 ? u.healRate : 0, P.self / P.selfDur); u.healT = Math.max(u.healT, P.selfDur); }
+}
+function k2Lock(m, u, s) {
+  let best = null, bd = s.lock * s.lock;
+  for (const o of m.units) {
+    if (o.team === u.team || !o.alive || o.invulnT > 0 || !visibleTo(m, o, u.team)) continue;
+    const d = dist2(o.x, o.z, u.x, u.z);
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best ? [best] : [];
+}
+function k2Follow(m, z) {
+  const o = m.units[z.on];
+  if (o && o.alive) { z.x = o.x; z.z = o.z; } else z.on = -1;
+}
+function k2Bless(m, u, o, s) {
+  if (s.cleanse) cleanse(o);
+  if (s.shield && s.shieldEn) { o.shBy = u.id; o.shEn = s.shieldEn.en / (s.shieldEn.per * u.maxHp); }
+  if (s.undying) { o.undyT = Math.max(o.undyT, s.undying); if (s.endHeal) { o.udHeal = s.endHeal * u.maxHp; o.udBy = u.id; } }
+}
+function k2Absorb(m, u, absorbed) {
+  const by = m.units[u.shBy];
+  if (by && by.alive && by.team === u.team) enAdd(by, absorbed * u.shEn);
+  if (u.shield <= 0) u.shBy = -1;
+}
 
 // Once-a-tick work of a passive trait. The other passives act where damage, kills and deployables are handled.
 const PASSIVE_TICK = {
@@ -1309,6 +1360,7 @@ const CAST = {
     // hot: heal over time on whoever it lands on (the same fields the heal item uses)
     if (s.hot) { o.healRate = Math.max(o.healT > 0 ? o.healRate : 0, s.hot.hps); o.healT = Math.max(o.healT, s.hot.dur); }
     k1Bless(m, u, s, o);
+    k2Bless(m, u, o, s);   // kit-remake G5 Athena: cleanse, shieldEn, undying + endHeal
     m.events.push({ t: 'bless', id: u.id, to: o.id, skill: s.id, x: o.x, z: o.z });
   },
   rally(m, u, s) {
@@ -1428,10 +1480,11 @@ const CAST = {
     const [cx, cz] = aimPoint(u, inp, s.cast);
     const ux = Math.cos(u.aim), uz = Math.sin(u.aim);
     // seek: the first strikes land on the enemies standing within seek.radius of the cursor (marked ones first when prefer is 'meterMark', then by id); the rest scatter
-    const hunt = s.seek ? seekTargets(m, u, s.seek, cx, cz) : [];
+    const hunt = s.lock ? k2Lock(m, u, s) : s.seek ? seekTargets(m, u, s.seek, cx, cz) : [];
+    if (s.lock && !hunt.length) return false;   // kit-remake G5 Athena: lock needs an enemy in reach
     for (let i = 0; i < s.n; i++) {
       const delay = s.delay + (i / s.n) * s.span;
-      if (i < hunt.length) { addZone(m, u, { kind: 'strike', x: hunt[i].x, z: hunt[i].z, r: s.blast, delay, total: delay, dmg: s.dmg * u.skillAmp, fx: strikeFx(s), src: s.id }); continue; }
+      if (i < hunt.length) { addZone(m, u, { kind: 'strike', x: hunt[i].x, z: hunt[i].z, r: s.blast, delay, total: delay, dmg: s.dmg * u.skillAmp, fx: strikeFx(s), src: s.id, ...(s.lock ? { on: hunt[i].id } : {}) }); continue; }
       // line: strikes march from the aim point along the aim direction; otherwise they scatter in a disc.
       const a = s.line ? 0 : m.rng() * 6.283, d = s.line ? 0 : (i ? Math.sqrt(m.rng()) * (s.radius - s.blast * 0.5) : 0);
       const lx = s.line ? ux * s.gap * (i - (s.n - 1) / 2) : 0, lz = s.line ? uz * s.gap * (i - (s.n - 1) / 2) : 0;
@@ -1946,6 +1999,7 @@ function stepZones(m) {
     let done = false;
     if (z.kind === 'totem') done = totemStep(m, z, owner);
     else if (z.kind === 'strike') {
+      if (z.on >= 0) k2Follow(m, z);   // kit-remake G5 Athena: a locked strike rides its target
       z.delay -= dt;
       if (z.delay <= 0) {
         curSrc = z.src || null; explode(m, owner, z.x, z.z, z.r, z.dmg, z.fx || null, 'strike', z.vis); curSrc = null; done = true;
@@ -2244,6 +2298,7 @@ function damage(m, u, amount, src, raw) {
   if (u.shield > 0) {
     absorbed = Math.min(u.shield, left); u.shield -= absorbed; left -= absorbed;
     if (u.shield <= 0) { u.shieldT = 0; broke = true; m.events.push({ t: 'shieldBreak', id: u.id, x: u.x, z: u.z }); }
+    if (u.shBy >= 0) k2Absorb(m, u, absorbed);   // kit-remake G5 Athena: energy back to the shield's caster
   }
   u.hp -= left; u.combatT = 0;
   if (u.locT > 0 && u.locK === LOC_SLEEP && left + absorbed > 0) u.locT = 0;

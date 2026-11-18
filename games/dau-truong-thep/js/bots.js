@@ -1171,6 +1171,8 @@ const SKILL_AI = {
   },
   barrage(c, s) {
     const { u, tgt, td } = c;
+    // lock (Athena): the sim picks the nearest enemy in reach itself, so any enemy inside reach is enough
+    if (s.lock) { for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.lock - 0.5) return true; return false; }
     if (s.line) return lineBarrage(c, s);
     if (s.channel) {
       // the cast follows the cursor (the bot's aim point is its target), so only start it with an enemy inside the strike disc and in reach
@@ -1427,6 +1429,27 @@ const SKILL_AI = {
   bless(c, s) {
     const { u, m } = c, reach = s.cast - 0.5;
     if (s.bubble) return k1BotBubble(c, s, reach);
+
+    // undying (Athena): the ally (or me) who is about to die under fire; cleanse: an ally held by a stun or root gets the shield
+    if (s.undying) {
+      let best = null, bf = 0.3;
+      for (const a of m.units) {
+        if (a === u || a.team !== u.team || !a.alive || a.combatT > 1.5 || a.undyT > 0 || hyp(a.x - u.x, a.z - u.z) > reach) continue;
+        const f = a.hp / a.maxHp;
+        if (f < bf) { bf = f; best = a; }
+      }
+      if (best) { c.b.sk.x = best.x; c.b.sk.z = best.z; return true; }
+      if (!(c.underFire && c.hpFrac < 0.3)) return false;
+      for (const a of m.units) if (a !== u && a.team === u.team && a.alive && hyp(a.x - u.x, a.z - u.z) < s.pick + 0.5) return false;
+      c.b.sk.x = u.x; c.b.sk.z = u.z;
+      return true;
+    }
+    if (s.shield && s.cleanse) {
+      for (const a of m.units) {
+        if (a === u || a.team !== u.team || !a.alive || !(a.stunT > 0.4 || a.rootT > 0.4 || a.silenceT > 0.4) || hyp(a.x - u.x, a.z - u.z) > reach) continue;
+        c.b.sk.x = a.x; c.b.sk.z = a.z; return true;
+      }
+    }
     if (s.shield) {
       let best = null, bf = 0.8;
       for (const a of m.units) {

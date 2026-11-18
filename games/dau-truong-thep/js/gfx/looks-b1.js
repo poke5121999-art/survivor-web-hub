@@ -1,4 +1,4 @@
-// Looks, batch 1: Lữ Bố, Tào Tháo, Tư Mã Ý, Athena, Hades, Sứa Trắng. Render only (see looks.js for the hooks).
+// Looks, batch 1: Lữ Bố, Tào Tháo, Tư Mã Ý, Hades, Sứa Trắng (Athena moved to looks-k2.js with her ported kit). Render only (see looks.js for the hooks).
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP.md):
 //   吕布 p9: a thrown halberd with a red trident head, a red fire orb round him after every cast, flame spikes and a gold flare
 //     where he blinks in, a thin fiery orange-gold sweep, a red hexagram in a thin blue ring with a gold star at the ult's landing.
@@ -6,7 +6,6 @@
 //     crescent sword-qi.
 //   司马懿 p12: small black orbs with violet rims circling him, black void orbs with lightning inside on his targets, a violet
 //     comet, a straight violet beam.
-//   雅典娜 p69: a gold column of light dropped on an ally, green-gold sparkles, a thin gold ring, an orange reticle.
 //   冥王 p72: an ice-blue scythe sweep, a blue column of light with rings, a big blue energy sphere on the targets.
 //   Sứa Trắng: no part; a pale jellyfish healer (pearl-white bell, glowing tentacles, bubbles, pink stings).
 import * as THREE from '../../vendor/three.module.min.js';
@@ -316,60 +315,6 @@ const tumay = {
   },
 };
 
-// ---- Athena: gold and white light, green-gold sparkles ----------------------------------------------------------------
-const AT_GOLD = C(2.4, 1.15, 0.05), AT_WHITE = C(2.5, 1.9, 0.5), AT_LEAF = C(0.9, 2.1, 0.55), AT_SKY = C(0.6, 1.3, 2.4);
-const athena = {
-  // Khiên Bay: the aegis, a gold round shield spinning flat, leaves a gold ribbon there and back
-  atShield: {
-    pal: [AT_SKY, AT_GOLD], hitR: 1.8,
-    skill(kit, e, u) { kit.glow(u.x, 1.4, u.z, AT_GOLD, 0.2, 1.8, 0.8, kit.K.STAR, 1.3); muz(kit, u, e.a, 3.0, AT_SKY, AT_GOLD); { const sp = kit.beam(u.x, u.z, u.x + Math.cos(e.a) * 6.5, u.z + Math.sin(e.a) * 6.5, 0.7, AT_GOLD, 0.3, 2, 1.4); sp.fade = true; } return true; },
-    shotMake(kit, s) {
-      const g = weapon('shield', 0xd9b04a, AT_GOLD); g.scale.setScalar(2.6);
-      const v = { g, h: held(kit, [g]), x: s.x, z: s.z, live: true };
-      trail(kit, () => (v.live ? [v.x, 1.25, v.z] : null), 1.6, AT_SKY, 3, { c2: AT_WHITE, len: 12 });
-      return v;
-    },
-    shot(kit, v, s, x, y, z, dt) {
-      v.x = x; v.z = z; v.g.position.set(x, 1.3, z); v.g.rotation.y += dt * 14;
-      if (Math.random() < 0.4) kit.glow(x, 1.3, z, AT_WHITE, 0.2, 0.7, 0.8, kit.K.STAR, 1.2);
-      return true;
-    },
-    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; kit.sparks(x, 1.3, z, kit.N(8), AT_GOLD, 7, 0.3, 0.05, 0.5, 8); },
-  },
-  // Khiên Thần: a gold column of light drops on the ally, green-gold sparkles climb, a faint gold shell holds for the shield's time
-  atBless: {
-    pal: [AT_GOLD, AT_WHITE],
-    skill() { return true; },
-    bless(kit, e, u, row) {
-      const o = kit.match.units[e.to]; if (!o) return true;
-      pillar(kit, o.x, o.z, 1.0, AT_GOLD, { c2: AT_WHITE, h: 12, life: 0.75, grow: 0.12, drop: true, rings: 2 });
-      burst(kit, o.x, o.z, 3.2, AT_SKY, AT_GOLD, { life: 0.7 }); pillar(kit, o.x, o.z, 1.8, AT_GOLD, { c2: AT_WHITE, h: 12, life: 0.9, grow: 0.1, drop: true, rings: 2 });
-      kit.ring(o.x, o.z, 2.2, AT_GOLD, 0.4); kit.ring(o.x, o.z, 1.3, AT_LEAF, 0.5, 0.8);
-      for (let i = 0; i < kit.N(14); i++) { const a = Math.random() * 6.283, d = R(0.3, 1.3); kit.glow(o.x + Math.cos(a) * d, R(0.2, 1.4), o.z + Math.sin(a) * d, i % 2 ? AT_LEAF : AT_GOLD, R(0.6, 1), 0.3, 1, kit.K.STAR, 1, 0, R(1.5, 3), 0); }
-      shell(kit, o.x, 1.0, o.z, 1.45, AT_GOLD, { c2: AT_SKY, p: 2.8, core: 0.03, bands: 1.5, follow: o, life: row.dur || 4, grow: 0.2, alpha: 0.75 });
-      kit.flash(o.x, 3, o.z, AT_GOLD, 40, 0.3);
-      if (u !== o) { const b = kit.beam(u.x, u.z, o.x, o.z, 0.4, AT_GOLD, 0.3, 2, 1.6); b.fade = true; }
-      return true;
-    },
-  },
-  // Kết Giới: a gold-white dome banded with light, an eight-point gold star on the floor, motes of light rising inside
-  atAegis: {
-    pal: [AT_GOLD, AT_WHITE],
-    zones: ['dome'],
-    skill(kit, e, u) { pillar(kit, u.x, u.z, 1.4, AT_GOLD, { c2: AT_WHITE, h: 14, life: 0.7, grow: 0.12, drop: true }); kit.flash(u.x, 3, u.z, AT_GOLD, 50, 0.35); return true; },
-    zoneMake(kit, z) {
-      const d = shell(kit, z.x, 0, z.z, z.r, AT_GOLD, { c2: AT_SKY, p: 1.3, core: 0.32, bands: 0.6, dome: true, life: 1e9, grow: 0.25, alpha: 0.85 });
-      const s = sigil(kit, z.x, z.z, z.r, AT_SKY, { c2: AT_GOLD, n: 8, m: 3, ticks: 32, life: 1e9, rev: 0.35, spin: 0.2, fill: 0.55 });
-      return { d, s, t: 0 };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt;
-      if (Math.random() < dt * 14) { const a = Math.random() * 6.283, r = Math.random() * z.r * 0.9; kit.glow(z.x + Math.cos(a) * r, 0.2, z.z + Math.sin(a) * r, Math.random() < 0.3 ? AT_LEAF : AT_GOLD, 1.2, 0.25, 1, kit.K.STAR, 1, 0, R(1.5, 3), 0); }
-    },
-    zoneDrop(kit, v) { stop(v.d); stop(v.s); },
-  },
-};
-
 // ---- Hades: ice-blue soul fire, a scythe, a rune circle, a column of rings ------------------------------------------
 const HD_ICE = C(0.45, 1.25, 2.6), HD_SOUL = C(0.6, 2.2, 2.3), HD_DEEP = C(0.08, 0.25, 1.1), HD_BONE = 0xcfe2ff;
 const hades = {
@@ -510,4 +455,4 @@ const suatrang = {
   },
 };
 
-export const B1 = { ...lubo, ...taothao, ...tumay, ...athena, ...hades, ...suatrang };
+export const B1 = { ...lubo, ...taothao, ...tumay, ...hades, ...suatrang };

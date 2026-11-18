@@ -373,20 +373,29 @@ export const MECHS = {
         desc: 'Khóa kẻ địch ở con trỏ, lấy đà 0,8 giây rồi bắn tia bám theo nó, xuyên cả tường.' },
     ],
   },
+  // Athena: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p69 "66.雅典娜", tooltips in ~/handoff/dtt-ref/kits/AUDIT-a.md).
+  // Attack = one Giáo Sáng blow (150; was 168 at 0.5 s, now 150 at 0.45 s, same dps): passive heals 150% -> 225 (ally) and 225 over
+  // 2 s (self); Chiến Tranh Nghệ Thuật 176% -> 264 + 15% of the target's lost hp (true). Ranges: 300 -> 6 m, 600 -> 12 m. Cooldowns
+  // 6 / 8 / 25 s in the clip -> 8 / 10 / 45. Energy is kept (her kit is built on it): 150 max, +10 per 3 s, Q costs 50, and each 3%
+  // of her max hp her shield absorbs gives back 15. Kit-remake G5 fields (sim.js block "kit-remake G5 Athena"): passive castHeal,
+  // barrage lock, bless cleanse / shieldEn / undying / endHeal.
   athena: {
     name: 'Athena', role: 'Hộ vệ', roleKey: 'guardian', price: 1500, tint: 0xe9e4d4,
-    blurb: 'Giáo sáng và khiên bay quay về tay. Tặng khiên cho đồng đội, dựng kết giới chắn đạn.',
+    blurb: 'Nữ thần chiến tranh: mỗi lần dùng chiêu hồi máu cho đồng đội yếu nhất và chính mình. Khóa kẻ địch gần nhất rồi giáng cột thánh quang, phủ thánh thuẫn giải mọi hiệu ứng xấu, ban phúc bất tử cho đồng đội.',
     hp: 2500, speed: 5.4, radius: 0.92,
     armor: 0.15, accel: 0.8, turn: 9, towerMul: 1.0,
-    passive: { do: 'ward', name: 'Thần Hộ', desc: 'Đồng đội trong 5 m nhận ít hơn 12% sát thương.', radius: 5, armor: 0.12 },
-    weapon: { name: 'Giáo Sáng', cd: 0.5, dmg: 168, speed: 30, range: 11, r: 0.24, vis: 'pulse' },
+    energy: { max: 150, regen: 10 / 3, start: 150 },
+    passive: { do: 'castHeal', name: 'Chiến Tranh Nghệ Thuật', r: 6, ally: 225, self: 225, selfDur: 2,
+      desc: 'Mỗi lần dùng chiêu, đồng đội ít máu nhất trong 6 m được hồi 225 máu, còn bạn hồi 225 máu trong 2 giây. Bạn có thanh năng lượng 150, hồi 10 mỗi 3 giây.' },
+    weapon: { name: 'Giáo Sáng', cd: 0.45, dmg: 150, speed: 30, range: 11, r: 0.24, vis: 'pulse' },
     skills: [
-      { id: 'khienbay', look: 'atShield', name: 'Khiên Bay', cd: 8, do: 'volley', n: 1, dmg: 250, speed: 22, range: 11, r: 0.5, pierce: true, ret: true, vis: 'disc', icon: 'ricochet',
-        desc: 'Ném khiên xuyên qua địch rồi quay về tay: trúng được hai lượt.' },
-      { id: 'khienthan', look: 'atBless', name: 'Khiên Thần', cd: 10, do: 'bless', cast: 12, pick: 3.5, shield: 500, dur: 4, icon: 'shield',
-        desc: 'Phủ khiên 500 trong 4 giây cho đồng đội ở con trỏ. Không có ai ở đó thì khiên về mình.' },
-      { id: 'ketgioi', look: 'atAegis', name: 'Kết Giới', cd: 46, do: 'dome', radius: 6.5, dur: 5, shield: 300, heal: 200, icon: 'dome',
-        desc: 'Dựng vòm kết giới 5 giây chắn đạn địch; đồng đội bên trong được hồi 200 máu và khiên 300.' },
+      { id: 'chientranh', look: 'atLock', name: 'Chiến Tranh Nghệ Thuật', cd: 8, do: 'barrage', n: 1, cast: 12, lock: 12, radius: 0, blast: 2.5, delay: 1, span: 0, dmg: 264,
+        fx: { lostHp: 0.15 }, uses: { n: 3, gap: 2 }, en: { cost: 50 }, icon: 'beam',
+        desc: 'Tốn 50 năng lượng: khóa kẻ địch gần nhất trong 12 m, 1 giây sau cột thánh quang giáng xuống nó, gây 264 sát thương vòng 2,5 m quanh nó, thêm sát thương chuẩn bằng 15% máu đã mất của kẻ trúng. Tích tối đa 3 lượt, mỗi lượt cách nhau 2 giây.' },
+      { id: 'thanhthuan', look: 'atAegis', name: 'Thánh Thuẫn Tí Hựu', cd: 10, do: 'bless', cast: 12, pick: 3.5, shield: 750, dur: 2, cleanse: true, shieldEn: { per: 0.03, en: 15 }, icon: 'shield',
+        desc: 'Giải mọi hiệu ứng xấu trên đồng đội ở con trỏ (không có ai thì là bạn) và phủ thánh thuẫn hấp thụ 750 sát thương trong 2 giây. Cứ mỗi 3% máu tối đa của bạn mà khiên đỡ được, bạn nhận 15 năng lượng.' },
+      { id: 'anhhung', look: 'atHero', name: 'Anh Hùng Bất Hủ', cd: 45, do: 'bless', cast: 12, pick: 3.5, dur: 3, undying: 3, endHeal: 0.3, icon: 'rally',
+        desc: 'Ban phúc 3 giây cho đồng đội ở con trỏ (không có ai thì là bạn): máu không thể tụt dưới 1. Hết phúc, kẻ đó hồi máu bằng 30% máu tối đa của bạn.' },
     ],
   },
   hades: {
@@ -1029,7 +1038,7 @@ export const PERKS = {
   quancong: [perk('Đao Dài', 'Đao Khí bay xa 8 m.', 'weapon', { range: 8 }), perk('Xung Mạnh', 'Xung Phong gây 260 và choáng 0,8 giây.', 0, { dmg: 260, stun: 0.8 }), perk('Án Trảm', 'Trảm Tướng kết liễu dưới 32% máu.', 2, { fx: { execute: 0.32 } })],
   natra: [perk('Vòng Lớn', 'Càn Khôn Quyển gây 260.', 0, { dmg: 260 }), perk('Bánh Xe Dài', 'Phong Hỏa Luân lao xa 11 m.', 1, { dist: 11 }), perk('Giáng Mạnh', 'Thiên Giáng rộng 4 m, gây 760.', 2, { radius: 4, dmg: 760 })],
   duongtien: [perk('Tiêm Sâu', 'Tam Tiêm Đao làm lộ điểm yếu 22% trong 5 giây.', 0, { fx: { amp: { amp: 0.22, dur: 5 } } }), perk('Khuyển Nhanh', 'Hao Thiên Khuyển chạy nhanh hơn, nổ 320.', 1, { seek: { speed: 10.5, range: 16 }, dmg: 320 }), perk('Mắt Tinh', 'Thần Nhãn Truy Kích gây 1500, lấy đà 0,65 giây.', 2, { dmg: 1500, windup: 0.65 })],
-  athena: [perk('Khiên Nặng', 'Khiên Bay gây 300.', 0, { dmg: 300 }), perk('Khiên Dày', 'Khiên Thần hấp thụ 750.', 1, { shield: 750 }), perk('Kết Giới Bền', 'Kết Giới kéo dài 6,5 giây, hồi 350.', 2, { dur: 6.5, heal: 350 })],
+  athena: [perk('Thánh Quang Nặng', 'Chiến Tranh Nghệ Thuật gây 300.', 0, { dmg: 300 }), perk('Thuẫn Dày', 'Thánh Thuẫn Tí Hựu hấp thụ 900 trong 2,5 giây.', 1, { shield: 900, dur: 2.5 }), perk('Bất Hủ Lâu', 'Anh Hùng Bất Hủ kéo dài 4 giây.', 2, { dur: 4, undying: 4 })],
   hades: [perk('Ám Lưu Sâu', 'Ám Lưu làm chậm 50% trong 2,2 giây.', 0, { slow: 0.5, slowDur: 2.2 }), perk('Tay Dài', 'Bàn Tay Âm Giới giữ chân 2 giây, rộng 3,6 m.', 1, { blast: 3.6, fx: { root: 2 } }), perk('Cửa Rộng', 'Cửa Âm Phủ rộng 7,5 m, kéo dài 5 giây.', 2, { radius: 7.5, dur: 5 })],
   lubo: [perk('Kích Dài', 'Phương Thiên Kích với xa 9 m.', 'weapon', { range: 9 }), perk('Định Thân Lâu', 'Tuy Viễn Tất Tru giữ chân 1,5 giây.', 0, { fx: { root: 1.5 } }), perk('Quỷ Thần Uy', 'Quỷ Thần Giáng Lâm giáng rộng 5 m.', 2, { radius: 5 })],
   mucma: [perk('Bốn Xúc Tu', 'Xúc Tu bắn bốn đường.', 'weapon', { n: 4, fan: 0.12 }), perk('Xuyên Sâu', 'Xuyên Thân lao xa 9,5 m, gây 260.', 1, { dist: 9.5, dmg: 260 }), perk('Ma Dài', 'Hóa Ma kéo dài 8 giây, hút máu 45%.', 2, { dur: 8, lifesteal: 0.45 })],

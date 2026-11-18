@@ -22,6 +22,7 @@ import { B9 } from './looks-b9.js';
 import { B8 } from './looks-b8.js';
 import { B7 } from './looks-b7.js';
 import { K1 } from './looks-k1.js';
+import { K2 } from './looks-k2.js';
 
 const C = (r, g, b) => new THREE.Color(r, g, b);
 const PINK = C(2.4, 0.45, 1.7), HOT = C(2.6, 1.3, 2.2), DEEP = C(1.3, 0.15, 1.1), PETAL = C(1.0, 0.42, 0.62), CYAN = C(0.35, 1.0, 2.0), GOLDW = C(2.6, 2.1, 1.2), SOOT = C(0.08, 0.05, 0.07);
@@ -188,6 +189,7 @@ export const LOOKS = {
 
 Object.assign(LOOKS, B1, B2, B3, B4, B5, B6, B7, B8, B9);
 Object.assign(LOOKS, K1);   // kit lane K1
+Object.assign(LOOKS, B1, B2, B3, B4, B5, B6, B7, B8, B9, K2);
 
 // The row of unit u that a look-carrying event names (skills, their second stages, the passive).
 export function lookRow(u, id) {
