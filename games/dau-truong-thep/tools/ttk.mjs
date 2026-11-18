@@ -71,7 +71,7 @@ const SEQ = {
   samthep: { d: 7, seq: [['s2', 0], ['s1', 0.5], ['ult', 0.8]] },
   cuuvi: { d: 8, seq: [['ult', 0], ['s1', 0.4]] },
   kiemthan: { d: 6, seq: [['s2', 0], ['s1', 0.3], ['ult', 0.6]] },
-  suatrang: { d: 8, seq: [['s1', 0]] },
+  suatrang: { d: 8, seq: [['s2', 0]] },
   khidot: { d: 5, seq: [['ult', 0], ['s2', 0.2], ['s1', 0.7]] },
   retdo: { d: 6, seq: [['ult', 0], ['s1', 0.3]] },
   nhenthep: { d: 6, seq: [['s2', 0], ['ult', 0.3], ['s1', 0.9]] },

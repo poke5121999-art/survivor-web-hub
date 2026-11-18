@@ -129,6 +129,7 @@ function clearStatus(u) {
   tthClear(u);   // kit-remake G5 Tào Tháo
   sntClear(u);   // kit-remake G5 Sơn Tinh
   k13Clear(u);   // kit lane K13
+  k14Clear(u);   // kit-remake K14
 }
 
 function spawn(m, u, first) {
@@ -427,6 +428,7 @@ function stepUnit(m, u, inp) {
   g4Tick(m, u);
   g3Tick(m, u);
   k4Tick(m, u);   // kit-remake K4: tumay's chaos orb pool
+  k14Tick(m, u);   // kit-remake K14: Baymax's chain
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   // counter: the window runs out without a hit and 40% of the cooldown comes back
   if (u.parryT > 0) {
@@ -1211,6 +1213,7 @@ function fireRay(m, u, w) {
 }
 
 function fireWeapon(m, u, inp) {
+  if (k14NoFire(u)) return;   // kit-remake K14: Baymax's warrior has no main weapon
   const w = shotsPatch(u, weaponOf(u));
   u.cd.fire = w.cd; u.stealthT = 0; u.revealT = RULES.revealOnFire;
   if (w.mag) magShot(m, u, w);
@@ -1372,6 +1375,7 @@ const CAST = {
     m.events.push({ t: 'transform', id: u.id, on: 1, x: u.x, z: u.z, size: s.size || 1 });
     tfStart(m, u, s);
     if (s.sntLand) sntLand(m, u, s, inp);   // kit-remake G5 Sơn Tinh
+    if (s.stWar) k14War(m, u, s);   // kit-remake K14: Baymax's warrior
   },
   stance(m, u, s) { u.cast = { skill: s, t: s.setup, total: s.setup, move: 0, lock: false, aim: u.aim }; },
   hook(m, u, s) {
@@ -1388,6 +1392,7 @@ const CAST = {
     m.events.push({ t: 'swap', id: u.id, other: o.id, x0: x, z0: z, x1: u.x, z1: u.z });
   },
   bless(m, u, s, inp) {
+    if (s.tie) return k14Tie(m, u, s, inp);   // kit-remake K14: Baymax's heal chain
     const o = pickUnit(m, u, inp, s, (o) => o.team === u.team) || u;
     if (s.shield) { o.shield = Math.max(o.shield, s.shield); o.shieldMax = o.shield; o.shieldT = s.dur; }
     if (s.haste) { o.hasteT = s.dur; o.hasteF = s.haste; }
@@ -1416,6 +1421,7 @@ const CAST = {
       if (!o) return false;
       tx = o.x; tz = o.z;
       if (s.tthHold) tthPick(m, u, s, o, inp);   // kit-remake G5 Tào Tháo
+      if (s.stGuard) k14Guard(u, o, s);   // kit-remake K14: Baymax guards the ally until he lands
     }
     // invuln: untargetable (no damage, no crowd control) from the press until it lands, wind-up included
     if (s.invuln) { const T = (s.windup || 0) + s.flight + 0.1; u.invulnT = Math.max(u.invulnT, T); u.ccT = Math.max(u.ccT, T); }
@@ -1807,6 +1813,7 @@ function stepDash(m, u) {
   const moved = Math.hypot(u.x - bx, u.z - bz);
   d.left -= stepLen;
   u.heading = Math.atan2(d.dz, d.dx);
+  if (d.land && d.land.stPath) k14Path(m, u, d);   // kit-remake K14: Baymax's flight hits on the way
   if (s.dmg) for (const o of m.units) {
     if (o.team === u.team || !o.alive || d.hit.includes(o.id)) continue;
     const rr = u.radius + o.radius + 0.35;
@@ -2950,12 +2957,25 @@ function k4Homing(m, u, s, inp) {
 }
 /* ===== end kit-remake K4 ===== */
 
-/* ===== kit-remake K14 (lane k14, G5 one-tank mechanics; ~/handoff/dtt-ref/kits/MECHANICS.md "Group 5": gilgamesh). Hooks elsewhere are one line each, marked "kit-remake K14", and call into this block.
+/* ===== kit-remake K14 (lane k14, G5 one-tank mechanics; ~/handoff/dtt-ref/kits/MECHANICS.md "Group 5": gilgamesh, suatrang). Hooks elsewhere are one line each, marked "kit-remake K14", and call into this block.
    gilgamesh (Gilgamesh, clip p74):
      volley row `ggWind: s`: the press stands that long first (a cast, `move` x speed, aim free), then the volley (and its burst)
        goes; the row's G1 `unstoppable` covers the wind-up. FINISH.volley is wrapped here for it.
-   New names carry a prefix (gg = the tank, k14 = the lane): no new unit field (the wind-up is a cast). ===== */
+   suatrang (Baymax, clip p59):
+     bless row `tie {hps, drain, range}`: a heal chain to the ally at the cursor (nobody there: no cast); both heal hps per s (the
+       caster x selfHealMul), the caster loses `drain` energy per s; it breaks when the energy is out, the two are more than range
+       apart, or either dies; a press while it holds takes it off (the press counts). State u.stTie = ally id + 1 (STATUS).
+     leap row `stGuard: f`: the picked ally takes f less damage (guard) from the press until the landing.
+     leap row `stPath {dmg, r, fx}`: every enemy within r (+ its radius) of the flying mech is hit once (the row's tag).
+     transform row `stWar {push}`: no main weapon while it runs (u.stWarT, STATUS) and its follow zone shoves enemies out at push m/s.
+   New names carry a prefix (gg, st, ct = the tank, k14 = the lane): unit stTie, stWarT; dash stHit. ===== */
 let ggGo = false;
+function k14Clear(u) { u.stTie = 0; u.stWarT = 0; }
+// Every tick of a living mech: the warrior's timer, Baymax's chain.
+function k14Tick(m, u) {
+  if (u.stWarT > 0) u.stWarT = u.tfT > 0 ? Math.max(0, u.stWarT - TICK) : 0;
+  if (u.stTie) k14TieStep(m, u);
+}
 
 // ---- Gilgamesh: the wind-up before the volley ----
 function k14Wind(u, s) { u.cast = { skill: s, t: s.ggWind, total: s.ggWind, move: s.move ?? 0.6, lock: false, aim: u.aim, acc: 0, left: 0, ggW: 1 }; }
@@ -2964,6 +2984,52 @@ FINISH.volley = function (m, u, s, c) {
   if (!c.ggW) return k14Volley(m, u, s, c);
   ggGo = true; CAST.volley(m, u, s); ggGo = false;
 };
+
+// ---- Baymax: the heal chain, the guard on the ally, the flight's hits, the warrior ----
+function k14Tie(m, u, s, inp) {
+  if (u.stTie) { k14Untie(m, u); return; }
+  const o = pickUnit(m, u, inp, s, (o) => o.team === u.team);
+  if (!o) return false;
+  u.stTie = o.id + 1;
+  m.events.push({ t: 'bless', id: u.id, to: o.id, skill: s.id, x: o.x, z: o.z });
+}
+function k14Untie(m, u) {
+  const to = u.stTie - 1;
+  u.stTie = 0;
+  m.events.push({ t: 'untie', id: u.id, to, x: u.x, z: u.z });
+}
+function k14TieStep(m, u) {
+  const o = m.units[u.stTie - 1], s = u.def.skills.find((r) => r.tie), T = s && s.tie;
+  if (!T || !o || !o.alive || !u.alive || u.en < T.drain * TICK - 1e-9 || dist2(o.x, o.z, u.x, u.z) > T.range * T.range) { k14Untie(m, u); return; }
+  heal(m, o, T.hps * TICK, u, true);
+  heal(m, u, T.hps * TICK * RULES.selfHealMul, u, true);
+  u.en = Math.max(0, u.en - T.drain * TICK);
+}
+function k14Guard(u, o, s) {
+  const t = (s.windup || 0) + s.flight + 0.15;
+  o.guardF = Math.max(o.guardT > 0 ? o.guardF : 0, s.stGuard); o.guardT = Math.max(o.guardT, t);
+}
+function k14Path(m, u, d) {
+  const P = d.land.stPath;
+  if (!d.stHit) d.stHit = [];
+  for (const o of m.units) {
+    if (o.team === u.team || !o.alive || d.stHit.includes(o.id)) continue;
+    const rr = P.r + o.radius;
+    if (dist2(o.x, o.z, u.x, u.z) > rr * rr) continue;
+    d.stHit.push(o.id);
+    curSrc = d.land.id || null;
+    damage(m, o, P.dmg * dmgScale(u), u);
+    if (o.alive && P.fx) applyFx(m, u, o, P.fx);
+    curSrc = null;
+    m.events.push({ t: 'ram', id: u.id, x: o.x, z: o.z });
+  }
+}
+function k14War(m, u, s) {
+  u.stWarT = s.dur;
+  const z = m.zones[m.zones.length - 1];
+  if (z && z.kind === 'field' && z.owner === u.id && z.follow && s.stWar.push) z.pull = -s.stWar.push;
+}
+const k14NoFire = (u) => u.stWarT > 0 && u.tfT > 0;
 
 /* ===== end kit-remake K14 ===== */
 

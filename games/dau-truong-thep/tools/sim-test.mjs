@@ -3449,9 +3449,9 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
     press(m, 0, 's2'); go(m, 35);
     check('43q an enemy 2 m away (inside ring + 0.6) is cut 80 per half second: 160 after 35 ticks', near(UNG.hp - v.hp, 160, 1e-6), `dmg ${UNG.hp - v.hp}`);
   }
-  // regen (suatrang): 0.8 % of max hp each second to itself, allies near it too (x2.5 under 60 %), far allies nothing
+  // regen (suatrang, old kit fixture OLD_SUATRANG in k14-cases.mjs): 0.8 % of max hp each second to itself, allies near it too (x2.5 under 60 %), far allies nothing
   {
-    const m = arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 3, 0], [R('trau', 0), 12, 0], [R('ung', 1), 25, 0]]), [a, al, far] = m.units;
+    const m = oldKit14(arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 3, 0], [R('trau', 0), 12, 0], [R('ung', 1), 25, 0]]), 'suatrang'), [a, al, far] = m.units;
     a.hp = a.maxHp * 0.5; al.hp = al.maxHp * 0.5; far.hp = far.maxHp * 0.5;
     const h = [a.hp, al.hp, far.hp];
     go(m, 30);
@@ -3475,9 +3475,9 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
     go(m, 15);
     check('43u under 35 %: the pulse is twice as big', near(a.hp - h2, 0.02 * (a.maxHp - h2), 1e-6), `${a.hp - h2}`);
   }
-  // bless.hot (suatrang Q): 160 hp/s for 4 s on the ally at the cursor; on itself when nobody is there
+  // bless.hot (suatrang Q, old kit fixture): 160 hp/s for 4 s on the ally at the cursor; on itself when nobody is there
   {
-    const m = arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 9, 0], [R('ung', 1), 25, 0]]), [a, al] = m.units;
+    const m = oldKit14(arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 9, 0], [R('ung', 1), 25, 0]]), 'suatrang'), [a, al] = m.units;
     al.hp = al.maxHp * 0.3; a.hp = a.maxHp * 0.5; const h = al.hp, ha = a.hp;
     press(m, 0, 's1', { tx: 9, tz: 0 });
     check('43v Bong Bong Hoi: ally healT 4 s and rate 160, the caster untouched', al.healT > 3.9 && al.healRate === 160 && a.healT === 0, `${al.healT} ${al.healRate}`);
@@ -3486,9 +3486,9 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
     a.cd.s1 = 0; press(m, 0, 's1', { tx: -8, tz: 0 });
     check('43x with nobody at the cursor it lands on the caster', a.healT > 3.9 && a.healRate === 160, `${a.healT}`);
   }
-  // leap.to 'ally' + landShield (suatrang E)
+  // leap.to 'ally' + landShield (suatrang E, old kit fixture)
   {
-    const m = arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 9, 0], [R('trau', 0), 11, 0], [R('trau', 0), 20, 0], [R('ung', 1), 30, 0]]), [a, b, c, d] = m.units;
+    const m = oldKit14(arena([[R('suatrang', 0), 0, 0], [R('trau', 0), 9, 0], [R('trau', 0), 11, 0], [R('trau', 0), 20, 0], [R('ung', 1), 30, 0]]), 'suatrang'), [a, b, c, d] = m.units;
     press(m, 0, 's2', { tx: -5, tz: 0 });
     check('43y no ally at the cursor: the leap does not happen (lockout 0.4 s, no dash)', !a.dash && a.cd.s2 === 0.4 && a.x === 0, `${a.cd.s2}`);
     a.cd.s2 = 0; press(m, 0, 's2', { tx: 9, tz: 0 }); go(m, 20, () => ({ 0: { tx: 9, tz: 0 } }));

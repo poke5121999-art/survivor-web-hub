@@ -1,8 +1,10 @@
-// Looks, kit lane k14: Gilgamesh, remade with the kits ported from the owner's clips. Render only (see looks.js).
+// Looks, kit lane k14: Gilgamesh and Baymax, remade with the kits ported from the owner's clips. Render only (see looks.js).
 // One main colour and one accent per tank, one strong shape per skill, soft halos.
 //   英雄王 p74 (Gilgamesh): a golden lattice sphere round him (Thiên Chi Tỏa); a huge pale-gold sword plunged into a thin sky-blue
 //     ring with orange flashes where it tears (Quai Ly); golden ripples opening in a fan behind him, gold blades pouring out of
 //     them (Vương Chi Tài Bảo); golden chains closing round a bound foe (the passive).
+//   小白 p59 (Baymax): a bright mint-green chain between him and the ally; a white bomb lobbed into a pale-blue flash; an ice-blue
+//     comet with rings when he flies, golden-white shields on both, ice-crystal wings and a cold ring while he is the warrior.
 import * as THREE from '../../vendor/three.module.min.js';
 import { C, own, stop, slash, sigil, shell, trail, weapon, burst } from './lookkit.js';
 
@@ -129,4 +131,106 @@ const gilgamesh = {
   },
 };
 
-export const K14 = { ...gilgamesh };
+// ---- Baymax: ice-blue light, mint-green accent -------------------------------------------------------------------------
+const BM_ICE = C(1.2, 2.1, 2.6), BM_WHITE = C(2.5, 2.6, 2.6), BM_DEEP = C(0.08, 0.3, 0.6), BM_MINT = C(0.35, 2.6, 1.2);
+const featherGeo = keep(new THREE.ConeGeometry(0.16, 1, 4).rotateZ(-Math.PI / 2).translate(0.5, 0, 0));
+// a pair of ice-crystal wings: feathers fanned out on both sides of the mech, folding with a slow beat
+function wings(kit, u, life) {
+  const g = new THREE.Group(), m = basic(0xa8e4ff, true, 0.9), list = [];
+  for (const sd of [-1, 1]) for (let i = 0; i < 6; i++) { const f = new THREE.Mesh(featherGeo, m); g.add(f); list.push([f, sd, i]); }
+  own(kit, [g], life, (t) => {
+    if (!u.alive || (t > 0.3 && !(u.tfT > 0))) return false;
+    const h = u.heading ?? u.aim, beat = 0.25 * Math.sin(t * 5);
+    g.position.set(u.x, 1.5, u.z); g.rotation.y = -h;
+    for (const [f, sd, i] of list) { const a = sd * (1.45 + i * 0.16 + beat) + Math.PI; f.position.set(-0.4, 0.15 * i, 0); f.rotation.set(0, -a, sd * (0.15 + i * 0.05)); f.scale.set(2.4 + 0.45 * i, 1.6, 1.6); }
+    m.opacity = 0.9 * Math.min(1, t / 0.2, t < 0.3 ? 1 : u.tfT / 0.3);
+  });
+}
+const suatrang = {
+  // Siêu Năng Trị Dũ: a bright mint-green chain from him to the ally for as long as it holds, little green crosses rising off both
+  bmTether: {
+    bless(kit, e, u) {
+      const o = kit.match.units[e.to]; if (!o) return true;
+      const b = kit.beam(u.x, u.z, o.x, o.z, 1.3, BM_MINT, 99, 0, 1.5), c = kit.beam(u.x, u.z, o.x, o.z, 0.4, BM_WHITE, 99, 0, 1.5), t0 = kit.time;
+      const tied = () => u.alive && o.alive && (kit.time - t0 < 0.3 || u.stTie === o.id + 1);
+      for (const p of [u, o]) {
+        shell(kit, p.x, 1.2, p.z, 2.6, BM_MINT, { c2: C(0.05, 1.0, 0.35), p: 1.0, core: 0.3, bands: 2, follow: p, life: 60, grow: 0.15, step: () => tied() });
+        const sg = sigil(kit, p.x, p.z, 3.0, C(0.1, 1.8, 0.6), { c2: BM_WHITE, n: 4, m: 1, ticks: 8, inner: 0.6, fill: 0.5, life: 60, rev: 0.15, spin: 1.5, follow: p, w: 0.09 });
+        kit.anims.push({ step() { if (tied()) return true; stop(sg); return false; }, drop() {} });
+      }
+      // the chain itself: mint links strung along the beam, sagging a little
+      const lm = basic(0x3cff9a, false, 0.95), links = new THREE.Group();
+      for (let i = 0; i < 16; i++) { const l = new THREE.Mesh(linkGeo, lm); l.scale.setScalar(1.25); links.add(l); }
+      own(kit, [links], 60, () => tied());
+      let t = 0;
+      kit.anims.push({ step(dt) {
+        t += dt;
+        if (!tied()) return false;
+        kit.aimBeam(b, u.x, u.z, o.x, o.z, 1.5); kit.aimBeam(c, u.x, u.z, o.x, o.z, 1.5);
+        const a = Math.atan2(o.z - u.z, o.x - u.x), n = links.children.length;
+        links.children.forEach((l, i) => { const f = (i + 0.5) / n; l.position.set(u.x + (o.x - u.x) * f, 1.5 - 0.5 * Math.sin(f * Math.PI), u.z + (o.z - u.z) * f); l.rotation.set(i % 2 ? Math.PI / 2 : 0, -a + Math.PI / 2, 0); });
+        b.u.uA.value = 0.75 + 0.25 * Math.sin(t * 9);
+        if (Math.random() < dt * 10) for (const p of [u, o]) kit.glow(p.x + R(-0.6, 0.6), 1.2, p.z + R(-0.6, 0.6), BM_MINT, 0.6, 0.35, 1, kit.K.STAR, 1, 0, R(1, 2), 0);
+        return true;
+      }, drop() { kit.endBeam(b); kit.endBeam(c); } });
+      return true;
+    },
+  },
+  // Siêu Năng Tạc Đạn: a white bomb lobbed from him to the spot inside a thin pale-blue ring; it goes off in a pale-blue flash
+  // with a shock ring
+  bmBomb: {
+    zones: ['strike'], ownDisc: true, pal: [BM_ICE, BM_WHITE], hitR: 2.2,
+    skill() { return true; },
+    zoneMake(kit, z) {
+      const o = kit.match.units[z.owner], x0 = o ? o.x : z.x, z0 = o ? o.z : z.z;
+      const ring = sigil(kit, z.x, z.z, z.r, BM_ICE, { c2: BM_WHITE, n: 0, ticks: 8, inner: 0.85, fill: 0.1, w: 0.06, life: 1e9, rev: 0.1, spin: 1.5 });
+      const ball = shell(kit, x0, 1.2, z0, 0.45, BM_WHITE, { c2: BM_ICE, p: 1.2, core: 0.7, life: 1e9 });
+      return { ring, ball, x0, z0, t: 0 };
+    },
+    zone(kit, v, z, dt) {
+      v.t += dt;
+      const k = Math.min(1, v.t / Math.max(0.1, z.total || 0.5));
+      v.ball.position.set(v.x0 + (z.x - v.x0) * k, 1.2 + 3.2 * Math.sin(k * Math.PI), v.z0 + (z.z - v.z0) * k);
+    },
+    zoneDrop(kit, v) { stop(v.ring); stop(v.ball); },
+    land(kit, e) {
+      burst(kit, e.x, e.z, 4.5, BM_ICE, BM_WHITE, { life: 0.4 });
+      shell(kit, e.x, 1.0, e.z, e.r * 1.05, BM_WHITE, { c2: BM_ICE, inv: 1.4, core: 0.8, life: 0.7, step: (t, m) => { m.scale.setScalar(e.r * (0.4 + 0.75 * Math.min(1, t / 0.15))); } });
+      sigil(kit, e.x, e.z, e.r * 1.25, BM_ICE, { c2: BM_WHITE, n: 8, m: 3, ticks: 0, inner: 0.82, fill: 0.35, life: 0.8, rev: 0.05, spin: 2, w: 0.1 });
+      kit.ring(e.x, e.z, e.r * 1.4, BM_ICE, 0.5); kit.ring(e.x, e.z, e.r * 0.8, BM_WHITE, 0.35, 0.7);
+      kit.puffs(e.x, 0.6, e.z, kit.N(8), C(0.8, 0.9, 1.0), 1.2, 3, 0.7, 1.0, 2.2, 0.4, 0.45, kit.K.SMOKE, 2.5);
+      kit.kick(e.x, e.z, 0.35);
+      return true;
+    },
+  },
+  // Siêu Năng Chiến Sĩ: light gathers on him while he winds up; he flies as an ice-blue comet with rings left in the air; on
+  // landing a cold ring, white-gold shields on him and the ally, then ice-crystal wings and a turning ring for the warrior's 10 s
+  bmWarrior: {
+    pal: [BM_ICE, BM_WHITE], hitR: 2,
+    skill() { return true; },
+    castMake(kit, u) { return { s: sigil(kit, u.x, u.z, 2.6, BM_ICE, { c2: BM_WHITE, n: 6, m: 2, ticks: 12, inner: 0.6, fill: 0.2, life: 1e9, rev: 0.3, spin: 3, follow: u, w: 0.08 }) }; },
+    cast(kit, v, u, s, k) { if (Math.random() < 0.7) { const b = Math.random() * 6.283; kit.str.emit(u.x + Math.cos(b) * 2.2, 1.4, u.z + Math.sin(b) * 2.2, -Math.cos(b) * 6, 0, -Math.sin(b) * 6, BM_ICE, 0.3, 0.08, 0.06, 0, 0, 1); } kit.glow(u.x, 1.6, u.z, BM_WHITE, 0.05, 0.8 + 1.5 * k, 0.9, kit.K.GLOW, 1.2); },
+    castDrop(kit, v) { stop(v.s); },
+    leap(kit, e, u, row) {
+      const dur = e.dur || 0.6, dx = e.x - e.x0, dz = e.z - e.z0;
+      trail(kit, (t) => (t < dur + 0.05 && u.alive ? [u.x, 1.8, u.z] : null), 1.6, BM_ICE, dur + 0.6, { c2: BM_DEEP, len: 20 });
+      trail(kit, (t) => (t < dur + 0.05 && u.alive ? [u.x, 1.8, u.z] : null), 0.5, BM_WHITE, dur + 0.5, { len: 12, up: true });
+      for (let i = 1; i <= 3; i++) { const f = i / 4; const s = sigil(kit, e.x0 + dx * f, e.z0 + dz * f, 1.6, BM_ICE, { c2: BM_WHITE, n: 0, ticks: 0, inner: 0.82, fill: 0.05, w: 0.08, life: 0.7, rev: 0.05, y: 1.8, grow: 6 }); s.rotation.x = 0; s.rotation.z = Math.PI / 2; s.rotation.y = -Math.atan2(dz, dx); }
+      kit.anims.push({ t: 0, step(dt) {
+        this.t += dt; if (this.t < dur) return true;
+        const rr = row.radius || 3.5;
+        burst(kit, u.x, u.z, 4.5, BM_ICE, BM_WHITE, { life: 0.4 });
+        shell(kit, u.x, 0, u.z, rr * 1.15, BM_ICE, { c2: BM_WHITE, p: 1.2, core: 0.25, dome: true, life: 0.9, grow: 0.12 });
+        sigil(kit, u.x, u.z, rr * 1.35, BM_ICE, { c2: BM_WHITE, n: 8, m: 3, ticks: 16, inner: 0.7, fill: 0.35, life: 1.2, rev: 0.06, spin: 2, w: 0.1 });
+        kit.ring(u.x, u.z, rr * 1.5, BM_ICE, 0.55);
+        for (const o of kit.match.units) if (o.alive && o.team === u.team && Math.hypot(o.x - u.x, o.z - u.z) < (row.radius || 3.5) + 0.5) shell(kit, o.x, 1.1, o.z, 1.5, C(2.6, 2.2, 1.2), { c2: BM_WHITE, p: 2.4, core: 0.04, follow: o, life: row.shieldDur || 5, grow: 0.15, alpha: 0.8 });
+        wings(kit, u, 10.5);
+        sigil(kit, u.x, u.z, 3, BM_ICE, { c2: BM_WHITE, n: 0, ticks: 18, inner: 0.75, fill: 0.12, w: 0.06, life: 10.3, rev: 0.2, spin: 1.2, follow: u, alpha: 0.85 });
+        kit.flash(u.x, 2, u.z, BM_WHITE, 50, 0.3); kit.kick(u.x, u.z, 0.4);
+        return false; }, drop() {} });
+      return true;
+    },
+  },
+};
+
+export const K14 = { ...gilgamesh, ...suatrang };

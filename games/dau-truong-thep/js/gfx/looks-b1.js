@@ -1,4 +1,4 @@
-// Looks, batch 1: Lữ Bố, Tào Tháo, Tư Mã Ý, Hades, Sứa Trắng (Athena moved to looks-k2.js with her ported kit). Render only (see looks.js for the hooks).
+// Looks, batch 1: Lữ Bố, Tào Tháo, Tư Mã Ý, Hades (Athena moved to looks-k2.js, Sứa Trắng / Baymax to looks-k14.js with their ported kits). Render only (see looks.js for the hooks).
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP.md):
 //   吕布 p9: a thrown halberd with a red trident head, a red fire orb round him after every cast, flame spikes and a gold flare
 //     where he blinks in, a thin fiery orange-gold sweep, a red hexagram in a thin blue ring with a gold star at the ult's landing.
@@ -6,7 +6,7 @@
 //     crescent sword-qi.
 //   司马懿 p12: Tư Mã Ý's looks moved to looks-k4.js with his ported kit (kit lane K4).
 //   冥王 p72: an ice-blue scythe sweep, a blue column of light with rings, a big blue energy sphere on the targets.
-//   Sứa Trắng: no part; a pale jellyfish healer (pearl-white bell, glowing tentacles, bubbles, pink stings).
+//   Sứa Trắng: Baymax's looks moved to looks-k14.js with his ported kit (kit lane k14).
 import * as THREE from '../../vendor/three.module.min.js';
 import { C, own, stop, slash, cut, sigil, shell, pillar, trail, strands, weapon, fadeWeapon, spikes, burst, gate } from './lookkit.js';
 // a muzzle flash only: the caster gets no blob, the look's own shape carries it
@@ -241,67 +241,4 @@ const hades = {
   },
 };
 
-// ---- Sứa Trắng: pearl-white jellyfish, glowing tentacles, bubbles, pink stings -------------------------------------
-const SJ_PEARL = C(1.9, 2.15, 2.4), SJ_JELLY = C(0.15, 0.85, 2.2), SJ_PINK = C(2.3, 0.35, 1.4);
-// a jellyfish bell over (x, y, z): a squashed dome of light with n tentacle ribbons hanging and swaying
-function bell(kit, at, r, life, n = 6) {
-  const d = shell(kit, 0, 0, 0, r, SJ_JELLY, { c2: SJ_PINK, p: 1.0, core: 0.6, bands: 1.6, dome: true, squash: 0.7, life, grow: 0.15, alpha: 1,
-    step: (t, m) => { const p = at(t); if (!p) return false; m.position.set(p[0], p[1], p[2]); } });
-  strands(kit, (t) => { const p = at(t); return p && [p[0], p[1] + 0.1, p[2]]; }, r * 0.7, n, Math.min(3.2, p0y(at) - 0.1), SJ_JELLY, life, { c2: SJ_PINK, w: 0.09, sway: 0.4 });
-  return d;
-}
-const p0y = (at) => { const p = at(0); return p ? p[1] : 2; };
-const bubbles = (kit, x, z, n, c = SJ_PEARL) => { for (let i = 0; i < kit.N(n); i++) { const a = Math.random() * 6.283, d = R(0.2, 1.4); kit.glow(x + Math.cos(a) * d, R(0.2, 1), z + Math.sin(a) * d, c, R(0.8, 1.4), R(0.15, 0.35), 0.9, kit.K.GLOW, 1, R(-0.3, 0.3), R(0.8, 1.8), R(-0.3, 0.3)); } };
-const suatrang = {
-  // Bong Bóng Hồi: a pearl bubble closes round the ally and stays for the heal's time, little bubbles rising off it
-  sjBubble: {
-    pal: [SJ_JELLY, SJ_PINK],
-    skill() { return true; },
-    bless(kit, e, u, row) {
-      const o = kit.match.units[e.to]; if (!o) return true;
-      const dur = (row.hot && row.hot.dur) || 4;
-      burst(kit, o.x, o.z, 3, SJ_JELLY, SJ_PINK, { life: 0.7 });
-      shell(kit, o.x, 1.2, o.z, 2.3, SJ_JELLY, { c2: SJ_PINK, p: 0.9, core: 0.8, bands: 2.5, follow: o, life: dur, grow: 0.2, pulse: 0.8, alpha: 1 });
-      sigil(kit, o.x, o.z, 2.8, SJ_PINK, { c2: SJ_JELLY, n: 0, ticks: 12, inner: 0.6, life: dur, rev: 0.2, spin: 0.8, fill: 0.25, follow: o, w: 0.05 });
-      kit.follow(o, dur, () => { if (Math.random() < 0.35) bubbles(kit, o.x, o.z, 1); });
-      if (u !== o) trail(kit, (t) => (t < 0.25 ? [u.x + (o.x - u.x) * t / 0.25, 1.2, u.z + (o.z - u.z) * t / 0.25] : null), 0.35, SJ_PINK, 0.6, { c2: SJ_PEARL, len: 10 });
-      bubbles(kit, o.x, o.z, 10);
-      return true;
-    },
-  },
-  // Bay Đỡ: she floats over as a jellyfish bell trailing tentacles; on landing a pearl ring pulses and every ally there gets a
-  // bubble for the shield's time
-  sjFloat: {
-    pal: [SJ_JELLY, SJ_PINK],
-    skill() { return true; },
-    leap(kit, e, u, row) {
-      const dur = e.dur || 0.5;
-      bell(kit, (t) => (t < dur + 0.15 && u.alive ? [u.x, 2.2 + Math.sin(Math.min(1, t / dur) * Math.PI) * 1.2, u.z] : null), 3, dur + 0.5, 7); burst(kit, u.x, u.z, 2.8, SJ_JELLY, SJ_PINK, { life: 0.6 });
-      kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < dur) return true;
-        kit.ring(u.x, u.z, row.radius || 4, SJ_PEARL, 0.45); kit.ring(u.x, u.z, (row.radius || 4) * 0.6, SJ_PINK, 0.35, 0.7);
-        for (const o of kit.match.units) if (o.alive && o.team === u.team && Math.hypot(o.x - u.x, o.z - u.z) < (row.radius || 4)) shell(kit, o.x, 1.0, o.z, 1.35, SJ_JELLY, { c2: SJ_PINK, p: 2.6, core: 0.03, follow: o, life: row.shieldDur || 3, grow: 0.15, alpha: 0.75 });
-        bubbles(kit, u.x, u.z, 16); kit.flash(u.x, 2, u.z, SJ_PEARL, 30, 0.25);
-        return false; }, drop() {} });
-      return true;
-    },
-  },
-  // Cấp Cứu: a great jellyfish canopy hangs over her for the field's time, tentacles glowing down to the floor, a pearl ring
-  // on the ground and bubbles drifting up
-  sjCare: {
-    pal: [SJ_JELLY, SJ_PINK],
-    zoneMake(kit, z) {
-      const v = { x: z.x, z: z.z, live: true };
-      bell(kit, () => (v.live ? [v.x, 3.2, v.z] : null), z.r * 0.42, 1e9, 10);
-      const s = sigil(kit, z.x, z.z, z.r, SJ_JELLY, { c2: SJ_PINK, n: 0, ticks: 20, inner: 0.7, life: 1e9, rev: 0.3, spin: 0.3, fill: 0.4, alpha: 0.85 }); burst(kit, z.x, z.z, 4.5, SJ_JELLY, SJ_PINK, { life: 1.0 });
-      v.s = s;
-      return v;
-    },
-    zone(kit, v, z, dt) {
-      v.x = z.x; v.z = z.z; v.s.position.x = z.x; v.s.position.z = z.z;
-      if (Math.random() < dt * 10) bubbles(kit, z.x + R(-z.r, z.r) * 0.6, z.z + R(-z.r, z.r) * 0.6, 1, Math.random() < 0.3 ? SJ_PINK : SJ_PEARL);
-    },
-    zoneDrop(kit, v) { v.live = false; stop(v.s); },
-  },
-};
-
-export const B1 = { ...lubo, ...taothao, ...hades, ...suatrang };
+export const B1 = { ...lubo, ...taothao, ...hades };

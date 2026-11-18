@@ -957,21 +957,30 @@ export const MECHS = {
         desc: 'Chín thanh kiếm giáng xuống kẻ địch quanh con trỏ (trong 8 m), dư thì rải ngẫu nhiên, mỗi thanh 230 sát thương.' },
     ],
   },
+  // Baymax: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p59 "56.小白", panel 小白III, audit AUDIT-a.md). Attack = one
+  // Xung Bọt (150, was 100 per 0.3 s, same dps): passive heal 450% -> 30% of the saved ally's max hp (675 on 2200), the chain 100% per
+  // s -> 150, the bomb 200% -> 300, the flight 266% -> 400, the warrior aura 50% per s -> 75. Cooldowns 1 / 6 / 25 s -> 1.3 / 8 / 45.
+  // He keeps his energy (100, +5 per s): the chain costs 10 to start and 10 per s (kit-remake K14 `tie`), a bomb hit gives 25 back.
+  // The 50% guard until he arrives, the hits along the flight and the warrior's 10 s (no main weapon, aura that shoves) are K14.
   suatrang: {
     name: 'Baymax', role: 'Hỗ trợ', roleKey: 'support', price: 1700, tint: 0xf4f6f8, hover: true,
-    blurb: 'Tự hồi máu liên tục và hồi cho đồng đội đứng gần, nhất là người sắp gục. Bong bóng hồi, bay đỡ đồng đội kèm khiên, cấp cứu cả nhóm.',
+    blurb: 'Người máy chăm sóc: đồng đội gần sắp gục được hồi gấp. Nối xích hồi máu, ném bom siêu năng hất văng, bay tới che chắn đồng đội rồi hóa Siêu Năng Chiến Sĩ.',
     hp: 2000, speed: 6.4, radius: 0.80,
     armor: 0.06, accel: 1.2, turn: 13, towerMul: 1.8,
-    passive: { do: 'regen', name: 'Chăm Sóc', desc: 'Luôn tự hồi 1% máu tối đa mỗi giây, kể cả khi đang đánh. Đồng đội trong 7 m cũng được hồi như vậy, gấp 2,5 lần nếu dưới 60% máu.',
-      hps: 0.01, near: { r: 7, below: 0.6, mul: 2.5 } },
-    weapon: { name: 'Xung Bọt', cd: 0.3, dmg: 100, speed: 28, range: 12, r: 0.28, vis: 'pulse' },
+    energy: { max: 100, regen: 5, start: 100 },
+    passive: { do: 'trait', name: 'Siêu Năng Trị Dũ', mods: { save: { below: 0.3, icd: 30, heal: 0.3, guard: 0.5, dur: 2, ally: true, r: 7 } },
+      desc: 'Bạn hoặc đồng đội trong 7 m tụt dưới 30% máu thì được hồi ngay 30% máu tối đa và giảm 50% sát thương nhận trong 2 giây; 30 giây một lần. Năng lượng hồi 5 mỗi giây.' },
+    weapon: { name: 'Xung Bọt', cd: 0.45, dmg: 150, speed: 28, range: 12, r: 0.28, vis: 'pulse' },
     skills: [
-      { id: 'bongbonghoi', look: 'sjBubble', name: 'Bong Bóng Hồi', cd: 9, do: 'bless', cast: 12, pick: 3.5, hot: { hps: 160, dur: 4 }, icon: 'heal',
-        desc: 'Đồng đội ở con trỏ (không có thì chính bạn) được hồi 160 máu mỗi giây trong 4 giây.' },
-      { id: 'baydo', look: 'sjFloat', name: 'Bay Đỡ', cd: 15, do: 'leap', to: 'ally', cast: 13, pick: 4, flight: 0.5, radius: 4, dmg: 0, landShield: 400, shieldDur: 3, icon: 'leap',
-        desc: 'Bay tới đồng đội ở con trỏ (xa nhất 13 m); đáp xuống, mọi đồng đội trong 4 m (kể cả bạn) có khiên 400 trong 3 giây.' },
-      { id: 'capcuu', look: 'sjCare', name: 'Cấp Cứu', cd: 48, do: 'zone', at: 'self', follow: true, radius: 6.5, dur: 5, hps: 220, armor: 0.25, vis: 'heal', icon: 'dome',
-        desc: 'Vùng cứu thương bám theo bạn 5 giây: đồng đội trong 6,5 m hồi 220 máu mỗi giây và thêm 25% giáp.' },
+      { id: 'xichhoi', look: 'bmTether', name: 'Siêu Năng Trị Dũ', cd: 1.3, do: 'bless', to: 'ally', cast: 12, pick: 3.5, en: { cost: 10 }, tie: { hps: 150, drain: 10, range: 9 }, icon: 'heal',
+        desc: 'Nối xích hồi máu với đồng đội ở con trỏ: cả hai hồi 150 máu mỗi giây. Xích tốn 10 năng lượng mỗi giây, đứt khi cạn năng lượng hoặc hai người cách nhau quá 9 m; bấm lại để tháo.' },
+      { id: 'bomsieunang', look: 'bmBomb', name: 'Siêu Năng Tạc Đạn', cd: 8, do: 'barrage', n: 1, radius: 0, blast: 3, dmg: 300, delay: 0.5, span: 0, cast: 12, uses: { n: 3, gap: 0.5 }, en: { refund: 25 },
+        fx: { slow: 0.5, slowDur: 2, slowDecay: true, knock: 2 }, icon: 'barrage',
+        desc: 'Ném bom ở con trỏ (xa nhất 12 m): 300 sát thương vòng 3 m, hất lùi, chậm 50% giảm dần trong 2 giây. Mỗi kẻ trúng trả 25 năng lượng. Giữ được 3 quả.' },
+      { id: 'chiensi', look: 'bmWarrior', name: 'Siêu Năng Chiến Sĩ', cd: 45, do: 'leap', to: 'ally', cast: 13, pick: 4, windup: 0.4, move: 0, flight: 0.6, radius: 3.5, dmg: 0, knock: 2, landShield: 1000, shieldDur: 5,
+        stGuard: 0.5, stPath: { dmg: 400, r: 1.6, fx: { air: 1 } },
+        then: { id: 'chiensihoa', name: 'Siêu Năng Chiến Sĩ', do: 'transform', dur: 10, haste: 2, zone: { radius: 3, dps: 75 }, stWar: { push: 4 } }, icon: 'leap',
+        desc: 'Đồng đội ở con trỏ (xa nhất 13 m) được giảm 50% sát thương nhận tới khi bạn tới. Tụ lực 0,4 giây rồi bay tới, kẻ trên đường chịu 400 sát thương và bị đánh tung 1 giây. Đáp xuống: cả hai có khiên 1000 trong 5 giây, địch quanh đó bị hất lùi, rồi bạn hóa Siêu Năng Chiến Sĩ 10 giây: chạy nhanh gấp đôi, không bắn thường, quanh mình 3 m mỗi giây 75 sát thương và đẩy địch ra.' },
     ],
   },
   // Hulk: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p23 "20.巨人", tooltips read at 0.5-8.5 s; AUDIT-b.md). Attack = 150 on
@@ -1265,7 +1274,7 @@ export const PERKS = {
   samthep: [perk('Dầm Nặng', 'Thanh dầm thứ hai gây 330.', 0, { mgtSeq: [{ delay: 0.45, dmg: 186 }, { delay: 0.85, dmg: 330 }] }), perk('Nện Mạnh', 'Trọng Lực Phản Xung nện 340, rộng 4 m.', 1, { mgtSeq: [{ delay: 0.3, dmg: 0, fx: { lift: 1.5 } }, { delay: 1.8, dmg: 340, blast: 4, fx: { stun: 1 }, fxNew: true }] }), perk('Bão Dài', 'Từ Năng Phong Bạo kéo dài 7,5 giây, đánh 10 lần.', 2, { dur: 7.5, mgtStorm: { n: 10, dmg: 38, near: { r: 6, dmg: 150 } } })],
   cuuvi: [perk('Chùm Bốn Quả', 'Chùm Hồ Hỏa bắn bốn quả, nổ lan 1,8 m.', 0, { n: 4, splash: 1.8 }), perk('Ảnh Bền', 'Ảo Ảnh bền 550 máu, ở lại 4 giây, nổ 180.', 1, { leave: { hp: 550, dur: 4, blast: 4, dmg: 180, fx: { slow: 0.5, slowDur: 2 } } }), perk('Mười Một Đuôi', 'Cửu Vĩ Hỏa thả 11 quả, mỗi quả 160.', 2, { n: 11, dmg: 160 })],
   kiemthan: [perk('Kiếm Nặng', 'Kiếm Phong gây 85.', 'weapon', { dmg: 85 }), perk('Trận Dày', 'Kiếm Trận tám thanh, kéo dài 5 giây.', 1, { n: 8, dur: 5 }), perk('Mười Hai Kiếm', 'Vạn Kiếm Quy Tông giáng 12 thanh, mỗi thanh 260.', 2, { n: 12, dmg: 260 })],
-  suatrang: [perk('Bóng Bền', 'Bong Bóng Hồi hồi 200 mỗi giây trong 5 giây.', 0, { hot: { hps: 200, dur: 5 } }), perk('Khiên Dày', 'Bay Đỡ che khiên 600, rộng 5 m.', 1, { landShield: 600, radius: 5 }), perk('Cứu Thương Dài', 'Cấp Cứu hồi 280 mỗi giây, kéo dài 6 giây.', 2, { hps: 280, dur: 6 })],
+  suatrang: [perk('Xích Ấm', 'Xích hồi máu hồi 190 mỗi giây cho cả hai.', 0, { tie: { hps: 190, drain: 10, range: 9 } }), perk('Bom Nặng', 'Siêu Năng Tạc Đạn gây 360.', 1, { dmg: 360 }), perk('Khiên Chiến Sĩ', 'Siêu Năng Chiến Sĩ che khiên 1300.', 2, { landShield: 1300 })],
   khidot: [perk('Gầm Vang', 'Chấn Không Nộ Hống rộng 6 m, gây 300.', 0, { radius: 6, dmg: 300 }), perk('Giẫm Lớn', 'Tử Vong Tiễn Đạp rộng 4,2 m, gây 280.', 1, { radius: 4.2, dmg: 280 }), perk('Nộ Dài', 'Dã Man Chi Nộ kéo dài 10 giây.', 2, { dur: 10 })],
   retdo: [perk('Dao Dày', 'Phóng Dao phóng bảy con.', 0, { burst: { n: 7, gap: 0.08 } }), perk('Thế Dài', 'Lộn Ngược giữ thế 0,8 giây, trả ba con dao 180.', 1, { window: 0.8, riposte: { volley: { n: 3, fan: 0.06, dmg: 180, speed: 34, range: 12, r: 0.22, vis: 'dart' } } }), perk('Loạn Sâu', 'Hỗn Loạn kéo dài 6 giây, thiêu 260 mỗi giây, hút 70%.', 2, { dur: 6, dps: 260, drain: 0.7 })],
   nhenthep: [perk('Tơ Xa', 'Móc Đu bay xa 15 m, gây 190.', 0, { range: 15, dmg: 190 }), perk('Chém Rộng', 'Vòng Chém lướt 7,5 m, gây 230.', 1, { dist: 7.5, dmg: 230 }), perk('Sáu Lượt', 'Đu Dây Liên Hoàn đu sáu lượt, mỗi lượt 270.', 2, { n: 6, dmg: 270 })],

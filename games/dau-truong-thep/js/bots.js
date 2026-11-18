@@ -1439,6 +1439,7 @@ const SKILL_AI = {
   },
   bless(c, s) {
     const { u, m } = c, reach = s.cast - 0.5;
+    if (s.tie) return k14BotTie(c, s);   // kit-remake K14: Baymax's heal chain
     if (s.bubble) return k1BotBubble(c, s, reach);
 
     // undying (Athena): the ally (or me) who is about to die under fire; cleanse: an ally held by a stun or root gets the shield
@@ -2482,3 +2483,21 @@ function tthBotAura(c, s) {
   return false;
 }
 /* ===== end kit-remake G5 Tào Tháo bots ===== */
+
+/* ===== kit-remake K14 (suatrang): bot policy for the G5 rows (sim.js "kit-remake K14") ===== */
+// Baymax's chain: the most hurt ally inside the chain's reach, with energy to spare; a chain that holds is never taken off
+function k14BotTie(c, s) {
+  const { u, m } = c;
+  if (u.stTie || !(u.en >= 30)) return false;
+  const reach = Math.min(s.cast, s.tie.range) - 1;
+  let best = null, bf = 0.75;
+  for (const a of m.units) {
+    if (a === u || a.team !== u.team || !a.alive || hyp(a.x - u.x, a.z - u.z) > reach) continue;
+    const f = a.hp / a.maxHp;
+    if (f < bf) { bf = f; best = a; }
+  }
+  if (!best) return false;
+  c.b.sk.x = best.x; c.b.sk.z = best.z;
+  return true;
+}
+/* ===== end kit-remake K14 ===== */
