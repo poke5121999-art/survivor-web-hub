@@ -79,10 +79,10 @@ function decZoneField(v, type) {
 const F_ALIVE = 1, F_DASH = 2, F_BOT = 4, F_STANCE = 16, F_FORM = 32;
 export const F_GUESS = 8;
 const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter', 'stkN', 'stkT', 'parryT', 'guardT', 'silenceT', 'airT', 'use0', 'use1', 'use2', 'gap0', 'gap1', 'gap2', 'ahT',
-  'slowG', 'sfT', 'tgT', 'en', 'svT', 'gvT'];   // kit-remake G2 (the row mask has room for 3 more names: TIMER_AT + 4 flag bits must stay under 2^53)
-// TODO kit-remake G4 (wire in once G3 extends the STATUS mask to a second word; main says when): sync u.magN (shots fired),
-// u.magT (reload left) and u.blockN (hits the selfShield still turns away). Host-only until then: the guest HUD does not see them.
+  'slowG', 'sfT', 'tgT', 'en', 'svT', 'gvT',   // kit-remake G2
+  'magN', 'magT', 'blockN'];   // kit-remake G4: shots fired, reload left, hits the selfShield still turns away (the row mask is a list of words, MASK_W bits each: any number of names fits)
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
+export const STATUS_NAMES = STATUS;   // tests read the wire order
 
 // A cast is sent as the index of its row: 0..2 the skills, 3..5 the second stage (next.row) of skill 0..2.
 function castIndex(def, s) {
@@ -320,10 +320,13 @@ class Reader {
 // status values, bush, cast, slowF, hasteF and five scoreboard numbers. The offsets follow the CD and STATUS lists, so a
 // new status only needs a name in STATUS.
 const AT_CD = 8, AT_STATUS = AT_CD + CD.length, AT_BUSH = AT_STATUS + STATUS.length, AT_CAST = AT_BUSH + 1, AT_SLOW = AT_BUSH + 2, AT_HASTE = AT_BUSH + 3, AT_STATS = AT_BUSH + 4, ROW_LEN = AT_STATS + 5;
-// The mask's low bits are the timers, cooldowns first so a mech that is only cooling its gun needs one mask byte.
+// The row mask is MASK_N words of MASK_W bits (each a variable-length int of at most 4 bytes; both ends know STATUS, so the count
+// is not sent). Bit order: bush, cast, slowF, hasteF, then the timers, cooldowns first, so a mech that only cools its gun needs one
+// byte for the first word and the later words, which hold the rarer statuses, are a zero byte each.
 const TIMER_AT = [...CD.map((_, i) => AT_CD + i), 7, ...STATUS.map((_, i) => AT_STATUS + i)];
-const M_BUSH = 2 ** TIMER_AT.length, M_CAST = M_BUSH * 2, M_SLOW = M_BUSH * 4, M_HASTE = M_BUSH * 8;
-const has = (mask, bit) => Math.floor(mask / bit) % 2 === 1;
+const M_BUSH = 0, M_CAST = 1, M_SLOW = 2, M_HASTE = 3, M_TIMER = 4, MASK_W = 28, MASK_N = Math.ceil((M_TIMER + TIMER_AT.length) / MASK_W);
+const has = (mask, bit) => ((mask[(bit / MASK_W) | 0] >>> (bit % MASK_W)) & 1) === 1;
+const setBit = (mask, bit) => { mask[(bit / MASK_W) | 0] |= 1 << (bit % MASK_W); };
 const S_OVER = 1, S_STATS = 2, S_PROPS = 4, S_XK = 8, S_LIVES = 16;
 
 // snap: what snapshot(m) returns. stats: include maxHp and the scoreboard numbers. props: include the broken-prop mask.
@@ -340,14 +343,14 @@ export function encodeSnap(snap, { stats = true, props = true } = {}) {
   w.u8(snap.u.length);
   for (const r of snap.u) {
     w.i16(centi(r[0])); w.i16(centi(r[1])); w.u16(a16(r[2])); w.u16(a16(r[3])); w.u(r[4]); w.u8(r[6]);
-    let mask = 0;
-    TIMER_AT.forEach((at, bit) => { if (r[at]) mask += 2 ** bit; });
-    if (r[AT_BUSH] !== -1) mask += M_BUSH;
-    if (r[AT_CAST]) mask += M_CAST;
-    if (r[AT_SLOW]) mask += M_SLOW;
-    if (r[AT_HASTE] !== 1) mask += M_HASTE;
-    w.u(mask);
-    TIMER_AT.forEach((at, bit) => { if (has(mask, 2 ** bit)) w.u(centi(r[at])); });
+    const mask = new Array(MASK_N).fill(0);
+    TIMER_AT.forEach((at, bit) => { if (r[at]) setBit(mask, M_TIMER + bit); });
+    if (r[AT_BUSH] !== -1) setBit(mask, M_BUSH);
+    if (r[AT_CAST]) setBit(mask, M_CAST);
+    if (r[AT_SLOW]) setBit(mask, M_SLOW);
+    if (r[AT_HASTE] !== 1) setBit(mask, M_HASTE);
+    for (const v of mask) w.u(v);
+    TIMER_AT.forEach((at, bit) => { if (has(mask, M_TIMER + bit)) w.u(centi(r[at])); });
     if (has(mask, M_BUSH)) w.u(r[AT_BUSH]);
     if (has(mask, M_CAST)) { const c = r[AT_CAST]; w.u8(c[0]); w.i(centi(c[1])); w.i(centi(c[2])); w.u16(a16(c[3])); }
     if (has(mask, M_SLOW)) w.u(centi(r[AT_SLOW]));
@@ -390,8 +393,9 @@ export function decodeSnap(bytes, at = 0) {
   snap.u = list(r.u8(), () => {
     const row = new Array(ROW_LEN).fill(0);
     row[0] = r.i16() / 100; row[1] = r.i16() / 100; row[2] = unA16(r.u16()); row[3] = unA16(r.u16()); row[4] = r.u(); row[6] = r.u8();
-    const mask = r.u();
-    TIMER_AT.forEach((k, bit) => { if (has(mask, 2 ** bit)) row[k] = r.u() / 100; });
+    const mask = [];
+    for (let k = 0; k < MASK_N; k++) mask.push(r.u());
+    TIMER_AT.forEach((k, bit) => { if (has(mask, M_TIMER + bit)) row[k] = r.u() / 100; });
     row[AT_BUSH] = has(mask, M_BUSH) ? r.u() : -1;
     if (has(mask, M_CAST)) row[AT_CAST] = [r.u8(), r.i() / 100, r.i() / 100, unA16(r.u16())];
     if (has(mask, M_SLOW)) row[AT_SLOW] = r.u() / 100;

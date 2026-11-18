@@ -5,7 +5,7 @@ import { createMatch, step, visibleTo, hidden, unitSpeed, meterArmed } from '../
 import { allInputs } from '../js/bots.js';
 import { MECHS, MECH_ORDER, MODES, TICK } from '../js/data.js';
 const MODE_ORDER = Object.keys(MODES);   // every sim mode, trum (the Phó bản boss engine) included
-import { snapshot, roster, createMirror, applySnapshot, packEvents, unpackEvents, encodeSnap, decodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput } from '../js/netstate.js';
+import { snapshot, roster, createMirror, applySnapshot, packEvents, unpackEvents, encodeSnap, decodeSnap, encodeSnapPacket, decodeSnapPacket, encodeInputPacket, decodeInputPacket, wireInput, STATUS_NAMES } from '../js/netstate.js';
 import { createPredictor, createGunner } from '../js/predict.js';
 
 let failed = 0, passed = 0;
@@ -258,6 +258,27 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   applySnapshot(mir, decodeSnap(encodeSnap(snapshot(m))), TICK);
   const [ga, gb] = mir.units;
   check('G2 status reaches the guest (energy, save icd, guard vs, slowG, slowFire, tag time, to the hundredth)', near(ga.en, 37.5, 0.011) && near(ga.svT, a.svT, 0.011) && near(ga.gvT, a.gvT, 0.011) && gb.slowG > 0 && near(gb.slowG, b.slowG, 0.011) && near(gb.sfT, b.sfT, 0.011) && near(gb.tgT, b.tgT, 0.011) && b.tgT > 1.4, `${ga.en} ${gb.slowG} ${b.slowG} ${gb.tgT}`);
+}
+// the row mask has more than one word: the last synced status (past bit 28 of the first word) survives the bytes, the others stay 0
+{
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'gilgamesh', name: 'A' }, { team: 1, mech: 'tegiac', name: 'B' }] });
+  const mir = createMirror(roster(m));
+  const snap = snapshot(m), row = snap.u[0], at = 8 + 5 + STATUS_NAMES.length - 1;
+  row[at] = 7.25; row[at - 1] = 0;
+  const back = decodeSnap(encodeSnap(snap)).u[0];
+  check(`row mask word 2: ${STATUS_NAMES[STATUS_NAMES.length - 1]} = 7.25 (bit ${4 + 6 + STATUS_NAMES.length - 1}) comes back, its neighbour stays 0`, STATUS_NAMES.length + 10 > 28 && back[at] === 7.25 && back[at - 1] === 0, `${back[at]} ${back[at - 1]}`);
+  applySnapshot(mir, decodeSnap(encodeSnap(snap)), TICK);
+  check('... and reaches the mirror unit under its name', mir.units[0][STATUS_NAMES[STATUS_NAMES.length - 1]] === 7.25);
+}
+// kit-remake G4: the magazine (shots fired, reload left) and the selfShield's block count reach the guest (they sit in mask word 2)
+{
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'gilgamesh', name: 'A' }, { team: 1, mech: 'tegiac', name: 'B' }] });
+  const mir = createMirror(roster(m));
+  const [a, b] = m.units;
+  a.magN = 3; a.magT = 1.5; b.blockN = 2;
+  applySnapshot(mir, decodeSnap(encodeSnap(snapshot(m))), TICK);
+  const [ga, gb] = mir.units;
+  check('G4 magN 3, magT 1.5 and blockN 2 reach the guest', ga.magN === 3 && near(ga.magT, 1.5, 0.011) && gb.blockN === 2 && STATUS_NAMES.indexOf('blockN') + 10 >= 28, `${ga.magN} ${ga.magT} ${gb.blockN}`);
 }
 // a stance change reaches the guest: its mirror unit plays the other def; the rewind history never travels
 {
