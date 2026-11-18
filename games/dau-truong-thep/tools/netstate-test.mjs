@@ -367,6 +367,13 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   const other = t.bad.map((b) => b.replace(/^tick \d+: /, '').split('; ').filter((d) => !d.startsWith('unit0.def')).join('; ')).filter(Boolean);
   check('drone fixture (old Đom Đóm row): the drone zone is mirrored with no other state difference', m.zones.some((z) => z.kind === 'drone') && other.length === 0, other.slice(0, 2).join(' | '));
 }
+// kit lane K11: no tank carries a turret row since tho plays Iron Man; the fixture 'oldtho' (old Thợ Rèn, tools/k11-cases.mjs) plants its Ụ Súng so the turret zone stays covered
+{
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'oldtho', name: 'A' }, { team: 1, mech: 'ung', name: 'B' }] }), u = m.units[0];
+  const idle = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
+  const t = mirrorRun('turret fixture', m, 40, (mm, i) => [{ ...idle, s1: i === 2, tx: u.x + 4, tz: u.z }, idle]);
+  check('turret fixture (old Thợ Rèn row): the turret zone is mirrored with no state difference', m.zones.some((z) => z.kind === 'turret') && t.bad.length === 0, t.bad.slice(0, 2).join(' | '));
+}
 check(`zone kinds exercised: ${[...seenKinds].sort().join(', ')}`, ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire', 'orbit', 'portal'].every((k) => seenKinds.has(k)));
 
 console.log('\n# snapshot size');

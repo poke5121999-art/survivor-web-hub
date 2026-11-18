@@ -53,7 +53,7 @@ export function runK8Cases(check, section) {
     };
     const f4 = hitAt(4), f16 = hitAt(16);
     check('K8-c ... the shot hits x (1 + 0.055 x metres flown): about x1.2 at 4 m, x1.8 at 16 m', f4 > 1.1 && f4 < 1.25 && f16 > 1.7 && f16 < 1.9, `${f4} ${f16}`);
-    const m = arena([[R('vesau', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 6, 1.2], [R('trau', 0), 6, -1.2]]), [a, v, v2, al] = m.units;
+    const m = arena([[R('vesau', 0), 0, 0], [R('ung', 1), 6, 0], [R('ung', 1), 6, 1.2], [R('dummy', 0), 6, -1.2]]), [a, v, v2, al] = m.units;
     al.hp = al.maxHp - 600; a.hp = a.maxHp - 600;
     go(m, Math.round(0.45 / TICK), (i) => ({ 0: { fire: i === 0 } }));
     const hit = UNG.hp - v.hp;
@@ -62,7 +62,7 @@ export function runK8Cases(check, section) {
   }
   // Q Thời Quang Thủ Hộ: a totem with 975 hp at the cursor, losing its hp over 10 s; allies within 5 m heal 112 a second
   {
-    const m = arena([[R('vesau', 0), 0, 0], [R('trau', 0), 6, 1], [R('ung', 1), 40, 30]]), [a, al] = m.units;
+    const m = arena([[R('vesau', 0), 0, 0], [R('dummy', 0), 6, 1], [R('ung', 1), 40, 30]]), [a, al] = m.units;
     al.hp = al.maxHp - 1000;
     press(m, 0, 's1', { tx: 6, tz: 0 });
     const z = m.zones.find((q) => q.kind === 'totem');
@@ -82,7 +82,7 @@ export function runK8Cases(check, section) {
   }
   // Ult Thời Quang Hồi Tố: the mark keeps the hp of the press; 25% less skill damage meanwhile; 2 s later the hp goes back; fire x2.5 4 s
   {
-    const m = arena([[R('vesau', 0), 0, 0], [R('trau', 0), 5, 0], [R('trau', 0), 14, 0], [R('ung', 1), 40, 30]]), [a, al, far] = m.units;
+    const m = arena([[R('vesau', 0), 0, 0], [R('dummy', 0), 5, 0], [R('dummy', 0), 14, 0], [R('ung', 1), 40, 30]]), [a, al, far] = m.units;
     al.hp = al.maxHp - 300; a.hp = a.maxHp - 200;
     const ev = press(m, 0, 'ult');
     check('K8-k Thoi Quang Hoi To: allies in 8 m (her too) are marked 2 s with their hp now; the far ally is not', near(al.krT, VU.fwd - TICK, 1e-6) && al.krHp === al.maxHp - 300 && a.krHp === a.maxHp - 200 && !(far.krT > 0) && only(ev, 'rewind').length === 1, `${al.krT} ${far.krT}`);

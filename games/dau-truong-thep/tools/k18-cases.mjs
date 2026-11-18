@@ -143,7 +143,7 @@ export function runK18Cases(check, section) {
   const MK = MECHS.nhenthep, [MQ, ME, MU] = MK.skills, ARM = MK.passive.nhArmor;
   // passive: her hits do x (1 + 1.5 x the target's armour)
   {
-    const m = arena([[R('nhenthep', 0), 0, 0], [R('trau', 1), 3, 0]]), [a, v] = m.units;
+    const m = arena([[R('nhenthep', 0), 0, 0], [R('dummy', 1), 3, 0]]), [a, v] = m.units;
     const T = armorOf(m, v), ev = go(m, 6, (i) => ({ 0: { fire: i === 0 } })), b = blows(ev, 1, 0);
     check('K18-u Thiet Bi Co Dong: each blade does 64 x (1 + 1.5 x armour) x (1 - armour) on Optimus', b.length === 2 && b.every((e) => near(e.amt, 64 * (1 + ARM * T) * (1 - T), 1e-6)), `${b.map((e) => e.amt)} armour ${T}`);
     check('K18-v ... and each weapon hit gives 2.5 energy (she started full, so still 100)', a.en === 100 && MK.energy.max === 100);

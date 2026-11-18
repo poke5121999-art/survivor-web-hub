@@ -645,11 +645,12 @@ const bal = BAL_SEEDS.map((seed, i) => runMatch(seed, ['normal', 'normal'], mixe
   const casts = {};
   for (const r of bal) for (const k in r.casts) casts[k] = (casts[k] || 0) + r.casts[k];
   // kit lane K11: the turret, minefield and pull zone (usung, baimin, hotu) live on in the fixture 'oldtho' (tho is Iron Man now): two more mixed matches with it
-  for (const seed of [161, 162]) { const r = runMatch(seed, ['normal', 'normal'], { comps: [['oldtho', 'dummy', 'soi', 'hac', 'bang'], ['oldtho', 'ung', 'loi', 'bocap', 'dummy']] }); for (const k in r.casts) casts[k] = (casts[k] || 0) + r.casts[k]; }
+  const k11x = [];   // the two oldtho matches: the only ones with a turret since Doraemon (k14) and Iron Man (k11) dropped theirs
+  for (const seed of [161, 162]) { const r = runMatch(seed, ['normal', 'normal'], { comps: [['oldtho', 'dummy', 'soi', 'hac', 'bang'], ['oldtho', 'ung', 'loi', 'bocap', 'dummy']] }); for (const k in r.casts) casts[k] = (casts[k] || 0) + r.casts[k]; k11x.push(r); }
   const need = { turret: 'usung', wall: 'thuymac', recoil: 'nhaolon', minefield: 'baimin', 'nova repeat': 'thonphe', 'zone pull': 'hotu', 'frost nova': 'bangdong', blizzard: 'bangthien', dash: 'huc', transform: 'onhiem' };   // kit lane K10: Bọ Cạp's stealth buff and dash left with her old kit; kit lane K6: Sơn Tinh's Vách Đá left with his, Thủy Tinh's Thủy Mạc is the wall now; kit lane k16: Lôi Công's recoil, line barrage and smoke left with his old kit (OLD_LOI covers them in section 5b), Kirito's back-flip is the recoil now
   console.log('bot skill casts over the balance matches: ' + Object.values(need).map((id) => `${id} ${casts[id] || 0}`).join('  '));
   for (const name in need) check(`16 bots use ${name} (${need[name]})`, (casts[need[name]] || 0) >= 1, `casts ${casts[need[name]] || 0}`);
-  const th = bal.reduce((a, r) => a + r.turretHits, 0);
+  const th = bal.concat(k11x).reduce((a, r) => a + r.turretHits, 0);
   console.log(`shots that hit a turret: ${th}`);
   check('16 bots shoot turrets', th >= 1, `${th}`);
   const tt = bal.reduce((a, r) => a + r.thinkTotal, 0), tk = bal.reduce((a, r) => a + r.ticks, 0), worst = Math.max(...bal.map((r) => r.thinkWorst));
