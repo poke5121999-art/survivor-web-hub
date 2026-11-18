@@ -60,62 +60,7 @@ const quancong = {
   },
 };
 
-// ---- Điêu Thuyền: ice fans and an ice lotus, pale blue with pink edges ---------------------------------------------------
-const DT_ICE = C(0.6, 1.7, 2.6), DT_PINK = C(2.5, 0.7, 1.6), DT_WHITE = C(2.3, 2.5, 2.6);
-// an open folding fan lying flat: a half-disc leaf and seven ribs, the pivot at the origin, opening toward +x
-const fanLeaf = keep(new THREE.RingGeometry(0.35, 1.0, 20, 1, -Math.PI / 2, Math.PI).rotateX(-Math.PI / 2));
-const fanRib = keep(new THREE.BoxGeometry(1.0, 0.04, 0.05).translate(0.5, 0.02, 0));
-function fan(leaf = 0xa8dcff, edge = 0xff8fc8) {
-  const g = new THREE.Group(), ml = basic(leaf, false, 0.85), mr = basic(0xffffff, false, 0.95), me = basic(edge, false, 0.95);
-  g.add(new THREE.Mesh(fanLeaf, ml));
-  const rim = new THREE.Mesh(keep(new THREE.RingGeometry(0.92, 1.04, 20, 1, -Math.PI / 2, Math.PI).rotateX(-Math.PI / 2)), me); rim.position.y = 0.01; g.add(rim);
-  for (let i = 0; i < 7; i++) { const r = new THREE.Mesh(fanRib, mr); r.rotation.y = -Math.PI / 2 + i * Math.PI / 6; g.add(r); }
-  g.userData.mats = [ml, mr, me];
-  return g;
-}
-// a petal: a pointed leaf along +x from the base at the origin, lying flat
-const petalGeo = (() => { const s = new THREE.Shape(); s.moveTo(0, 0); s.quadraticCurveTo(0.5, 0.45, 1.3, 0); s.quadraticCurveTo(0.5, -0.45, 0, 0); return keep(new THREE.ShapeGeometry(s, 10).rotateX(-Math.PI / 2)); })();
-const dieuthuyen = {
-  // Băng Lưu: a great ice fan spins along the line, frost trail behind it, snowflakes shed off its edge
-  dtStream: {
-    pal: [DT_ICE, DT_PINK], hitR: 1.8,
-    skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.3, 1.3, u.z + Math.sin(e.a) * 1.3, DT_WHITE, 0.12, 2, 1, kit.K.STAR, 1.3); return true; },
-    shotMake(kit, s) { const f = fan(); f.scale.setScalar(3.6); const v = { f, h: held(kit, [f]), x: s.x, z: s.z, live: true }; trail(kit, () => (v.live ? [v.x, 1.2, v.z] : null), 2.4, DT_ICE, 0.6, { c2: DT_PINK, len: 14 }); return v; },
-    shot(kit, v, s, x, y, z, dt) { v.x = x; v.z = z; v.f.position.set(x, 1.25, z); v.f.rotation.y += (dt || 0.016) * 14; if (Math.random() < 0.5) kit.glow(x + R(-1, 1), 1.2, z + R(-1, 1), DT_WHITE, 0.6, 0.35, 1, kit.K.STAR, 1, 0, -0.5, 0); return true; },
-    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; kit.sparks(x, 1.2, z, kit.N(8), DT_WHITE, 7, 0.3, 0.05, 0.5, 8); },
-  },
-  // Băng Liên: a closed ice bud marks the spot; it blooms into a lotus of pale ice petals with pink tips and a ring of ice
-  // shards round it
-  dtLotus: {
-    zones: ['strike'], ownDisc: true, pal: [DT_ICE, DT_PINK], hitR: 2,
-    skill() { return true; },
-    zoneMake(kit, z) { const s = sigil(kit, z.x, z.z, Math.max(2.4, z.r), DT_ICE, { c2: DT_PINK, n: 8, m: 3, ticks: 8, inner: 0.3, life: 1e9, rev: 0.2, spin: 1.2, fill: 0.3, w: 0.08 }); return { s }; },
-    zoneDrop(kit, v) { stop(v.s); },
-    land(kit, e) {
-      const g = new THREE.Group(); g.position.set(e.x, 0.2, e.z);
-      for (let ring = 0; ring < 2; ring++) for (let i = 0; i < 8; i++) { const p = new THREE.Mesh(petalGeo, basic(ring ? 0xffa8d8 : 0xbfe8ff, false, 0.92)); p.rotation.y = i * 0.785 + ring * 0.39; p.userData.r = ring; g.add(p); }
-      own(kit, [g], 1.3, (t) => { const k = Math.min(1, t / 0.25), f = Math.max(0, 1 - (t - 0.9) / 0.4); g.children.forEach((p) => { p.rotation.z = (p.userData.r ? 0.9 : 0.5) * (1 - k) + 0.25; p.scale.setScalar((p.userData.r ? 1.8 : 2.8) * k); p.material.opacity = 0.92 * f; }); });
-      spikes(kit, e.x, e.z, 10, 3, 2.2, DT_ICE, 1, { core: 0xdff4ff, up: 0.08 });
-      kit.flash(e.x, 1.6, e.z, DT_ICE, 50, 0.25);
-      return true;
-    },
-  },
-  // Phong Tuyết: six great fans dance round her in a ring, a six-armed snowflake turns on the floor, snow whirls
-  dtBlizzard: {
-    pal: [DT_ICE, DT_PINK], hitR: 1.6,
-    zoneMake(kit, z) {
-      const fans = [0, 1, 2, 3, 4, 5].map((i) => { const f = fan(i % 2 ? 0xffc0e0 : 0xa8dcff, i % 2 ? 0x8fd0ff : 0xff8fc8); f.scale.setScalar(3.3); return f; });
-      const s = sigil(kit, z.x, z.z, z.r * 0.8, DT_ICE, { c2: DT_WHITE, n: 6, m: 1, ticks: 6, inner: 0.25, life: 1e9, rev: 0.3, spin: 0.4, fill: 0.35, w: 0.1 });
-      return { fans, s, h: held(kit, fans), t: 0 };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt; v.s.position.set(z.x, 0.15, z.z);
-      v.fans.forEach((f, i) => { const a = v.t * 1.8 + i * 1.047, r = z.r * 0.62; f.position.set(z.x + Math.cos(a) * r, 1.4 + 0.4 * Math.sin(v.t * 4 + i), z.z + Math.sin(a) * r); f.rotation.set(0.5 * Math.sin(v.t * 3 + i), -a - Math.PI / 2, 0); });
-      if (Math.random() < dt * 30) { const a = Math.random() * 6.283, r = Math.random() * z.r; kit.glow(z.x + Math.cos(a) * r, R(0.5, 3), z.z + Math.sin(a) * r, DT_WHITE, 0.8, 0.3, 1, kit.K.STAR, 1, -Math.sin(a) * 5, -0.5, Math.cos(a) * 5); }
-    },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.s); },
-  },
-};
+// Điêu Thuyền: her looks moved to looks-k12.js with the kit ported from the clip (lane k12).
 
 // ---- Na Tra: fire wheels, the golden ring, the red sash -------------------------------------------------------------
 const NT_FIRE = C(2.6, 0.9, 0.1), NT_GOLD = C(2.6, 1.9, 0.4), NT_RED = C(2.5, 0.15, 0.2);
@@ -222,4 +167,4 @@ const cuuvi = {
 };
 
 
-export const B4 = { ...quancong, ...dieuthuyen, ...natra, ...cuuvi };   // Dương Tiễn moved to looks-k13.js (kit lane K13), Gilgamesh to looks-k14.js (kit lane k14)
+export const B4 = { ...quancong, ...natra, ...cuuvi };   // Dương Tiễn moved to looks-k13.js (kit lane K13), Gilgamesh to looks-k14.js (kit lane k14)

@@ -956,21 +956,28 @@ export const MECHS = {
         desc: 'Chọn kẻ địch gần con trỏ: mọi quả cầu hỗn độn (bay quanh bạn và nằm trên đất) lao vào nó. Quả đầu 150 sát thương, mỗi quả sau thêm 75; kẻ địch khác chắn đường thì đỡ thay. Mỗi quả trúng hồi cho bạn 75 máu.' },
     ],
   },
+  // Điêu Thuyền: kit ported from the owner's earlier game, clip BV1Kp4y1b7i6 p60 "57.貂蝉" (skin 火舞, tooltips f105-f155, AUDIT-a.md). Attack =
+  // one Hoa Tiêu dart (150, was 90 every 0.3 s; now every 0.5 s): Sí Nhiệt Mị Hoặc 152% -> 228, a flower 50% -> 75, a fan 60% -> 90 out and
+  // 180% -> 270 back, the fifth mark 100% -> 150 true. Cooldowns 8 / 6 / 8 s in the clip -> 10 / 8 / 10 (no long ult; the fans keep their 2
+  // charges, 3 s apart). No MP. The flowers pick the nearest foe, not tanks first. G5 (sim.js "kit-remake G5 dieuthuyen"): a quarter of
+  // all her skill damage heals her, and a returning fan cuts Long Viêm Cuồng Vũ too.
   dieuthuyen: {
     name: 'Điêu Thuyền', role: 'Khống chế', roleKey: 'control', price: 1700, tint: 0xf0e6f2, hover: true,
-    blurb: 'Mỗi chiêu trúng một kẻ là thêm một dấu băng, đủ ba dấu thì kẻ đó đóng băng. Băng Liên đặt bẫy nổ chậm, Phong Tuyết bám theo người.',
+    blurb: 'Chiêu nào trúng cũng thêm một dấu Loạn Thế Giai Nhân, đủ năm dấu thì kẻ đó bị trói. Trái tim xuyên tường mê hoặc địch, lướt múa gọi hoa bay, ba quạt bướm bay đi rồi quay về.',
     hp: 2400, speed: 6.4, radius: 0.78,
     armor: 0.06, accel: 1.1, turn: 12, towerMul: 1.0,
-    passive: { do: 'stacks', name: 'Băng Ấn', desc: 'Mỗi chiêu trúng một kẻ địch thêm một dấu băng (giữ 4 giây, tối đa của một người đánh). Đủ 3 dấu thì kẻ đó bị đóng băng choáng 1 giây.',
-      n: 3, dur: 4, on: 'skill', fx: { stun: 1.0 } },
-    weapon: { name: 'Băng Tiêu', cd: 0.3, dmg: 90, speed: 30, range: 13, r: 0.22, vis: 'frost' },
+    passive: { do: 'stacks', name: 'Loạn Thế Giai Nhân', look: 'dvRose', n: 5, dur: 5, on: 'skill', fx: { root: 0.5, trueDmg: 150 }, dvSteal: 0.25,
+      desc: 'Mỗi chiêu trúng một kẻ địch thêm một dấu (giữ 5 giây). Đủ 5 dấu thì kẻ đó chịu 150 sát thương chuẩn và bị trói 0,5 giây. Một phần tư sát thương chiêu của bạn hồi lại thành máu.' },
+    weapon: { name: 'Hoa Tiêu', cd: 0.5, dmg: 150, speed: 30, range: 13, r: 0.24, vis: 'dart', look: 'dvPetal' },
     skills: [
-      { id: 'bangluu', look: 'dtStream', name: 'Băng Lưu', cd: 7, do: 'volley', n: 1, dmg: 220, speed: 30, range: 14, r: 0.4, pierce: true, slow: 0.35, slowDur: 1.5, vis: 'frost', icon: 'pierce',
-        desc: 'Phóng dòng băng xuyên thấu 220 sát thương, làm chậm 35% trong 1,5 giây. Mỗi kẻ trúng thêm một dấu băng.' },
-      { id: 'bienlien', look: 'dtLotus', name: 'Băng Liên', cd: 13, do: 'barrage', n: 1, radius: 0, blast: 3, dmg: 200, delay: 0.9, span: 0, cast: 13, fx: { stun: 1.0 }, icon: 'frost',
-        desc: 'Đặt một vòng băng rộng 3 m ở con trỏ (xa nhất 13 m), sau 0,9 giây nổ 200 sát thương và choáng 1 giây.' },
-      { id: 'phongtuyet', look: 'dtBlizzard', name: 'Phong Tuyết', cd: 45, do: 'zone', at: 'self', follow: true, radius: 6, dur: 5, dps: 150, slow: 0.45, vis: 'blizzard', icon: 'blizzard',
-        desc: 'Cơn bão tuyết bám theo bạn 5 giây: địch trong 6 m mất 150 máu mỗi giây và chậm 45%.' },
+      { id: 'mihoac', look: 'dvHeart', name: 'Sí Nhiệt Mị Hoặc', cd: 10, do: 'volley', n: 1, dmg: 228, speed: 24, range: 14, r: 0.45, thruWalls: true, vis: 'pulse', fx: { charm: 1 }, icon: 'pierce',
+        desc: 'Phóng một trái tim xuyên qua tường và vật cản: kẻ đầu tiên trúng chịu 228 sát thương và bị mê hoặc 1 giây (đi chậm về phía bạn, không bắn, không dùng chiêu).' },
+      { id: 'cuongvu', look: 'dvDance', name: 'Long Viêm Cuồng Vũ', cd: 8, do: 'warp', dist: 7, glide: 30, invuln: 0.35,
+        then: { id: 'phihoa', look: 'dvFlower', name: 'Phi Hoa', do: 'orbit', mode: 'seek', n: 4, ring: 1.5, dur: 6, rate: 0.5, dmg: 75, range: 9, speed: 26, vis: 'dart', after: 0.1 }, icon: 'warp',
+        desc: 'Lướt nhanh tới con trỏ (xa nhất 7 m), không bị chạm tới trong lúc lướt, rồi gọi 4 bông hoa bay quanh mình: mỗi nửa giây một bông lao vào kẻ địch gần nhất trong 9 m, 75 sát thương.' },
+      { id: 'diepphien', look: 'dvFan', name: 'Hoa Điệp Phi Phiến', cd: 10, uses: { n: 2, gap: 3 }, do: 'volley', n: 3, fan: 0.2, dmg: 90, speed: 24, range: 10, r: 0.45, pierce: true, ret: true, back: { dmg: 270 },
+        vis: 'disc', cdCut: { slot: 's2', frac: 0.2 }, towerMul: 0.5, icon: 'ricochet',
+        desc: 'Ném ba quạt bướm hình quạt: lúc bay đi gây 90, hết tầm thì bay về, lúc về gây 270, xuyên qua mọi kẻ địch. Mỗi lần quạt trúng, Long Viêm Cuồng Vũ hồi nhanh 20%. Giữ được 2 lần dùng, cách nhau 3 giây. Công trình chịu một nửa.' },
     ],
   },
   // Thủy Tinh (the Siren): ported from the owner's earlier game (clip BV1Kp4y1b7i6 p70 "67.海妖", tooltips in ~/handoff/dtt-ref/kits/AUDIT-c.md).
@@ -1405,9 +1412,9 @@ export const PERKS = {
   tegiac: [perk('Nắm Đấm Nặng', 'Đấm Thẳng gây 175.', 'weapon', { dmg: 175 }), perk('Húc Mạnh', 'Nhận Chân Đầu Chùy rộng 3,4 m, gây 400.', 1, { radius: 3.4, dmg: 400 }), perk('Quạt Rộng', 'Nhận Chân Ẩu Đả mở quạt rộng hơn, dài tới 14 m.', 2, { fan: [0.55, 0.7], charge: { min: 0.3, max: 3, dmg: [474, 948], range: [8, 14], width: [7, 14] } })],
   quaset: [perk('Tiêu Xa', 'Phi Tiêu Sét bay xa 15 m.', 'weapon', { range: 15 }), perk('Lôi Xa', 'Lôi Thiết lao xa 11 m, gây 420.', 0, { dist: 11, dmg: 420 }), perk('Giáp Dày', 'Giáp Hộ Mệnh khiên 1200, kéo dài 8 giây.', 2, { shield: 1200, dur: 8 })],
   tumay: [perk('Cầu Nặng', 'Hắc Cầu gây 170.', 'weapon', { dmg: 170 }), perk('Pháp Cầu Bền', 'Quả cầu của Hỗn Độn Pháp Cầu ở lại 10 giây, nổ rộng 3 m.', 1, { leaveOrb: { dur: 10, blast: 3, dmg: 275 } }), perk('Phệ Sâu', 'Hỗn Độn Chi Phệ: mỗi quả cầu sau thêm 90 thay vì 75.', 2, { grow: 90 })],
-  dieuthuyen: [perk('Băng Sâu', 'Băng Lưu gây 280 và làm chậm 2,2 giây.', 0, { dmg: 280, slowDur: 2.2 }), perk('Liên Băng Dài', 'Băng Liên rộng 3,6 m, choáng 1,4 giây.', 1, { blast: 3.6, fx: { stun: 1.4 } }), perk('Bão Dày', 'Phong Tuyết kéo dài 6,5 giây, thiêu 190 mỗi giây.', 2, { dur: 6.5, dps: 190 })],
   thuytinh: [perk('Giọt Xa', 'Giọt Nước bay xa 14,5 m.', 'weapon', { range: 14.5 }), perk('Màn Nước Dài', 'Thủy Mạc Bình Chướng dài bảy khối, đứng 5 giây.', 1, { n: 7, dur: 5 }), perk('Xoáy Lớn', 'Cuồng Lan Thúc Phược rộng 6 m.', 2, { radius: 6 })],
   samthep: [perk('Dầm Nặng', 'Thanh dầm thứ hai gây 330.', 0, { mgtSeq: [{ delay: 0.45, dmg: 186 }, { delay: 0.85, dmg: 330 }] }), perk('Nện Mạnh', 'Trọng Lực Phản Xung nện 340, rộng 4 m.', 1, { mgtSeq: [{ delay: 0.3, dmg: 0, fx: { lift: 1.5 } }, { delay: 1.8, dmg: 340, blast: 4, fx: { stun: 1 }, fxNew: true }] }), perk('Bão Dài', 'Từ Năng Phong Bạo kéo dài 7,5 giây, đánh 10 lần.', 2, { dur: 7.5, mgtStorm: { n: 10, dmg: 38, near: { r: 6, dmg: 150 } } })],
+  dieuthuyen: [perk('Mị Lâu', 'Sí Nhiệt Mị Hoặc mê hoặc 1,4 giây.', 0, { fx: { charm: 1.4 } }), perk('Lướt Xa', 'Long Viêm Cuồng Vũ lướt xa 9 m.', 1, { dist: 9 }), perk('Quạt Nặng', 'Hoa Điệp Phi Phiến quay về gây 330.', 2, { back: { dmg: 330 } })],
   cuuvi: [perk('Chùm Bốn Quả', 'Chùm Hồ Hỏa bắn bốn quả, nổ lan 1,8 m.', 0, { n: 4, splash: 1.8 }), perk('Ảnh Bền', 'Ảo Ảnh bền 550 máu, ở lại 4 giây, nổ 180.', 1, { leave: { hp: 550, dur: 4, blast: 4, dmg: 180, fx: { slow: 0.5, slowDur: 2 } } }), perk('Mười Một Đuôi', 'Cửu Vĩ Hỏa thả 11 quả, mỗi quả 160.', 2, { n: 11, dmg: 160 })],
   kiemthan: [perk('Kiếm Nặng', 'Kiếm Phong gây 85.', 'weapon', { dmg: 85 }), perk('Kiếm Bay Xa', 'Long Tuyền Xuất Hạp bay xa 16 m.', 1, { range: 16 }), perk('Cửu Thiên Rộng', 'Cửu Thiên Thần Kiếm khóa mọi kẻ địch trong 10 m.', 2, { ktLock: 10 })],
   suatrang: [perk('Xích Ấm', 'Xích hồi máu hồi 190 mỗi giây cho cả hai.', 0, { tie: { hps: 190, drain: 10, range: 9 } }), perk('Bom Nặng', 'Siêu Năng Tạc Đạn gây 360.', 1, { dmg: 360 }), perk('Khiên Chiến Sĩ', 'Siêu Năng Chiến Sĩ che khiên 1300.', 2, { landShield: 1300 })],

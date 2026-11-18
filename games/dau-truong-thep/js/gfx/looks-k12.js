@@ -1,12 +1,15 @@
-// Looks, kit lane k12: Doctor Strange and Zoro, remade with the kit ported from the owner's clip. Render only (see looks.js).
+// Looks, kit lane k12: Doctor Strange, Zoro and Điêu Thuyền, remade with the kit ported from the owner's clip. Render only (see looks.js).
 // One main colour and one accent per tank, one strong shape per skill, soft halos.
 //   至尊法师 p66 (Doctor Strange): magenta dimension bubbles, orange sling-ring rune circles; a pink energy orb; the banished
 //     foe sealed in a pink bubble ringed by orange runes; portals of orange sparks at both ends of the warp; the domain a pink
 //     dome on an orange mandala, a pink blast when he draws on it.
 //   海贼猎人 p63 (Zoro): lime-green blades: a whirl round him while he parries, an X where a bullet meets them, crescent waves
 //     flying back; three streaks and a big X for the iai dash; three blades stabbing at once and a great crescent for the ult.
+//   貂蝉 p60 (Điêu Thuyền, skin 火舞): a burning heart, pink flowers turning round her, three pink folding fans in a row going
+//     out and back, roses blooming, rose petals everywhere.
 import { C, own, stop, slash, cut, sigil, shell, trail, burst, gate, weapon, fadeWeapon } from './lookkit.js';
 import * as THREE from '../../vendor/three.module.min.js';
+import { orbPos } from '../sim.js';
 
 const R = (a, b) => a + Math.random() * (b - a);
 
@@ -249,4 +252,173 @@ const cakiem = {
   },
 };
 
-export const K12 = { ...buomdem, ...cakiem };
+// ---- Điêu Thuyền: rose pink, warm gold --------------------------------------------------------------------------------
+const DV_ROSE = C(2.6, 0.5, 1.15), DV_GOLD = C(2.6, 1.75, 0.55), DV_DEEP = C(0.55, 0.04, 0.22), DV_PETAL = C(1.0, 0.36, 0.55);
+const keepG = (g) => { g.userData.keep = true; return g; };
+// a heart, flat in its own plane, point down (-y), about 1 m across
+const heartGeo = keepG((() => {
+  const h = new THREE.Shape();
+  h.moveTo(0, -0.55); h.bezierCurveTo(-0.15, -0.35, -0.55, -0.15, -0.55, 0.12); h.bezierCurveTo(-0.55, 0.42, -0.2, 0.55, 0, 0.3);
+  h.bezierCurveTo(0.2, 0.55, 0.55, 0.42, 0.55, 0.12); h.bezierCurveTo(0.55, -0.15, 0.15, -0.35, 0, -0.55);
+  return new THREE.ShapeGeometry(h, 10);
+})());
+// a folding fan: a 140 degree sector, lying in the ground plane, its pivot at the origin; its gold rim
+const fanGeo = keepG((() => {
+  const f = new THREE.Shape(), a0 = -1.22, a1 = 1.22;
+  f.moveTo(0, 0); for (let i = 0; i <= 14; i++) { const a = a0 + (a1 - a0) * i / 14; f.lineTo(Math.cos(a), Math.sin(a)); } f.lineTo(0, 0);
+  return new THREE.ShapeGeometry(f, 1).rotateX(-Math.PI / 2);
+})());
+const fanRim = keepG((() => { const pts = []; for (let i = 0; i <= 14; i++) { const a = -1.22 + 2.44 * i / 14; pts.push(new THREE.Vector3(Math.cos(a), 0, -Math.sin(a))); } pts.push(new THREE.Vector3(0, 0, 0)); return new THREE.BufferGeometry().setFromPoints(pts); })());
+// a five-petal flower, flat, about 1 m across
+const flowerGeo = keepG((() => {
+  const f = new THREE.Shape();
+  for (let i = 0; i < 5; i++) {
+    const a = i * 1.2566, b = a + 1.2566;
+    if (!i) f.moveTo(Math.cos(a) * 0.12, Math.sin(a) * 0.12);
+    f.bezierCurveTo(Math.cos(a - 0.5) * 0.7, Math.sin(a - 0.5) * 0.7, Math.cos(a + 0.5) * 0.7, Math.sin(a + 0.5) * 0.7, Math.cos(a + 0.63) * 0.12, Math.sin(a + 0.63) * 0.12);
+    f.lineTo(Math.cos(b) * 0.12, Math.sin(b) * 0.12);
+  }
+  return new THREE.ShapeGeometry(f, 8).rotateX(-Math.PI / 2);
+})());
+const mat = (c, op = 1, add = false) => new THREE.MeshBasicMaterial({ color: c, toneMapped: false, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending });
+const tidy = (g) => { g.traverse((o) => { o.frustumCulled = false; o.renderOrder = 8; }); return g; };
+function heart(scale) {
+  const g = new THREE.Group(), glow = new THREE.Mesh(heartGeo, mat(DV_ROSE, 0.55, true)), body = new THREE.Mesh(heartGeo, mat(new THREE.Color(1.0, 0.25, 0.5)));
+  glow.scale.setScalar(1.35); body.position.z = 0.01;
+  g.add(glow, body); g.scale.setScalar(scale); g.rotation.x = -0.75;
+  return tidy(g);
+}
+function fan(scale) {
+  const g = new THREE.Group(), glow = new THREE.Mesh(fanGeo, mat(DV_ROSE, 0.45, true));
+  glow.scale.setScalar(1.25);
+  g.add(new THREE.Mesh(fanGeo, mat(new THREE.Color(0.95, 0.3, 0.55), 0.92)), new THREE.Line(fanRim, new THREE.LineBasicMaterial({ color: DV_GOLD, toneMapped: false })), glow);
+  g.scale.setScalar(scale);
+  return tidy(g);
+}
+function flower(scale) {
+  const g = new THREE.Group(), core = new THREE.Mesh(flowerGeo, mat(DV_GOLD, 0.9, true)), glow = new THREE.Mesh(flowerGeo, mat(DV_ROSE, 0.4, true));
+  core.scale.setScalar(0.3); core.position.y = 0.02; glow.scale.setScalar(1.4);
+  g.add(new THREE.Mesh(flowerGeo, mat(new THREE.Color(1.0, 0.32, 0.58), 0.95)), core, glow);
+  g.scale.setScalar(scale);
+  return tidy(g);
+}
+function held(kit, objs) { const h = { on: true }; own(kit, objs, 1e9, () => h.on); return h; }
+function petals(kit, x, y, z, n, spread, speed) {
+  for (let i = 0; i < kit.N(n); i++) {
+    const a = Math.random() * 6.283, sp = speed * R(0.3, 1);
+    kit.ovr.emit(x + Math.cos(a) * spread * Math.random(), y, z + Math.sin(a) * spread * Math.random(), Math.cos(a) * sp, R(0.6, 2.2), Math.sin(a) * sp, DV_PETAL, R(0.7, 1.2), R(0.18, 0.3), 1, 1.4, -0.6, 0.95, kit.K.CHIP);
+  }
+}
+
+const dieuthuyen = {
+  // Hoa Tiêu (weapon): plain rose darts stay generic; the flowers of Long Viêm Cuồng Vũ fly as spinning pink flowers
+  dvPetal: {
+    shotMake(kit, s) {
+      if (s.src !== 'phihoa') return {};
+      const g = flower(1.1), v = { g, h: held(kit, [g]), x: s.x, z: s.z, live: true };
+      trail(kit, () => (v.live ? [v.x, 1.25, v.z] : null), 0.7, DV_ROSE, 1e9, { c2: DV_DEEP, len: 10 });
+      return v;
+    },
+    shot(kit, v, s, x, y, z, dt) { if (!v.g) return false; v.x = x; v.z = z; v.g.position.set(x, 1.25, z); v.g.rotation.y += dt * 12; return true; },
+    shotEnd(kit, v, s, x, z) { if (!v.g) return; v.live = false; v.h.on = false; burst(kit, x, z, 1.6, DV_ROSE, DV_GOLD, { life: 0.3 }); petals(kit, x, 1, z, 4, 0.6, 2); },
+  },
+  // Sí Nhiệt Mị Hoặc: a burning heart flies out on a rose ribbon (through walls); the charmed foe walks under a ring of small
+  // hearts turning over its head
+  dvHeart: {
+    pal: [DV_ROSE, DV_GOLD], hitR: 1.8,
+    skill(kit, e, u) {
+      const x = u.x + Math.cos(e.a) * 1.5, z = u.z + Math.sin(e.a) * 1.5;
+      shell(kit, x, 1.3, z, 2.0, DV_ROSE, { c2: DV_GOLD, p: 1.5, core: 0.2, life: 0.35, grow: 0.05 });
+      sigil(kit, x, z, 3.4, DV_ROSE, { c2: DV_GOLD, n: 5, m: 2, ticks: 10, inner: 0.5, fill: 0.35, life: 0.55, rev: 0.08, spin: 4, y: 1.0 });
+      petals(kit, x, 1.2, z, 6, 0.6, 3); kit.flash(x, 1.5, z, DV_ROSE, 30, 0.18);
+      return true;
+    },
+    shotMake(kit, s) {
+      const g = heart(2.6), v = { g, h: held(kit, [g]), x: s.x, z: s.z, live: true, t: 0 };
+      trail(kit, () => (v.live ? [v.x, 1.4, v.z] : null), 2.2, DV_ROSE, 1e9, { c2: DV_DEEP, len: 16 });
+      return v;
+    },
+    shot(kit, v, s, x, y, z, dt) {
+      v.t += dt; v.x = x; v.z = z; v.g.position.set(x, 1.5, z); v.g.scale.setScalar(2.6 * (1 + 0.12 * Math.sin(v.t * 18)));
+      kit.glow(x, 1.5, z, DV_GOLD, 0.06, 1.4, 0.9, kit.K.FLAME, 1.2);
+      return true;
+    },
+    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; burst(kit, x, z, 2.2, DV_ROSE, DV_GOLD, { life: 0.35 }); petals(kit, x, 1.2, z, 8, 0.8, 3); },
+    hit(kit, e) {
+      const o = kit.match.units[e.id];
+      burst(kit, e.x, e.z, 2, DV_ROSE, DV_GOLD, { life: 0.35 });
+      if (!o || !(o.locT > 0)) return;
+      const hs = [0, 1, 2].map(() => heart(0.55)), h = held(kit, hs);
+      kit.follow(o, Math.min(1.2, o.locT), (t) => { hs.forEach((g, i) => { const b = t * 3 + i * 2.094; g.position.set(o.x + Math.cos(b) * 0.9, 2.4 + 0.15 * Math.sin(t * 6 + i), o.z + Math.sin(b) * 0.9); }); }, () => { h.on = false; });
+    },
+  },
+  // Long Viêm Cuồng Vũ: she glides in a swirl of rose ribbons and petals; where she lands a five-petal rose circle opens
+  dvDance: {
+    pal: [DV_ROSE, DV_GOLD], hitR: 1.6,
+    skill(kit, e, u) {
+      for (const sd of [-1, 1]) trail(kit, (t) => (t < 0.3 && u.alive ? [u.x + Math.cos(t * 20) * 1.0 * sd, 1.1 + 0.3 * Math.sin(t * 20), u.z + Math.sin(t * 20) * 1.0 * sd] : null), 1.6, DV_ROSE, 0.6, { c2: DV_GOLD, len: 18 });
+      petals(kit, u.x, 1, u.z, 10, 1.2, 4);
+      return true;
+    },
+    warp(kit, e) {
+      sigil(kit, e.x, e.z, 4.0, DV_ROSE, { c2: DV_GOLD, n: 5, m: 2, ticks: 15, inner: 0.45, fill: 0.4, life: 0.7, rev: 0.12, spin: 3 });
+      shell(kit, e.x, 1, e.z, 2.8, DV_ROSE, { c2: DV_GOLD, p: 1.6, core: 0.12, squash: 0.7, life: 0.45, grow: 0.06 });
+      const b = kit.beam(e.x0, e.z0, e.x, e.z, 1.8, DV_ROSE, 0.4, 2, 1.1); b.fade = true;
+      petals(kit, e.x, 1.2, e.z, 12, 1.5, 3.5); kit.flash(e.x, 1.6, e.z, DV_ROSE, 35, 0.2);
+      return true;
+    },
+  },
+  // Phi Hoa (Long Viêm Cuồng Vũ's follow-up): four pink flowers turning round her, each spinning, until it flies off
+  dvFlower: {
+    zones: ['orbit'], pal: [DV_ROSE, DV_GOLD], hitR: 1.4,
+    skill() { return true; },
+    zoneMake() { return { fl: [] }; },
+    zone(kit, v, z) {
+      const o = kit.match.units[z.owner];
+      if (!o) return;
+      for (let i = 0; i < z.n; i++) {
+        const on = (z.live >> i) & 1;
+        if (on && !v.fl[i]) { const g = flower(1.0); v.fl[i] = { g, h: held(kit, [g]) }; petals(kit, o.x, 1.2, o.z, 2, 0.5, 1.5); }
+        if (!on && v.fl[i]) { v.fl[i].h.on = false; v.fl[i] = null; }
+        if (!on || !o.alive) continue;
+        const [px, pz] = orbPos(z, o, i);
+        v.fl[i].g.position.set(px, 1.3 + 0.12 * Math.sin(z.age * 5 + i), pz); v.fl[i].g.rotation.y = z.age * 6 + i;
+      }
+    },
+    zoneDrop(kit, v) { for (const f of v.fl) if (f) f.h.on = false; },
+  },
+  // Hoa Điệp Phi Phiến: three folding fans, pink with a gold rim, spinning out in a row and back on rose ribbons
+  dvFan: {
+    pal: [DV_ROSE, DV_GOLD], hitR: 1.8,
+    skill(kit, e, u) {
+      const x = u.x + Math.cos(e.a) * 1.3, z = u.z + Math.sin(e.a) * 1.3;
+      sigil(kit, x, z, 4.6, DV_GOLD, { c2: DV_ROSE, n: 5, m: 2, ticks: 12, inner: 0.6, fill: 0.3, life: 0.45, rev: 0.06, spin: 6, y: 1.0, grow: 12 });
+      shell(kit, x, 1.2, z, 2.6, DV_ROSE, { c2: DV_GOLD, p: 1.5, core: 0.18, squash: 0.6, life: 0.35, grow: 0.05 });
+      const big = fan(1);
+      own(kit, [big], 0.45, (t) => { const k = Math.min(1, t / 0.1); big.position.set(u.x, 1.0, u.z); big.rotation.y = -e.a; big.scale.setScalar(6.2 * (0.4 + 0.6 * k)); big.traverse((o) => { if (o.material) o.material.opacity = (o.isLine ? 1 : 0.8) * Math.min(1, (0.45 - t) / 0.2); }); });
+      for (const sd of [-0.2, 0, 0.2]) { const b = kit.beam(u.x, u.z, u.x + Math.cos(e.a + sd) * 9, u.z + Math.sin(e.a + sd) * 9, 0.9, DV_ROSE, 0.3, 2, 1.2); b.fade = true; }
+      petals(kit, x, 1.2, z, 10, 0.8, 3.5); kit.flash(x, 1.5, z, DV_ROSE, 40, 0.18);
+      return true;
+    },
+    shotMake(kit, s) {
+      const g = fan(2.1), v = { g, h: held(kit, [g]), x: s.x, z: s.z, live: true };
+      trail(kit, () => (v.live ? [v.x, 1.25, v.z] : null), 2.2, DV_ROSE, 1e9, { c2: DV_DEEP, len: 16 });
+      return v;
+    },
+    shot(kit, v, s, x, y, z, dt) { v.x = x; v.z = z; v.g.position.set(x, 1.25, z); v.g.rotation.y += dt * (s.back ? -14 : 14); if (Math.random() < 0.3) petals(kit, x, 1.2, z, 1, 0.3, 1); return true; },
+    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; petals(kit, x, 1.2, z, 5, 0.5, 2); },
+  },
+  // Loạn Thế Giai Nhân (passive): the fifth mark blooms into a rose on the foe: a big flower opening, a gold five-petal circle, petals
+  dvRose: {
+    stacks(kit, e) {
+      burst(kit, e.x, e.z, 2.6, DV_ROSE, DV_GOLD, { life: 0.45 });
+      const g = flower(2.4);
+      own(kit, [g], 0.6, (t) => { g.position.set(e.x, 1.6, e.z); g.scale.setScalar(2.4 * Math.min(1, t / 0.15)); g.rotation.y = t * 2; });
+      sigil(kit, e.x, e.z, 2.4, DV_GOLD, { c2: DV_ROSE, n: 5, m: 2, ticks: 0, inner: 0.6, fill: 0.2, life: 0.6, rev: 0.06, spin: 2 });
+      petals(kit, e.x, 1.4, e.z, 14, 1, 3.5); kit.flash(e.x, 1.7, e.z, DV_ROSE, 40, 0.22);
+      return true;
+    },
+  },
+};
+
+export const K12 = { ...buomdem, ...cakiem, ...dieuthuyen };

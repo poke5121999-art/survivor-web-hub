@@ -1,7 +1,7 @@
 // Kit lane k12 (buomdem, cakiem, dieuthuyen) ported from the owner's clips: sim-test.mjs section 62 runs these. Standalone (fast):
 //   node tools/k12-cases.mjs
 // Also the old kits of the three tanks as fixtures (OLD_K12), so the primitives they exercised stay covered.
-import { createMatch, step, applyFx } from '../js/sim.js';
+import { createMatch, step, applyFx, LOC_KINDS } from '../js/sim.js';
 import { MECHS, TICK } from '../js/data.js';
 import { allInputs } from '../js/bots.js';
 
@@ -24,6 +24,15 @@ export const OLD_K12 = {
       { id: 'luottram', cd: 8, do: 'dash', dist: 8, speed: 34, dmg: 220, knock: 0.5 },
       { id: 'lockiem', cd: 11, do: 'nova', windup: 0.15, repeat: 2, gap: 0.3, move: 1, radius: 3.8, dmg: 170, knock: 2 },
       { id: 'nhatdao', cd: 40, do: 'beam', windup: 0.5, range: 14, width: 1.6, dmg: 1000, fx: { stun: { dur: 1.0, core: 0.35 } } },
+    ],
+  },
+  dieuthuyen: {
+    passive: { do: 'stacks', n: 3, dur: 4, on: 'skill', fx: { stun: 1.0 } },
+    weapon: { name: 'Băng Tiêu', cd: 0.3, dmg: 90, speed: 30, range: 13, r: 0.22, vis: 'frost' },
+    skills: [
+      { id: 'bangluu', cd: 7, do: 'volley', n: 1, dmg: 220, speed: 30, range: 14, r: 0.4, pierce: true, slow: 0.35, slowDur: 1.5, vis: 'frost' },
+      { id: 'bienlien', cd: 13, do: 'barrage', n: 1, radius: 0, blast: 3, dmg: 200, delay: 0.9, span: 0, cast: 13, fx: { stun: 1.0 } },
+      { id: 'phongtuyet', cd: 45, do: 'zone', at: 'self', follow: true, radius: 6, dur: 5, dps: 150, slow: 0.45, vis: 'blizzard' },
     ],
   },
 };
@@ -184,18 +193,51 @@ export function runK12Cases(check, section) {
     go(m, 35); go(m, 2, (i) => ({ 0: { ult: i === 1, aim: 0 } }));
     check('62z ... and goes after it', a.use2 === 2, `${a.use2}`);
   }
+  // ---- Điêu Thuyền ----
+  {
+    // Sí Nhiệt Mị Hoặc: through a wall, 228 and a 1 s charm on the first foe; a quarter of it heals her
+    const m = arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    m.map.walls.push({ x0: 2.5, x1: 3.5, z0: -3, z1: 3 });
+    a.hp = 1000;
+    go(m, 1, () => ({ 0: { s1: true, aim: 0 } })); go(m, 12);
+    check('62za the heart flies through the wall: 228 x armor, charmed 1 s, she heals 25% of it', near(UNG.hp - v.hp, 228 * UF, 1e-6) && v.locT > 0.5 && v.locK === LOC_KINDS.indexOf('charm') && near(a.hp, 1000 + 228 * UF * 0.25, 1e-6), `${UNG.hp - v.hp} loc ${v.locT}/${v.locK} hp ${a.hp}`);
+  }
+  {
+    // Long Viêm Cuồng Vũ: a short untouchable glide to the cursor, then four flowers that fly at the nearest foe, 75 each
+    const m = arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 12, 0]]), [a, v] = m.units;
+    go(m, 1, () => ({ 0: { s2: true, tx: 7, tz: 0 } }));
+    check('62zb the glide starts untouchable', a.invulnT > 0.2 && !!a.dash, `${a.invulnT}`);
+    go(m, 10);
+    const z = m.zones.find((q) => q.kind === 'orbit' && q.owner === 0);
+    check('62zc ... she is at the cursor and four flowers circle her', near(a.x, 7, 0.1) && !!z && z.src === 'phihoa' && z.n === 4, `${a.x} ${z && z.src}`);
+    const ev = go(m, 80), hits = only(ev, 'hit', (e) => e.id === 1 && e.by === 0);
+    check('62zd ... the flowers fly at the foe 5 m away: four hits of 75 x armor', hits.length === 4 && hits.every((e) => near(e.amt, 75 * UF, 1e-6)), `${hits.map((e) => e.amt)}`);
+  }
+  {
+    // Hoa Điệp Phi Phiến: three fans out (90) and back (270), each hit cuts Long Viêm Cuồng Vũ by 20% (1.6 s); the fifth mark roots
+    // and adds 150 true; a quarter of the skill damage heals her
+    const m = arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 5, 0]]), [a, v] = m.units;
+    a.hp = 1000; a.cd.s2 = 8;
+    go(m, 1, () => ({ 0: { ult: true, aim: 0 } }));
+    const ev = go(m, 45), hits = only(ev, 'hit', (e) => e.id === 1 && e.by === 0);
+    check('62ze the fans: 3 x 90 out and 3 x 270 back (x armor) plus 150 true from the fifth mark, rooted', near(UNG.hp - v.hp, (270 + 810) * UF + 150, 1e-6) && hits.length === 7 && v.stkN === 1, `${UNG.hp - v.hp} hits ${hits.length} stk ${v.stkN}`);
+    check('62zf ... six fan hits cut Long Vien Cuong Vu by 6 x 1.6 s: ready', a.cd.s2 === 0, `${a.cd.s2}`);
+    check('62zg ... she healed a quarter of the 1080 x armor the fans did', near(a.hp, 1000 + 1080 * UF * 0.25, 1e-6), `${a.hp}`);
+    check('62zh one of two uses spent; the second waits 3 s', a.use2 === 1 && !(a.gap2 <= 0), `${a.use2} ${a.gap2}`);
+  }
   // ---- bots ----
   {
-    const seen = { buomdem: new Set(), cakiem: new Set() };
+    const seen = { buomdem: new Set(), cakiem: new Set(), dieuthuyen: new Set() };
     let back = 0;
     for (let k = 0; k < 2; k++) {
-      const m = createMatch({ seed: 62 + k, mode: 'tdm', roster: [{ team: 0, mech: 'buomdem', name: 'D', bot: true, diff: 'hard' }, { team: 0, mech: 'cakiem', name: 'Z', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'ung', name: 'B', bot: true, diff: 'hard' }] });
+      const m = createMatch({ seed: 62 + k, mode: 'tdm', roster: [{ team: 0, mech: 'buomdem', name: 'D', bot: true, diff: 'hard' }, { team: 0, mech: 'cakiem', name: 'Z', bot: true, diff: 'hard' }, { team: 0, mech: 'dieuthuyen', name: 'T', bot: true, diff: 'hard' },
+        { team: 1, mech: 'trau', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'ung', name: 'B', bot: true, diff: 'hard' }, { team: 1, mech: 'tumay', name: 'C', bot: true, diff: 'hard' }] });
       for (let i = 0; i < 2700 && !m.over; i++) {
         step(m, allInputs(m));
         for (const e of m.events) if (e.t === 'skill' && seen[m.units[e.id].mech]) { seen[m.units[e.id].mech].add(e.slot); if (e.skill === 'truyentong') back++; }
       }
     }
-    check('62zz bots cast every skill of buomdem and cakiem in 2 x 90 s', seen.buomdem.size === 3 && seen.cakiem.size === 3, `buomdem ${[...seen.buomdem]} back ${back} cakiem ${[...seen.cakiem]}`);
+    check('62zz bots cast every skill of buomdem, cakiem and dieuthuyen in 2 x 90 s', seen.buomdem.size === 3 && seen.cakiem.size === 3 && seen.dieuthuyen.size === 3, `buomdem ${[...seen.buomdem]} back ${back} cakiem ${[...seen.cakiem]} dieuthuyen ${[...seen.dieuthuyen]}`);
   }
 }
 

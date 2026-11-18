@@ -3375,9 +3375,9 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
   const press = (m, k, slot, extra) => go(m, 1, () => ({ [k]: { [slot]: true, ...extra } }));
   const bits = (n) => { let c = 0; for (; n; n >>= 1) c += n & 1; return c; };
 
-  // stacks 'skill' (dieuthuyen): the weapon adds no mark, three skill hits freeze (stun 1 s) and clear the marks
+  // stacks 'skill' (dieuthuyen, old kit fixture OLD_K12 in k12-cases.mjs): the weapon adds no mark, three skill hits freeze (stun 1 s) and clear the marks
   {
-    const m = arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    const m = oldKit12(arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 6, 0]]), 'dieuthuyen'), [a, v] = m.units;
     go(m, 40, (i) => ({ 0: { fire: i < 25, tx: 6, tz: 0 } }));
     check('43a weapon hits add no mark when the stacks are on skill', v.stkN === 0 && v.hp < v.maxHp, `stk ${v.stkN}`);
     let ev = [];
@@ -3387,9 +3387,9 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
     }
     check('43c the third skill hit stuns 1 s (a little gone), clears the marks and emits stacks', v.stkN === 0 && v.stunT > 0.6 && v.stunT <= 1.0 && only(ev, 'stacks', (e) => e.id === 1 && e.by === 0).length === 1, `stk ${v.stkN} stun ${v.stunT}`);
   }
-  // stacks expire after dur 4 s; a mark held by another attacker restarts from 1
+  // stacks expire after dur 4 s; a mark held by another attacker restarts from 1 (old kit fixture)
   {
-    const m = arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    const m = oldKit12(arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 6, 0]]), 'dieuthuyen'), [a, v] = m.units;
     press(m, 0, 's1', { tx: 6, tz: 0 }); go(m, 10);
     check('43d one skill hit leaves one mark', v.stkN === 1, `stk ${v.stkN}`);
     go(m, 125);
@@ -3425,9 +3425,9 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
     press(m, 0, 's1', { tx: 6, tz: 0 }); go(m, 14);
     check('43j cuuvi: the third mark weakens the foe to x0.7 for 3 s', v.weakenF === 0.7 && v.weakenT > 2 && v.stkN <= 3, `weaken ${v.weakenF} ${v.weakenT} stk ${v.stkN}`);
   }
-  // barrage strikes carry the skill tag: dieuthuyen E marks and stuns
+  // barrage strikes carry the skill tag: dieuthuyen E marks and stuns (old kit fixture)
   {
-    const m = arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 8, 0]]), v = m.units[1];
+    const m = oldKit12(arena([[R('dieuthuyen', 0), 0, 0], [R('ung', 1), 8, 0]]), 'dieuthuyen'), v = m.units[1];
     press(m, 0, 's2', { tx: 8, tz: 0 }); go(m, 30);
     check('43k Bang Lien: the strike hits 200, stuns, and leaves one mark', near(UNG.hp - v.hp, 200 * UNG_F, 1e-6) && v.stunT > 0 && v.stkN === 1, `dmg ${UNG.hp - v.hp} stun ${v.stunT} stk ${v.stkN}`);
   }

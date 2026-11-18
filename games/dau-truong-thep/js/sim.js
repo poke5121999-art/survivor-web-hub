@@ -2485,6 +2485,7 @@ function damage(m, u, amount, src, raw) {
   if (left + absorbed > 0) g2After(m, u, foe, left, kind, vt);
   if (left + absorbed > 0 && !chaining && !reflecting) opHit(m, u, foe);   // kit-remake G5 trau: rage gains, the current-hp blow
   if (foe && foe.alive && left + absorbed > 0 && curSrc && curSrc !== 'w' && !reflecting && bdP(foe)) bdHit(m, foe);   // kit-remake G5 buomdem: the ward
+  if (foe && foe.alive && left + absorbed > 0 && curSrc && curSrc !== 'w' && !reflecting && foe.def.passive && foe.def.passive.dvSteal) dvHit(m, foe, left, absorbed);   // kit-remake G5 dieuthuyen: skill lifesteal, the fans' return cut
 }
 
 // stacks (passive): a hit with a source tag adds a mark to the mech it lands on ('skill': only skill hits count, 'any': weapon and skill hits;
@@ -4759,3 +4760,19 @@ function ckKill(m, u) {
   }
 }
 /* ===== end kit-remake G5 cakiem ===== */
+
+/* ===== kit-remake G5 dieuthuyen (lane k12; ~/handoff/dtt-ref/kits/AUDIT-a.md "dieuthuyen", clip p60 "57.貂蝉" Điêu Thuyền).
+   Hooks elsewhere are one line each, marked "kit-remake G5 dieuthuyen", and call into this block.
+   passive dvSteal: f: every hit of hers that carries a skill tag (a row, its follow-up, its return leg) heals her f of the hp it
+     took (after armour and shields).
+   the return leg of a volley with `back` (kit lane K1, tag '<row id>~b'): the row's G1 cdCut also applies to its hits (srcSlot
+     does not know the '~b' tag, so rowHit skips them).
+   No new state. ===== */
+function dvHit(m, u, left, absorbed) {
+  const P = u.def.passive;
+  if (P.dvSteal && left > 0) heal(m, u, left * P.dvSteal, u, true);
+  if (!curSrc.endsWith('~b') || !(left + absorbed > 0)) return;
+  const i = u.def.skills.findIndex((r) => r.id + '~b' === curSrc), s = i >= 0 ? u.def.skills[i] : null;
+  if (s && s.cdCut && s.cdCut.on !== 'cast') cutCd(u, s.cdCut, i);
+}
+/* ===== end kit-remake G5 dieuthuyen ===== */

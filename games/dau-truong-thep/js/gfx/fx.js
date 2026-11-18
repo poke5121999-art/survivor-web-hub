@@ -793,7 +793,7 @@ export function makeFx(G, mechs) {
   function rowFor(u, kinds) {
     if (!u || !u.def) return null;
     let one = null, n = 0;
-    for (const s of u.def.skills) for (const r of s.next ? [s, s.next.row] : [s]) if (kinds.includes(r.do)) { if (!one) one = r; n++; }
+    for (const s of u.def.skills) for (const r of s.next ? [s, s.next.row] : s.then ? [s, s.then] : [s]) if (kinds.includes(r.do)) { if (!one) one = r; n++; }   // a then row too (lane k12)
     if (n > 1) { const p = pressed.get(u.id); if (p && kinds.includes(p.row.do)) return p.row; }
     return one;
   }
