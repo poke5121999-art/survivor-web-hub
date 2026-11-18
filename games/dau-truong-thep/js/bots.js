@@ -1126,6 +1126,7 @@ const SKILL_AI = {
     for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.radius * (c.role.boss ? 0.95 : 0.85)) n++;
     // an execute swing (fx.execute): worth it as soon as someone inside is under the threshold
     if (s.fx && s.fx.execute) for (const e of c.enemies) if (!e.def.boss && e.hp < e.maxHp * s.fx.execute && hyp(e.x - u.x, e.z - u.z) < s.radius * 0.85) return true;
+    if (s.fx && s.fx.bcPop && k10PopReady(c, s)) return true;   // kit lane K10: Bọ Cạp sets off three stacks or more
     if (c.role.boss) return n >= 2 || (n >= 1 && c.D.skill >= 0.9);   // the ring is telegraphed: worth it on two, or on one for a hard boss
     // meterMul: the blow is worth more the fuller the meter, so one enemy is enough once it is half full
     if (s.meterMul && u.passive === 'meter' && n >= 1 && u.meter >= u.def.passive.max * 0.5) return true;
@@ -2322,6 +2323,13 @@ SKILL_AI.totem = function (c, s) {
   return true;
 };
 /* ===== end kit-remake G4 bots ===== */
+/* ===== kit lane K10 bots: Bọ Cạp's detonation waits for her poison to stack up ===== */
+function k10PopReady(c, s) {
+  const u = c.u;
+  for (const e of c.enemies) if (e.burnBy === u.id && e.burnT > 0.3 && e.burnN >= 3 && hyp(e.x - u.x, e.z - u.z) < s.radius * 0.85) return true;
+  return false;
+}
+/* ===== end kit lane K10 bots ===== */
 
 /* ===== kit lane K1 (feat/dtt-k1): bot use of the K1 rows ===== */
 // bless.bubble (Captain America Q): the bubble eats shots, so it goes on whoever is being shot at right now: the ally under fire

@@ -24,110 +24,6 @@ const discGeo = keep(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2)), ann
 const ballGeo = keep(new THREE.SphereGeometry(0.4, 12, 8));
 const flatShape = (P) => { const s = new THREE.Shape(); s.moveTo(P[0][0], P[0][1]); for (const p of P.slice(1)) s.lineTo(p[0], p[1]); return keep(new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2)); };
 
-// ---- Bọ Cạp: a black-violet scorpion, magenta sting and poison --------------------------------------------------------
-const BC_MAG = C(2.6, 0.3, 2.0), BC_VIO = C(1.3, 0.25, 2.6), BC_SHELL = 0x2a0c3a, BC_DARK = C(0.3, 0.04, 0.4);
-const stingGeo = keep(new THREE.ConeGeometry(0.24, 1.0, 6).rotateZ(-Math.PI / 2).translate(0.5, 0, 0));
-const jawGeo = flatShape([[0, 0.12], [0.5, 0.45], [1.1, 0.6], [1.7, 0.42], [2.05, 0.02], [1.6, 0.16], [1.05, 0.24], [0.5, 0.1], [0.2, -0.14]]);
-// the tail: seven shell segments curling up from the base and over, the bulb and the sting pointing forward and down (+x)
-function tail() {
-  const g = new THREE.Group(), sh = basic(BC_SHELL, false, 1), gl = basic(BC_MAG, true, 0.5), n = 7, Rr = 1.1, end = Math.PI * 1.15;
-  for (let i = 0; i < n; i++) {
-    const th = (i / (n - 1)) * end, s = 1.0 - 0.45 * i / (n - 1), x = -Rr * Math.sin(th), y = Rr * (1 - Math.cos(th));
-    const a = new THREE.Mesh(ballGeo, sh), b = new THREE.Mesh(ballGeo, gl);
-    a.position.set(x, y, 0); a.scale.set(s, s * 0.85, s * 0.9); b.position.copy(a.position); b.scale.setScalar(s * 1.45); g.add(b, a);
-  }
-  const x = -Rr * Math.sin(end), y = Rr * (1 - Math.cos(end));
-  const bulb = new THREE.Mesh(ballGeo, basic(0xd030c0, false, 1)); bulb.position.set(x + 0.3, y - 0.15, 0); bulb.scale.set(0.95, 0.75, 0.75); g.add(bulb);
-  for (const [m, s] of [[basic(BC_MAG, true, 0.9), 1.7], [basic(0xffe0ff, false, 1), 1]]) { const st = new THREE.Mesh(stingGeo, m); st.position.set(x + 0.55, y - 0.3, 0); st.rotation.z = -0.7; st.scale.setScalar(s); g.add(st); }
-  return order(g, 7);
-}
-// a pincer lying flat: two curved jaws (the open angle set by setClaw) on a palm
-function claw(open = 0.5) {
-  const g = new THREE.Group(), m = basic(BC_SHELL, false, 1), gl = basic(BC_MAG, true, 0.85), jaws = [];
-  for (const sd of [1, -1]) for (const [mm, sc] of [[gl, 1.35], [m, 1]]) { const j = new THREE.Mesh(jawGeo, mm); j.scale.set(sc, 1, sd * sc); j.userData.sd = sd; g.add(j); jaws.push(j); }
-  const palm = new THREE.Mesh(ballGeo, m); palm.scale.set(1.1, 0.6, 0.8); palm.position.x = -0.15; g.add(palm);
-  g.userData.jaws = jaws; setClaw(g, open);
-  return order(g, 7);
-}
-function setClaw(g, open) { for (const j of g.userData.jaws) j.rotation.y = j.userData.sd * open; }
-// the scorpion's flat outline (body, claws, tail) for the burrow
-function scorpionFlat() {
-  const g = new THREE.Group(), m = basic(BC_SHELL, false, 0.95), gl = basic(BC_MAG, true, 0.6);
-  for (const [mm, s] of [[gl, 1.25], [m, 1]]) { const b = new THREE.Mesh(ballGeo, mm); b.scale.set(2.6 * s, 0.4, 1.7 * s); g.add(b); }
-  for (const sd of [-1, 1]) { const c = claw(0.45); c.position.set(1.4, 0, sd * 0.9); c.rotation.y = -sd * 0.5; c.scale.setScalar(0.8); g.add(c); }
-  for (let i = 0; i < 6; i++) { const x = -1.1 - i * 0.42, s = 0.75 - i * 0.07; for (const [mm, k] of [[gl, 1.4], [m, 1]]) { const b = new THREE.Mesh(ballGeo, mm); b.position.set(x, 0, Math.sin(i * 0.6) * 0.4); b.scale.set(s * k, 0.4, s * k); g.add(b); } }
-  for (let i = 0; i < 4; i++) for (const sd of [-1, 1]) { const l = new THREE.Mesh(ballGeo, m); l.position.set(0.4 - i * 0.45, 0, sd * 1.05); l.scale.set(0.2, 0.2, 1.1); l.rotation.y = sd * (0.3 - i * 0.2); g.add(l); }
-  return order(g, 7);
-}
-// the sting and the claws strike at the end of the pounce: the tail stabs over his back, the claws snap shut in front
-function sting(kit, x, z, a) {
-  const ca = Math.cos(a), sa = Math.sin(a), t1 = tail(), cl = [claw(0.8), claw(0.8)];
-  t1.scale.setScalar(2.1); cl.forEach((c) => c.scale.setScalar(1.6));
-  let hit = false;
-  own(kit, [t1, ...cl], 0.75, (t) => {
-    const f = Math.min(1, t / 0.12);
-    t1.position.set(x - ca * 0.4, 0.6, z - sa * 0.4); t1.rotation.set(0, -a, 0.45 - 1.15 * f * f);
-    cl.forEach((c, i) => { const sd = i ? 1 : -1; c.position.set(x + ca * 1.7 - sa * sd * 1.2, 0.9, z + sa * 1.7 + ca * sd * 1.2); c.rotation.y = -(a - sd * 0.35); setClaw(c, 0.8 * (1 - f) + 0.05); });
-    if (f >= 1 && !hit) {
-      hit = true; const hx = x + ca * 3, hz = z + sa * 3;
-      burst(kit, hx, hz, 2.2, BC_VIO, BC_MAG); kit.kick(hx, hz, 0.4);
-    }
-    const k = Math.min(1, (0.75 - t) / 0.3); fadeAll(t1, k); cl.forEach((c) => fadeAll(c, k));
-  });
-}
-const bocap = {
-  // Vồ Mồi: the claws open wide in front of her as she runs, a magenta wake behind; where she stops the claws snap and the
-  // tail stabs over her back into a magenta splash
-  bcPounce: {
-    pal: [BC_VIO, BC_MAG], hitR: 2,
-    skill(kit, e, u) {
-      const a = e.a, ca = Math.cos(a), sa = Math.sin(a), cl = [claw(0.9), claw(0.9)];
-      cl.forEach((c) => c.scale.setScalar(2.1));
-      let done = false;
-      own(kit, cl, 0.6, (t) => {
-        if (done || !u.alive) return false;
-        cl.forEach((c, i) => { const sd = i ? 1 : -1; c.position.set(u.x + ca * 1.8 - sa * sd * 1.5, 0.9, u.z + sa * 1.8 + ca * sd * 1.5); c.rotation.y = -(a - sd * 0.4); setClaw(c, 0.75 + 0.2 * Math.sin(t * 30)); });
-        if ((t > 0.06 && !u.dash) || t > 0.5) { done = true; sting(kit, u.x, u.z, a); return false; }
-      });
-      return true;
-    },
-  },
-  // Ngụy Trang: the scorpion's outline sinks into a dark violet sand swirl where she stood and is gone
-  bcBurrow: {
-    skill(kit, e, u) {
-      const x = e.x, z = e.z, g = scorpionFlat(), a = e.a;
-      // an elongated burrow pit along her heading, dark violet with a magenta lip
-      const pit = sigil(kit, x, z, 1, C(0.2, 0.05, 0.28), { c2: BC_MAG, n: 0, ticks: 0, inner: 0.55, fill: 1.0, life: 1.2, rev: 0.12, alpha: 0.85, w: 0.09, y: 0.11 });
-      pit.scale.set(4.2, 1, 2.2); pit.rotation.y = -a;
-      own(kit, [g], 1.1, (t) => { const k = Math.min(1, t / 0.9); g.position.set(x, 0.3 - 0.5 * k, z); g.rotation.y = -a + k * 2.2; g.scale.setScalar(2.4 * (1 - 0.55 * k)); fadeAll(g, Math.min(1, (1.1 - t) / 0.4)); });
-      for (let i = 0; i < kit.N(14); i++) { const b = Math.random() * 6.283, d = R(0.8, 2.8); kit.ovr.emit(x + Math.cos(b) * d, 0.4, z + Math.sin(b) * d, -Math.sin(b) * 4 - Math.cos(b) * 1.5, R(0.3, 1.2), Math.cos(b) * 4 - Math.sin(b) * 1.5, C(0.32, 0.12, 0.4), R(0.6, 1), R(0.4, 0.7), 1.6, 1.2, 0, 0.8, kit.K.DUST); }
-      return true;
-    },
-  },
-  // Lốc Thép: she spins, both claws sweeping round at arm's length with magenta wakes, the tail swinging behind; each foe
-  // caught gets a magenta poison bubble
-  bcSpin: {
-    pal: [BC_VIO, BC_MAG], hitR: 1.8,
-    skill() { return true; },
-    hit(kit, e) { shell(kit, e.x, 1.3, e.z, 1.35, BC_MAG, { c2: C(2.6, 1.8, 2.6), p: 1.4, core: 0.15, life: 0.5, grow: 0.07 }); kit.sparks(e.x, 1.2, e.z, kit.N(6), BC_MAG, 6, 0.3, 0.05, 0.5, 8); return true; },
-    nova(kit, e, u) {
-      const k = e.k || 0, r = e.r || 3.6, dir = k % 2 ? -1 : 1, a0 = (e.a || 0) + k * 1.3, life = 0.38, SW = 0.26;
-      const cl = [claw(0.6), claw(0.6)]; cl.forEach((c) => c.scale.setScalar(2.7));
-      sigil(kit, e.x, e.z, r * 1.05, BC_VIO, { n: 0, ticks: 0, inner: 0.35, fill: 0.7, life: 0.42, rev: 0.05, alpha: 0.7, w: 0, y: 0.11 });
-      const at = (t) => [u.alive ? u.x : e.x, u.alive ? u.z : e.z, a0 + dir * Math.min(1, t / SW) * 6.283];
-      own(kit, cl, life, (t) => {
-        const [x, z, ang] = at(t), f = Math.min(1, t / SW);
-        cl.forEach((c, i) => { const b = ang + i * Math.PI; c.position.set(x + Math.cos(b) * r * 0.62, 0.9, z + Math.sin(b) * r * 0.62); c.rotation.y = -(b + dir * 1.57); setClaw(c, 0.6 * (1 - f) + 0.08); });
-        const kk = Math.min(1, (life - t) / 0.12); cl.forEach((c) => fadeAll(c, kk));
-      });
-      // the clip's violet swirl: two wakes winding round her behind the claws
-      for (const off of [0, Math.PI]) trail(kit, (t) => { if (t > SW + 0.02) return null; const [x, z, ang] = at(t); return [x + Math.cos(ang + off) * r * 0.8, 0.8, z + Math.sin(ang + off) * r * 0.8]; }, 2.2, BC_MAG, 0.5, { c2: BC_DARK, len: 22 });
-      kit.kick(e.x, e.z, 0.25);
-      return true;
-    },
-  },
-};
-
 // ---- Lươn Điện: electric eels, navy bodies with cyan light, violet plasma --------------------------------------------
 const LD_CY = C(0.4, 1.6, 2.6), LD_VIO = C(1.5, 0.5, 2.6), LD_NAVY = 0x0a2238, LD_WHITE = C(2.2, 2.5, 2.6);
 const eelHead = keep(new THREE.SphereGeometry(0.5, 14, 10).scale(1.5, 0.45, 0.85)), eyeGeo = keep(new THREE.SphereGeometry(0.1, 6, 4));
@@ -393,4 +289,4 @@ const kiemthan = {
   },
 };
 
-export const B6 = { ...bocap,...luondien, ...nhenthep, ...kiemthan };   // vesau and bang moved to looks-k8.js / looks-k9.js with their ported kits
+export const B6 = { ...luondien, ...nhenthep, ...kiemthan };   // vesau, bang and bocap moved to looks-k8.js / looks-k9.js / looks-k10.js with their ported kits

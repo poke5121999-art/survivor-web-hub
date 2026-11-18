@@ -133,20 +133,30 @@ export const MECHS = {
         desc: 'Năm quả đạn lớn rơi thành một hàng dọc theo hướng ngắm, tâm ở con trỏ.' },
     ],
   },
+  // Bọ Cạp: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p52 "49.毒蝎女王" Độc Hạt Nữ Vương, tooltips in
+  // ~/handoff/dtt-ref/kits/AUDIT-a.md). Attack = one Độc Châm sting (150; was 5 x 64 pellets): Tử Vong Thôn Phệ 58% -> 87 a puff,
+  // Độc Tố Bạo Phát 237% -> 356, its detonation 100% -> 150 (+50% per 3 stacks). Poison 10% x attack a second per stack -> burn
+  // 8 dps a stack, 5 s, 10 stacks (our burn adds N x dps; the clip's +25% per stack is close enough at 5-6 stacks). Cooldowns
+  // 8 / 6 / 15 s (2 uses 5 s apart) in the clip -> 10 / 8 / 30. Kit-remake G5 fields (sim.js block "kit-remake G5 Bọ Cạp"): passive
+  // bcSteal (heals that share of the poison she deals), hitfx bcPop (sets off her poison on the target).
   bocap: {
     name: 'Bọ Cạp', role: 'Thọc sườn', roleKey: 'flanker', price: 900, tint: 0x6a5acd,
-    blurb: 'Nhanh nhất đấu trường, súng chùm tầm ngắn. Vòng ra sau, kết liễu kẻ yếu máu rồi biến mất.',
+    blurb: 'Nữ hoàng bọ cạp độc: mỗi đòn trúng gieo một tầng độc và hút máu từ độc. Phun độc hình quạt, lên đạn xuyên bắn dồn dập, rồi kích nổ toàn bộ độc trên kẻ địch quanh mình.',
     hp: 2350, speed: 7.3, radius: 0.76,
     armor: 0, accel: 1.5, turn: 16, towerMul: 1.0,
-    passive: { do: 'ambush', name: 'Phục Kích', desc: 'Đòn đầu tiên sau khi ẩn mình (bụi, khói, tàng hình) mạnh thêm 50%.', mul: 1.5, linger: 1 },
-    weapon: { name: 'Súng Chùm', cd: 0.72, dmg: 64, n: 5, fan: 0.09, speed: 30, range: 9, r: 0.18, vis: 'pellet' },
+    passive: { do: 'trait', name: 'Tử Vong Thôn Phệ', bcSteal: 0.5,
+      desc: 'Đòn thường và chiêu trúng địch gieo một tầng độc: mỗi tầng 8 sát thương mỗi giây trong 5 giây, tối đa 10 tầng. Bạn hồi máu bằng 50% sát thương độc gây ra.' },
+    weapon: { name: 'Độc Châm', cd: 0.5, dmg: 150, speed: 30, range: 9, r: 0.22, vis: 'dart', fx: { burn: { dps: 8, dur: 5, max: 10 } } },
     skills: [
-      { id: 'vomoi', look: 'bcPounce', name: 'Vồ Mồi', cd: 8, do: 'dash', dist: 9, speed: 32, dmg: 170, stun: 0.4, knock: 1, icon: 'dash',
-        desc: 'Lao nhanh theo hướng ngắm, gây sát thương và làm khựng kẻ bị vồ trúng.' },
-      { id: 'nguytrang', look: 'bcBurrow', name: 'Ngụy Trang', cd: 14, do: 'buff', stealth: 4, haste: 1.3, dur: 4, icon: 'cloak',
-        desc: 'Tàng hình 4 giây và chạy nhanh hơn 30%. Bắn hoặc dùng chiêu sẽ lộ diện.' },
-      { id: 'locthep', look: 'bcSpin', name: 'Lốc Thép', cd: 40, do: 'nova', windup: 0.25, repeat: 4, gap: 0.3, move: 1, radius: 3.6, dmg: 230, icon: 'spin',
-        desc: 'Xoay tròn chém bốn nhát liên tiếp vào mọi kẻ địch quanh mình, vẫn di chuyển được.' },
+      { id: 'thonphe', look: 'bcSpray', name: 'Tử Vong Thôn Phệ', cd: 10, do: 'nova', windup: 0.1, repeat: 5, gap: 0.29, arc: 0.55, move: 0.5, radius: 5.5, dmg: 87,
+        fx: { burn: { dps: 8, dur: 5, max: 10 } }, icon: 'spin',
+        desc: 'Phun độc liên tục vào hình quạt 5,5 m trước mặt, năm đợt trong 1,5 giây, mỗi đợt 87 sát thương và một tầng độc; vẫn bước được (chậm một nửa).' },
+      { id: 'onhiem', look: 'bcVenom', name: 'Trí Mạng Ô Nhiễm', cd: 8, do: 'transform', dur: 3, rapid: 3, haste: 1.5, towerMul: 0.25,
+        weapon: { range: 11.25, speed: 37.5, pierce: true }, icon: 'rage',
+        desc: '3 giây: đòn thường bay nhanh hơn 25%, xa hơn 25% và xuyên qua mọi kẻ địch; tốc bắn gấp ba, chạy nhanh hơn 50%. Trong lúc đó đòn thường chỉ gây 25% sát thương lên công trình.' },
+      { id: 'bocphat', look: 'bcBurst', name: 'Độc Tố Bạo Phát', cd: 30, do: 'nova', windup: 0, radius: 7, dmg: 356, uses: { n: 2, gap: 5 },
+        fx: { bcPop: { dmg: 150, per3: 0.5, full: 10, disarm: 2, root: 2 }, burn: { dps: 8, dur: 5, max: 10 }, weaken: { mul: 0.75, dur: 3 } }, icon: 'skull',
+        desc: 'Bùng độc 7 m quanh mình: 356 sát thương, một tầng độc, kẻ trúng gây ít hơn 25% sát thương trong 3 giây. Kẻ đang trúng độc bị kích nổ toàn bộ độc: thêm 150, cứ mỗi 3 tầng thêm 50%; đủ 10 tầng thì bị tê liệt 2 giây (không đi, không bắn được). Tích 2 lượt, cách nhau 5 giây.' },
     ],
   },
   // Băng Nha = 冰雪女王 Băng Tuyết Nữ Vương: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p81 "78.冰雪女王", tooltips in
@@ -1109,7 +1119,7 @@ export const PERKS = {
   ung: [perk('Băng Đạn Lớn', 'Súng Ưng chứa 8 viên.', 'weapon', { mag: { n: 8, reload: 1.2 } }), perk('Mắt Rộng', 'Hàn Ngưng Thị soi rộng 6,5 m.', 0, { radius: 6.5 }), perk('Chim Ưng Dữ', 'Liệt Phong Chuẩn gây 300.', 2, { dmg: 300 })],
   hac: [perk('Suối Đầy', 'Suối Hồi Phục hồi 310 mỗi giây.', 0, { hps: 310 }), perk('Trì Trệ Sâu', 'Trường Trì Trệ làm chậm 60%.', 1, { slow: 0.6 }), perk('Vòm Bền', 'Vòm Bảo Hộ kéo dài 7 giây.', 2, { dur: 7 })],
   loi: [perk('Khói Đặc', 'Màn Khói kéo dài 7,5 giây.', 0, { dur: 7.5 }), perk('Thuốc Nổ', 'Giật Lùi gây 260.', 1, { dmg: 260 }), perk('Bảy Tiếng Sấm', 'Thiên Lôi rơi bảy quả.', 2, { n: 7 })],
-  bocap: [perk('Vồ Liên Hồi', 'Vồ Mồi hồi trong 6,5 giây.', 0, { cd: 6.5 }), perk('Ẩn Sâu', 'Ngụy Trang kéo dài 5,5 giây.', 1, { stealth: 5.5, dur: 5.5 }), perk('Sáu Nhát', 'Lốc Thép chém sáu nhát.', 2, { repeat: 6 })],
+  bocap: [perk('Phun Dài', 'Tử Vong Thôn Phệ phun sáu đợt.', 0, { repeat: 6 }), perk('Ô Nhiễm Lâu', 'Trí Mạng Ô Nhiễm kéo dài 4 giây.', 1, { dur: 4 }), perk('Bạo Phát Rộng', 'Độc Tố Bạo Phát rộng 8,5 m.', 2, { radius: 8.5 })],
   bang: [perk('Gai Buốt', 'Gai Băng gây 165.', 'weapon', { dmg: 165 }), perk('Vòng Rộng', 'Băng Sương Chi Hoàn rộng 3,8 m.', 0, { blast: 3.8 }), perk('Bão Dai', 'Băng Thiên Tuyết Địa giáng sáu đợt.', 2, { channel: { dur: 3.65, every: 0.6, move: 0 }, self: { on: 'cast', dur: 3.65, guard: 0.25 } })],
   tho: [perk('Nòng Lớn', 'Ụ Súng bắn 66 mỗi phát.', 0, { dmg: 66 }), perk('Hố Rộng', 'Hố Từ rộng 5,5 m.', 1, { radius: 5.5 }), perk('Bảy Quả Mìn', 'Bãi Mìn rải bảy quả.', 2, { n: 7 })],
   thancong: [perk('Lõi Vonfram', 'Đạn Xuyên gây 1000.', 1, { dmg: 1000 }), perk('Chốt Nhanh', 'Cắm Chốt chỉ mất 0,35 giây.', 0, { setup: 0.35 }), perk('Mười Một Quả', 'Oanh Tạc dội 11 quả.', 2, { n: 11 })],

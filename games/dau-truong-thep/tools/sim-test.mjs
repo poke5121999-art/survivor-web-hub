@@ -9,6 +9,7 @@ import { runK4Cases, oldKit } from './k4-cases.mjs';   // kit lane K4: section 6
 import { runK8Cases } from './k8-cases.mjs';   // kit lane k8: section K8
 import { runK9Cases, OLD_ANDUONG, OLD_BANG, oldBang, oldBaogam } from './k9-cases.mjs';   // kit lane k9: section K9
 import { runK7Cases } from './k7-cases.mjs';   // kit lane K7: section K7
+import { runK10Cases, OLD_BOCAP, oldK10 } from './k10-cases.mjs';   // kit lane K10: section K10, old kits kept as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -26,7 +27,7 @@ const OLD_UNG = {
   ],
 };
 const oldUng = (m) => { for (const u of m.units) if (u.mech === 'ung') { u.def = { ...u.def, ...OLD_UNG }; u.passive = 'pierce'; } return m; };
-const THO_D = MECHS.tho.weapon.dmg, BOC_D = MECHS.bocap.weapon.dmg, UNG_TOWER = OLD_UNG.weapon.dmg * MECHS.ung.towerMul;
+const THO_D = MECHS.tho.weapon.dmg, BOC_D = OLD_BOCAP.weapon.dmg, UNG_TOWER = OLD_UNG.weapon.dmg * MECHS.ung.towerMul;
 
 let failed = 0, passed = 0;
 const check = (name, cond, detail = '') => {
@@ -270,8 +271,8 @@ const hp0 = (u) => u.maxHp - u.hp;
   check('lob: aim point is clamped to the weapon range', !!z && Math.abs(z.x - (-5 + w.range)) < 1e-6, z ? `x ${z.x}` : 'no zone');
 }
 {
-  const w = MECHS.bocap.weapon;
-  const m = duel('bocap', 'trau', [-5, -1], [0, -1]);
+  const w = OLD_BOCAP.weapon;
+  const m = oldK10(duel('bocap', 'trau', [-5, -1], [0, -1]));
   const b = m.units[1];
   run(m, 1, () => [inp({ fire: true, aim: 0 }), inp()]);
   check('pellets: one trigger pull spawns n shots', m.shots.length === w.n, `shots ${m.shots.length}`);
@@ -367,8 +368,8 @@ const hp0 = (u) => u.maxHp - u.hp;
   check('pull field: ends up holding the enemy at the centre', Math.abs(b.x - cx) < 1.2 && b.hp < b.maxHp, `x ${b.x}`);
 }
 {
-  const s = MECHS.bocap.skills[1];
-  const m = duel('bocap', 'trau', [-5, -1], [9, -1]);
+  const s = OLD_BOCAP.skills[1];
+  const m = oldK10(duel('bocap', 'trau', [-5, -1], [9, -1]));
   const a = m.units[0];
   run(m, 1, () => [inp({ s2: true }), inp()]);
   check('stealth buff: caster hidden and hasted', hidden(a) && a.hasteT > 0 && !visibleTo(m, a, 1));
@@ -376,20 +377,20 @@ const hp0 = (u) => u.maxHp - u.hp;
   check('stealth buff: still hidden while idle', hidden(a));
   run(m, 1, () => [inp({ fire: true, aim: 0 }), inp()]);
   check('stealth buff: firing reveals the caster', !hidden(a) && visibleTo(m, a, 1));
-  const m2 = duel('bocap', 'trau', [-5, -1], [9, -1]);
+  const m2 = oldK10(duel('bocap', 'trau', [-5, -1], [9, -1]));
   run(m2, 1, () => [inp({ s2: true }), inp()]);
   run(m2, Math.ceil((s.stealth + 0.2) / TICK), () => [inp(), inp()]);
   check('stealth buff: ends by itself after its time', !hidden(m2.units[0]));
 }
 {
-  const s = MECHS.bocap.skills[2];
-  const m = duel('bocap', 'trau', [-5, -1], [-4, -1]);
+  const s = OLD_BOCAP.skills[2];
+  const m = oldK10(duel('bocap', 'trau', [-5, -1], [-4, -1]));
   const b = m.units[1];
   const ev = run(m, Math.ceil((s.windup + s.gap * s.repeat + 0.3) / TICK), (i) => [inp({ ult: i === 0 }), inp()]);
   const novas = ev.filter((e) => e.t === 'nova').length, hits = ev.filter((e) => e.t === 'hit' && e.id === 1 && e.by === 0).length;
   check('nova repeat: hits `repeat` times', novas === s.repeat && hits === s.repeat, `novas ${novas} hits ${hits}`);
   check('nova repeat: total damage is repeat x per-hit (with falloff)', hp0(b) > s.repeat * s.dmg * 0.5 && hp0(b) <= s.repeat * s.dmg, `dmg ${hp0(b)}`);
-  const mv = duel('bocap', 'trau', [-5, -1], [9, -1]);
+  const mv = oldK10(duel('bocap', 'trau', [-5, -1], [9, -1]));
   const x0 = mv.units[0].x;
   run(mv, 15, (i) => [inp({ ult: i === 0, mx: 1 }), inp()]);
   check('nova repeat: caster keeps moving while spinning (move: 1)', mv.units[0].x - x0 > 3, `dx ${mv.units[0].x - x0}`);
@@ -631,7 +632,7 @@ const bal = BAL_SEEDS.map((seed, i) => runMatch(seed, ['normal', 'normal'], mixe
   check('15e no mech is useless or runaway: K/D 0.25 .. 4 for every non-medic; each medic heals over 800 per match and wins 20 .. 80% of its matches', MECH_ORDER.every((k) => MECHS[k].roleKey === 'medic' ? by[k].h / by[k].n > 800 && winOf(k) >= 0.2 && winOf(k) <= 0.8 : kdOf(k) > 0.25 && kdOf(k) < 4), MECH_ORDER.map((k) => MECHS[k].roleKey === 'medic' ? `${k} heal ${(by[k].h / by[k].n).toFixed(0)} win ${(100 * winOf(k)).toFixed(0)}%` : `${k} ${kdOf(k).toFixed(2)}`).join(' '));
   const casts = {};
   for (const r of bal) for (const k in r.casts) casts[k] = (casts[k] || 0) + r.casts[k];
-  const need = { turret: 'usung', wall: 'vachda', recoil: 'giatlui', minefield: 'baimin', 'barrage line': 'thienloi', 'buff stealth': 'nguytrang', 'nova repeat': 'locthep', 'zone hide': 'khoi', 'zone pull': 'hotu', 'frost nova': 'bangdong', blizzard: 'bangthien', dash: 'vomoi' };
+  const need = { turret: 'usung', wall: 'vachda', recoil: 'giatlui', minefield: 'baimin', 'barrage line': 'thienloi', 'nova repeat': 'thonphe', 'zone hide': 'khoi', 'zone pull': 'hotu', 'frost nova': 'bangdong', blizzard: 'bangthien', dash: 'huc', transform: 'onhiem' };   // kit lane K10: Bọ Cạp's stealth buff and dash left with her old kit
   console.log('bot skill casts over the balance matches: ' + Object.values(need).map((id) => `${id} ${casts[id] || 0}`).join('  '));
   for (const name in need) check(`16 bots use ${name} (${need[name]})`, (casts[need[name]] || 0) >= 1, `casts ${casts[need[name]] || 0}`);
   const th = bal.reduce((a, r) => a + r.turretHits, 0);
@@ -1247,7 +1248,7 @@ section('26 hazards: bots and lava, vents, ice');
   check('26c a sniper kiting backwards toward the lava: zero ticks in lava', kite === 0, `${kite} ticks`);
   let dash = 0;
   { // a dash aimed through lava is not used
-    const m = createMatch({ seed: 41, map: 'mienglua', roster: [{ team: 0, mech: 'bocap', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B' }] });
+    const m = oldK10(createMatch({ seed: 41, map: 'mienglua', roster: [{ team: 0, mech: 'bocap', name: 'A', bot: true, diff: 'hard' }, { team: 1, mech: 'trau', name: 'B' }] }));
     put(m.units[0], h.x, h.z + h.r + 2.5); put(m.units[1], h.x, h.z - h.r - 2.5); m.units[1].maxHp = m.units[1].hp = 1e9;
     for (let t = 0; t < 300; t++) { step(m, allInputs(m)); const u = m.units[0]; if (Math.hypot(u.x - h.x, u.z - h.z) < h.r) dash++; }
   }
@@ -2110,7 +2111,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('concuss: the slow is gone 1.2 s later', unitSpeed(b) === 6);
   }
   {
-    const m = arena([[R('bocap', 0), 0, 0], [R('ung', 1), 4, 0]]);
+    const m = oldK10(arena([[R('bocap', 0), 0, 0], [R('ung', 1), 4, 0]]));
     m.map.bushes.push({ id: 0, x: 0, z: 0, r: 2.5 });
     go(m, 3);
     const stood = hidden(m.units[0]);
@@ -4450,6 +4451,7 @@ runK1Cases(check, section);
 runK8Cases(check, section);   // kit lane k8
 runK9Cases(check, section);
 runK7Cases(check, section);
+runK10Cases(check, section);   // kit lane K10
 
 section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yank/slam/chain.seq/antiheal.shield, selfShield frac/hits/burst, passive reShield/hitCap/healIn/lowHpScale, weapon mag, dash.windup, healIn, warp.to own objects, totem (test-only rows, literal expected values)');
 {

@@ -438,7 +438,7 @@ function stepUnit(m, u, inp) {
   if (u.burnT > 0) {
     u.burnT -= dt;
     if (u.burnT <= 0) { u.burnT = 0; u.burnN = 0; }
-    else { damage(m, u, u.burnN * u.burnDps * dt, u.burnBy >= 0 ? m.units[u.burnBy] : null); if (!u.alive) return; }
+    else { const bh = u.hp; damage(m, u, u.burnN * u.burnDps * dt, u.burnBy >= 0 ? m.units[u.burnBy] : null); k10BurnSteal(m, u, bh); if (!u.alive) return; }   // K10: bcSteal
   }
   // dash.recast: the window to press the skill again runs only while the unit is free to
   if (u.recast && !u.dash && !u.cast) {
@@ -2254,6 +2254,7 @@ export function applyFx(m, src, o, fx, ctx) {
     o.stunT = Math.max(o.stunT, st);
   }
   if (fx.chain) chainHit(m, src, o, fx.chain, lastBase);
+  if (fx.bcPop) { k10Pop(m, src, o, fx.bcPop); if (!o.alive) return; }   // kit lane K10: Bọ Cạp sets off her poison
   if (fx.burn) { o.burnT = fx.burn.dur; o.burnN = Math.min(fx.burn.max, o.burnN + 1); o.burnDps = fx.burn.dps; o.burnBy = src.id; }
   if (fx.amp) applyAmp(o, fx.amp.amp, fx.amp.dur);
   if (fx.reveal) { o.revealT = Math.max(o.revealT, fx.reveal); o.stealthT = 0; }
@@ -3471,3 +3472,27 @@ function k7Hit(m, foe, u) {
   curSrc = null; areaDamage(m, foe, u.x, u.z, F.radius, F.dmg + F.grow * n, null, null); curSrc = keep;
 }
 /* ===== end kit-remake G5 Ưng Nhãn ===== */
+/* ===== kit lane K10 (feat/dtt-k10; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-a.md bocap, bohung, bongua) =====
+   Host-side bookkeeping only: what changes play (shotN, the burn, root, disarm) is already in netstate STATUS. */
+// -- kit-remake G5 Bọ Cạp: passive `bcSteal: f` (each burn tick she lit heals her f of the hp it took), hitfx `bcPop {dmg, per3,
+//    full, disarm, root}` (her poison already on the target goes off before the hit's own poison lands: dmg x (1 + per3 x
+//    floor(stacks / 3)), scaled like the row, no source tag; at `full` stacks also disarm + root; the stacks are spent; event
+//    k10 {kind: 'pop', n}).
+function k10BurnSteal(m, u, before) {
+  const by = u.burnBy >= 0 ? m.units[u.burnBy] : null, P = by && by.def.passive;
+  if (!P || !P.bcSteal || by === u || !by.alive) return;
+  const took = before - Math.max(0, u.hp);
+  if (took > 0) heal(m, by, took * P.bcSteal, by, true);
+}
+function k10Pop(m, src, o, P) {
+  const n = o.burnT > 0 && o.burnBy === src.id ? o.burnN : 0;
+  if (!(n > 0)) return;
+  o.burnN = 0; o.burnT = 0;
+  m.events.push({ t: 'k10', kind: 'pop', id: o.id, by: src.id, n, x: o.x, z: o.z });
+  const keep = curSrc;
+  curSrc = null; damage(m, o, P.dmg * (1 + (P.per3 || 0) * Math.floor(n / 3)) * dmgScale(src), src); curSrc = keep;
+  if (!o.alive || !(P.full && n >= P.full)) return;
+  if (P.disarm) applyLoc(m, src, o, { disarm: P.disarm });
+  if (P.root && !(o.ccT > 0)) o.rootT = Math.max(o.rootT, P.root);
+}
+/* ===== end kit lane K10 ===== */

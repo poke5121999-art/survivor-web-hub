@@ -31,7 +31,7 @@ const SEQ = {
   ung: { d: 13, seq: [['s1', 0], ['ult', 0.2], ['s2', 1.4]] },
   hac: { d: 9, seq: [] },
   loi: { d: 12, seq: [['ult', 0]] },
-  bocap: { d: 6, seq: [['s2', 0], ['s1', 0.5], ['ult', 1.0]], fireAt: 0.4 },
+  bocap: { d: 5, seq: [['s1', 0], ['ult', 1.6], ['s2', 1.7]] },
   bang: { d: 4.5, seq: [['s1', 0], ['s2', 0.1], ['ult', 0.5], ['s1', 4.2]] },
   tho: { d: 8, seq: [['s1', 0], ['ult', 0.3]] },
   thancong: { d: 10, seq: [['s1', 0, true], ['s2', 0.9], ['ult', 0.9]], fireAt: 0.9 },
