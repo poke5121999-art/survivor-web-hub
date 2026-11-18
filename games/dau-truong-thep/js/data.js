@@ -298,7 +298,7 @@ export const MECHS = {
     ],
   },
   khiphao: {
-    name: 'Khỉ Pháo', role: 'Ảo thuật', roleKey: 'trickster', price: 1600, tint: 0x7a3fb0,
+    name: 'Joker', role: 'Ảo thuật', roleKey: 'trickster', price: 1600, tint: 0x7a3fb0,
     blurb: 'Bắn pháo tép làm chậm bừa, thả bẫy lúc chuồn, mở hội pháo hoa chụp cả nhóm.',
     hp: 2300, speed: 6.8, radius: 0.78,
     armor: 0.03, accel: 1.3, turn: 14, towerMul: 1.2,
@@ -415,7 +415,7 @@ export const MECHS = {
     ],
   },
   mucma: {
-    name: 'Mực Ma', role: 'Thọc sườn', roleKey: 'flanker', price: 1600, tint: 0x1d1d24,
+    name: 'Kaneki', role: 'Thọc sườn', roleKey: 'flanker', price: 1600, tint: 0x1d1d24,
     blurb: 'Xúc tu đỏ quất ba đường, xuyên thân đánh dấu mục tiêu. Hạ gục hồi máu, Hóa Ma hút máu và chạy nhanh.',
     hp: 2300, speed: 7.0, radius: 0.76,
     armor: 0.03, accel: 1.5, turn: 16, towerMul: 1.0,
@@ -432,7 +432,7 @@ export const MECHS = {
     ],
   },
   kynhong: {
-    name: 'Kỳ Nhông', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1600, tint: 0xe2401c,
+    name: 'Natsu', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1600, tint: 0xe2401c,
     blurb: 'Quyền lửa liên hồi đốt cháy cộng dồn, kẻ đang cháy chịu thêm sát thương. Long Hóa phun lửa dài, cứng và nhanh hơn.',
     hp: 2800, speed: 6.1, radius: 0.86,
     armor: 0.08, accel: 1.1, turn: 12, towerMul: 1.8,
@@ -480,7 +480,7 @@ export const MECHS = {
     ],
   },
   enbac: {
-    name: 'Én Bạc', role: 'Xung kích', roleKey: 'assault', price: 1700, tint: 0x8a96a8,
+    name: 'Star Lord', role: 'Xung kích', roleKey: 'assault', price: 1700, tint: 0x8a96a8,
     blurb: 'Song thương nhanh, ghim một mục tiêu thì sát thương tăng dần. Phản lực bắn trả khi lùi, mưa đạn trời dội vừa đi vừa bắn.',
     hp: 2450, speed: 6.8, radius: 0.8,
     armor: 0.04, accel: 1.3, turn: 14, towerMul: 1.0,
@@ -496,7 +496,7 @@ export const MECHS = {
     ],
   },
   boica: {
-    name: 'Bói Cá', role: 'Bắn tỉa', roleKey: 'sniper', price: 1800, tint: 0x2f7fa6,
+    name: 'Sniper', role: 'Bắn tỉa', roleKey: 'sniper', price: 1800, tint: 0x2f7fa6,
     blurb: 'Nín thở đứng yên để mỗi phát bắn thêm mạnh. Đạn xuyên dài, bẫy cảnh giới lộ diện, khóa mục tiêu rồi bắn tia chí mạng.',
     hp: 1700, speed: 5.9, radius: 0.76,
     armor: 0, accel: 1.0, turn: 10, towerMul: 0.4,
@@ -512,7 +512,7 @@ export const MECHS = {
     ],
   },
   bohung: {
-    name: 'Bọ Hung', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1700, tint: 0x3c3f8f,
+    name: 'Apocalypse', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1700, tint: 0x3c3f8f,
     blurb: 'Mỗi chiêu dùng ra là nạp một nấc lõi; đủ ba nấc, phát pháo kế tiếp nặng gấp đôi và choáng. Khiên tự nổ, Thăng Hóa phình to cứng cáp.',
     hp: 2750, speed: 5.6, radius: 0.92,
     armor: 0.12, accel: 1.0, turn: 10, towerMul: 1.3,
@@ -529,7 +529,7 @@ export const MECHS = {
     ],
   },
   cakiem: {
-    name: 'Cá Kiếm', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1600, tint: 0x2e6b4f,
+    name: 'Zoro', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1600, tint: 0x2e6b4f,
     blurb: 'Ba đường đao liền tay, mỗi chiêu dùng ra mài sắc nhát chém kế tiếp. Lướt xuyên đối thủ, lốc kiếm hai vòng, Nhất Đao chỉ choáng kẻ trúng giữa tia.',
     hp: 2650, speed: 6.4, radius: 0.86,
     armor: 0.08, accel: 1.2, turn: 13, towerMul: 1.3,
@@ -563,7 +563,7 @@ export const MECHS = {
     ],
   },
   buomdem: {
-    name: 'Bướm Đêm', role: 'Ảo thuật', roleKey: 'trickster', price: 1700, tint: 0x5a2a8a, hover: true,
+    name: 'Doctor Strange', role: 'Ảo thuật', roleKey: 'trickster', price: 1700, tint: 0x5a2a8a, hover: true,
     blurb: 'Mỗi chiêu dùng ra khoác thêm một lớp bùa hộ thân. Tia bùa xuyên thấu, cổng ảo nổ ở chỗ hạ cánh, kết giới đa chiều làm chậm và thiêu cả một vùng.',
     hp: 2350, speed: 6.6, radius: 0.78,
     armor: 0.03, accel: 1.4, turn: 15, towerMul: 1.0,
@@ -597,7 +597,7 @@ export const MECHS = {
     ],
   },
   baogam: {
-    name: 'Báo Gấm', role: 'Thọc sườn', roleKey: 'flanker', price: 1600, tint: 0x23262e,
+    name: 'Black Panther', role: 'Thọc sườn', roleKey: 'flanker', price: 1600, tint: 0x23262e,
     blurb: 'Hứng đòn nào cũng tích rung động, đầy là tự nổ hất văng. Giáp Rung chặn đòn mà vẫn nạp, Bung Năng Lượng dồn hết rung động vào một cú nổ.',
     hp: 2350, speed: 7.1, radius: 0.78,
     armor: 0.06, accel: 1.5, turn: 16, towerMul: 1.0,
@@ -614,7 +614,7 @@ export const MECHS = {
     ],
   },
   luondien: {
-    name: 'Lươn Điện', role: 'Xung kích', roleKey: 'assault', price: 1700, tint: 0x1d4f6b,
+    name: 'Razor', role: 'Xung kích', roleKey: 'assault', price: 1700, tint: 0x1d4f6b,
     blurb: 'Roi điện tích dần: đủ năm phát trúng, phát kế tiếp nhảy sang ba mục tiêu. Vùng điện bám người, Sấm Sét ưu tiên kẻ đã dính roi.',
     hp: 2500, speed: 6.3, radius: 0.8,
     armor: 0.05, accel: 1.3, turn: 14, towerMul: 1.0,
@@ -631,7 +631,7 @@ export const MECHS = {
     ],
   },
   tegiac: {
-    name: 'Tê Giác', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1700, tint: 0xe8e2d0,
+    name: 'Saitama', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1700, tint: 0xe8e2d0,
     blurb: 'Càng đánh càng bị đánh càng nóng; đầy thì chiêu kế tiếp nặng thêm 60%, máu thấp nóng nhanh gấp đôi. Đấm liên hoàn, nhảy dậm, rồi một cú đấm nghiêm túc.',
     hp: 3000, speed: 6.0, radius: 0.92,
     armor: 0.1, accel: 1.1, turn: 12, towerMul: 1.5,
@@ -648,7 +648,7 @@ export const MECHS = {
     ],
   },
   quaset: {
-    name: 'Quạ Sét', role: 'Thọc sườn', roleKey: 'flanker', price: 1600, tint: 0x2a2350,
+    name: 'Sasuke', role: 'Thọc sườn', roleKey: 'flanker', price: 1600, tint: 0x2a2350,
     blurb: 'Hai chiêu khác nhau trúng liền nhau hai lần là phát phi tiêu kế tiếp nặng gấp hơn hai lần và choáng. Lôi thiết, ảnh hoán ra sau lưng, giáp hộ mệnh biến phi tiêu thành ba mũi lao.',
     hp: 2150, speed: 7.2, radius: 0.76,
     armor: 0.03, accel: 1.5, turn: 16, towerMul: 1.0,
@@ -716,7 +716,7 @@ export const MECHS = {
     ],
   },
   samthep: {
-    name: 'Sam Thép', role: 'Khống chế', roleKey: 'control', price: 1800, tint: 0x8a2a3a,
+    name: 'Magneto', role: 'Khống chế', roleKey: 'control', price: 1800, tint: 0x8a2a3a,
     blurb: 'Mảnh thép bám vào địch: bốn đòn trúng liền là kẻ đó bị từ trường giữ chân. Mưa mảnh, hố từ và lồng từ nhốt cả nhóm.',
     hp: 2650, speed: 5.7, radius: 0.86,
     armor: 0.10, accel: 0.9, turn: 10, towerMul: 1.0,
@@ -767,7 +767,7 @@ export const MECHS = {
     ],
   },
   suatrang: {
-    name: 'Sứa Trắng', role: 'Hỗ trợ', roleKey: 'support', price: 1700, tint: 0xf4f6f8, hover: true,
+    name: 'Baymax', role: 'Hỗ trợ', roleKey: 'support', price: 1700, tint: 0xf4f6f8, hover: true,
     blurb: 'Tự hồi máu liên tục và hồi cho đồng đội đứng gần, nhất là người sắp gục. Bong bóng hồi, bay đỡ đồng đội kèm khiên, cấp cứu cả nhóm.',
     hp: 2000, speed: 6.4, radius: 0.80,
     armor: 0.06, accel: 1.2, turn: 13, towerMul: 1.8,
@@ -784,7 +784,7 @@ export const MECHS = {
     ],
   },
   khidot: {
-    name: 'Khỉ Đột', role: 'Trụ', roleKey: 'tank', price: 1900, tint: 0x3f7d2f,
+    name: 'Hulk', role: 'Trụ', roleKey: 'tank', price: 1900, tint: 0x3f7d2f,
     blurb: 'Da lì tự lành theo phần máu đã mất, dưới ngưỡng thấp thì lành gấp đôi và cứng thêm. Đấm đất, nhảy vồ, rồi thịnh nộ phình to hút máu.',
     hp: 3300, speed: 5.4, radius: 1.0,
     armor: 0.12, accel: 0.8, turn: 9, towerMul: 1.5,
@@ -801,7 +801,7 @@ export const MECHS = {
     ],
   },
   retdo: {
-    name: 'Rết Đỏ', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1800, tint: 0xb0202a,
+    name: 'Deadpool', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1800, tint: 0xb0202a,
     blurb: 'Phóng dao liên tục, càng thấp máu càng hút máu mạnh. Lộn Ngược né ra sau rồi trả đòn bằng hai lưỡi dao, Hỗn Loạn hút máu mọi kẻ áp sát.',
     hp: 3100, speed: 6.4, radius: 0.86,
     armor: 0.10, accel: 1.1, turn: 12, towerMul: 1.2,
@@ -819,7 +819,7 @@ export const MECHS = {
     ],
   },
   nhenthep: {
-    name: 'Nhện Thép', role: 'Thọc sườn', roleKey: 'flanker', price: 1700, tint: 0x4a4f58,
+    name: 'Mikasa', role: 'Thọc sườn', roleKey: 'flanker', price: 1700, tint: 0x4a4f58,
     blurb: 'Móc tơ kéo mình tới địch, vòng chém lướt vô địch và đánh dấu mục tiêu, rồi đu dây năm nhát liên hoàn. Hạ gục là móc tơ sẵn sàng ngay.',
     hp: 2350, speed: 7.3, radius: 0.76,
     armor: 0.02, accel: 1.4, turn: 16, towerMul: 1.4,
@@ -853,7 +853,7 @@ export const MECHS = {
     ],
   },
   bongua: {
-    name: 'Bọ Ngựa', role: 'Thọc sườn', roleKey: 'flanker', price: 1700, tint: 0x1e2a22,
+    name: 'Kirito', role: 'Thọc sườn', roleKey: 'flanker', price: 1700, tint: 0x1e2a22,
     blurb: 'Mỗi nhát liềm trúng nạp một nấc, đủ sáu nấc thì chiêu kế tiếp nặng thêm một nửa. Chém Lướt được ba lần liên tiếp, Thế Đỡ gạt đòn rồi nổ một vòng, Song Liềm chém bảy nhát.',
     hp: 2400, speed: 7.1, radius: 0.76,
     armor: 0.03, accel: 1.4, turn: 16, towerMul: 1.4,
@@ -912,7 +912,7 @@ export const MECHS = {
     ],
   },
   chuottui: {
-    name: 'Chuột Túi', role: 'Hỗ trợ', roleKey: 'support', price: 1700, tint: 0xc98a4a,
+    name: 'Doraemon', role: 'Hỗ trợ', roleKey: 'support', price: 1700, tint: 0xc98a4a,
     blurb: 'Túi thần thỉnh thoảng trả lại gần hết thời gian hồi chiêu. Mở cửa thần cho cả đội đi qua, thả robot quấy, rồi tung túi đồ nghề hồi máu, tăng tốc và che khiên.',
     hp: 2200, speed: 6.8, radius: 0.80,
     armor: 0.04, accel: 1.2, turn: 13, towerMul: 2.2,
@@ -928,7 +928,7 @@ export const MECHS = {
     ],
   },
   vesau: {
-    name: 'Ve Sầu', role: 'Hỗ trợ', roleKey: 'support', price: 1700, tint: 0x3a1a2a,
+    name: 'Kurumi', role: 'Hỗ trợ', roleKey: 'support', price: 1700, tint: 0x3a1a2a,
     blurb: 'Gom thời gian từ máu đồng đội đã mất để lần hồi máu kế tiếp mạnh hơn. Đạn Ấn đánh dấu, Vùng Thời Gian hồi và tăng tốc, Quay Ngược trả lại máu cả đội vừa mất.',
     hp: 1950, speed: 6.8, radius: 0.78,
     armor: 0.04, accel: 1.2, turn: 13, towerMul: 1.8,
