@@ -238,7 +238,8 @@ export function runBossCases(check, section) {
     // the hunters stand on the quay next to the guns and shoot them down
     const hunters = m.units.filter((u) => u.team === 0);
     for (let i = 0; i < 300 && guns.some((g) => g.alive); i++) { hunters.forEach((h, k) => { const g = guns.find((q) => q.alive) || b; h.x = h.px = g.x + (k - 1) * 1.5; h.z = h.pz = L.z + 3.4; h.invulnT = 1; }); step(m, allInputs(m, {})); }
-    for (let i = 0; i < 10; i++) step(m, {});
+    // a hunter may be Medusa (kit lane k17): her curse marks take armour off for 3 s, so let them run out first
+    for (let i = 0; i < 10 || (b.stkN > 0 && b.stkT > 0 && i < 150); i++) step(m, {});
     check('52f warship hull shrugs off 60% while a deck gun stands, back to its own armour once they are sunk', near(armed, 0.6, 1e-9) && guns.every((g) => !g.alive) && near(armorOf(m, b), b.def.armor, 1e-9), `${armed} -> ${armorOf(m, b)}`);
   }
   {
