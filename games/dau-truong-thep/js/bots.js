@@ -1233,6 +1233,7 @@ const SKILL_AI = {
   wall(c, s) {
     const { u, tgt, td, m } = c;
     if (s.screen) return screenWall(c, s);
+    if (s.burst) return k7BotWall(c, s);   // kit lane K7 (Thủy Tinh): a water wall at the cursor that bursts as it forms
     if (!tgt || td > 15 || td < 3) return false;
     const retreating = c.state === 'retreat' || (c.hpFrac < 0.4 && c.underFire);
     const chased = c.near - c.allyNear >= 1 && c.underFire;
@@ -1831,6 +1832,7 @@ function chooseSkill(c) {
     }
   }
   if (u.cast || u.dash || u.stunT > 0 || u.silenceT > 0 || locked(u)) return null;
+  if (u.sirT > 0 && u.hp < u.maxHp * 0.6) return null;   // kit lane K7 (Thủy Tinh): a cast breaks the ice block, so stay sealed while hurt
   const sk = b.sk;
   const p = 1 - Math.pow(1 - Math.min(0.999, D.skill), 1.5 * TICK);
   for (let i = 0; i < 3; i++) {
@@ -2430,3 +2432,14 @@ function adBotRoll(c, s) {
   return false;
 }
 /* ===== end kit-remake G5 An Dương Vương bots ===== */
+/* ===== kit lane K7 (feat/dtt-k7): bot use of the K7 rows ===== */
+// Thủy Tinh's water wall forms at the cursor and bursts round it: drop it on the target (led a little) when it is in reach.
+function k7BotWall(c, s) {
+  const { u, tgt, td } = c;
+  if (!tgt || tgt.pseudo || td > s.cast + 1 || td < 2.5) return false;
+  const p = leadPoint(u, tgt, 14, c.D.lead * 0.5);
+  if (hyp(p[0] - u.x, p[1] - u.z) > s.cast + 0.5) return false;
+  c.b.sk.x = p[0]; c.b.sk.z = p[1]; c.b.sk.aim = Math.atan2(p[1] - u.z, p[0] - u.x); c.b.sk.tol = 0.3;
+  return true;
+}
+/* ===== end kit lane K7 ===== */

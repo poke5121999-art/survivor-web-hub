@@ -123,6 +123,64 @@ export function runK7Cases(check, section) {
     }
     check('K7-o ... slammed into its ally: 50% of its lost hp more (true damage) and a 1 s stun', !!pay && pay.want > 100 && al.stunT > 0.9 && near(pay.got, pay.want, 1e-6) && st > 0.9, `${pay && pay.got} want ${pay && pay.want} stun ${st}`);
   }
+
+  // ---- Thủy Tinh (thuytinh), clip p70 ----
+  const TT = MECHS.thuytinh, TP = TT.passive, [TQ, TE, TU] = TT.skills;
+  // Hải Yêu Chi Nộ: a hit adds a mark and slows the victim's fire 10% per mark; the fifth freezes 2 s, then 4 s without marks
+  {
+    const m = arena([[R('thuytinh', 0), 0, 0], [R(DUMMY, 1), 5, 0]]), [a, v] = m.units;
+    go(m, 12, (i) => ({ 0: { fire: i === 0 } }));
+    check('K7-p Hai Yeu Chi No: a 150 drop hits for 150 x armour, one mark, the foe\'s fire at x0.9 for 4 s', near(DH.hp - v.hp, TT.weapon.dmg * DF, 1e-6) && v.stkN === 1 && near(v.sfF, 0.9, 1e-9) && v.sfT > 3.5, `${DH.hp - v.hp} ${v.stkN} ${v.sfF}`);
+    v.stkN = 4; v.stkT = 4;
+    const ev = go(m, 25, (i) => ({ 0: { fire: i === 8 } }));
+    check('K7-q ... the fifth mark freezes it 2 s, puts the frozen tag on and locks marks out for 4 s', only(ev, 'stacks').length === 1 && v.stunT > 1.5 && v.tags['frozen@' + a.id] > 1.5 && v.stkN === 0 && v.sfF <= 0.5 + 1e-9, `${v.stunT} ${v.stkN} ${v.sfF}`);
+    go(m, 20, (i) => ({ 0: { fire: i === 0 } }));
+    check('K7-r ... a hit inside the lockout adds no mark', v.stkN === 0 && v.hp < DH.hp - 2 * TT.weapon.dmg * DF, `${v.stkN}`);
+  }
+  // Băng Lãnh Trí Tuệ: 263 round her and a mark; on a foe frozen by her marks x(601/263) + 15% of its lost hp, and the cooldown is back
+  {
+    const m = arena([[R('thuytinh', 0), 0, 0], [R(DUMMY, 1), 2, 0], [R(DUMMY, 1), -2, 0]]), [a, v, w] = m.units;
+    v.stunT = 2; v.tags['frozen@' + a.id] = 2; v.hp = 2000; w.hp = 2000;
+    press(m, 0, 's1');
+    go(m, Math.round(TQ.windup / TICK) + 1);
+    const plain = TQ.dmg * (1 - 0.5 * 2 / TQ.radius) * DF, hard = plain * TQ.vsTag.mul;
+    check('K7-s Bang Lanh Tri Tue: the free foe takes 263 x falloff and gets a mark', near(2000 - w.hp, plain, 1e-6) && w.stkN === 1, `${2000 - w.hp} ${w.stkN}`);
+    check('K7-t ... the frozen one takes 601 x falloff + 15% of its lost hp (true), the tag is used up and Q is ready again',
+      near(2000 - v.hp, hard + (DH.hp - (2000 - hard)) * 0.15, 1e-6) && !(v.tags['frozen@' + a.id] > 0) && a.cd.s1 === 0, `${2000 - v.hp} want ${hard + (DH.hp - (2000 - hard)) * 0.15} cd ${a.cd.s1}`);
+  }
+  // Thủy Mạc Bình Chướng: a wall at the cursor, 332 round it as it forms and two marks; a second press recalls it
+  {
+    const m = arena([[R('thuytinh', 0), 0, 0], [R(DUMMY, 1), 8, 2]]), [a, v] = m.units;
+    const ev = press(m, 0, 's2', { tx: 8, tz: 0 });
+    const wall = m.zones.find((z) => z.kind === 'wall' && z.owner === a.id);
+    check('K7-u Thuy Mac Binh Chuong: five water blocks across the aim at the cursor', !!wall && wall.pts.length === TE.n && near(wall.x, 8, 1e-6) && wall.pts.every((p) => near(p[0], 8, 1e-6)), wall && JSON.stringify(wall.pts));
+    check('K7-v ... 332 x falloff on the foe 2 m from it and two marks', near(DH.hp - v.hp, TE.burst.dmg * (1 - 0.5 * 2 / TE.burst.radius) * DF, 1e-6) && v.stkN === 2 && only(ev, 'nova', (e) => e.skill === TE.id).length === 1, `${DH.hp - v.hp} marks ${v.stkN}`);
+    go(m, 5);
+    press(m, 0, 's2');
+    check('K7-w ... pressed again inside 4 s it is recalled', !m.zones.some((z) => z.kind === 'wall'), `${m.zones.length}`);
+  }
+  // Cuồng Lan Thúc Phược: 122 every 0.5 s with a mark each, the slow growing to 50% over 2 s, she heals 75 per pulse inside
+  {
+    const m = arena([[R('thuytinh', 0), 6, 1], [R(DUMMY, 1), 8, 0]]), [a, v] = m.units;
+    a.hp = 1000; a.combatT = 0;
+    press(m, 0, 'ult', { tx: 8, tz: 0 });
+    go(m, 15);
+    check('K7-x Cuong Lan Thuc Phuoc: after 0.5 s the foe took 122 x armour and one mark', near(DH.hp - v.hp, TU.dps * 0.5 * DF, 1e-6) && v.stkN === 1, `${DH.hp - v.hp} ${v.stkN}`);
+    check('K7-y ... she heals 75 per pulse standing in it', near(a.hp, 1000 + TU.ownerHps * 0.5, 1e-6), `${a.hp}`);
+    go(m, 15);
+    check('K7-z ... after 1 s the slow is half of 50%', near(v.slowF, 0.25, 0.02) && v.slowT > 0, `${v.slowF}`);
+  }
+  // Băng Phong Chi Tâm: a fatal hit seals her in ice 3 s (30% hp, untargetable, no walking, no shooting); a cast breaks it
+  {
+    const m = arena([[R('thuytinh', 0), 0, 0], [R(DUMMY, 1), 5, 0, Math.PI]]), [a, v] = m.units;
+    a.hp = 20;
+    const ev = go(m, 12, (i) => ({ 1: { fire: i === 0 } }));
+    check('K7-za Bang Phong Chi Tam: the fatal hit leaves her at 1 + 30% of max hp, sealed 3 s and untargetable', a.alive && near(a.hp, 1 + TP.mods.save.heal * a.maxHp, 1e-6) && a.sirT > 2.5 && a.invulnT > 2.5 && only(ev, 'k7', (e) => e.kind === 'ice' && e.on === 1).length === 1, `${a.hp} ${a.sirT}`);
+    const x0 = a.x, ev2 = go(m, 20, () => ({ 0: { mx: 1, fire: true } }));
+    check('K7-zb ... she neither walks nor shoots in the ice', near(a.x, x0, 1e-6) && only(ev2, 'fire', (e) => e.id === a.id).length === 0, `${a.x - x0}`);
+    const ev3 = press(m, 0, 's1');
+    check('K7-zc ... a cast breaks it at once (untargetable no more)', a.sirT === 0 && a.invulnT === 0 && only(ev3, 'k7', (e) => e.kind === 'ice' && e.on === 0).length === 1, `${a.sirT} ${a.invulnT}`);
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

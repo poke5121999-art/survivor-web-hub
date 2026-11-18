@@ -335,7 +335,7 @@ function popShield(m, u) {
 }
 
 export function unitSpeed(u) {
-  if (u.stance || u.rootT > 0) return 0;
+  if (u.stance || u.rootT > 0 || u.sirT > 0) return 0;   // sirT: kit-remake G5 Thủy Tinh, sealed in ice
   let s = u.def.speed;
   if (u.hasteT > 0) s *= u.hasteF;
   const low = lowHpMod(u);
@@ -565,6 +565,7 @@ function stepUnit(m, u, inp) {
     // meter castShield {frac, dur}: every cast (a second stage too) wraps the mech in a shield of frac of its max hp
     if (P && P.castShield) { u.shield = Math.max(u.shield, u.maxHp * P.castShield.frac); u.shieldMax = Math.max(u.shieldMax, u.shield); u.shieldT = Math.max(u.shieldT, P.castShield.dur); }
     g4Cast(m, u, s);
+    k7Cast(m, u, s);   // kit-remake G5 lane K7: a cast breaks the ice block, the dash reloads
     if (u.passive === 'castHeal') k2CastHeal(m, u);   // kit-remake G5 Athena
     if (nx) { castHooks(u, s, i); u.next = null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }
     if (amped) meterSpent(m, u);
@@ -592,7 +593,7 @@ function stepUnit(m, u, inp) {
     return;
   }
   if (weaponOf(u).charge) stepCharge(m, u, inp);
-  else if (inp.fire && u.cd.fire <= 0 && !(u.magT > 0)) fireWeapon(m, u, inp);
+  else if (inp.fire && u.cd.fire <= 0 && !(u.magT > 0) && !(u.sirT > 0)) fireWeapon(m, u, inp);   // sirT: kit-remake G5 Thủy Tinh
 }
 
 // A charge weapon fills while fire is held and shoots when it is let go (or when it has been held full for `hold` seconds).
@@ -868,6 +869,7 @@ function runSave(m, o, u) {
   if (S.undying) u.undyT = Math.max(u.undyT, S.undying);
   if (S.haste || S.guard || S.armor || S.cc) selfBuff(u, { dur: d, haste: S.haste, guard: S.guard, armor: S.armor, cc: S.cc, vs: S.vs });
   if (S.resetSlots && o === u) for (const k of S.resetSlots) u.cd[k] = 0;
+  if (S.ice) sirIce(m, u, S.ice);   // kit-remake G5 Thủy Tinh: sealed in ice
   m.events.push({ t: 'save', id: u.id, by: o.id, x: u.x, z: u.z });
 }
 // A hit took the last hp: undying holds it at 1, or a fatal save fires.
@@ -1471,7 +1473,8 @@ const CAST = {
     areaDamage(m, u, u.x, u.z, s.radius, s.dmg, s, null);
     u.dash = { dx: -Math.cos(u.aim), dz: -Math.sin(u.aim), left: s.dist, speed: s.speed, s: { ...s, dmg: 0 }, hit: [] };
   },
-  wall(m, u, s) {
+  wall(m, u, s, inp) {
+    if (s.at || s.burst) return sirWall(m, u, s, inp);   // kit-remake G5 Thủy Tinh: at the cursor, a burst as it forms
     const dx = Math.cos(u.aim), dz = Math.sin(u.aim), cx = u.x + dx * s.cast, cz = u.z + dz * s.cast, pts = [];
     for (let i = 0; i < s.n; i++) {
       const k = (i - (s.n - 1) / 2) * s.gap, x = cx - dz * k, z = cz + dx * k;
@@ -1517,6 +1520,7 @@ const CAST = {
     const [x, z] = s.at === 'self' ? [u.x, u.z] : aimPoint(u, inp, s.cast);
     addZone(m, u, { kind: 'field', vis: s.vis, x, z, r: s.radius, dur: s.dur, hps: s.hps || 0, dps: (s.dps || 0) * u.skillAmp, slow: s.slow || 0, hide: !!s.hide, pull: s.pull || 0, acc: 0,
       haste: s.haste || 0, blind: s.blind || null, follow: !!s.follow, armor: s.armor || 0, cage: !!s.cage, held: s.cage ? heldMask(m, u, x, z, s.radius) : 0, drain: s.drain || 0, shield: s.shield || 0, sh: {} });
+    if (s.grow || s.ownerHps || s.marks) k7Zone(m.zones[m.zones.length - 1], s);   // kit-remake G5 lane K7: Thủy Tinh's vortex
   },
   dome(m, u, s) {
     addZone(m, u, { kind: 'dome', x: u.x, z: u.z, r: s.radius, dur: s.dur });
@@ -2049,6 +2053,7 @@ function stepZones(m) {
       z.acc += dt;
       const pulse = z.acc >= 0.5;
       if (pulse) z.acc -= 0.5;
+      if (z.k7) k7ZoneTick(m, z, owner, pulse);   // kit-remake G5 lane K7: growing slow, owner heal (Thủy Tinh)
       for (const u of m.units) {
         if (!u.alive || dist2(u.x, u.z, z.x, z.z) > z.r * z.r) continue;
         if (u.team === z.team) {
@@ -2064,7 +2069,7 @@ function stepZones(m) {
           if (z.slow) { u.slowT = Math.max(u.slowT, 0.3); u.slowF = Math.max(u.slowT > 0.3 ? u.slowF : 0, z.slow); }
           if (z.dps && pulse) {
             const had = u.hp + u.shield;
-            damage(m, u, z.dps * 0.5, owner);
+            curSrc = z.src || null; damage(m, u, z.dps * 0.5, owner); curSrc = null;   // z.src: kit-remake G5 Thủy Tinh (zone marks)
             // drain: the owner gets back that share of what the field took
             if (z.drain && owner.alive) heal(m, owner, Math.min(z.dps * 0.5, had - (u.alive ? u.hp + u.shield : 0)) * z.drain, owner, true);
           }
@@ -2381,6 +2386,7 @@ function stackHit(m, foe, u) {
   if (u.stkN > 0 && u.stkT > 0 && u.stkBy === foe.id) u.stkN++; else u.stkN = 1;
   u.stkBy = foe.id; u.stkT = P.dur;
   if (P.per) stackPer(foe, u, P);
+  if (P.fireSlow) sirFire(u, P);   // kit-remake G5 Thủy Tinh: each mark slows its fire
   if (u.stkN < P.n) return;
   u.stkN = 0; u.stkT = 0;
   if (P.icd) u.stkLock[foe.id] = m.time + P.icd;
@@ -3275,8 +3281,12 @@ function bgLast(u, s) {
 /* ===== end kit-remake G5 Black Panther ===== */
 
 /* ===== kit lane K7 (feat/dtt-k7): one-line hooks in shared paths call these; each tank's G5 work is its own block below ===== */
-function k7Clear(u) { smClear(u); }
-function k7Tick(m, u) { smTick(m, u); }
+function k7Clear(u) { smClear(u); sirClear(u); }
+function k7Tick(m, u) { smTick(m, u); sirTick(m, u); }
+// every successful press (a second stage too), after its cast
+function k7Cast(m, u, s) { if (u.sirT > 0) sirBreak(m, u); }
+function k7Zone(z, s) { sirZone(z, s); }
+function k7ZoneTick(m, z, owner, pulse) { sirZoneTick(m, z, owner, pulse); }
 /* ===== end kit lane K7 hooks ===== */
 
 /* ===== kit-remake G5 Saitama (kit lane K7; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-c.md tegiac) =====
@@ -3328,3 +3338,72 @@ function k7SlamLost(m, u, by) {
   curSrc = null; trueHit = true; damage(m, u, amt, by); curSrc = keep;
 }
 /* ===== end kit-remake G5 Saitama ===== */
+
+/* ===== kit-remake G5 Thủy Tinh (kit lane K7; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-c.md thuytinh) =====
+   stacks `fireSlow: f`: each mark of this owner on a target makes its weapon cooldown run at x (1 - f x marks) for the marks' dur
+     (the G2 slowFire fields sfT/sfF, the strongest that runs wins). The stack lockout after a freeze is G3 `icd`.
+   save `ice: s` (passive mods.save, fatal): the saved mech is sealed in ice for s (sirT, in netstate STATUS): it cannot walk or
+     shoot (the save's invuln gives the untargetable part); any successful press breaks the ice at once (invuln and cc immunity
+     end with it). Events {t: 'k7', kind: 'ice', id, on: 1|0}.
+   wall `at: 'target'` (the wall stands across the aim at the cursor, within cast m) and `burst {radius, dmg, marks}` (as it forms:
+     a nova event with the skill, area damage tagged with the row, and marks - 1 more stacks marks on each enemy it hurt). The wall
+     zone carries src = the row id. A second stage `do: 'recall', of: <row id>` (a `next` row) removes this mech's newest wall of
+     that row; none, the press does nothing.
+   zone `grow: s` (the slow climbs from 0 to `slow` over the zone's first s), `ownerHps` (the owner alone heals ownerHps x 0.5 at
+     every half-second pulse while it stands inside, x selfHealMul not applied: the tooltip's number is for herself), `marks: true`
+     (the zone's damage pulses carry the row's source tag, so they add stacks marks and pay the row's on-hit fields). */
+function sirClear(u) { u.sirT = 0; }
+function sirFire(u, P) {
+  const mul = Math.max(0.1, 1 - P.fireSlow * u.stkN);
+  u.sfF = u.sfT > 0 ? Math.min(u.sfF, mul) : mul; u.sfT = Math.max(u.sfT, P.dur);
+}
+function sirIce(m, u, d) {
+  u.sirT = d; u.cast = null; u.charge = 0;
+  m.events.push({ t: 'k7', kind: 'ice', id: u.id, on: 1, dur: d, x: u.x, z: u.z });
+}
+function sirBreak(m, u) {
+  u.sirT = 0; u.invulnT = 0; u.ccT = 0;
+  m.events.push({ t: 'k7', kind: 'ice', id: u.id, on: 0, x: u.x, z: u.z });
+}
+function sirTick(m, u) {
+  if (!(u.sirT > 0)) return;
+  u.sirT = Math.max(0, u.sirT - TICK);
+  if (u.sirT <= 0) m.events.push({ t: 'k7', kind: 'ice', id: u.id, on: 0, x: u.x, z: u.z });
+}
+function sirWall(m, u, s, inp) {
+  const [cx, cz] = s.at ? aimPoint(u, inp, s.cast) : [u.x + Math.cos(u.aim) * s.cast, u.z + Math.sin(u.aim) * s.cast];
+  const dx = Math.cos(u.aim), dz = Math.sin(u.aim), pts = [];
+  for (let i = 0; i < s.n; i++) {
+    const k = (i - (s.n - 1) / 2) * s.gap, x = cx - dz * k, z = cz + dx * k;
+    if (!solidAt(m.map, x, z, s.r * 0.5)) pts.push([x, z]);
+  }
+  addZone(m, u, { kind: 'wall', x: cx, z: cz, r: s.r, pts, dur: s.dur, a: u.aim, screen: !!s.screen, src: s.id });
+  const B = s.burst;
+  if (!B) return;
+  m.events.push({ t: 'nova', id: u.id, x: cx, z: cz, r: B.radius, skill: s.id, a: u.aim });
+  curSrc = s.id;
+  areaDamage(m, u, cx, cz, B.radius, B.dmg * u.skillAmp, null, null);
+  if (u.passive === 'stacks' && B.marks > 1) for (const o of m.units) {
+    if (o.team === u.team || !o.alive || !(o.hitBy[u.id] === m.time) || dist2(o.x, o.z, cx, cz) > (B.radius + o.radius * 0.6) ** 2) continue;
+    for (let k = 1; k < B.marks && o.alive; k++) stackHit(m, u, o);
+  }
+  curSrc = null;
+}
+CAST.recall = function (m, u, s) {
+  let best = null;
+  for (const z of m.zones) if (z.kind === 'wall' && z.owner === u.id && z.src === s.of && (!best || z.id > best.id)) best = z;
+  if (!best) return false;
+  m.zones.splice(m.zones.indexOf(best), 1);
+  m.events.push({ t: 'zoneEnd', id: best.id, kind: 'wall', x: best.x, z: best.z });
+  m.events.push({ t: 'nova', id: u.id, x: best.x, z: best.z, r: 0, skill: s.id, a: best.a });   // for the looks: the wall falls back to her
+};
+function sirZone(z, s) {
+  z.k7 = 1; z.sirG = s.grow || 0; z.sirS = s.slow || 0; z.sirH = s.ownerHps || 0;
+  if (s.marks) z.src = s.id;
+  if (z.sirG) z.slow = 0;
+}
+function sirZoneTick(m, z, owner, pulse) {
+  if (z.sirG) z.slow = z.sirS * Math.min(1, z.age / z.sirG);
+  if (pulse && z.sirH && owner.alive && dist2(owner.x, owner.z, z.x, z.z) <= z.r * z.r) heal(m, owner, z.sirH * 0.5, owner);
+}
+/* ===== end kit-remake G5 Thủy Tinh ===== */

@@ -84,7 +84,8 @@ const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'r
   'locT', 'locK', 'shotN', 'hsN', 'tfN',   // kit-remake G3 (the row mask is a list of words, MASK_W bits each: any number of names fits)
   'krT',   // kit-remake G5 Kurumi: the rewind mark
   'adN', 'adKT',   // kit-remake G5 An Dương Vương: crit stacks, kill reward
-  'stmT'];   // kit-remake G5 lane K7: Serious Mode (Saitama)
+  'stmT',   // kit-remake G5 lane K7: Serious Mode (Saitama)
+  'sirT'];   // kit-remake G5 lane K7: the ice block (Thủy Tinh)
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 export const STATUS_NAMES = STATUS;   // tests read the wire order
 

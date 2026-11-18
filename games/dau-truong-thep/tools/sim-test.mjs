@@ -3359,9 +3359,12 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
     v.stkN = 2; v.stkBy = 7; v.stkT = 3; a.cd.s1 = 0; press(m, 0, 's1', { tx: 6, tz: 0 }); go(m, 10);
     check('43f marks of another attacker restart at 1 under the new owner', v.stkN === 1 && v.stkBy === a.id && v.stunT === 0, `stk ${v.stkN} by ${v.stkBy}`);
   }
-  // stacks 'any' (thuytinh, samthep)
+  // stacks 'any' (thuytinh, samthep): the batch-4 Thủy Tinh passive and drop are a fixture now (thuytinh plays the Siren, ported
+  // from clip p70, section K7)
+  const OLD_THUYTINH = { passive: { do: 'stacks', n: 3, dur: 4, on: 'any', fx: { slow: 0.5, slowDur: 2 } }, weapon: { name: 'Giọt Nước', cd: 0.35, dmg: 95, speed: 28, range: 13, r: 0.26, vis: 'wave' } };
+  const oldThuy = (m) => { for (const u of m.units) if (u.mech === 'thuytinh') u.def = { ...u.def, ...OLD_THUYTINH }; return m; };
   {
-    const m = arena([[R('thuytinh', 0), 0, 0], [R('ung', 1), 6, 0]]), v = m.units[1];
+    const m = oldThuy(arena([[R('thuytinh', 0), 0, 0], [R('ung', 1), 6, 0]])), v = m.units[1];
     go(m, 40, (i) => ({ 0: { fire: i < 25, tx: 6, tz: 0 } }));
     check('43g thuytinh: three weapon hits slow the foe 50% (2 s), marks cleared', v.stkN === 0 && v.slowT > 0.5 && v.slowF === 0.5, `stk ${v.stkN} slow ${v.slowT}/${v.slowF}`);
   }

@@ -766,21 +766,33 @@ export const MECHS = {
         desc: 'Cơn bão tuyết bám theo bạn 5 giây: địch trong 6 m mất 150 máu mỗi giây và chậm 45%.' },
     ],
   },
+  // Thủy Tinh (the Siren): ported from the owner's earlier game (clip BV1Kp4y1b7i6 p70 "67.海妖", tooltips in ~/handoff/dtt-ref/kits/AUDIT-c.md).
+  // Attack = one Giọt Nước blow, set to 150 (was 95 at 0.35 s, now 150 at 0.55 s, same dps). Cooldowns 6 / 10 / 25 s -> 8 / 13 / 45.
+  // Passive 海妖之怒: every hit adds a mark (4 s), each mark -10% fire rate; 5 marks freeze 2 s (a stun) and lock the marks out for 4 s.
+  // 冰封之心: a fatal hit seals her in ice 3 s (untargetable, cc immune, heals 30%, cannot move or shoot), once per 25 s, ended by a cast.
+  // Q 冰冷智慧 175% -> 263 around her (+1 mark); on a target frozen by her marks +225% (338) + 15% of its lost hp and her Q is ready
+  // again, once per freeze (vsTag on the freeze tag). E 水幕屏障: a water wall at the cursor for 4 s that blocks shots and mechs,
+  // 221% -> 332 around it as it forms (+2 marks); press again inside 4 s to recall it. Ult 狂澜束缚: a vortex 4 s at the cursor,
+  // 81% -> 122 every 0.5 s (+1 mark each), slow growing to 50%; she heals 50% -> 75 every 0.5 s while she stands in it.
+  // Kit-remake G5 fields (sim.js block "kit-remake G5 Thủy Tinh"): stacks fireSlow, save.ice, wall at/burst + recall, zone grow / ownerHps / marks.
   thuytinh: {
     name: 'Thủy Tinh', role: 'Khống chế', roleKey: 'control', price: 1800, tint: 0x2a7fbf,
-    blurb: 'Đánh trúng ba lần là kẻ địch chậm hẳn đi. Xoáy ngầm kéo cả nhóm vào tâm, Hồng Thủy dồn một bức sóng rộng trôi qua chiến trường.',
+    blurb: 'Mỗi đòn trúng thêm một dấu nước làm địch bắn chậm đi, đủ năm dấu là đóng băng. Dựng màn nước chắn đường, mở xoáy nước khổng lồ; trúng đòn chí mạng thì tự phong băng.',
     hp: 2600, speed: 6.0, radius: 0.84,
     armor: 0.08, accel: 1.0, turn: 11, towerMul: 1.0,
-    passive: { do: 'stacks', name: 'Thủy Ấn', desc: 'Mỗi đòn trúng một kẻ địch thêm một dấu nước (giữ 4 giây). Đủ 3 dấu thì kẻ đó chậm 50% trong 2 giây.',
-      n: 3, dur: 4, on: 'any', fx: { slow: 0.5, slowDur: 2 } },
-    weapon: { name: 'Giọt Nước', cd: 0.35, dmg: 95, speed: 28, range: 13, r: 0.26, vis: 'wave' },
+    passive: { do: 'stacks', name: 'Hải Yêu Chi Nộ', look: 'sirMark', desc: 'Mỗi đòn trúng thêm một dấu nước lên kẻ địch (giữ 4 giây, tối đa 5), mỗi dấu làm nó bắn chậm 10%. Đủ 5 dấu thì nó bị đóng băng 2 giây, sau đó 4 giây không nhận dấu mới. Băng Phong Chi Tâm: trúng đòn chí mạng thì tự phong băng 3 giây (không thể bị đánh, hồi 30% máu, không đi, không bắn; dùng chiêu là phá băng), mỗi 25 giây một lần.',
+      n: 5, dur: 4, on: 'any', icd: 4, fireSlow: 0.1, fx: { stun: 2, tag: { key: 'frozen', dur: 2 } },
+      mods: { save: { fatal: true, icd: 25, heal: 0.3, invuln: 3, ice: 3 } } },
+    weapon: { name: 'Giọt Nước', cd: 0.55, dmg: 150, speed: 28, range: 13, r: 0.26, vis: 'wave' },
     skills: [
-      { id: 'thuytien', look: 'ttLance', name: 'Thủy Tiễn', cd: 7, do: 'volley', n: 1, dmg: 240, speed: 38, range: 16, r: 0.3, pierce: true, vis: 'lance', icon: 'pierce',
-        desc: 'Bắn mũi tên nước xuyên thấu 240 sát thương, tầm 16 m.' },
-      { id: 'xoayngam', look: 'ttVortex', name: 'Xoáy Ngầm', cd: 12, do: 'zone', at: 'target', cast: 12, radius: 4.5, dur: 3, pull: 5, dps: 50, vis: 'magnet', icon: 'magnet',
-        desc: 'Mở xoáy nước ở con trỏ 3 giây: địch trong 4,5 m bị kéo vào tâm và mất 50 máu mỗi giây.' },
-      { id: 'hongthuy', look: 'ttFlood', name: 'Hồng Thủy', cd: 44, do: 'volley', n: 1, dmg: 520, speed: 16, range: 18, r: 3, pierce: true, knock: 3, slow: 0.4, slowDur: 2, vis: 'wave', icon: 'quake',
-        desc: 'Thả bức sóng rộng 6 m trôi chậm qua 18 m: kẻ nào bị cuốn chịu 520 sát thương, hất lùi và chậm 40% trong 2 giây.' },
+      { id: 'banglanh', look: 'sirWisdom', name: 'Băng Lãnh Trí Tuệ', cd: 8, do: 'nova', windup: 0.2, radius: 4.5, dmg: 263,
+        vsTag: { key: 'frozen', mul: 601 / 263, fx: { lostHp: 0.15 }, cdCut: { slot: 'self', set: 0 }, consume: true }, icon: 'frost',
+        desc: 'Sóng băng quanh bạn (4,5 m): 263 sát thương và thêm một dấu nước. Kẻ đang bị dấu nước đóng băng chịu thêm 338 sát thương và 15% máu đã mất, và chiêu này hồi ngay (mỗi lần đóng băng một lần).' },
+      { id: 'thuymac', look: 'sirCurtain', name: 'Thủy Mạc Bình Chướng', cd: 13, do: 'wall', at: 'target', cast: 10, n: 5, r: 0.8, gap: 1.3, dur: 4, burst: { radius: 3, dmg: 332, marks: 2 },
+        next: { window: 4, row: { id: 'thuymac2', look: 'sirCurtain', do: 'recall', of: 'thuymac' } }, icon: 'wall',
+        desc: 'Dựng màn nước ở con trỏ (xa nhất 10 m) trong 4 giây, chắn đạn và không ai đi qua được. Lúc dựng, địch trong 3 m chịu 332 sát thương và thêm hai dấu nước. Bấm lần nữa trong 4 giây để thu màn nước về.' },
+      { id: 'cuonglan', look: 'sirTide', name: 'Cuồng Lan Thúc Phược', cd: 45, do: 'zone', at: 'target', cast: 14, radius: 5, dur: 4, dps: 243, slow: 0.5, grow: 2, ownerHps: 150, marks: true, vis: 'sirTide', icon: 'magnet',
+        desc: 'Ném quả cầu nước tới con trỏ, hóa xoáy nước lớn 5 m trong 4 giây: địch trong đó cứ 0,5 giây mất 122 máu và thêm một dấu nước, bị chậm dần tới 50%. Bạn đứng trong xoáy thì cứ 0,5 giây hồi 75 máu.' },
     ],
   },
   samthep: {
@@ -1120,7 +1132,7 @@ export const PERKS = {
   quaset: [perk('Tiêu Xa', 'Phi Tiêu Sét bay xa 15 m.', 'weapon', { range: 15 }), perk('Lôi Xa', 'Lôi Thiết lao xa 11 m, gây 420.', 0, { dist: 11, dmg: 420 }), perk('Giáp Dày', 'Giáp Hộ Mệnh khiên 1200, kéo dài 8 giây.', 2, { shield: 1200, dur: 8 })],
   tumay: [perk('Cầu Nặng', 'Hắc Cầu gây 170.', 'weapon', { dmg: 170 }), perk('Pháp Cầu Bền', 'Quả cầu của Hỗn Độn Pháp Cầu ở lại 10 giây, nổ rộng 3 m.', 1, { leaveOrb: { dur: 10, blast: 3, dmg: 275 } }), perk('Phệ Sâu', 'Hỗn Độn Chi Phệ: mỗi quả cầu sau thêm 90 thay vì 75.', 2, { grow: 90 })],
   dieuthuyen: [perk('Băng Sâu', 'Băng Lưu gây 280 và làm chậm 2,2 giây.', 0, { dmg: 280, slowDur: 2.2 }), perk('Liên Băng Dài', 'Băng Liên rộng 3,6 m, choáng 1,4 giây.', 1, { blast: 3.6, fx: { stun: 1.4 } }), perk('Bão Dày', 'Phong Tuyết kéo dài 6,5 giây, thiêu 190 mỗi giây.', 2, { dur: 6.5, dps: 190 })],
-  thuytinh: [perk('Giọt Xa', 'Giọt Nước bay xa 14,5 m.', 'weapon', { range: 14.5 }), perk('Xoáy Rộng', 'Xoáy Ngầm rộng 5,5 m, kéo dài 3,6 giây.', 1, { radius: 5.5, dur: 3.6 }), perk('Sóng Lớn', 'Hồng Thủy gây 640, bức sóng rộng 7 m.', 2, { dmg: 640, r: 3.5 })],
+  thuytinh: [perk('Giọt Xa', 'Giọt Nước bay xa 14,5 m.', 'weapon', { range: 14.5 }), perk('Màn Nước Dài', 'Thủy Mạc Bình Chướng dài bảy khối, đứng 5 giây.', 1, { n: 7, dur: 5 }), perk('Xoáy Lớn', 'Cuồng Lan Thúc Phược rộng 6 m.', 2, { radius: 6 })],
   samthep: [perk('Bốn Mảnh', 'Mưa Mảnh bắn bốn mảnh thép.', 0, { n: 4 }), perk('Hút Mạnh', 'Từ Trường rộng 6 m, kéo mạnh hơn.', 1, { radius: 6, pull: 7 }), perk('Lồng Dày', 'Lồng Từ kéo dài 5 giây, thiêu 280 mỗi giây.', 2, { dur: 5, dps: 280 })],
   cuuvi: [perk('Chùm Bốn Quả', 'Chùm Hồ Hỏa bắn bốn quả, nổ lan 1,8 m.', 0, { n: 4, splash: 1.8 }), perk('Ảnh Bền', 'Ảo Ảnh bền 550 máu, ở lại 4 giây, nổ 180.', 1, { leave: { hp: 550, dur: 4, blast: 4, dmg: 180, fx: { slow: 0.5, slowDur: 2 } } }), perk('Mười Một Đuôi', 'Cửu Vĩ Hỏa thả 11 quả, mỗi quả 160.', 2, { n: 11, dmg: 160 })],
   kiemthan: [perk('Kiếm Nặng', 'Kiếm Phong gây 85.', 'weapon', { dmg: 85 }), perk('Trận Dày', 'Kiếm Trận tám thanh, kéo dài 5 giây.', 1, { n: 8, dur: 5 }), perk('Mười Hai Kiếm', 'Vạn Kiếm Quy Tông giáng 12 thanh, mỗi thanh 260.', 2, { n: 12, dmg: 260 })],
