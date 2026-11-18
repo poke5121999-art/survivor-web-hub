@@ -80,7 +80,8 @@ const F_ALIVE = 1, F_DASH = 2, F_BOT = 4, F_STANCE = 16, F_FORM = 32;
 export const F_GUESS = 8;
 const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter', 'stkN', 'stkT', 'parryT', 'guardT', 'silenceT', 'airT', 'use0', 'use1', 'use2', 'gap0', 'gap1', 'gap2', 'ahT',
   'slowG', 'sfT', 'tgT', 'en', 'svT', 'gvT',   // kit-remake G2
-  'magN', 'magT', 'blockN'];   // kit-remake G4: shots fired, reload left, hits the selfShield still turns away (the row mask is a list of words, MASK_W bits each: any number of names fits)
+  'magN', 'magT', 'blockN',   // kit-remake G4: shots fired, reload left, hits the selfShield still turns away
+  'locT', 'locK', 'shotN', 'hsN', 'tfN'];   // kit-remake G3 (the row mask is a list of words, MASK_W bits each: any number of names fits)
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 export const STATUS_NAMES = STATUS;   // tests read the wire order
 
@@ -88,9 +89,15 @@ export const STATUS_NAMES = STATUS;   // tests read the wire order
 function castIndex(def, s) {
   const i = def.skills.indexOf(s);
   if (i >= 0) return i;
-  return 3 + def.skills.findIndex((r) => r.next && r.next.row === s);
+  const n = def.skills.findIndex((r) => r.next && r.next.row === s);
+  if (n >= 0) return 3 + n;
+  // kit-remake G3: 6..8 the follow-up (then) of skill 0..2, 9..11 a transform's onEnd row (an onKill cast row: 0, drawn as skill 0)
+  const t = def.skills.findIndex((r) => r.then === s);
+  if (t >= 0) return 6 + t;
+  const e = def.skills.findIndex((r) => r.onEnd === s);
+  return e >= 0 ? 9 + e : 0;
 }
-const castRow = (def, i) => (i < 3 ? def.skills[i] : def.skills[i - 3].next.row);
+const castRow = (def, i) => (i < 3 ? def.skills[i] : i < 6 ? def.skills[i - 3].next.row : i < 9 ? def.skills[i - 6].then : def.skills[i - 9].onEnd);
 
 function unitRow(u) {
   const r = [rd(u.x), rd(u.z), ang(u.aim), rd(u.heading), Math.round(u.hp), u.maxHp,

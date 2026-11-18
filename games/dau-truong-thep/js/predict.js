@@ -3,7 +3,7 @@
 // keeps the inputs it sent after N and walks them again from that spot with the host's own walk(), so the mech answers
 // the stick at once and still ends up where the host says. What the walk cannot know in advance (a knock-back, a dash,
 // a respawn) arrives as a correction, and the picture glides over it instead of jumping.
-import { walk, gripAt, turnRate, weaponRange, bounceDir, weaponOf, skillReady } from './sim.js';
+import { walk, gripAt, turnRate, weaponRange, bounceDir, weaponOf, skillReady, locked } from './sim.js';
 import { castStatic } from './maps.js';
 import { TICK } from './data.js';
 
@@ -216,4 +216,4 @@ function turnToward(a, b, max) {
   while (d < -Math.PI) d += 2 * Math.PI;
   return a + Math.max(-max, Math.min(max, d));
 }
-const free = (u) => !(u.stunT > 0) && !u.cast && !u.dash;
+const free = (u) => !(u.stunT > 0) && !locked(u) && !u.cast && !u.dash;

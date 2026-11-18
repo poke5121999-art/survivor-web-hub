@@ -1,7 +1,7 @@
 // Node test for js/netstate.js: `node tools/netstate-test.mjs`. Exits 1 on any failure.
 // Real bot matches in every mode, snapshotted every 2 ticks, sent as bytes into a mirror, compared field by field.
 // Then the guest's prediction of its own mech against the host, with and without delay.
-import { createMatch, step, visibleTo, hidden, unitSpeed, meterArmed } from '../js/sim.js';
+import { createMatch, step, visibleTo, hidden, unitSpeed, meterArmed, LOC_KINDS, locked } from '../js/sim.js';
 import { allInputs } from '../js/bots.js';
 import { MECHS, MECH_ORDER, MODES, TICK } from '../js/data.js';
 const MODE_ORDER = Object.keys(MODES);   // every sim mode, trum (the Phó bản boss engine) included
@@ -279,6 +279,26 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   applySnapshot(mir, decodeSnap(encodeSnap(snapshot(m))), TICK);
   const [ga, gb] = mir.units;
   check('G4 magN 3, magT 1.5 and blockN 2 reach the guest', ga.magN === 3 && near(ga.magT, 1.5, 0.011) && gb.blockN === 2 && STATUS_NAMES.indexOf('blockN') + 10 >= 28, `${ga.magN} ${ga.magT} ${gb.blockN}`);
+}
+// kit-remake G3: loss of control (kind and time), empowered shots left, hurt marks and transform stacks reach the guest; a follow-up
+// (then) that winds up travels as cast index 6 + slot and the mirror plays that row
+{
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'gilgamesh', name: 'A' }, { team: 1, mech: 'tegiac', name: 'B' }] });
+  const mir = createMirror(roster(m));
+  const [a, b] = m.units;
+  b.locT = 1.5; b.locK = LOC_KINDS.indexOf('fear'); b.locBy = a.id; a.shotN = 2; a.shotT = 5; a.shotRow = { shots: 2 }; a.hsN = 3; a.hsT = 4; a.tfN = 2;
+  step(m, [undefined, undefined]);
+  applySnapshot(mir, decodeSnap(encodeSnap(snapshot(m))), TICK);
+  const [ga, gb] = mir.units;
+  check('G3 loss of control reaches the guest: fear, 1.5 s less a tick, locked on the mirror', gb.locK === b.locK && near(gb.locT, b.locT, 0.011) && locked(gb) && !locked(ga), `${gb.locK} ${gb.locT}`);
+  check('G3 shots left, hurt marks and transform stacks reach the guest (2 / 3 / 2)', ga.shotN === 2 && ga.hsN === 3 && ga.tfN === 2, `${ga.shotN} ${ga.hsN} ${ga.tfN}`);
+  const rows = (u) => u.def.skills.map((s, i) => (i === 0 ? { id: 'g3q', do: 'volley', cd: 8, n: 1, dmg: 10, speed: 40, range: 14, r: 0.3, vis: 'rail', then: { id: 'g3n', do: 'nova', windup: 0.5, radius: 3, dmg: 10 } } : s));
+  a.def = { ...a.def, skills: rows(a) }; ga.def = { ...ga.def, skills: rows(ga) };
+  const none = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
+  a.cd.s1 = 0; a.stunT = 0;
+  step(m, [{ ...none, s1: true }, none]); step(m, [none, none]);
+  applySnapshot(mir, decodeSnap(encodeSnap(snapshot(m))), TICK);
+  check('G3 a wound-up then row travels (cast index 6): the mirror casts g3n', !!a.cast && a.cast.skill.id === 'g3n' && !!ga.cast && ga.cast.skill.id === 'g3n', `${a.cast && a.cast.skill.id} ${ga.cast && ga.cast.skill.id}`);
 }
 // a stance change reaches the guest: its mirror unit plays the other def; the rewind history never travels
 {

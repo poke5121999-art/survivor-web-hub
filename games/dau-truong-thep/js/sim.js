@@ -115,6 +115,11 @@ function clearStatus(u) {
   g2Clear(u);   // kit-remake G2
   g4Clear(u);
   k1Clear(u);
+  // kit-remake G3: loss of control, per-target stack lockouts and shred, empowered shots, follow-ups, transform patch/stacks, hurt stacks, volley hit tally
+  u.locT = 0; u.locK = 0; u.locBy = -1; u.locA = 0; u.locR = 0; u.stkLock = {}; u.stkShred = 0;
+  u.shotN = 0; u.shotT = 0; u.shotRow = null; u.thenQ = []; u.hsN = 0; u.hsT = 0; u.hsAcc = 0; u.tfN = 0; u.tfAcc = 0; u.volTag = null;
+  if (u.tfBase) u.def = formDef(u.tfBase, 0);
+  u.tfBase = null;
 }
 
 function spawn(m, u, first) {
@@ -356,6 +361,7 @@ export const weaponRange = (u) => weaponOf(u).range * (u.stance ? u.stanceDef.ra
 // Fraction of incoming damage a unit shrugs off: its own plating, a fortify or bastion buff, a planted stance, an ally's ward.
 export function armorOf(m, u) {
   let a = (u.def.armor || 0) + (u.armorT > 0 ? u.armorF : 0) + (u.stance ? u.stanceDef.armor : 0) + (lowHpMod(u)?.armor || 0) + rampBonus(u, 'armor');
+  a += g3Armor(u, a);
   for (const o of m.units) {
     if (o === u || o.team !== u.team || !o.alive || o.passive !== 'ward') continue;
     const P = o.def.passive;
@@ -409,6 +415,7 @@ function stepUnit(m, u, inp) {
   }
   if (u.stkN > 0 && u.stkT <= 0) u.stkN = 0;
   g4Tick(m, u);
+  g3Tick(m, u);
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   // counter: the window runs out without a hit and 40% of the cooldown comes back
   if (u.parryT > 0) {
@@ -467,6 +474,7 @@ function stepUnit(m, u, inp) {
   if (u.stance) { u.kx = 0; u.kz = 0; }
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
+  if (u.locT > 0) inp = locInput(m, u, inp);
   const stunned = u.stunT > 0;
   if (stunned) { inp = NO_INPUT; u.cast = null; u.charge = 0; }
   else {
@@ -499,6 +507,7 @@ function stepUnit(m, u, inp) {
   if (u.slamT > 0) slamCheck(m, u);
   const drag = u.passive === 'steady' ? 0.6 : 0.8;
   u.kx *= drag; u.kz *= drag;
+  if (u.thenQ.length && u.alive) thenStep(m, u, inp, stunned || locked(u));
   if (stunned || !u.alive) return;
 
   if (inp.heal && u.cd.heal <= 0 && u.hp < u.maxHp) {
@@ -629,6 +638,7 @@ function castHooks(u, s, i) {
   if (P) for (let k = 0; k < P.length; k += 2) applyCut(u, P[k + 1], P[k]);
   if (s.cdCut && s.cdCut.on === 'cast') cutCd(u, s.cdCut, i);
   g2Cast(u, s, i);   // kit-remake G2: energy cost and drain, mods.onCast
+  if (s.then) u.thenQ.push({ row: s.then, slot: i, t: s.then.after || 0 });
 }
 // self {on, dur, haste, rapid, armor, guard, cc}: the caster's own buff; a weaker one never replaces a stronger one that still runs
 function selfBuff(u, S) {
@@ -639,6 +649,7 @@ function selfBuff(u, S) {
   if (S.guard && S.vs) g2Guard(u, S.guard, S.vs, d);   // kit-remake G2: guard vs 'skill' | 'weapon'
   else if (S.guard) { u.guardF = Math.max(u.guardT > 0 ? u.guardF : 0, S.guard); u.guardT = Math.max(u.guardT, d); }
   if (S.cc) u.ccT = Math.max(u.ccT, d);
+  if (S.shots) shotsArm(u, S);
 }
 // cdCut {slot: self|s1|s2|ult|all|other, cut, frac, set}: slot i's row cuts these cooldowns; the slot being pressed this tick waits (pendCut)
 function cutCd(u, C, i) {
@@ -657,10 +668,10 @@ function applyCut(u, j, C) {
 function srcSlot(u, src) {
   if (!src || src === 'w') return -1;
   const S = u.def.skills;
-  for (let i = 0; i < S.length; i++) if (S[i].id === src || (S[i].next && S[i].next.row.id === src)) return i;
+  for (let i = 0; i < S.length; i++) if (S[i].id === src || (S[i].next && S[i].next.row.id === src) || (S[i].then && S[i].then.id === src)) return i;
   return -1;
 }
-const slotRow = (u, i, src) => (u.def.skills[i].id === src ? u.def.skills[i] : u.def.skills[i].next.row);
+const slotRow = (u, i, src) => (u.def.skills[i].id === src ? u.def.skills[i] : u.def.skills[i].next && u.def.skills[i].next.row.id === src ? u.def.skills[i].next.row : u.def.skills[i].then);
 // A skill row of u has just hurt an enemy (left: hp it took): steal, healLost, healMax, self on hit, cdCut on hit.
 function rowHit(m, u, left) {
   const i = srcSlot(u, curSrc);
@@ -857,6 +868,199 @@ function cleanse(u) {
   u.dsT = 0; u.ssT = 0; u.ssN = 0; u.slowG = 0; u.sfT = 0;
 }
 
+// ---- kit-remake G3 (~/handoff/dtt-ref/kits/MECHANICS.md, Group 3): loss of control, stacks extensions, next N main shots, then,
+// transform extensions, dash drag, armour pen, volley perTarget / sameDecay, onKill extras ----
+// The projectile whose hit is being dealt right now (stepShots): its steal and pen ride the hit.
+let curShot = null;
+// Loss of control (hitfx kind: seconds). One state: locT (time left), locK (index here, in STATUS), locBy (who put it on), host side locA/locR.
+export const LOC_KINDS = ['', 'confuse', 'fear', 'charm', 'petrify', 'sleep', 'banish', 'disarm', 'lift'];
+const LOC_CONFUSE = 1, LOC_FEAR = 2, LOC_CHARM = 3, LOC_SLEEP = 5, LOC_BANISH = 6, LOC_DISARM = 7;
+// Does the loss of control on u take its skills and weapon? (disarm takes only the weapon)
+export const locked = (u) => u.locT > 0 && u.locK !== LOC_DISARM;
+// A longer one replaces what runs; heavy mechs shrug off all but disarm; cc immunity blocks all; transform.ccResist shortens it.
+function applyLoc(m, src, o, fx) {
+  for (let k = 1; k < LOC_KINDS.length; k++) {
+    let d = fx[LOC_KINDS[k]];
+    if (!(d > 0) || o.ccT > 0 || (o.def.heavy && k !== LOC_DISARM)) continue;
+    if (o.tfT > 0) d *= o.tfCc;
+    if (d < o.locT) continue;
+    o.locT = d; o.locK = k; o.locBy = src ? src.id : -1; o.locR = 0.5;
+    if (k === LOC_CONFUSE) o.locA = m.rng() * 2 * Math.PI;
+    if (k === LOC_BANISH) o.invulnT = Math.max(o.invulnT, d);
+    m.events.push({ t: 'loc', id: o.id, kind: LOC_KINDS[k], dur: d, by: o.locBy, x: o.x, z: o.z });
+  }
+}
+// The input a mech under loss of control plays instead of its own: confuse wanders (a new heading from m.rng() every 0.5 s, 0.6 of
+// the speed), fear runs straight away from locBy, charm walks to locBy at half speed (stops 1.5 m short), petrify, sleep, banish
+// and lift hold it still; none of these cast, shoot or use the item (the cast is cut like a stun). disarm only takes the weapon.
+function locInput(m, u, inp) {
+  if (u.ccT > 0 || (u.def.heavy && u.locK !== LOC_DISARM)) { u.locT = 0; return inp; }
+  if (u.locK === LOC_DISARM) return inp.fire ? { ...inp, fire: false } : inp;
+  u.cast = null; u.charge = 0;
+  let mx = 0, mz = 0;
+  const by = u.locBy >= 0 ? m.units[u.locBy] : null;
+  if (u.locK === LOC_CONFUSE) {
+    if ((u.locR -= TICK) <= 1e-9) { u.locR = 0.5; u.locA = m.rng() * 2 * Math.PI; }
+    mx = Math.cos(u.locA) * 0.6; mz = Math.sin(u.locA) * 0.6;
+  } else if ((u.locK === LOC_FEAR || u.locK === LOC_CHARM) && by && by.alive) {
+    const dx = by.x - u.x, dz = by.z - u.z, d = Math.hypot(dx, dz) || 1;
+    const k = u.locK === LOC_FEAR ? -1 : d > 1.5 + u.radius + by.radius ? 0.5 : 0;
+    mx = dx / d * k; mz = dz / d * k;
+  }
+  return { ...NO_INPUT, mx, mz, aim: mx || mz ? Math.atan2(mz, mx) : u.aim, tx: u.x, tz: u.z };
+}
+
+// stacks extensions (passive stacks): icd (s) = after the n-th mark goes off on a target, this owner cannot mark it again for icd
+// (stkLock[owner id] = time); per {slow, armor, amp} = each mark on the target: slowed slow x marks, armour down armor x marks
+// (stkShred), takes amp x marks more from everyone; hurt {every, max, dur, armor} = the owner gains a mark of its own (hsN) per
+// `every` of its max hp lost to foes, up to max, all gone dur s after the last one; each gives armor.
+function stackPer(foe, u, P) {
+  const R = P.per, n = u.stkN;
+  if (R.slow) { u.slowF = Math.max(u.slowT > 0 ? u.slowF : 0, Math.min(0.9, R.slow * n)); u.slowT = Math.max(u.slowT, P.dur); }
+  if (R.armor) u.stkShred = R.armor * n;
+  if (R.amp) applyAmp(u, R.amp * n, P.dur);
+}
+// What armorOf adds: own hurt marks, transform stacks; minus the shred of the marks on it (never below 0 armour in all).
+function g3Armor(u, a) {
+  let d = 0;
+  const P = u.passive === 'stacks' ? u.def.passive : null;
+  if (P && P.hurt && u.hsN > 0) d += u.hsN * (P.hurt.armor || 0);
+  const tf = u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
+  if (tf && tf.stack && u.tfN > 0) d += u.tfN * (tf.stack.armor || 0);
+  if (u.stkN > 0 && u.stkT > 0 && u.stkShred) d -= u.stkShred;
+  return Math.max(-a, d);
+}
+// After a hit landed (amt = hp + shield it took): row detonate, the victim's hurt marks, transform stack on: 'hit'.
+function g3Hit(m, foe, u, amt) {
+  const i = curSrc && curSrc !== 'w' ? srcSlot(foe, curSrc) : -1, row = i >= 0 ? slotRow(foe, i, curSrc) : null;
+  // detonate {per, fx}: a skill row's hit sets off every mark its owner has on the target: per x marks (scaled like the row), no tag
+  if (row && row.detonate && u.alive && u.stkN > 0 && u.stkT > 0 && u.stkBy === foe.id) {
+    const n = u.stkN, D = row.detonate, keep = curSrc;
+    u.stkN = 0; u.stkT = 0; u.stkShred = 0;
+    m.events.push({ t: 'detonate', id: u.id, by: foe.id, n, x: u.x, z: u.z });
+    curSrc = null; damage(m, u, (D.per || 0) * n * dmgScale(foe), foe); curSrc = keep;
+    if (u.alive && D.fx) applyFx(m, foe, u, D.fx);
+  }
+  const H = u.passive === 'stacks' && u.def.passive.hurt;
+  if (H && u.alive) {
+    u.hsAcc += amt; u.hsT = H.dur;
+    while (u.hsAcc >= H.every * u.maxHp - 1e-9) { u.hsAcc -= H.every * u.maxHp; if (u.hsN < H.max) u.hsN++; }
+  }
+  const tf = foe.alive && foe.tfT > 0 && foe.tfSlot >= 0 ? foe.def.skills[foe.tfSlot] : null;
+  if (tf && tf.stack && tf.stack.on === 'hit') tfStack(foe, tf);
+}
+
+// self.shots: n (the next n main shots, within shotsFor s, default 6) fly as the weapon with `patch` merged in (any weapon field:
+// n, fan, splash, splashHit, pierce, fx, range, vis; steal = lifesteal of what each hit takes; pen) and dmg x mul.
+function shotsArm(u, S) { u.shotN = S.shots; u.shotT = S.shotsFor ?? 6; u.shotRow = S; }
+function shotsPatch(u, w) {
+  if (!(u.shotN > 0) || !u.shotRow) return w;
+  const S = u.shotRow, P = S.patch || {};
+  if (--u.shotN <= 0) { u.shotN = 0; u.shotT = 0; u.shotRow = null; }
+  return { ...w, ...P, dmg: (P.dmg ?? w.dmg) * (S.mul || 1) };
+}
+
+// then: row (on any skill row, a second stage, a transform onEnd or an onKill cast): a follow-up that goes off by itself once
+// `after` s (default 0) have passed and the caster is free (no cast, dash or flurry), aimed where the caster aims then. Its hits
+// carry its own id (srcSlot finds it under its slot). A stun or a lock drops what is queued; a target row finding nobody does nothing.
+function thenStep(m, u, inp, blocked) {
+  if (blocked) { u.thenQ.length = 0; return; }
+  for (let k = 0; k < u.thenQ.length; k++) {
+    const q = u.thenQ[k];
+    if (q.t > 1e-9) { q.t -= TICK; if (q.t > 1e-9) continue; }
+    if (u.cast || u.dash || u.flurry) continue;
+    u.thenQ.splice(k--, 1);
+    const at = m.events.length;
+    m.events.push({ t: 'skill', id: u.id, slot: q.slot, skill: q.row.id, x: u.x, z: u.z, a: u.aim, then: 1 });
+    if (CAST[q.row.do](m, u, q.row, inp) === false) { m.events.length = at; continue; }
+    u.pressing = -1;
+    castHooks(u, q.row, q.slot);
+  }
+}
+
+// transform extensions: regen (share of max hp healed per s while it runs), zone {radius, dps, slow, hps, vis} (a field that follows
+// the mech for the transform), patch {s1|s2|ult: fields} (the other slots' rows play with these fields merged in; u.tfBase keeps the
+// plain def), stack {every | on: 'hit', max, dmg, armor} (tfN grows every `every` s or per hit it lands; each adds dmg to the
+// transform's damage factor and armor), onEnd: row (cast by itself when the transform times out). A leap or dash with it: `then`.
+function tfStart(m, u, s) {
+  u.tfN = 0; u.tfAcc = 0;
+  const Z = s.zone;
+  if (Z) addZone(m, u, { kind: 'field', vis: Z.vis, x: u.x, z: u.z, r: Z.radius, dur: s.dur, hps: Z.hps || 0, dps: Z.dps || 0, slow: Z.slow || 0, hide: false, pull: 0, acc: 0,
+    haste: 0, blind: null, follow: true, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {} });
+  if (s.patch) {
+    const base = u.tfBase || u.def, P = s.patch;
+    u.tfBase = base;
+    u.def = { ...base, skills: base.skills.map((r, i) => (P[SLOTS[i]] && r !== s ? { ...r, ...P[SLOTS[i]] } : r)) };
+  }
+}
+function tfStack(u, s) {
+  const S = s.stack;
+  if (u.tfN >= S.max) return;
+  u.tfN++; u.tfDmg = (s.dmg || 1) + u.tfN * (S.dmg || 0);
+}
+function tfEnd(u) {
+  const s = u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
+  if (u.tfBase) { u.def = u.tfBase; u.tfBase = null; }
+  u.tfN = 0; u.tfAcc = 0;
+  if (s && s.onEnd && u.alive) u.thenQ.push({ row: s.onEnd, slot: u.tfSlot, t: 0 });
+}
+
+// Once a tick (after the status timers): loss of control, empowered shots, hurt marks, transform regen and timed stacks.
+function g3Tick(m, u) {
+  if (u.locT > 0) u.locT = Math.max(0, u.locT - TICK);
+  if (u.shotN > 0 && (u.shotT -= TICK) <= 1e-9) { u.shotN = 0; u.shotT = 0; u.shotRow = null; }
+  if (u.hsN > 0 || u.hsAcc > 0) { if ((u.hsT -= TICK) <= 1e-9) { u.hsN = 0; u.hsT = 0; u.hsAcc = 0; } }
+  const tf = u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null;
+  if (!tf) return;
+  if (tf.regen) heal(m, u, u.maxHp * tf.regen * TICK, u, true);
+  const S = tf.stack;
+  if (S && S.every && u.tfN < S.max && (u.tfAcc += TICK) >= S.every - 1e-9) { u.tfAcc -= S.every; tfStack(u, tf); }
+}
+
+// dash drag: true: every mech the dash hits is carried along in front of it (held like a stun) until the dash ends; heavy, planted
+// and cc-immune mechs stay put. Walls stop the one carried.
+function dragHit(m, u, d) {
+  for (const id of d.hit) {
+    const o = m.units[id];
+    if (!o.alive || o.def.heavy || o.stance || o.ccT > 0) continue;
+    const k = u.radius + o.radius + 0.2;
+    moveUnit(m, o, u.x + d.dx * k - o.x, u.z + d.dz * k - o.z);
+    o.vx = o.vz = 0; o.dash = null; o.cast = null;
+    o.stunT = Math.max(o.stunT, 2 * TICK);
+  }
+}
+
+// pen (skill row, weapon row, or a shots patch): that share of the target's armour is ignored by this damage.
+function penOf(foe) {
+  if (!foe) return 0;
+  if (curShot && curShot.owner === foe.id) return curShot.pen || 0;
+  if (curSrc === 'w') return weaponOf(foe).pen || 0;
+  const i = srcSlot(foe, curSrc);
+  return i >= 0 ? slotRow(foe, i, curSrc).pen || 0 : 0;
+}
+
+// volley perTarget: n (the shots of one press, bursts included, hit one mech at most n times: the rest fly through it) and
+// sameDecay: f (each further hit of that press on the same mech is worth f x the one before). The tally lives on the press (u.volTag).
+const volFull = (s, o) => !!s.vol && s.vol.cap > 0 && (s.vol.hits[o.id] || 0) >= s.vol.cap;
+function volHit(s, o) {
+  const V = s.vol;
+  if (!V) return 1;
+  const n = V.hits[o.id] || 0;
+  V.hits[o.id] = n + 1;
+  return V.decay ? V.decay ** n : 1;
+}
+
+// onKill extras (passive mods.onKill): from: 's1'|'s2'|'ult'|'w' (the whole onKill block pays only for a killing blow from that
+// row; assists are not gated), healLost (share of the lost hp healed), setCd {slot: s} (cooldowns lowered to s), cast: row (a free
+// follow-up, queued like `then`).
+const killFrom = (o, from) => (from === 'w' ? curSrc === 'w' : srcSlot(o, curSrc) === SLOTS.indexOf(from));
+function onKillMore(m, o, K) {
+  if (K.healLost) heal(m, o, (o.maxHp - o.hp) * K.healLost, o);
+  if (K.setCd) for (const k in K.setCd) if (o.cd[k] > K.setCd[k]) o.cd[k] = K.setCd[k];
+  if (K.cast) o.thenQ.push({ row: K.cast, slot: -1, t: 0 });
+}
+// ---- end kit-remake G3 ----
+
 // Once-a-tick work of a passive trait. The other passives act where damage, kills and deployables are handled.
 const PASSIVE_TICK = {
   aura(m, u) {
@@ -930,7 +1134,7 @@ function fireRay(m, u, w) {
 }
 
 function fireWeapon(m, u, inp) {
-  const w = weaponOf(u);
+  const w = shotsPatch(u, weaponOf(u));
   u.cd.fire = w.cd; u.stealthT = 0; u.revealT = RULES.revealOnFire;
   if (w.mag) magShot(m, u, w);
   if (w.ray) { curSrc = 'w'; fireRay(m, u, w); curSrc = null; return; }
@@ -969,6 +1173,7 @@ function spawnShot(m, u, w, a, side, st, src, boost) {
     pierce: !!w.pierce, bounce: w.bounce || 0, hook: w.do === 'hook' ? w : null, far: w.far || null, flown: 0, hit: w.pierce ? [] : null,
     fx: boost && boost.stun ? { ...(w.fx || {}), stun: boost.stun } : w.fx || null, ret: !!w.ret, back: false, src: src || null, cdr: boost ? boost.cdr : 0, splashHit: !!w.splashHit,
     over: !!w.thruWalls,   // kit-remake G2 thruWalls: flies over walls and props (player-built wall zones still stop it)
+    steal: src === 'w' ? w.steal || 0 : 0, pen: w.pen || 0, vol: src !== 'w' && (w.perTarget || w.sameDecay) ? u.volTag : null,
   });
 }
 
@@ -1015,6 +1220,7 @@ const CAST = {
     u.cast = { skill: s, t: s.windup, total: s.windup, move: 0.12, lock: true, aim: u.aim, target: o ? o.id : -1 };
   },
   volley(m, u, s) {
+    if (s.perTarget || s.sameDecay) u.volTag = { cap: s.perTarget || 0, decay: s.sameDecay || 0, hits: {} };
     fireVolley(m, u, s);
     // haste: a short run after the volley; burst: the volley goes off again burst.n - 1 times, burst.gap apart, while the mech keeps walking
     if (s.haste) { u.hasteF = Math.max(u.hasteT > 0 ? u.hasteF : 1, s.haste); u.hasteT = Math.max(u.hasteT, s.hasteDur || 1.5); }
@@ -1079,6 +1285,7 @@ const CAST = {
     if (s.size) u.radius = u.def.radius * s.size;
     if (s.nova) u.cast = { skill: s, t: s.nova.windup, total: s.nova.windup, move: 0.35, lock: false, aim: u.aim };
     m.events.push({ t: 'transform', id: u.id, on: 1, x: u.x, z: u.z, size: s.size || 1 });
+    tfStart(m, u, s);
   },
   stance(m, u, s) { u.cast = { skill: s, t: s.setup, total: s.setup, move: 0, lock: false, aim: u.aim }; },
   hook(m, u, s) {
@@ -1355,6 +1562,7 @@ function reelSelf(m, u, x, z, o, s) {
 }
 
 function endTransform(m, u) {
+  tfEnd(u);
   u.tfT = 0; u.tfSlot = -1; u.tfDmg = 1; u.tfCc = 1; u.ccPrev = null; u.radius = u.def.radius;
   m.events.push({ t: 'transform', id: u.id, on: 0, x: u.x, z: u.z });
 }
@@ -1515,6 +1723,7 @@ function stepDash(m, u) {
     m.events.push({ t: 'ram', id: u.id, x: o.x, z: o.z });
     if (s.stop) { d.left = 0; break; }   // dash.stop: the dash ends on the first mech it hits
   }
+  if (s.drag && d.hit.length) dragHit(m, u, d);
   if (d.left <= 0.01 || moved < stepLen * 0.4) {
     u.dash = null; u.vx = d.dx * 2; u.vz = d.dz * 2;
     if (u.flurry) flurryNext(m, u);
@@ -1600,6 +1809,7 @@ function stepShots(m) {
     const s = m.shots[i];
     const owner = s.owner >= 0 ? m.units[s.owner] : null;
     curSrc = s.src || null;
+    curShot = s;
     if (s.back) {
       // volley.ret on the way home: flies straight at its owner over everything and vanishes on touching it.
       if (!owner || !owner.alive) { m.shots.splice(i, 1); continue; }
@@ -1642,14 +1852,14 @@ function stepShots(m) {
       }
     }
     for (const u of m.units) {
-      if (u.team === s.team || !u.alive) continue;
+      if (u.team === s.team || !u.alive || volFull(s, u)) continue;
       const t = segCircle(s.x, s.z, ex, ez, u.x, u.z, u.radius + s.r);
       if (u.bubT > 0) { const tb = segCircle(s.x, s.z, ex, ez, u.x, u.z, u.radius + s.r + 0.5); if (tb < best && tb <= 1) { best = tb; what = 'dome'; hitUnit = null; hitProp = null; hitTower = null; hitZone = null; } continue; }
       if (s.pierce) {
         // A piercing shot hurts every mech it crosses, once each, and flies on.
         if (t > Math.min(best, 1) || s.hit.includes(u.id)) continue;
         s.hit.push(u.id);
-        damage(m, u, shotDamage(s, len * t), owner);
+        damage(m, u, shotDamage(s, len * t) * volHit(s, u), owner);
         if (s.cdr) cutCooldowns(owner, s);
         if (u.alive) {
           if (s.knock) { u.kx += s.dx * s.knock * 3; u.kz += s.dz * s.knock * 3; }
@@ -1682,7 +1892,7 @@ function stepShots(m) {
     const dmg = shotDamage(s, 0);
     if (what === 'tower') hurtTower(m, hitTower, dmg, owner);
     else if (what === 'unit') {
-      damage(m, hitUnit, dmg, owner);
+      damage(m, hitUnit, dmg * volHit(s, hitUnit), owner);
       if (s.cdr) cutCooldowns(owner, s);
       if (s.knock && hitUnit.alive) { hitUnit.kx += s.dx * s.knock * 3; hitUnit.kz += s.dz * s.knock * 3; }
       if (s.slow && hitUnit.alive) { hitUnit.slowT = Math.max(hitUnit.slowT, s.slowDur); hitUnit.slowF = Math.max(hitUnit.slowF, s.slow); }
@@ -1697,6 +1907,7 @@ function stepShots(m) {
     m.shots.splice(i, 1);
   }
   curSrc = null;
+  curShot = null;
 }
 
 // meter spend.cdr: the armed shot hit a mech: every skill cooldown of its owner drops by cdr seconds, once per shot.
@@ -1961,6 +2172,7 @@ export function applyFx(m, src, o, fx, ctx) {
   if (fx.amp) applyAmp(o, fx.amp.amp, fx.amp.dur);
   if (fx.reveal) { o.revealT = Math.max(o.revealT, fx.reveal); o.stealthT = 0; }
   if (fx.silence) o.silenceT = Math.max(o.silenceT, fx.silence);
+  applyLoc(m, src, o, fx);
   // air (s): knocked up: a stun that also lifts the mech (airT, drawn as a hop); heavy mechs and cc immunity shrug it off like a stun
   if (fx.air && !o.def.heavy) { o.stunT = Math.max(o.stunT, fx.air); o.airT = Math.max(o.airT || 0, fx.air); }
   // maxHp: an extra blow worth that share of the victim's max hp (armour applies; bosses are spared); it carries no source tag so it never feeds stacks
@@ -2021,7 +2233,7 @@ function damage(m, u, amount, src, raw) {
   if (vt && vt.mul) amount *= vt.mul;
   const preArmor = amount;
   // trueHit (hitfx lostHp, curHp, trueDmg): neither armour nor guard cuts it
-  if (!raw && !isTrue && !(foe && foe.passive === 'pierce')) amount *= 1 - armorOf(m, u);
+  if (!raw && !isTrue && !(foe && foe.passive === 'pierce')) amount *= 1 - armorOf(m, u) * (1 - penOf(foe));
   // guard (skill row or stacks self): a cut on top of armour, outside its cap
   if (u.guardT > 0 && !isTrue) amount *= 1 - u.guardF;
   // kit-remake G2 guard vs: a cut of one kind of enemy damage only
@@ -2034,6 +2246,7 @@ function damage(m, u, amount, src, raw) {
     if (u.shield <= 0) { u.shieldT = 0; broke = true; m.events.push({ t: 'shieldBreak', id: u.id, x: u.x, z: u.z }); }
   }
   u.hp -= left; u.combatT = 0;
+  if (u.locT > 0 && u.locK === LOC_SLEEP && left + absorbed > 0) u.locT = 0;
   if (left > 0) allyHurt(m, u, left);
   if (left + absorbed > 0) {
     if (foe && foe.alive && foe.passive === 'ramp' && foe.def.passive.on === 'hit') rampGain(foe, u.id);
@@ -2053,7 +2266,7 @@ function damage(m, u, amount, src, raw) {
   if (foe && foe.alive && left + absorbed > 0 && !reflecting && curSrc && curSrc !== 'w') rowHit(m, foe, left);
   if (foe && left + absorbed > 0) k1Hurt(m, u, foe);
   if (foe && foe.alive && left > 0) {
-    const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0);
+    const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0, curShot && curShot.owner === foe.id ? curShot.steal : 0);
     if (steal) heal(m, foe, left * steal, foe, true);
     if (u.armorT > 0 && u.reflectF > 0 && !reflecting) { reflecting = true; damage(m, foe, amount * u.reflectF, u); reflecting = false; }
   }
@@ -2061,6 +2274,7 @@ function damage(m, u, amount, src, raw) {
   if (foe && foe.alive && foe.passive === 'meter' && left + absorbed > 0 && !chaining) meterHit(m, foe, u);
   if (foe && foe.alive && foe.passive === 'stacks' && left + absorbed > 0 && !chaining && u.hp > 0) stackHit(m, foe, u);
   if (u.hp <= 0) g2Fatal(m, u);   // kit-remake G2: undying, or a fatal save, keeps it at 1 hp
+  if (foe && left + absorbed > 0 && !chaining && !reflecting) g3Hit(m, foe, u, left + absorbed);
   if (u.hp <= 0) kill(m, u, src);
   else if (u.markT > 0 && u.markEx && u.hp < u.maxHp * u.markEx) {
     const by = m.units[u.markBy];
@@ -2081,10 +2295,13 @@ function damage(m, u, amount, src, raw) {
 function stackHit(m, foe, u) {
   const P = foe.def.passive;
   if (!curSrc || (P.on === 'skill' && curSrc === 'w')) return;
+  if (!P.n || (P.icd && (u.stkLock[foe.id] || 0) > m.time + 1e-9)) return;
   if (u.stkN > 0 && u.stkT > 0 && u.stkBy === foe.id) u.stkN++; else u.stkN = 1;
   u.stkBy = foe.id; u.stkT = P.dur;
+  if (P.per) stackPer(foe, u, P);
   if (u.stkN < P.n) return;
   u.stkN = 0; u.stkT = 0;
+  if (P.icd) u.stkLock[foe.id] = m.time + P.icd;
   m.events.push({ t: 'stacks', id: u.id, by: foe.id, x: u.x, z: u.z });
   // self.guard: the mark going off also covers its owner: guard less of every blow and no crowd control for self.dur seconds
   if (P.self && P.self.guard) { foe.guardT = Math.max(foe.guardT, P.self.dur); foe.guardF = P.self.guard; foe.ccT = Math.max(foe.ccT, P.self.dur); }
@@ -2143,7 +2360,8 @@ function kill(m, u, src) {
 function takedown(m, o, kill, victim) {
   if (!o.alive) return;
   const P = o.def.passive, K = P && P.mods && P.mods.onKill;
-  if (K) {
+  if (K && (!kill || !K.from || killFrom(o, K.from))) {
+    if (kill) onKillMore(m, o, K);
     const hl = kill ? K.heal : K.assist && K.assist.heal;
     if (hl) heal(m, o, o.maxHp * hl, o);
     const r = kill ? K.reset : K.assist && K.assist.reset !== undefined ? { slots: SLOTS, frac: K.assist.reset } : null;

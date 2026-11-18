@@ -5,7 +5,7 @@
 // towerGuard() keeps it out of an enemy tower's range unless the group is already there. Mechs do not collide, so every bot keeps its own spacing.
 
 import { TICK, RULES, DIFFICULTY } from './data.js';
-import { visibleTo, towerOpen, weaponRange, weaponOf, turnRate, skillReady, ownObject } from './sim.js';
+import { visibleTo, towerOpen, weaponRange, weaponOf, turnRate, skillReady, ownObject, locked } from './sim.js';
 import { findPath, losClear, solidAt, castStatic, segCircle } from './maps.js';
 
 // pref: [near, far] fraction of weapon range the bot likes to hold. kite: back away from closers.
@@ -1802,7 +1802,7 @@ function chooseSkill(c) {
       return b.sk;
     }
   }
-  if (u.cast || u.dash || u.stunT > 0 || u.silenceT > 0) return null;
+  if (u.cast || u.dash || u.stunT > 0 || u.silenceT > 0 || locked(u)) return null;
   const sk = b.sk;
   const p = 1 - Math.pow(1 - Math.min(0.999, D.skill), 1.5 * TICK);
   for (let i = 0; i < 3; i++) {
