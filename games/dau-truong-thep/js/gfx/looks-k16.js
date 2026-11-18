@@ -7,8 +7,11 @@
 //   shell; Q lands the greatsword in a crown of sea water; E charges on a foaming wake behind a blue crescent; R sends the water
 //   dragon (head and body from looks-b7.js) swimming round him in a water bubble for the 8 s; its recast slams a column of sea
 //   water down on a churning vortex.
+// Lôi Công (p28 "25.雷神", gameplay 12-37 s): gold lightning, accent electric blue. Q: a blue target ring, then a gold bolt from the
+//   sky; E: a crackling ball of lightning; R: the golden hammer spinning in gold lightning, bursting into an orange disc with a blue rim.
 import { C, own, stop, sigil, shell, slash, cut, pillar, trail } from './lookkit.js';
 import { dragonHead, dragonBody, fadeAll } from './looks-b7.js';
+import { zap, hammer, hammerBlast } from './looks-b5.js';
 
 const R = (a, b) => a + Math.random() * (b - a);
 
@@ -180,4 +183,108 @@ const laclong = {
   },
 };
 
-export const K16 = { ...natsu, ...laclong };
+
+// ---- Lôi Công ------------------------------------------------------------------------------------------------------
+// Thor: gold lightning and the golden hammer (from looks-b5.js), accent the electric blue of the clip's target rings.
+const LC_GOLD = C(2.6, 1.9, 0.45), LC_BLUE = C(0.35, 1.1, 2.5), LC_WHITE = C(2.3, 2.4, 2.6), LC_DEEP = C(0.05, 0.14, 0.45);
+const loi = {
+  // Điện Hà Ấn Ký: the third mark: a gold bolt crashes onto the victim in a blue ring
+  torMark: {
+    stacks(kit, e) {
+      zap(kit, [e.x + 0.3, 14, e.z], [e.x, 0.8, e.z], 0.8, LC_GOLD, 0.25, { segs: 10, jit: 0.6 });
+      sigil(kit, e.x, e.z, 2.2, LC_BLUE, { c2: LC_WHITE, n: 0, ticks: 8, inner: 0.7, fill: 0.4, w: 0.08, life: 0.5, rev: 0.06, spin: 4 });
+      kit.flash(e.x, 1.5, e.z, LC_GOLD, 40, 0.2);
+      return true;
+    },
+  },
+  // Lôi Bạo Đả Kích: a blue target ring with crackling arcs marks the spot, then a gold bolt falls into a blue-white blast
+  torStrike: {
+    zones: ['strike'], ownDisc: true, pal: [LC_BLUE, LC_GOLD], hitR: 1.8,
+    skill() { return true; },
+    zoneMake(kit, z) {
+      const v = { acc: 0 };
+      v.s = sigil(kit, z.x, z.z, z.r, LC_BLUE, { c2: LC_WHITE, n: 0, ticks: 12, inner: 0.82, fill: 0.25, w: 0.08, life: 1e9, rev: 0.12, spin: 3 });
+      v.d = sigil(kit, z.x, z.z, z.r * 0.95, LC_DEEP, { n: 0, ticks: 0, inner: 0, fill: 0.5, w: 0, life: 1e9, rev: 0.15, alpha: 0.5, y: 0.1 });
+      return v;
+    },
+    zone(kit, v, z, dt) {
+      v.acc += dt;
+      if (v.acc > 0.1) { v.acc = 0; const a = Math.random() * 6.283, b = a + R(1, 2); zap(kit, [z.x + Math.cos(a) * z.r, 0.3, z.z + Math.sin(a) * z.r], [z.x + Math.cos(b) * z.r * 0.4, 0.5, z.z + Math.sin(b) * z.r * 0.4], 0.25, LC_BLUE, 0.1, { segs: 6, jit: 0.4 }); }
+    },
+    zoneDrop(kit, v) { stop(v.s); stop(v.d); },
+    land(kit, e) {
+      const r = e.r || 2.5;
+      zap(kit, [e.x + 0.5, 18, e.z], [e.x, 0.5, e.z], 1.3, LC_GOLD, 0.3, { segs: 12, jit: 0.8 });
+      zap(kit, [e.x - 0.6, 16, e.z + 0.4], [e.x, 0.5, e.z], 0.6, LC_WHITE, 0.2, { segs: 10, jit: 0.9 });
+      shell(kit, e.x, 0.5, e.z, r * 0.9, LC_BLUE, { c2: LC_WHITE, p: 1.4, core: 0.3, life: 0.45, grow: 0.1, dome: true });
+      sigil(kit, e.x, e.z, r * 1.2, LC_GOLD, { c2: LC_BLUE, n: 0, ticks: 10, inner: 0.6, fill: 0.5, w: 0.07, life: 0.5, rev: 0.06, spin: 3 });
+      for (let i = 0; i < 6; i++) { const b = i * 1.05 + R(-0.2, 0.2), L = r * R(0.9, 1.3); zap(kit, [e.x, 0.3, e.z], [e.x + Math.cos(b) * L, 0.3, e.z + Math.sin(b) * L], 0.3, LC_GOLD, 0.35, { segs: 6, jit: 0.4 }); }
+      kit.flash(e.x, 2, e.z, LC_WHITE, 60, 0.25); kit.kick(e.x, e.z, 0.5);
+      return true;
+    },
+  },
+  // Thiểm Điện Đạn Xạ: a crackling blue-white ball of lightning, arcs licking off it
+  torBall: {
+    pal: [LC_BLUE, LC_WHITE], hitR: 1.6,
+    skill(kit, e, u) {
+      const mx = u.x + Math.cos(e.a) * 1.2, mz = u.z + Math.sin(e.a) * 1.2;
+      kit.glow(mx, 1.2, mz, LC_WHITE, 0.12, 1.8, 1, kit.K.STAR, 1.2);
+      sigil(kit, u.x, u.z, 3.0, LC_BLUE, { c2: LC_WHITE, n: 0, ticks: 10, inner: 0.6, fill: 0.55, w: 0.08, life: 0.5, rev: 0.06, spin: 5 });
+      shell(kit, mx, 1.2, mz, 1.5, LC_BLUE, { c2: LC_WHITE, p: 1.3, core: 0.4, life: 0.35, grow: 0.08 });
+      for (let i = 0; i < 4; i++) { const b = e.a + R(-0.7, 0.7), L = R(2.5, 4); zap(kit, [mx, 1.2, mz], [mx + Math.cos(b) * L, R(0.4, 1.6), mz + Math.sin(b) * L], 0.3, i % 2 ? LC_WHITE : LC_BLUE, 0.3, { segs: 6, jit: 0.4 }); }
+      return true;
+    },
+    shotMake(kit, s) {
+      const v = { x: s.x, z: s.z, live: true, acc: 0 };
+      v.ball = shell(kit, s.x, 1.2, s.z, 1.0, LC_BLUE, { c2: LC_WHITE, p: 1.3, core: 0.6, life: 1e9, pulse: 3 });
+      trail(kit, () => (v.live ? [v.x, 1.2, v.z] : null), 1.4, LC_BLUE, 0.5, { c2: LC_DEEP, len: 12 });
+      return v;
+    },
+    shot(kit, v, s, x, y, z, dt) {
+      v.x = x; v.z = z; v.ball.position.set(x, 1.2, z); v.acc += dt || 0.016;
+      if (v.acc > 0.05) { v.acc = 0; const a = Math.random() * 6.283; zap(kit, [x, 1.2, z], [x + Math.cos(a) * 1.4, R(0.4, 2), z + Math.sin(a) * 1.4], 0.18, LC_WHITE, 0.08, { segs: 4, jit: 0.3 }); }
+      return true;
+    },
+    shotEnd(kit, v, s, x, z) { v.live = false; stop(v.ball); shell(kit, x, 1.1, z, 1.6, LC_BLUE, { c2: LC_WHITE, p: 1.3, core: 0.4, life: 0.3, grow: 0.08 }); kit.flash(x, 1.4, z, LC_BLUE, 35, 0.2); },
+  },
+  // Lôi Thần Chi Chùy: the golden hammer spins through the air wrapped in gold lightning; where it bursts an orange-gold disc with
+  // cracks and a blue rim crackles for the 4 s of the field
+  torHammer: {
+    pal: [LC_GOLD, LC_WHITE], hitR: 2,
+    skill(kit, e, u) {
+      // he calls the hammer down: gold bolts from the sky onto him, a gold ring with a blue rim at his feet
+      for (let i = 0; i < 3; i++) zap(kit, [u.x + R(-1, 1), 16, u.z + R(-1, 1)], [u.x, 1.4, u.z], i ? 0.5 : 1.1, i ? LC_WHITE : LC_GOLD, 0.45, { segs: 12, jit: 0.8 });
+      sigil(kit, u.x, u.z, 4, C(2.0, 0.6, 0.1), { c2: LC_GOLD, n: 0, ticks: 0, inner: 0.35, fill: 0.5, w: 0, life: 0.7, rev: 0.08, alpha: 0.75, y: 0.11 });
+      sigil(kit, u.x, u.z, 4.2, LC_BLUE, { c2: LC_WHITE, n: 0, ticks: 16, inner: 0.86, fill: 0.5, w: 0.07, life: 0.7, rev: 0.08, spin: 2 });
+      for (let i = 0; i < 7; i++) { const b = i * 0.9 + R(-0.2, 0.2), L = R(2.8, 4); zap(kit, [u.x, 0.3, u.z], [u.x + Math.cos(b) * L, 0.3, u.z + Math.sin(b) * L], 0.3, LC_GOLD, 0.5, { segs: 6, jit: 0.4 }); }
+      kit.flash(u.x, 2, u.z, LC_GOLD, 60, 0.3);
+      return true;
+    },
+    shotMake(kit, s) {
+      const h = hammer(); h.scale.setScalar(2.2);
+      const v = { h, x: s.x, z: s.z, live: true, t: 0 };
+      own(kit, [h], 1e9, () => v.live);
+      trail(kit, () => (v.live ? [v.x, 1.5, v.z] : null), 2.4, LC_GOLD, 0.6, { c2: C(0.5, 0.25, 0.03), len: 12 });
+      return v;
+    },
+    shot(kit, v, s, x, y, z, dt) {
+      v.x = x; v.z = z; v.t += dt || 0.016; v.h.position.set(x, 1.5, z); v.h.rotation.set(0, -Math.atan2(s.dz, s.dx), v.t * 14);
+      if (Math.random() < 0.5) { const a = Math.random() * 6.283; zap(kit, [x, 1.5, z], [x + Math.cos(a) * 1.8, R(0.5, 2.5), z + Math.sin(a) * 1.8], 0.25, LC_GOLD, 0.08, { segs: 5, jit: 0.4 }); }
+      return true;
+    },
+    shotEnd(kit, v, s, x, z) { v.live = false; hammerBlast(kit, x, z, 3); },
+    zoneMake(kit, z) {
+      const v = { acc: 0 };
+      v.disc = sigil(kit, z.x, z.z, z.r, C(2.0, 0.6, 0.1), { c2: LC_GOLD, n: 0, ticks: 0, inner: 0, fill: 0.55, w: 0, life: 1e9, rev: 0.15, alpha: 0.75, y: 0.11 });
+      v.rim = sigil(kit, z.x, z.z, z.r, LC_BLUE, { c2: LC_WHITE, n: 0, ticks: 16, inner: 0.86, fill: 0.5, w: 0.07, life: 1e9, rev: 0.15, spin: 1.5 });
+      return v;
+    },
+    zone(kit, v, z, dt) {
+      v.acc += dt;
+      if (v.acc > 0.12) { v.acc = 0; const a = Math.random() * 6.283, b = a + R(2, 3.5); zap(kit, [z.x + Math.cos(a) * z.r * 0.9, 0.3, z.z + Math.sin(a) * z.r * 0.9], [z.x + Math.cos(b) * z.r * 0.9, 0.3, z.z + Math.sin(b) * z.r * 0.9], 0.3, Math.random() < 0.5 ? LC_GOLD : LC_BLUE, 0.14, { segs: 8, jit: 0.5 }); }
+    },
+    zoneDrop(kit, v) { stop(v.disc); stop(v.rim); },
+  },
+};
+
+export const K16 = { ...natsu, ...laclong, ...loi };

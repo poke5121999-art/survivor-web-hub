@@ -2048,6 +2048,7 @@ function stepShots(m) {
     if (s.splash && what !== 'dome' && owner && (!s.splashHit || what === 'unit')) areaDamage(m, owner, s.x, s.z, s.splash, dmg * 0.6, s.fx ? { fx: s.fx } : null, hitUnit);
     if (what === 'unit' && owner && s.src === 'w') krSplashHeal(m, owner, s);   // kit-remake G5 Kurumi: the burst heals allies
     if (what === 'unit' && owner && s.src === 'w') k16Shot(m, owner);   // kit lane k16: Lạc Long Quân's water shells heal and stack
+    if (owner && s.src && s.src !== 'w' && what !== 'dome') k16Zone(m, owner, s, hitUnit);   // kit lane k16: Lôi Công's hammer leaves a field where it bursts
     if (s.hook && s.hook.self && owner && owner.alive && (what === 'wall' || what === 'unit' || what === 'prop' || what === 'tower')) reelSelf(m, owner, s.x, s.z, hitUnit || hitProp || hitTower, s.hook);
     m.events.push({ t: 'impact', vis: s.vis, on: what, x: s.x, z: s.z, dx: s.dx, dz: s.dz, splash: s.splash });
     m.shots.splice(i, 1);
@@ -4405,7 +4406,7 @@ const nhFree = (u) => !!(u.dash && u.dash.nh);
 const nhSlotOk = (u, i) => !u.dash || (nhFree(u) && !!u.def.skills[i].nhCombo);
 /* ===== end kit lane K18 ===== */
 /* ===== kit lane k16 (feat/dtt-k16; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-b.md kynhong, laclong, loi) =====
-   One-line hooks elsewhere are marked "kit lane k16". New state: unit ntsN, ntsT (Natsu); aoqPark (Lạc Long Quân: a parked second stage). */
+   One-line hooks elsewhere are marked "kit lane k16". New state: unit ntsN, ntsT (Natsu); aoqPark (Lạc Long Quân: a parked second stage); zone field of Lôi Công's hammer is a plain field. */
 function k16Clear(u) { u.ntsN = 0; u.ntsT = 0; u.aoqPark = null; }
 function k16Tick(m, u) {
   if (u.ntsT > 0) u.ntsT = Math.max(0, u.ntsT - TICK);
@@ -4486,4 +4487,14 @@ export function k16Mirror(u) {
   else if (!(u.tfT > 0) && u.tfBase) { u.def = u.tfBase; u.tfBase = null; }
 }
 const k16Band = (z, u) => (dist2(u.x, u.z, z.x, z.z) >= (z.r - z.ntsBand) ** 2 ? 2 : 1);
+// -- kit-remake G5 Lôi Công: volley `torZone {radius, dur, dps, slow, vis}` (where a shot of that row ends, on a mech, a wall, a prop or
+//    at the end of its range, it leaves a field (centred on the mech it hit) of that size: dps a second and the slow on enemies inside; no source tag, so its
+//    ticks never add Điện Hà marks).
+function k16Zone(m, u, s, o) {
+  let Z = null;
+  for (const r of u.def.skills) if (r.id === s.src && r.torZone) { Z = r.torZone; break; }
+  if (!Z) return;
+  addZone(m, u, { kind: 'field', vis: Z.vis, x: o ? o.x : s.x, z: o ? o.z : s.z, r: Z.radius, dur: Z.dur, hps: 0, dps: Z.dps * dmgScale(u), slow: Z.slow || 0, hide: false, pull: 0, acc: 0,
+    haste: 0, blind: null, follow: false, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {} });
+}
 /* ===== end kit lane k16 ===== */

@@ -5,7 +5,8 @@
 //   琦玉 p77 (Saitama, tegiac): its looks moved to looks-k7.js with the kit ported from the clip (kit lane K7).
 //   牛魔王 p85 (Ngưu Ma Vương): its looks moved to looks-k18.js with the kit ported from the clip (kit lane K18).
 //   黑豹 p89 (Báo Gấm): three white claw slashes, a dark ink swirl of kinetic rings.
-//   雷神 p28 (Lôi Công): the golden hammer wrapped in lightning, an orange blast disc with cracks and a blue rim.
+//   雷神 p28 (Lôi Công = Thor): its looks moved to looks-k16.js with the kit ported from the clip (kit lane k16); the hammer,
+//     the bolts and the blast below stay here, exported for it.
 //   美杜莎 p42 (Mãng Xà): green serpents, a cage of tilted green rings like a gyroscope.
 import * as THREE from '../../vendor/three.module.min.js';
 import { C, own, stop, sigil, shell, trail, burst } from './lookkit.js';
@@ -167,66 +168,14 @@ function fadeAll(g, k) { g.traverse((m) => { if (m.material) { if (m.userData.op
 // ---- Lôi Công: the golden hammer, gold lightning, an orange blast disc with a blue rim, storm cloud ---------------------
 const LC_GOLD = C(2.6, 1.9, 0.45), LC_ORG = C(2.6, 0.8, 0.12), LC_BLUE = C(0.35, 1.1, 2.5);
 const hamHead = keep(new THREE.BoxGeometry(1.5, 0.95, 0.95)), hamRim = keep(new THREE.BoxGeometry(1.62, 1.05, 1.05)), hamHaft = keep(new THREE.CylinderGeometry(0.11, 0.13, 1.6, 6).translate(0, 1.25, 0)), hamPom = keep(new THREE.SphereGeometry(0.17, 8, 6).translate(0, 2.1, 0));
-function hammer() { const g = new THREE.Group(), m = basic(0xb8bcc8, false, 1), w = basic(0x5a3018, false, 1), gl = basic(LC_GOLD, true, 0.75); g.add(new THREE.Mesh(hamRim, gl), new THREE.Mesh(hamHead, m), new THREE.Mesh(hamHaft, w), new THREE.Mesh(hamPom, m)); return g; }
+export function hammer() { const g = new THREE.Group(), m = basic(0xb8bcc8, false, 1), w = basic(0x5a3018, false, 1), gl = basic(LC_GOLD, true, 0.75); g.add(new THREE.Mesh(hamRim, gl), new THREE.Mesh(hamHead, m), new THREE.Mesh(hamHaft, w), new THREE.Mesh(hamPom, m)); return g; }
 // the blast where the hammer lands: an orange disc with a blue rim, gold cracks running out
-function hammerBlast(kit, x, z, r, life = 0.55) {
+export function hammerBlast(kit, x, z, r, life = 0.55) {
   sigil(kit, x, z, r, LC_ORG, { c2: LC_GOLD, n: 0, ticks: 0, inner: 0, fill: 0.9, life, rev: 0.05, alpha: 0.85, w: 0 });
   sigil(kit, x, z, r * 1.08, LC_BLUE, { n: 0, ticks: 0, inner: 0.9, fill: 0.5, life: life + 0.05, rev: 0.06, w: 0.1 });
   for (let i = 0; i < 7; i++) { const b = i * 0.9 + R(-0.2, 0.2), L = r * R(0.8, 1.1); zap(kit, [x, 0.3, z], [x + Math.cos(b) * L, 0.3, z + Math.sin(b) * L], 0.3, LC_GOLD, life * 0.75, { segs: 6, jit: 0.4, every: 9 }); }
   kit.flash(x, 2, z, LC_GOLD, 60, 0.3); kit.kick(x, z, 0.6);
 }
-const loi = {
-  // Màn Khói: a storm cloud settles on the spot, dark blue-grey billows, gold lightning flickering inside
-  lcCloud: {
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const blobs = [];
-      for (let i = 0; i < 16; i++) { const b = i * 2.4 + (z.id || 0), d = z.r * Math.sqrt((i + 0.5) / 16) * 0.8; blobs.push(shell(kit, z.x + Math.cos(b) * d, 1.4 + (i % 3) * 0.35, z.z + Math.sin(b) * d, z.r * R(0.32, 0.42), C(0.24, 0.26, 0.34), { c2: C(0.07, 0.08, 0.12), inv: 0.9, core: 1.1, squash: 0.6, life: 1e9, grow: 0.35, alpha: 0.95 })); }
-      const disc = sigil(kit, z.x, z.z, z.r, C(0.06, 0.07, 0.1), { n: 0, ticks: 0, inner: 0, fill: 1, life: 1e9, rev: 0.2, alpha: 0.6, w: 0, y: 0.11 });
-      return { blobs, disc, acc: 0 };
-    },
-    zone(kit, v, z, dt) {
-      v.acc += dt; const end = z.dur - z.age;
-      v.blobs.forEach((b, i) => { b.position.y = 1.4 + (i % 3) * 0.35 + Math.sin(z.age * 1.5 + i) * 0.2; });
-      if (v.acc > 0.22 && end > 0.3) { v.acc = 0; const b = Math.random() * 6.283, d = z.r * R(0.1, 0.6), c = Math.random() * 6.283, x0 = z.x + Math.cos(b) * d, z0 = z.z + Math.sin(b) * d; zap(kit, [x0, 2.4, z0], [x0 + Math.cos(c) * R(2, 3.5), 1.2, z0 + Math.sin(c) * R(2, 3.5)], 0.35, LC_GOLD, 0.14, { segs: 7, jit: 0.5 }); kit.glow(x0, 2.2, z0, LC_GOLD, 0.15, 3, 0.7, kit.K.GLOW, 1.2); }
-    },
-    zoneDrop(kit, v) { v.blobs.forEach(stop); stop(v.disc); },
-  },
-  // Giật Lùi: the hammer slams down at his feet in an orange blast with gold cracks; gold lightning follows him as he flies back
-  lcRecoil: {
-    pal: [LC_ORG, LC_GOLD], hitR: 1.8,
-    skill(kit, e, u, row) {
-      const x = e.x, z = e.z, r = row.radius || 3.5, h = hammer(); h.scale.setScalar(2.4);
-      own(kit, [h], 0.95, (t) => { h.position.set(x, Math.max(1.1, 6 - t * 60), z); h.rotation.set(0, -e.a, 0.3); fadeAll(h, Math.min(1, (0.95 - t) / 0.25)); });
-      hammerBlast(kit, x, z, r, 0.95);
-      zap(kit, [x, 1.2, z], (t) => (t < 0.35 && u.alive ? [u.x, 1.2, u.z] : null), 0.7, LC_GOLD, 0.95, { segs: 10, jit: 0.7 });
-      trail(kit, (t) => (t < 0.35 && u.alive ? [u.x, 0.6, u.z] : null), 1.6, LC_ORG, 0.95, { c2: C(0.5, 0.1, 0.02), len: 12 });
-      return true;
-    },
-  },
-  // Thiên Lôi: a hammer drops out of the sky on each spot, riding a gold bolt; each lands in the orange blast
-  lcHammer: {
-    zones: ['strike'], ownDisc: true, pal: [LC_ORG, LC_GOLD], hitR: 1.8,
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const h = hammer(); h.scale.setScalar(1.7);
-      const v = { h, hold: held(kit, [h]), y: 9, live: true };
-      zap(kit, () => (v.live ? [z.x + 0.4, 18, z.z] : null), () => [z.x, v.y + 2.2, z.z], 0.5, LC_GOLD, 1e9, { segs: 10, jit: 0.6 });
-      v.s = sigil(kit, z.x, z.z, 1.8, LC_BLUE, { c2: LC_GOLD, n: 0, ticks: 4, inner: 0.6, life: 1e9, rev: 0.1, fill: 0.15, w: 0.08 });
-      return v;
-    },
-    zone(kit, v, z) { const k = z.delay / (z.total || 1); v.y = 0.5 + 8.5 * k; v.h.position.set(z.x, v.y, z.z); v.h.rotation.y = z.age * 3; },
-    zoneDrop(kit, v) { v.live = false; v.hold.on = false; stop(v.s); },
-    land(kit, e) {
-      const h = hammer(); h.scale.setScalar(1.7);
-      own(kit, [h], 0.7, (t) => { h.position.set(e.x, 0.8, e.z); fadeAll(h, Math.min(1, (0.7 - t) / 0.25)); });
-      zap(kit, [e.x, 18, e.z], [e.x, 0.6, e.z], 1.0, LC_GOLD, 0.25, { segs: 12, jit: 0.8 });
-      hammerBlast(kit, e.x, e.z, 2.8);
-      return true;
-    },
-  },
-};
-
 // ---- Mãng Xà: a green python, dark scales, lime light, yellow eyes ---------------------------------------------------
 const MX_LIME = C(0.5, 2.6, 0.5), MX_YEL = C(2.4, 2.3, 0.3), MX_SCALE = 0x1f5a2a;
 const sHead = keep(new THREE.SphereGeometry(0.5, 12, 8).scale(1.3, 0.45, 0.85)), sJaw = keep(new THREE.ConeGeometry(0.4, 1.1, 4).rotateZ(-Math.PI / 2).scale(1, 0.35, 1).translate(0.55, 0, 0)), sEye = keep(new THREE.SphereGeometry(0.1, 6, 4));
@@ -314,5 +263,5 @@ const mangxa = {
   },
 };
 
-export const B5 = { ...quaset, ...loi, ...mangxa };   // nguma moved to looks-k18.js with its ported kit
+export const B5 = { ...quaset, ...mangxa };   // nguma moved to looks-k18.js with its ported kit
 export { zap, forks, ribbonMesh, fillRibbon };

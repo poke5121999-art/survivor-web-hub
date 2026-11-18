@@ -31,7 +31,7 @@ const SEQ = {
   soi: { d: 9, seq: [['s2', 0], ['s1', 0.1], ['ult', 0.2]] },
   ung: { d: 13, seq: [['s1', 0], ['ult', 0.2], ['s2', 1.4]] },
   hac: { d: 9, seq: [] },
-  loi: { d: 12, seq: [['ult', 0]] },
+  loi: { d: 9, seq: [['s2', 0], ['s1', 0.1], ['ult', 0.2], ['s2', 3.1]] },   // kit lane k16: ball, bolt, hammer, then the second ball; the third skill hit stuns
   bocap: { d: 5, seq: [['s1', 0], ['ult', 1.6], ['s2', 1.7]] },
   bang: { d: 4.5, seq: [['s1', 0], ['s2', 0.1], ['ult', 0.5], ['s1', 4.2]] },
   tho: { d: 8, seq: [['s1', 0], ['ult', 0.3]] },
@@ -191,7 +191,7 @@ if (!QUICK) {
 }
 
 // Design intent (Addendum 13): burst kits delete a squishy healer caught out; nobody is out-healed by a lone healer; the tanks are hard to burst.
-// Lôi Công (a line of shells) and Hắc Hổ (mark, then execute under 22%) burst through many hits, so only their 3 s combo is held to a target.
+// Lôi Công (since kit lane k16: lightning, a stun on the third skill hit) and Hắc Hổ (mark, then execute under 22%) burst through many hits, so only their 3 s combo is held to a target.
 // Ưng Nhãn too since kit lane K7 (clip p92): a fast magazine gun whose falcon mark bursts on every shot, no single big blow.
 // Đom Đóm left HEALERS with kit lane K13: she plays the clip's wind controller now (no heals; bubbles that eat bullets, debuffs), not a healer.
 const MULTI = ['loi', 'hacho', 'ung'], BURST = ['ung', 'thancong', 'hoalong', 'loi', 'hacho'], HEALERS = ['hac'], TANKS = ['trau', 'kimquy'];

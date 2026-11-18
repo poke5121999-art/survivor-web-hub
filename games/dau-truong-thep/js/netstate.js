@@ -38,6 +38,7 @@ addKind('rivet', 30, 0.18);
 function extraRows(def) {
   const out = [];
   for (const s of def.skills) { if (s.riposte && s.riposte.volley) out.push(s.riposte.volley); if (s.onStart && s.onStart.volley) out.push(s.onStart.volley); }
+  for (const s of def.skills) if (s.do === 'transform' && s.weapon) out.push({ ...def.weapon, ...s.weapon });   // kit lane k16: a transform's own weapon (Lạc Long Quân's water shells)
   for (const f of def.forms || []) {
     if (f.weapon) out.push({ ...def.weapon, ...f.weapon });
     for (const k in f.skills || {}) { const p = f.skills[k]; out.push({ ...def.skills[k], ...p }); if (p.riposte && p.riposte.volley) out.push(p.riposte.volley); }
@@ -282,7 +283,7 @@ export function packEvents(events) {
     const o = {};
     for (const k in e) {
       const v = e[k];
-      if (v !== undefined) o[k] = typeof v === 'number' && !Number.isInteger(v) ? rd(v) : v;
+      if (v !== undefined) o[k] = typeof v === 'number' && !Number.isInteger(v) ? rd(v) : k === 'pts' && Array.isArray(v) ? v.map((p) => (Array.isArray(p) ? p.map((q) => (typeof q === 'number' ? rd(q) : q)) : p)) : v;   // pts: kit lane k16 (chain points kept the full float)
     }
     const keys = EVENT_KEYS[o.t];
     if (!keys || Object.keys(o).length !== keys.length + 1 || !keys.every((k) => k in o)) return o;

@@ -24,7 +24,16 @@ export const OLD_LACLONG = {
     { id: 'longquan', cd: 42, do: 'dash', dist: 15, speed: 30, dmg: 380, stun: 0.8, knock: 3 },
   ],
 };
-const OLD = { kynhong: OLD_KYNHONG, laclong: OLD_LACLONG };
+export const OLD_LOI = {
+  passive: { do: 'trait', name: 'Chấn Động' },
+  weapon: { name: 'Cối Sấm', cd: 1.45, dmg: 340, lob: true, flight: 0.85, range: 17, splash: 2.7, slow: 0.3, slowDur: 1.2, vis: 'mortar' },
+  skills: [
+    { id: 'khoi', cd: 14, do: 'zone', at: 'target', cast: 12, radius: 4.6, dur: 5.5, hide: true, vis: 'smoke' },
+    { id: 'giatlui', cd: 10, do: 'recoil', dist: 7, speed: 26, radius: 3.5, dmg: 160, knock: 4 },
+    { id: 'thienloi', cd: 45, do: 'barrage', line: true, n: 5, gap: 3.2, radius: 7, blast: 3.2, dmg: 560, delay: 0.8, span: 1.2, cast: 20 },
+  ],
+};
+const OLD = { kynhong: OLD_KYNHONG, laclong: OLD_LACLONG, loi: OLD_LOI };
 // Every old-kit mech of the match plays its old kit (the match must be fresh: nothing pressed yet).
 export function oldK16(m) {
   for (const u of m.units) {
@@ -234,6 +243,64 @@ export function runK16Cases(check, section) {
   {
     const { used, ids } = botSlots('laclong', 9);
     check('K16-F a Lac Long Quan bot uses Q, E, the ult and Bao Hao No Dao', used.has(0) && used.has(1) && used.has(2) && ids.has('loilong') && (ids.has('baohao') || ids.has('baohao4')), `${[...used]} ${[...ids]}`);
+  }
+
+  // ---- Lôi Công (loi), clip p28 ----
+  const LO = MECHS.loi, [OQ, OE, OU] = LO.skills, MAXB = 0.03 * UNG.hp * UNG_F;
+  // Lôi Tiễn: one 150 bolt
+  {
+    const m = arena([[R('loi', 0), 0, 0], [R('ung', 1), 8, 0]]);
+    const ev = go(m, 12, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
+    const b = blows(ev, 1, 0);
+    check('K16-H Loi Tien: one bolt of 150 x armour, no mark (weapon)', b.length === 1 && near(b[0].amt, 150 * UNG_F) && m.units[1].stkN === 0, `${b.map((e) => e.amt)}`);
+  }
+  // Lôi Bạo Đả Kích (Q): 0.5 s later a bolt at the cursor: 344 in 2.5 m, stun 1 s, + 3% max hp; one Điện Hà mark
+  {
+    const m = arena([[R('loi', 0), 0, 0], [R('ung', 1), 9, 0]]), [a, v] = m.units;
+    let st = 0;
+    const ev = go(m, 20, (i) => { st = Math.max(st, v.stunT); return { 0: { s1: i === 0, tx: 9, tz: 0 } }; });
+    const b = blows(ev, 1, 0, 1);
+    check('K16-I Loi Bao Da Kich: 344 x armour then 3% of max hp x armour on the foe at the cursor, stun 1 s, one mark', b.length === 2 && near(b[0].amt, 344 * UNG_F) && near(b[1].amt, MAXB) && st > 0.9 && v.stkN === 1 && v.stkBy === 0, `${b.map((e) => e.amt)} stun ${st} marks ${v.stkN}`);
+  }
+  // passive Điện Hà Ấn Ký: the third mark stuns 1.5 s; for 3 s after that the target takes no mark
+  {
+    const m = arena([[R('loi', 0), 0, 0], [R('ung', 1), 9, 0]]), [a, v] = m.units;
+    v.stkN = 2; v.stkBy = 0; v.stkT = 5;
+    let st = 0;
+    const ev = go(m, 20, (i) => { st = Math.max(st, v.stunT); return { 0: { s1: i === 0, tx: 9, tz: 0 } }; });
+    check('K16-J Dien Ha An Ky: the third mark goes off: a 1.5 s stun, the marks cleared', only(ev, 'stacks', (e) => e.id === 1 && e.by === 0).length === 1 && st > 1.4 && v.stkN === 0, `${st} ${v.stkN}`);
+    v.stunT = 0;
+    go(m, 12, (i) => ({ 0: { s2: i === 0, tx: 9, tz: 0 } }));
+    check('K16-K ... a skill hit inside the next 3 s adds no mark', v.stkN === 0 && v.hp < UNG.hp - 400, `${v.stkN}`);
+  }
+  // Thiểm Điện Đạn Xạ (E): 290, bounces link by link to the nearest foe within 6 m, x0.75 each; two uses 3 s apart
+  {
+    const m = arena([[R('loi', 0), 0, 0], [R('ung', 1), 5, 0], [R('ung', 1), 9, 0], [R('ung', 1), 13, 0]]), [a, v1, v2, v3] = m.units;
+    const ev = go(m, 15, (i) => ({ 0: { s2: i === 0, tx: 5, tz: 0 } }));
+    const b1 = blows(ev, 1, 0, 100), b2 = blows(ev, 2, 0), b3 = blows(ev, 3, 0);
+    check('K16-L Thiem Dien Dan Xa: 290 x armour on the first, then 217.5 and 163.1 down the line', b1.length === 1 && near(b1[0].amt, 290 * UNG_F) && b2.length === 1 && near(b2[0].amt, 290 * 0.75 * UNG_F) && b3.length === 1 && near(b3[0].amt, 290 * 0.5625 * UNG_F), `${b1.map((e) => e.amt)} ${b2.map((e) => e.amt)} ${b3.map((e) => e.amt)}`);
+    check('K16-M ... one use spent, the second after the 3 s gap', a.use1 === 1 && a.gap1 > 2.4 && a.gap1 <= 3, `${a.use1} ${a.gap1}`);
+  }
+  // Lôi Thần Chi Chùy (R): the hammer hits the foe for 383 (+3% max hp) and leaves a 3 m field for 4 s: 128 a second, slow 50%
+  {
+    const m = arena([[R('loi', 0), 0, 0], [R('ung', 1), 8, 0]]), [a, v] = m.units;
+    const ev = go(m, 15, (i) => ({ 0: { ult: i === 0, tx: 8, tz: 0 } }));
+    const b = blows(ev, 1, 0, 100), z = m.zones.find((q) => q.kind === 'field' && q.owner === 0);
+    check('K16-N Loi Than Chi Chuy: 383 x armour on the foe it hits, a 3 m field of 128/s for 4 s where it burst', b.length === 1 && near(b[0].amt, 383 * UNG_F) && z && z.r === 3 && z.dur === 4 && z.dps === 128 && Math.abs(z.x - 8) < 1.2, `${b.map((e) => e.amt)} ${z && [z.x, z.r, z.dur, z.dps]}`);
+    const h = v.hp, ev2 = go(m, 30);
+    const t = blows(ev2, 1, 0, 1);
+    check('K16-O ... the foe inside: 64 x armour every 0.5 s (no mark from the ticks), slowed 50%', t.length === 2 && t.every((e) => near(e.amt, 64 * UNG_F)) && v.slowF === 0.5 && v.stkN === 1, `${t.map((e) => e.amt)} ${v.slowF} marks ${v.stkN}`);
+  }
+  {
+    const m = arena([[R('loi', 0), 0, 0], [R('ung', 1), 30, 8]]);
+    m.map.walls.push({ x0: 6, x1: 7, z0: -4, z1: 4, h: 2, kind: 'wall' });
+    go(m, 15, (i) => ({ 0: { ult: i === 0, tx: 12, tz: 0 } }));
+    const z = m.zones.find((q) => q.kind === 'field' && q.owner === 0);
+    check('K16-P ... thrown into a wall it bursts there and the field stands against it', z && z.x > 4.5 && z.x < 6.1, `${z && z.x}`);
+  }
+  {
+    const { used, ids } = botSlots('loi', 11);
+    check('K16-Q a Loi Cong bot uses Q, E and the hammer', used.has(0) && used.has(1) && used.has(2), `${[...used]} ${[...ids]}`);
   }
 
 }

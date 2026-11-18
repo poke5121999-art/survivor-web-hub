@@ -121,20 +121,28 @@ export const MECHS = {
         desc: 'Dựng vòm chặn mọi đạn địch bay vào trong 5,5 giây, đồng đội trong vòm được hồi máu và nhận khiên.' },
     ],
   },
+  // Lôi Công = Thor (银色闪电(雷神) Lôi Thần): ported from the owner's earlier game (clip BV1Kp4y1b7i6 p28 "25.雷神", tooltips in
+  // ~/handoff/dtt-ref/kits/AUDIT-b.md). The clip plays a mage of chained lightning, so the 340 mortar became a 150 lightning bolt (about
+  // the same dps): Lôi Bạo Đả Kích 229% -> 344, Thiểm Điện Đạn Xạ 193% -> 290 (each bounce x0.75), Lôi Thần Chi Chùy 255% -> 383 and its
+  // field 85%/s -> 128. Every skill hit adds 3% of the victim's max hp (the passive). Cooldowns 8 / 6 (2 uses, 3 s apart) / 25 s -> 10 / 8 / 45.
+  // Kit-remake G5 field (sim.js block "kit lane k16"): volley torZone (where the hammer bursts it leaves a field).
   loi: {
     name: 'Lôi Công', role: 'Pháo kích', roleKey: 'artillery', price: 900, tint: 0x9aa03a,
-    blurb: 'Cối bắn vòng qua tường. Đứng sau đồng đội, dội đạn vào chỗ địch tụ lại.',
+    blurb: 'Lôi Thần ném sét: mỗi chiêu trúng in một Điện Hà Ấn Ký, đủ ba ấn thì choáng. Gọi sét giáng, phóng cầu điện nảy giữa kẻ địch, ném Lôi Thần Chi Chùy để lại vùng lôi điện.',
     hp: 2300, speed: 5.8, radius: 0.84,
     armor: 0.05, accel: 0.8, turn: 8, towerMul: 1.6,
-    passive: { do: 'trait', name: 'Chấn Động', desc: 'Đạn cối làm chậm 30% trong 1,2 giây.' },
-    weapon: { name: 'Cối Sấm', cd: 1.45, dmg: 340, lob: true, flight: 0.85, range: 17, splash: 2.7, slow: 0.3, slowDur: 1.2, vis: 'mortar' },
+    passive: { do: 'stacks', name: 'Điện Hà Ấn Ký', look: 'torMark', n: 3, dur: 5, on: 'skill', icd: 3, fx: { stun: 1.5 },
+      desc: 'Mỗi lần chiêu trúng mục tiêu gây thêm 3% máu tối đa của nó và in 1 Điện Hà Ấn Ký; đủ 3 ấn thì mục tiêu bị choáng 1,5 giây. Mục tiêu vừa bị choáng không nhận ấn này trong 3 giây.' },
+    weapon: { name: 'Lôi Tiễn', cd: 0.65, dmg: 150, speed: 30, range: 13, r: 0.3, vis: 'pulse' },
     skills: [
-      { id: 'khoi', look: 'lcCloud', name: 'Màn Khói', cd: 14, do: 'zone', at: 'target', cast: 12, radius: 4.6, dur: 5.5, hide: true, vis: 'smoke', icon: 'smoke',
-        desc: 'Ném bom khói tới con trỏ. Ai đứng trong khói đều ẩn mình như nấp bụi.' },
-      { id: 'giatlui', look: 'lcRecoil', name: 'Giật Lùi', cd: 10, do: 'recoil', dist: 7, speed: 26, radius: 3.5, dmg: 160, knock: 4, icon: 'recoil',
-        desc: 'Nổ một phát dưới chân hất văng địch ở gần, còn bạn bật lùi ra xa.' },
-      { id: 'thienloi', look: 'lcHammer', name: 'Thiên Lôi', cd: 45, do: 'barrage', line: true, n: 5, gap: 3.2, radius: 7, blast: 3.2, dmg: 560, delay: 0.8, span: 1.2, cast: 20, icon: 'storm',
-        desc: 'Năm quả đạn lớn rơi thành một hàng dọc theo hướng ngắm, tâm ở con trỏ.' },
+      { id: 'loibao', look: 'torStrike', name: 'Lôi Bạo Đả Kích', cd: 10, do: 'barrage', n: 1, radius: 0, blast: 2.5, dmg: 344, delay: 0.5, span: 0, cast: 14, fx: { stun: 1, maxHp: 0.03 }, icon: 'storm',
+        desc: 'Trễ ngắn rồi gọi sét giáng xuống con trỏ (xa nhất 14 m): 344 sát thương lên kẻ địch trong 2,5 m, choáng 1 giây.' },
+      { id: 'thiemdien', look: 'torBall', name: 'Thiểm Điện Đạn Xạ', cd: 8, do: 'volley', n: 1, dmg: 290, speed: 24, range: 13, r: 0.45, vis: 'pulse', uses: { n: 2, gap: 3 },
+        fx: { maxHp: 0.03, chain: { n: 4, r: 6, mul: 0.75, seq: { falloff: 0.75 } } }, icon: 'rocket',
+        desc: 'Phóng cầu điện 290 sát thương; trúng rồi thì nảy sang kẻ địch gần nhất trong 6 m, tối đa 4 lần, mỗi lần nảy giảm 25%. Tích được 2 lần, cách nhau 3 giây.' },
+      { id: 'loichuy', look: 'torHammer', name: 'Lôi Thần Chi Chùy', cd: 45, do: 'volley', n: 1, dmg: 383, speed: 22, range: 15, r: 0.6, vis: 'rocket', fx: { maxHp: 0.03 },
+        torZone: { radius: 3, dur: 4, dps: 128, slow: 0.5, vis: 'torHammer' }, icon: 'storm',
+        desc: 'Ném Lôi Thần Chi Chùy: kẻ trúng trực tiếp chịu 383 sát thương; chỗ búa nổ thành vùng lôi điện 3 m trong 4 giây, kẻ địch trong đó mất 128 máu mỗi giây và chậm 50%.' },
     ],
   },
   // Bọ Cạp: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p52 "49.毒蝎女王" Độc Hạt Nữ Vương, tooltips in
@@ -1318,7 +1326,7 @@ export const PERKS = {
   soi: [perk('Rocket Thứ Tư', 'Rocket Chùm bắn bốn quả.', 0, { n: 4 }), perk('Bền Hơi', 'Tăng Áp kéo dài 5,5 giây.', 1, { dur: 5.5 }), perk('Mưa Dày', 'Mưa Hỏa Tiễn dội 12 quả.', 2, { n: 12 })],
   ung: [perk('Băng Đạn Lớn', 'Súng Ưng chứa 8 viên.', 'weapon', { mag: { n: 8, reload: 1.2 } }), perk('Mắt Rộng', 'Hàn Ngưng Thị soi rộng 6,5 m.', 0, { radius: 6.5 }), perk('Chim Ưng Dữ', 'Liệt Phong Chuẩn gây 300.', 2, { dmg: 300 })],
   hac: [perk('Suối Đầy', 'Suối Hồi Phục hồi 310 mỗi giây.', 0, { hps: 310 }), perk('Trì Trệ Sâu', 'Trường Trì Trệ làm chậm 60%.', 1, { slow: 0.6 }), perk('Vòm Bền', 'Vòm Bảo Hộ kéo dài 7 giây.', 2, { dur: 7 })],
-  loi: [perk('Khói Đặc', 'Màn Khói kéo dài 7,5 giây.', 0, { dur: 7.5 }), perk('Thuốc Nổ', 'Giật Lùi gây 260.', 1, { dmg: 260 }), perk('Bảy Tiếng Sấm', 'Thiên Lôi rơi bảy quả.', 2, { n: 7 })],
+  loi: [perk('Sét Nặng', 'Lôi Tiễn gây 170.', 'weapon', { dmg: 170 }), perk('Sáu Lần Nảy', 'Thiểm Điện Đạn Xạ nảy sáu lần.', 1, { fx: { maxHp: 0.03, chain: { n: 6, r: 6, mul: 0.75, seq: { falloff: 0.75 } } } }), perk('Vùng Sét Rộng', 'Lôi Thần Chi Chùy để lại vùng lôi điện 4 m.', 2, { torZone: { radius: 4, dur: 4, dps: 128, slow: 0.5, vis: 'torHammer' } })],
   bocap: [perk('Phun Dài', 'Tử Vong Thôn Phệ phun sáu đợt.', 0, { repeat: 6 }), perk('Ô Nhiễm Lâu', 'Trí Mạng Ô Nhiễm kéo dài 4 giây.', 1, { dur: 4 }), perk('Bạo Phát Rộng', 'Độc Tố Bạo Phát rộng 8,5 m.', 2, { radius: 8.5 })],
   bang: [perk('Gai Buốt', 'Gai Băng gây 165.', 'weapon', { dmg: 165 }), perk('Vòng Rộng', 'Băng Sương Chi Hoàn rộng 3,8 m.', 0, { blast: 3.8 }), perk('Bão Dai', 'Băng Thiên Tuyết Địa giáng sáu đợt.', 2, { channel: { dur: 3.65, every: 0.6, move: 0 }, self: { on: 'cast', dur: 3.65, guard: 0.25 } })],
   tho: [perk('Nòng Lớn', 'Ụ Súng bắn 66 mỗi phát.', 0, { dmg: 66 }), perk('Hố Rộng', 'Hố Từ rộng 5,5 m.', 1, { radius: 5.5 }), perk('Bảy Quả Mìn', 'Bãi Mìn rải bảy quả.', 2, { n: 7 })],
