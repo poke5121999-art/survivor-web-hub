@@ -653,7 +653,7 @@ let MECH_ORDER = [], MECHS = {};
       await ctx.close();
 
       // ----- new HUD pieces: charge meter, planted Q, marked unit, decoy plates
-      ({ ctx, page, errs } = await open(browser, T('hud-new'), vp, touch, 'screen=hud&mech=hoalong&freeze=1&charge=0.8&mark=1&decoy=1&warp=300'));
+      ({ ctx, page, errs } = await open(browser, T('hud-new'), vp, touch, 'screen=hud&mech=hoalong&oldkit=hoalong&freeze=1&charge=0.8&mark=1&decoy=1&warp=300'));
       await page.waitForTimeout(500);
       await shot(page, errs, T('hud-charge'), async () => {
         const r = await page.evaluate(() => {

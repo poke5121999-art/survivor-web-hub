@@ -242,7 +242,7 @@ export function runK15Cases(check, section) {
   botsCast(check, 'k15zr bots cast every skill of kiemthan in 2 x 90 s', ['kiemthan'], ['trau', 'ung']);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (typeof process !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {   // run alone (node); the ui harness imports the fixtures in a browser
   let bad = 0;
   runK15Cases((n, c, d = '') => { if (!c) bad++; console.log(`${c ? 'ok  ' : 'FAIL'} ${n}${c ? '' : '  ' + d}`); }, (t) => console.log(`== ${t}`));
   process.exit(bad ? 1 : 0);

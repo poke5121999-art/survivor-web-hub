@@ -21,6 +21,7 @@ import { mulberry } from '../js/rng.js';
 import { makeUI } from '../js/ui.js';
 import { makeInput } from '../js/input.js';
 import { makeMeta } from '../js/meta.js';
+import { oldKit } from './k15-cases.mjs';   // ?oldkit=hoalong: a ported tank plays its old kit (the charge-beam HUD has no other weapon)
 
 const q = new URLSearchParams(location.search);
 const screen = q.get('screen') || 'menu';
@@ -235,6 +236,7 @@ function newMatch(choice) {
     roster.push({ team: 1, mech: 'titan', name: 'Cự Thần', bot: true, diff: 'normal' });
   } else for (let i = 0; i < 2 * size; i++) roster.push({ team: i % 2, ...mine(i) });
   G.match = createMatch({ map, theme: arena.theme, seed, roster, mode });
+  if (q.get('oldkit')) oldKit(G.match, q.get('oldkit'));
   G.me = 0;
   G.match.units[0].color = 0;
   if (!q.has('manual')) G.input.script(q.get('auto') === '0' ? null : (m, u) => bot(m, u));
