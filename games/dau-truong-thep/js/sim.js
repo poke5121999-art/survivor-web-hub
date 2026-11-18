@@ -483,7 +483,7 @@ function stepUnit(m, u, inp) {
   k2Tick(m, u);   // kit-remake G5 Athena: the heal when a bless.undying ends
   krTick(m, u);   // kit-remake G5 Kurumi: a rewind mark snaps hp back when it ends
   k7Tick(m, u);   // kit-remake G5 lane K7: Serious Mode
-  k10Tick(m, u);   // kit lane K10: Apocalypse's timed burst
+  k10Tick(m, u);   // kit lane K10: Apocalypse's timed burst, Kirito's penetration stacks
   if (u.stance) { u.kx = 0; u.kz = 0; }
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
@@ -1045,6 +1045,7 @@ function dragHit(m, u, d) {
     if (!o.alive || o.def.heavy || o.stance || o.ccT > 0) continue;
     const k = u.radius + o.radius + 0.2;
     moveUnit(m, o, u.x + d.dx * k - o.x, u.z + d.dz * k - o.z);
+    if (d.s.bnSlam) k10Slam(m, u, d, o, u.x + d.dx * k, u.z + d.dz * k);   // kit lane K10: Kirito's wall slam
     o.vx = o.vz = 0; o.dash = null; o.cast = null;
     o.stunT = Math.max(o.stunT, 2 * TICK);
   }
@@ -1243,6 +1244,7 @@ function spawnShot(m, u, w, a, side, st, src, boost) {
     pierce: !!w.pierce, bounce: w.bounce || 0, hook: w.do === 'hook' ? w : null, far: w.far || null, flown: 0, hit: w.pierce ? [] : null,
     fx: boost && boost.stun ? { ...(w.fx || {}), stun: boost.stun } : w.fx || null, ret: !!w.ret, back: false, src: src || null, cdr: boost ? boost.cdr : 0, splashHit: !!w.splashHit,
     over: !!w.thruWalls,   // kit-remake G2 thruWalls: flies over walls and props (player-built wall zones still stop it)
+    bn: !!w.bnWave,   // kit lane K10: Kirito's sword wave feeds his penetration stacks
     steal: src === 'w' ? w.steal || 0 : 0, pen: w.pen || 0, vol: src !== 'w' && (w.perTarget || w.sameDecay) ? u.volTag : null,
   });
 }
@@ -1746,7 +1748,7 @@ const FINISH = {
     m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: s.radius, ...(s.look ? { skill: s.id, k, a: u.aim } : {}) });
     curSrc = s.id;
     // healLost (each enemy the blow lands on heals the caster that share of its lost hp) is read in rowHit, like on every skill row
-    areaDamage(m, u, u.x, u.z, s.radius, s.dmg * (c.mul || 1) * (s.grow ? s.grow ** k : 1), s, null, arc);
+    areaDamage(m, u, u.x, u.z, s.radius, s.dmg * (c.mul || 1) * (s.grow ? s.grow ** k : 1) * (s.bnSplit ? k10Split(m, u, s, arc) : 1), s, null, arc);   // K10 bnSplit
     if (s.orbKnock) k4Knock(m, u, s);   // kit-remake K4: tumay's Q knocks its own orbs
     if (s.last && (c.left || 1) <= 1) {
       for (const o of m.units) {
@@ -2324,7 +2326,7 @@ function damage(m, u, amount, src, raw) {
   if (vt && vt.mul) amount *= vt.mul;
   const preArmor = amount;
   // trueHit (hitfx lostHp, curHp, trueDmg): neither armour nor guard cuts it
-  if (!raw && !isTrue && !(foe && foe.passive === 'pierce')) amount *= 1 - armorOf(m, u) * (1 - Math.min(1, penOf(foe) + k7Pen(foe)));
+  if (!raw && !isTrue && !(foe && foe.passive === 'pierce')) amount *= 1 - armorOf(m, u) * (1 - Math.min(1, penOf(foe) + k7Pen(foe) + k10Pen(foe)));   // K7: Serious Mode, K10: Kirito's stacks
   // guard (skill row or stacks self): a cut on top of armour, outside its cap
   if (u.guardT > 0 && !isTrue) amount *= 1 - u.guardF;
   // kit-remake G2 guard vs: a cut of one kind of enemy damage only
@@ -2357,6 +2359,7 @@ function damage(m, u, amount, src, raw) {
   // a skill row's own on-hit fields (steal, healLost, healMax, self on hit, cdCut)
   if (foe && foe.alive && left + absorbed > 0 && !reflecting && curSrc && curSrc !== 'w') rowHit(m, foe, left);
   if (foe && left + absorbed > 0) k1Hurt(m, u, foe);
+  if (foe && left + absorbed > 0) k10Hit(foe);   // kit lane K10: a sword wave adds a Kirito penetration stack
   if (foe && foe.alive && left > 0) {
     const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0, curShot && curShot.owner === foe.id ? curShot.steal : 0, k7Steal(foe));
     if (steal) heal(m, foe, left * steal, foe, true);
@@ -3477,8 +3480,9 @@ function k7Hit(m, foe, u) {
 /* ===== end kit-remake G5 Ưng Nhãn ===== */
 /* ===== kit lane K10 (feat/dtt-k10; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-a.md bocap, bohung, bongua) =====
    Host-side bookkeeping only: what changes play (shotN, the burn, root, disarm) is already in netstate STATUS. */
-function k10Clear(u) { u.bhT = 0; }
+function k10Clear(u) { u.bhT = 0; u.bnN = 0; u.bnT = 0; }
 function k10Tick(m, u) {
+  if (u.bnT > 0 && (u.bnT -= TICK) <= 1e-9) { u.bnT = 0; u.bnN = 0; }
   bhTick(u);
 }
 // -- kit-remake G5 Bọ Cạp: passive `bcSteal: f` (each burn tick she lit heals her f of the hp it took), hitfx `bcPop {dmg, per3,
@@ -3512,4 +3516,35 @@ function bhTick(u) {
   if ((u.bhT += TICK) >= P.bhEvery - 1e-9) { u.bhT = 0; shotsArm(u, { shots: 1, patch: P.bhPatch, shotsFor: 1e9 }); }
 }
 function k10Hot(u, H) { u.healRate = Math.max(u.healT > 0 ? u.healRate : 0, H.frac * u.maxHp); u.healT = Math.max(u.healT, H.dur); }
+// -- kit-remake G5 Kirito: passive `bnPen {per, max, dur}` (each hit of a shot fired with a `bnWave` patch adds a stack, `u.bnN`,
+//    all gone dur s after the last, `u.bnT`; every hit of his ignores per x stacks of the target's armour, on top of row pen), dash
+//    `bnSlam {dmg, stun}` (a mech the dash carries (drag) that a wall stops takes dmg x his damage scale and the stun, once per
+//    dash, no source tag; event k10 {kind: 'slam'}), nova `bnSplit: true` (each blow's damage is divided by the number of enemies
+//    it reaches).
+function k10Hit(foe) {
+  const P = foe.def.passive;
+  if (!curShot || !curShot.bn || curShot.owner !== foe.id || !P || !P.bnPen) return;
+  foe.bnN = Math.min(P.bnPen.max, foe.bnN + 1); foe.bnT = P.bnPen.dur;
+}
+const k10Pen = (foe) => (foe && foe.bnN > 0 && foe.def.passive && foe.def.passive.bnPen ? foe.bnN * foe.def.passive.bnPen.per : 0);
+function k10Slam(m, u, d, o, wx, wz) {
+  const S = d.s.bnSlam;
+  if (!S || !o.alive || Math.hypot(o.x - wx, o.z - wz) < 0.3) return;
+  if (!d.bnSl) d.bnSl = [];
+  if (d.bnSl.includes(o.id)) return;
+  d.bnSl.push(o.id);
+  m.events.push({ t: 'k10', kind: 'slam', id: o.id, by: u.id, x: o.x, z: o.z });
+  const keep = curSrc;
+  curSrc = null; damage(m, o, S.dmg * dmgScale(u), u); curSrc = keep;
+  if (o.alive && S.stun && !(o.ccT > 0) && !o.def.heavy) o.stunT = Math.max(o.stunT, S.stun);
+}
+function k10Split(m, u, s, arc) {
+  let n = 0;
+  for (const o of m.units) {
+    if (o.team === u.team || !o.alive) continue;
+    const reach = s.radius + o.radius * 0.6, d2 = dist2(o.x, o.z, u.x, u.z);
+    if (d2 <= reach * reach && inArc(o, u.x, u.z, Math.sqrt(d2), arc)) n++;
+  }
+  return 1 / Math.max(1, n);
+}
 /* ===== end kit lane K10 ===== */

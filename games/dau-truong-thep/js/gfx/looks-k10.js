@@ -1,4 +1,4 @@
-// Looks, kit lane K10: Bọ Cạp and Apocalypse (kits ported from the owner's clips, see data.js). Render only (see looks.js
+// Looks, kit lane K10: Bọ Cạp, Apocalypse and Kirito (kits ported from the owner's clips, see data.js). Render only (see looks.js
 // for the hooks). One main colour and one accent per tank.
 // Bọ Cạp (bilibili BV1Kp4y1b7i6 p52 "49.毒蝎女王", gameplay 30-46 s): violet-magenta. Q sprays a violet poison stream into the cone
 //   in front, a violet vortex turning round her; E wraps her in a dripping magenta aura; R bursts a violet poison dome out of her
@@ -6,6 +6,9 @@
 // Apocalypse (p55 "52.天启骑士", gameplay 42-58 s): pale cyan shells, a blue missile with a long trail; accent warm white-orange
 //   blasts. Q fans five cyan shells behind a white shock arc; E slams a shock wave down a strip in front; R flies a blue missile
 //   that bursts white-orange.
+// Kirito (p80 "77.桐人", gameplay 33-58 s): royal blue sword light, accent white-yellow. Q drops a blue lightning bolt in a blue
+//   ring where he reappears; E is a blue sonic wake with a shock cone in front; R rolls crossing blue sword arcs round him, then
+//   the last strike is one big blue-white stroke with a yellow flash.
 import { C, stop, sigil, shell, pillar, burst, slash, cut, trail } from './lookkit.js';
 
 const R = (a, b) => a + Math.random() * (b - a);
@@ -173,4 +176,91 @@ const apocalypse = {
   },
 };
 
-export const K10 = { ...bocap, ...apocalypse };
+// ---- Kirito -------------------------------------------------------------------------------------------------------
+const KR_BLUE = C(0.3, 0.75, 2.7), KR_DEEP = C(0.08, 0.18, 0.9), KR_WHITE = C(2.3, 2.5, 2.7), KR_GOLD = C(2.6, 2.2, 0.8);
+// blue lightning crackling out along the floor from a point
+function bolt(kit, x, z, n, len) {
+  for (let i = 0; i < n; i++) {
+    let a = Math.random() * 6.283, px = x, pz = z;
+    for (let k = 0; k < 3; k++) {
+      a += R(-0.8, 0.8); const l = len * R(0.25, 0.45), qx = px + Math.cos(a) * l, qz = pz + Math.sin(a) * l;
+      const b = kit.beam(px, pz, qx, qz, 0.18, k ? KR_BLUE : KR_WHITE, R(0.25, 0.45), 3, R(0.3, 1.2)); b.fade = true;
+      px = qx; pz = qz;
+    }
+  }
+}
+const kirito = {
+  // Lôi Đình Thiên Giáng: a blue streak where he vanished, then a blue lightning bolt drops on the spot he reappears: a white
+  // core column, a blue 3 m ring, lightning crackling along the floor
+  bnThunder: {
+    pal: [KR_BLUE, KR_WHITE], hitR: 2,
+    skill() { return true; },
+    warp(kit, e) {
+      const b = kit.beam(e.x0, e.z0, e.x, e.z, 0.5, KR_BLUE, 0.22, 2, 1.1); b.fade = true;
+      kit.puffs(e.x0, 0.8, e.z0, kit.N(3), KR_DEEP, 0.4, 1, 0.5, 0.8, 2, 0.4, 0.5, kit.K.SMOKE);
+      return true;
+    },
+    nova(kit, e) {
+      pillar(kit, e.x, e.z, 0.7, KR_BLUE, { c2: KR_WHITE, h: 14, life: 0.45, grow: 0.04, drop: true, narrow: true });
+      pillar(kit, e.x, e.z, 0.25, KR_WHITE, { c2: KR_WHITE, h: 14, life: 0.3, grow: 0.03, drop: true });
+      sigil(kit, e.x, e.z, e.r || 3, KR_BLUE, { c2: KR_WHITE, n: 0, ticks: 12, inner: 0.55, fill: 0.3, w: 0.07, life: 0.7, rev: 0.06, spin: 1.5 });
+      kit.ring(e.x, e.z, (e.r || 3) * 1.1, KR_BLUE, 0.4, 0.9);
+      bolt(kit, e.x, e.z, kit.N(6), 4.2);
+      kit.glow(e.x, 1.2, e.z, KR_WHITE, 0.15, 3, 1, kit.K.STAR, 1.4);
+      kit.flash(e.x, 2.4, e.z, KR_BLUE, 50, 0.25); kit.kick(e.x, e.z, 0.4);
+      return true;
+    },
+  },
+  // Âm Tốc Xung Kích: a blue sonic wake behind him and white shock cones peeling off his front while he dashes
+  bnSonic: {
+    pal: [KR_BLUE, KR_WHITE], hitR: 1.6,
+    skill(kit, e, u, row) {
+      const a = e.a, T = ((row && row.dist) || 7) / ((row && row.speed) || 34) + 0.05;
+      trail(kit, (t) => (t < T && u.alive ? [u.x, 1.0, u.z] : null), 1.15, KR_BLUE, 0.5, { c2: KR_DEEP, len: 22 });
+      trail(kit, (t) => (t < T && u.alive ? [u.x, 1.8, u.z] : null), 0.6, KR_WHITE, 0.3, { c2: KR_BLUE, len: 14 });
+      let n = 0;
+      kit.follow(u, T, (t) => {
+        if (t > n * 0.06) { n++; slash(kit, u.x + Math.cos(a) * 0.8, u.z + Math.sin(a) * 0.8, a, 2.4, KR_WHITE, { y: 1.0, life: 0.26, w: 0.8, span: 1.15, sweep: 0.04, arcs: 1, c2: KR_BLUE, edge: KR_BLUE, sparks: false, wake: 1.5 }); }
+        kit.str.emit(u.x, R(0.6, 1.4), u.z, -Math.cos(a) * 12, 0, -Math.sin(a) * 12, KR_BLUE, 0.25, 0.14, 0.08, 0, 1, 1);
+        kit.glow(u.x, 1.1, u.z, KR_BLUE, 0.3, 2.2, 0.6, kit.K.GLOW, 1.1);
+      });
+      kit.flash(u.x, 1.4, u.z, KR_BLUE, 30, 0.18);
+      burst(kit, u.x, u.z, 2.2, KR_BLUE, KR_WHITE, { life: 0.4 });
+      sigil(kit, u.x, u.z, 2.8, KR_BLUE, { c2: KR_WHITE, n: 0, ticks: 12, inner: 0.6, fill: 0.5, w: 0.07, life: 0.5, rev: 0.05 });
+      return true;
+    },
+  },
+  // Tinh Bạo Khí Lưu Trảm: he is gone in a blue swirl; each of the fifteen cuts is a blue sword arc at a new angle round him,
+  // two crossing; the last strike is one big blue-white stroke down the line with a white-yellow flash at its end
+  bnStarburst: {
+    pal: [KR_BLUE, KR_WHITE], hitR: 2.2,
+    skill(kit, e, u) {
+      if (e.then) return true;   // the last strike draws in beam
+      shell(kit, u.x, 0.8, u.z, 4.9, KR_BLUE, { c2: KR_WHITE, p: 1.2, core: 0.16, bands: 0.8, life: 1.5, grow: 0.04, follow: u, alpha: 1 });
+      sigil(kit, u.x, u.z, 4.6, KR_BLUE, { c2: KR_WHITE, n: 0, ticks: 16, inner: 0.7, fill: 0.7, w: 0.07, life: 1.5, rev: 0.04, spin: 2.4, follow: u });
+      sigil(kit, u.x, u.z, 5.2, KR_BLUE, { n: 0, ticks: 0, inner: 0, fill: 1.0, w: 0, life: 1.5, rev: 0.03, follow: u, alpha: 0.45, y: 0.1 });
+      for (let i = 0; i < 3; i++) slash(kit, u.x, u.z, i * 2.094 + R(-0.2, 0.2), 4.2, KR_BLUE, { y: 1.0, dir: i % 2 ? -1 : 1, life: 0.35, w: 1.2, span: 1.2, sweep: 0.05, arcs: 1, c2: KR_DEEP, edge: KR_WHITE, sparks: false });
+      kit.flash(u.x, 1.6, u.z, KR_BLUE, 35, 0.2);
+      return true;
+    },
+    nova(kit, e, u) {
+      const k = e.k || 0, r = e.r || 4.5, a = k * 2.4 + R(-0.3, 0.3), x = e.x, z = e.z;
+      slash(kit, x, z, a, r * 0.9, KR_BLUE, { y: R(0.8, 1.4), dir: k % 2 ? -1 : 1, life: 0.32, w: 1.2, span: 1.35, sweep: 0.06, arcs: 2, c2: KR_DEEP, edge: KR_WHITE, tilt: R(-0.5, 0.5) });
+      slash(kit, x, z, a + 2.6, r * 0.7, KR_BLUE, { y: R(0.8, 1.4), dir: k % 2 ? 1 : -1, life: 0.28, w: 0.8, span: 1.1, sweep: 0.05, arcs: 1, c2: KR_DEEP, edge: KR_WHITE, tilt: R(-0.5, 0.5), sparks: false });
+      if (k % 3 === 0) cut(kit, x + Math.cos(a) * r * 0.5, z + Math.sin(a) * r * 0.5, a + 1.2, 2.4, KR_BLUE, { edge: KR_WHITE, sparks: 3 });
+      return true;
+    },
+    beam(kit, e) {
+      const dx = e.x1 - e.x0, dz = e.z1 - e.z0, L = Math.hypot(dx, dz) || 1, a = Math.atan2(dz, dx), ux = dx / L, uz = dz / L;
+      slash(kit, e.x0 + ux * 1.5, e.z0 + uz * 1.5, a, 6.5, KR_BLUE, { life: 0.5, span: 1.2, w: 1.1, arcs: 2, c2: KR_DEEP, edge: KR_WHITE, sweep: 0.08, erode: 0.25 });
+      const b = kit.beam(e.x0, e.z0, e.x1, e.z1, (e.w || 1.6) * 1.2, KR_BLUE, 0.35, 0, 1.2); b.fade = true;
+      for (let i = 0, n = kit.N(18); i < n; i++) { const t = Math.random(); kit.str.emit(e.x0 + dx * t, R(0.6, 1.6), e.z0 + dz * t, ux * 24, 0, uz * 24, i % 3 ? KR_BLUE : KR_WHITE, 0.25, 0.1, 0.06, 0, 1, 1); }
+      cut(kit, e.x1, e.z1, a, 4, KR_BLUE, { edge: KR_GOLD, sparks: 5, life: 0.16 });
+      kit.glow(e.x1, 1.3, e.z1, KR_GOLD, 0.2, 3, 1, kit.K.STAR, 1.4);
+      kit.flash(e.x1, 1.8, e.z1, KR_GOLD, 45, 0.22); kit.kick(e.x1, e.z1, 0.5);
+      return true;
+    },
+  },
+};
+
+export const K10 = { ...bocap, ...apocalypse, ...kirito };

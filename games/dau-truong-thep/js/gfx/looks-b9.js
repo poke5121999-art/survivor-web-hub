@@ -303,82 +303,8 @@ const retdo = {
     zoneDrop(kit, v) { v.h.on = false; stop(v.s); stop(v.s2); },
   },
 };
-
-// =====================================================================================================================
-// Bọ Ngựa: a mantis's raptorial sickles, black blades in jade light, pale lime-white edges (clip 桐人 p80: curved blade arcs)
-const BN_JADE = C(0.3, 2.1, 0.85), BN_PALE = C(2.0, 2.6, 1.7), BN_BODY = 0x0d2516;
-// a sickle: a blade curving along an arc to a hooked point, spines along its inner edge
-const sickleGeo = (() => {
-  const s = new THREE.Shape(), N = 20, Rb = 1.7, phi = 1.75, out = [], inn = [];
-  for (let i = 0; i <= N; i++) {
-    const t = i / N, w = 0.5 * Math.pow(1 - t, 0.7), tooth = i % 2 && i > 1 && i < N - 1 ? 0.12 * (1 - t) : 0, b = phi * t;
-    out.push([Rb * Math.sin(b), Rb - Rb * Math.cos(b)]);
-    const ri = Rb - w + tooth * -1; inn.push([ri * Math.sin(b), Rb - ri * Math.cos(b)]);
-  }
-  s.moveTo(out[0][0], out[0][1]); for (const p of out.slice(1)) s.lineTo(p[0], p[1]); for (const p of inn.slice(0, -1).reverse()) s.lineTo(p[0], p[1]); s.lineTo(out[0][0], out[0][1]);
-  return keep(new THREE.ShapeGeometry(s).translate(-0.2, -0.05, 0).rotateX(-Math.PI / 2));
-})();
-const sickle = () => glowed(sickleGeo, BN_BODY, BN_JADE, 0.97, [[1.18, 0.22], [1.07, 0.7]]);
-const bongua = {
-  // Chém Lướt: the two sickles ride open in front of him through the dash and snap shut at the end, two jade smears crossing
-  bnSlash: {
-    pal: [BN_JADE, BN_PALE], hitR: 1.5,
-    skill(kit, e, u) {
-      const a = e.a, L = sickle(), Rr = sickle(); let end = -1;
-      Rr.scale.set(2.2, 1, -2.2); L.scale.set(2.2, 1, 2.2);
-      own(kit, [L, Rr], 0.6, (t) => {
-        if (!u.alive) return false;
-        if (end < 0 && (t > 0.05 && !u.dash || t > 0.4)) { end = t; for (const sd of [-1, 1]) fan(kit, u.x, u.z, a - sd * 1.9, sd * 1.75, 1.2, 4.6, BN_JADE, BN_PALE, 0.45, 0.1); kit.sparks(u.x + Math.cos(a) * 2.4, 1.1, u.z + Math.sin(a) * 2.4, kit.N(10), BN_PALE, 8, 0.3, 0.05, 0.5, 10, Math.cos(a), Math.sin(a), 0.8); kit.flash(u.x, 1.5, u.z, BN_JADE, 35, 0.2); }
-        const open = end < 0 ? 1 : Math.max(0, 1 - (t - end) / 0.08), f = end < 0 ? 1 : Math.max(0, 1 - (t - end) / 0.3);
-        for (const [g, sd] of [[L, 1], [Rr, -1]]) { g.position.set(u.x + Math.cos(a) * 0.6 + Math.cos(a + sd * 1.57) * 0.5, 1.3, u.z + Math.sin(a) * 0.6 + Math.sin(a + sd * 1.57) * 0.5); g.rotation.y = -(a + sd * (0.15 + 0.9 * open)); fadeAll(g, f); }
-      });
-      trail(kit, (t) => (t < 0.4 && u.alive && (t < 0.05 || u.dash) ? [u.x, 0.9, u.z] : null), 1.0, BN_JADE, 0.45, { c2: C(0.02, 0.2, 0.08), len: 12, alpha: 0.7 });
-      return true;
-    },
-  },
-  // Thế Đỡ: both sickles raised crossed before him like a praying mantis; struck, six sickles wheel out in a jade ring
-  bnGuard: {
-    pal: [BN_JADE, BN_PALE], hitR: 1.5,
-    skill(kit, e, u, row) {
-      const life = (row.window || 1) + 0.2, L = sickle(), Rr = sickle();
-      Rr.scale.set(3.0, 1, -3.0); L.scale.set(3.0, 1, 3.0);
-      own(kit, [L, Rr], life, (t) => {
-        if (!u.alive) return false;
-        const a = u.aim, k = Math.min(1, t / 0.12), f = Math.min(1, (life - t) / 0.2);
-        for (const [g, sd] of [[L, 1], [Rr, -1]]) { g.position.set(u.x + Math.cos(a) * 0.9 + Math.cos(a - sd * 1.57) * 1.0, 1.4, u.z + Math.sin(a) * 0.9 + Math.sin(a - sd * 1.57) * 1.0); g.rotation.y = -(a + sd * (0.75 - 0.25 * k)); fadeAll(g, f * (0.85 + 0.15 * Math.sin(t * 14))); }
-      });
-      kit.glow(u.x + Math.cos(e.a) * 1.6, 1.4, u.z + Math.sin(e.a) * 1.6, BN_JADE, 0.15, 1.6, 0.6, kit.K.GLOW, 1.2);
-      return true;
-    },
-    parry(kit, e, u, row) {
-      const r = (row.riposte && row.riposte.nova && row.riposte.nova.radius) || 3.5, ring = new THREE.Group();
-      for (let i = 0; i < 6; i++) { const g = sickle(); g.scale.setScalar(1.6); const p = new THREE.Group(); g.position.set(r * 0.45, 0, 0); p.rotation.y = -i * 1.047; p.add(g); ring.add(p); }
-      own(kit, [ring], 0.55, (t) => { const k = Math.min(1, t / 0.12); ring.position.set(u.x, 1.1, u.z); ring.rotation.y = -t * 9; ring.scale.setScalar(0.5 + 0.7 * k); fadeAll(ring, Math.min(1, (0.55 - t) / 0.25)); });
-      fan(kit, u.x, u.z, u.aim, 6.283, r * 0.55, r, BN_JADE, BN_PALE, 0.5, 0.16, 0.8);
-      kit.flash(u.x, 1.6, u.z, BN_PALE, 40, 0.25); kit.kick(u.x, u.z, 0.4);
-      return true;
-    },
-  },
-  // Song Liềm: every pass through the target a giant ghost sickle swings round it, leaving a jade smear; the passes stack
-  // into a flower of crossing arcs (the clip's curved blades curling round the victim)
-  bnFlurry: {
-    pal: [BN_JADE, BN_PALE], hitR: 1.6,
-    skill(kit, e, u) { kit.glow(u.x, 1.3, u.z, BN_JADE, 0.15, 2, 0.7, kit.K.GLOW, 1.2); return true; },
-    flurry(kit, e, u) {
-      const a = Math.atan2(e.z - u.z, e.x - u.x), base = a + Math.PI * 0.5 + e.step * 0.7;
-      // two sickles cross through the victim from both sides, each leaving its smear: an X that turns a little every pass
-      for (const sd of [-1, 1]) {
-        const a0 = base + (sd > 0 ? 0 : Math.PI), span = -sd * 2.4, g = sickle();
-        fan(kit, e.x, e.z, a0, span, 1.2, 5.0, BN_JADE, BN_PALE, 0.7, 0.13, 1.0);
-        own(kit, [g], 0.45, (t) => { const k = Math.min(1, t / 0.13), b = a0 + span * k; g.position.set(e.x + Math.cos(b) * 2.0, 1.2, e.z + Math.sin(b) * 2.0); g.rotation.y = -(b - sd * 1.4); g.scale.set(2.8, 1, 2.8 * sd); fadeAll(g, Math.min(1, (0.45 - t) / 0.2)); });
-      }
-      if (e.step === 1) sigil(kit, e.x, e.z, 3.2, BN_JADE, { c2: BN_PALE, n: 7, m: 3, ticks: 0, inner: 0.7, fill: 0.08, w: 0.06, life: 1.6, rev: 0.15, spin: 1.5 });
-      kit.sparks(e.x, 1.2, e.z, kit.N(8), BN_PALE, 8, 0.3, 0.05, 0.5, 10);
-      return true;
-    },
-  },
-};
-
 // Tắc Kè's looks moved to looks-k1.js with the Captain America kit remake.
 
-export const B9 = { ...boica, ...retdo, ...bongua };
+// Bọ Ngựa's looks moved to looks-k10.js with the Kirito kit remake.
+
+export const B9 = { ...boica, ...retdo };

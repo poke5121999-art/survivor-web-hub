@@ -9,7 +9,7 @@ import { runK4Cases, oldKit } from './k4-cases.mjs';   // kit lane K4: section 6
 import { runK8Cases } from './k8-cases.mjs';   // kit lane k8: section K8
 import { runK9Cases, OLD_ANDUONG, OLD_BANG, oldBang, oldBaogam } from './k9-cases.mjs';   // kit lane k9: section K9
 import { runK7Cases } from './k7-cases.mjs';   // kit lane K7: section K7
-import { runK10Cases, OLD_BOCAP, oldK10 } from './k10-cases.mjs';   // kit lane K10: section K10, old kits kept as fixtures
+import { runK10Cases, OLD_BOCAP, OLD_BONGUA, oldK10 } from './k10-cases.mjs';   // kit lane K10: section K10, old kits kept as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -3564,7 +3564,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     check('44e no blow in the window: 40% of the cooldown (4.4 s) comes back', near(a.cd.s2, 11 - 22 * TICK - 4.4, 0.08) && a.parryT === 0, `${a.cd.s2}`);
   }
   {
-    const m = arena([[R('bongua', 0), 0, 0], [R('ung', 1), 2, 0]]), [a, v] = m.units;
+    const m = oldK10(arena([[R('bongua', 0), 0, 0], [R('ung', 1), 2, 0]])), [a, v] = m.units;
     press(m, 0, 's2', { tx: 2, tz: 0 });
     const ev = go(m, 6, () => ({ 1: { fire: true, aim: Math.PI, tx: 0, tz: 0 } }));
     const nova = only(ev, 'nova', (e) => e.id === 0);
@@ -3691,10 +3691,10 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     check('44x nobody within 9 m: the flurry does not happen (no skill event, no state, 0.4 s lockout)', only(ev, 'skill').length === 0 && a.flurry === null && !a.dash && near(a.cd.ult, 0.4, 1e-9), `${a.cd.ult}`);
   }
   {
-    const m = arena([[R('bongua', 0), 0, 0], [R('ung', 1), 3, 0]]), [a, v] = m.units;
+    const m = oldK10(arena([[R('bongua', 0), 0, 0], [R('ung', 1), 3, 0]])), [a, v] = m.units;
     a.meter = 6;
     press(m, 0, 'ult', { tx: 3, tz: 0 }); go(m, 80);
-    check('44y Song Liem (n 7, same) with an armed meter: all seven passes carry the x1.5 skill bonus (7 x dmg x 1.5), the meter is spent', near(UNG.hp - v.hp, 7 * MECHS.bongua.skills[2].dmg * 1.5 * UNG_F, 0.01) && a.meter === 0 && a.skillAmp === 1, `${UNG.hp - v.hp} ${a.meter}`);
+    check('44y Song Liem (n 7, same) with an armed meter: all seven passes carry the x1.5 skill bonus (7 x dmg x 1.5), the meter is spent', near(UNG.hp - v.hp, 7 * OLD_BONGUA.skills[2].dmg * 1.5 * UNG_F, 0.01) && a.meter === 0 && a.skillAmp === 1, `${UNG.hp - v.hp} ${a.meter}`);
   }
 
   // ---- portal ----

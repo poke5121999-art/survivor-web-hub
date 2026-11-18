@@ -1,7 +1,8 @@
-// Kit lane K10 (feat/dtt-k10): the kits of Bọ Cạp (bocap, clip p52) and Apocalypse (bohung, p55) ported from
+// Kit lane K10 (feat/dtt-k10): the kits of Bọ Cạp (bocap, clip p52), Apocalypse (bohung, p55) and Kirito (bongua, p80) ported from
 // the owner's clips, and their G5 mechanics (sim.js block "kit lane K10"). Section K10 of tools/sim-test.mjs; runs alone too:
 // `node tools/k10-cases.mjs`. Expected values follow the data rows, so a balance pass keeps the arithmetic.
-// The kits these tanks had before (ambush pellets, stealth, spin; meter shot, shield burst, transform) are fixtures now: OLD_* with oldK10(m) keep the generic primitives of the older sections covered.
+// The kits these tanks had before (ambush pellets, stealth, spin; meter shot, shield burst, transform; meter skill, counter,
+// flurry) are fixtures now: OLD_* with oldK10(m) keep the generic primitives of the older sections covered.
 import { createMatch, step, weaponOf, unitSpeed, LOC_KINDS } from '../js/sim.js';
 import { MECHS, TICK } from '../js/data.js';
 
@@ -23,8 +24,17 @@ export const OLD_BOHUNG = {
     { id: 'thangoa', cd: 42, do: 'transform', dur: 7, size: 1.2, armor: 0.2, dmg: 1.25 },
   ],
 };
-const OLD = { bocap: OLD_BOCAP, bohung: OLD_BOHUNG };
-// Every bocap / bohung of the match plays its old kit (the match must be fresh: nothing pressed yet).
+export const OLD_BONGUA = {
+  passive: { do: 'meter', name: 'Kiếm Kỹ', max: 6, gain: { weapon: 1 }, spend: { kind: 'skill', mul: 1.5 } },
+  weapon: { name: 'Đao Liềm', cd: 0.28, dmg: 70, n: 2, fan: 0.1, speed: 30, range: 8, r: 0.24, vis: 'pellet' },
+  skills: [
+    { id: 'chemluot', cd: 9, do: 'dash', dist: 6, speed: 34, dmg: 155, recast: { n: 3, window: 2.5 } },
+    { id: 'thedo', cd: 11, do: 'counter', window: 1.0, first: true, riposte: { nova: { radius: 3.5, dmg: 300, stun: 0.6 } } },
+    { id: 'songliem', cd: 40, do: 'flurry', n: 7, same: true, range: 6, speed: 30, dmg: 140 },
+  ],
+};
+const OLD = { bocap: OLD_BOCAP, bohung: OLD_BOHUNG, bongua: OLD_BONGUA };
+// Every bocap / bohung / bongua of the match plays its old kit (the match must be fresh: nothing pressed yet).
 export function oldK10(m) {
   for (const u of m.units) {
     const K = OLD[u.mech];
@@ -64,7 +74,7 @@ const UNG = MECHS.ung, UNG_F = 1 - UNG.armor;
 const blows = (ev, id, by, min = 20) => only(ev, 'hit', (e) => e.id === id && e.by === by && e.amt + e.absorbed >= min);
 
 export function runK10Cases(check, section) {
-  section('K10 kit lane K10: Bọ Cạp, Apocalypse ported from the owner\'s clips (p52, p55) and their G5 mechanics (literal expected values)');
+  section('K10 kit lane K10: Bọ Cạp, Apocalypse, Kirito ported from the owner\'s clips (p52, p55, p80) and their G5 mechanics (literal expected values)');
 
   // ---- Bọ Cạp (bocap), clip p52 ----
   const BC = MECHS.bocap, [BQ, BE, BU] = BC.skills, POI = BC.weapon.fx.burn;
@@ -182,6 +192,72 @@ export function runK10Cases(check, section) {
     const ev = go(m, 15, (i) => ({ 0: { ult: i === 0, tx: 6, tz: 0 } }));
     const b = blows(ev, 1, 0), lo = 305 * (1 + 0.0775 * 3.5) * UNG_F, hi = 305 * (1 + 0.0775 * 5.5) * UNG_F;
     check('K10-w ... close by it hits for far less (about 4-5 m flown: x1.3-1.4)', b.length === 1 && b[0].amt > lo && b[0].amt < hi, `${b.map((e) => e.amt)} want ${lo}-${hi}`);
+  }
+
+  // ---- Kirito (bongua), clip p80 ----
+  const BN = MECHS.bongua, [NQ, NE, NU] = BN.skills, WAVE = NQ.self.patch;
+  // Lôi Đình Thiên Giáng (Q): appears at the cursor, 191 in 3 m, root 1 s; the hit gives haste 1.5 for 2 s and arms the sword waves
+  {
+    const m = arena([[R('bongua', 0), 0, 0], [R('ung', 1), 8, 0]]), [a, v] = m.units;
+    const ev = press(m, 0, 's1', { tx: 7, tz: 0 });
+    const b = blows(ev, 1, 0);
+    check('K10-x Loi Dinh Thien Giang: he is at the cursor, the foe 1 m away takes 191 x falloff x armour, rooted 1 s', near(a.x, 7, 1e-6) && b.length === 1 && near(b[0].amt, 191 * (1 - 0.5 * 1 / 3) * UNG_F, 1e-6) && v.rootT > 0.9, `${a.x} ${b.map((e) => e.amt)} ${v.rootT}`);
+    check('K10-y ... the skill hit: speed x1.5 for 2 s and the next swing armed as four sword waves', a.hasteF === 1.5 && a.hasteT > 1.9 && a.shotN === 1 && a.shotRow && a.shotRow.patch === WAVE, `${a.hasteF} ${a.shotN}`);
+    a.cd.fire = 0; a.hp = a.maxHp - 500; const h0 = a.hp;
+    const ev2 = go(m, 6, (i) => ({ 0: { fire: i === 0, tx: 8, tz: 0 } }));
+    const w = blows(ev2, 1, 0), took = w.reduce((s, e) => s + e.amt, 0);
+    check('K10-z ... the swing: four waves of 113, those that land heal him 25% and each gives a penetration stack (5 s)', m.events && w.length >= 1 && w.every((e) => near(e.amt, 113 * UNG_F, 1e-6)) && a.bnN === w.length && a.bnT > 4.7 && near(a.hp - h0, 0.25 * took, 1e-6), `${w.length} ${w.map((e) => e.amt)} bnN ${a.bnN} heal ${a.hp - h0} of ${took}`);
+  }
+  // penetration stacks: 10% of the target's armour ignored per stack
+  {
+    const m = arena([[R('bongua', 0), 0, 0], [R('trau', 1), 3, 0]]), [a, v] = m.units, TA = MECHS.trau.armor;
+    a.bnN = 5; a.bnT = 5;
+    const ev = go(m, 6, (i) => ({ 0: { fire: i === 0, tx: 3, tz: 0 } }));
+    const b = blows(ev, 1, 0, 1);
+    check('K10-A Tu Phuong Tram: with 5 stacks his blade ignores half the armour: 75 x (1 - armour x 0.5)', b.length >= 1 && b.every((e) => near(e.amt, 75 * (1 - TA * 0.5), 1e-6)), `${b.map((e) => e.amt)} armour ${TA}`);
+    go(m, Math.round(5 / TICK));
+    check('K10-B ... the stacks are gone 5 s after the last', a.bnN === 0 && a.bnT === 0, `${a.bnN}`);
+  }
+  // Âm Tốc Xung Kích (E): carries the foe, 150, heals what it took; carried into a wall: +218 and stun 1.5 s
+  {
+    const m = arena([[R('bongua', 0), 0, 0], [R('ung', 1), 2.5, 0]]), [a, v] = m.units;
+    m.map.walls.push(wall(6, 7, -4, 4));
+    a.hp = a.maxHp - 800; const h0 = a.hp;
+    let st = 0;
+    const ev = go(m, 15, (i) => { st = Math.max(st, v.stunT); return { 0: { s2: i === 0, tx: 9, tz: 0 } }; });
+    const b = blows(ev, 1, 0), slam = only(ev, 'k10', (e) => e.kind === 'slam' && e.id === 1);
+    check('K10-C Am Toc Xung Kich: 150 x armour, he heals that much', b.length >= 1 && near(b[0].amt, 150 * UNG_F, 1e-6) && a.hp - h0 >= 150 * UNG_F - 1e-6, `${b.map((e) => e.amt)} heal ${a.hp - h0}`);
+    check('K10-D ... the carried foe hits the wall: one slam of 218 x armour and a 1.5 s stun', slam.length === 1 && b.length === 2 && near(b[1].amt, 218 * UNG_F, 1e-6) && st > 1.4 && v.x < 6, `${slam.length} ${b.map((e) => e.amt)} stun ${st} x ${v.x}`);
+  }
+  {
+    const m = arena([[R('bongua', 0), 0, 0], [R('ung', 1), 2.5, 0]]), [a, v] = m.units;
+    const ev = go(m, 15, (i) => ({ 0: { s2: i === 0, tx: 9, tz: 0 } }));
+    check('K10-E ... no wall, no slam (the foe is carried along)', only(ev, 'k10', (e) => e.kind === 'slam').length === 0 && blows(ev, 1, 0).length === 1 && v.x > 5, `x ${v.x}`);
+  }
+  // Tinh Bạo Khí Lưu Trảm (R): 1.5 s untargetable, 15 cuts of 60 split among the foes in 4.5 m, slow and no healing; then the last strike
+  {
+    const m = arena([[R('bongua', 0), 0, 0], [R('ung', 1), 2, 0], [R('ung', 1), -2, 0]]), [a, v, w2] = m.units;
+    const ev = go(m, 2, (i) => ({ 0: { ult: i === 0, tx: 6, tz: 0 } }));
+    check('K10-F Tinh Bao: untargetable and cc immune for 1.5 s', a.invulnT > 1.4 && a.ccT > 1.4, `${a.invulnT}`);
+    const ev2 = ev.concat(go(m, 46, () => ({ 0: { tx: 6, tz: 0 } })));
+    const cuts = blows(ev2, 1, 0, 1).filter((e) => e.amt < 30);
+    check('K10-G ... fifteen cuts reach each of the two foes for 60 / 2 x falloff (2 m of 4.5) x armour', cuts.length === 15 && cuts.every((e) => near(e.amt, 30 * (1 - 0.5 * 2 / 4.5) * UNG_F, 1e-6)) && blows(ev2, 2, 0, 1).filter((e) => e.amt < 30).length === 15, `${cuts.length} ${cuts.slice(0, 2).map((e) => e.amt)}`);
+    const last = only(ev2, 'beam', (e) => e.id === 0), big = blows(ev2, 1, 0, 100);
+    const lost = UNG.hp - 15 * 30 * (1 - 0.5 * 2 / 4.5) * UNG_F - 263 * UNG_F;
+    check('K10-H ... then, still inside the 1.5 s, the last strike toward the cursor: 263 x armour + 20% of the lost hp (true), knocked up', last.length === 1 && big.length === 2 && near(big[0].amt, 263 * UNG_F, 1e-6) && near(big[1].amt, 0.2 * (UNG.hp - lost), 1e-6) && v.airT > 0, `${last.length} ${big.map((e) => e.amt)} air ${v.airT}`);
+  }
+  {
+    const m = arena([[R('bongua', 0), 0, 0], [R('ung', 1), 2, 0]]), [a, v] = m.units;
+    const ev = go(m, 3, (i) => ({ 0: { ult: i === 0, tx: 6, tz: 0 } }));
+    const c = blows(ev, 1, 0, 1);
+    check('K10-I ... alone in reach the foe takes the whole 60 x falloff, slowed 50% and its healing cut to 0', c.length >= 1 && near(c[0].amt, 60 * (1 - 0.5 * 2 / 4.5) * UNG_F, 1e-6) && v.slowF === 0.5 && v.ahF === 0 && v.ahT > 1.5, `${c.map((e) => e.amt)} ${v.slowF} ${v.ahF}`);
+  }
+  // passive save: a lethal blow leaves 1 hp, Lôi Đình and Âm Tốc are ready, 1.5 s untargetable; once per 30 s
+  {
+    const m = arena([[R('bongua', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    a.hp = 30; a.cd.s1 = 8; a.cd.s2 = 6; a.cd.ult = 20;
+    go(m, 12, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
+    check('K10-J cheat death: alive on 1 hp, s1 and s2 ready, the ult not, untargetable 1.5 s, 30 s lockout', a.alive && a.hp >= 1 && a.hp < 30 && a.cd.s1 === 0 && a.cd.s2 === 0 && a.cd.ult > 19 && a.invulnT > 1.1 && a.svT > 29, `${a.alive} ${a.hp} ${a.cd.s1} ${a.cd.s2} ${a.invulnT} ${a.svT}`);
   }
 }
 

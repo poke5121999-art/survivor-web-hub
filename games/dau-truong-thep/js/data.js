@@ -973,21 +973,33 @@ export const MECHS = {
         desc: 'Trong 6 giây bắn nhanh hơn 40%, hút máu 30% và thời gian bị choáng, làm chậm, giữ chân ngắn đi một nửa.' },
     ],
   },
+  // Kirito: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p80 "77.桐人" Đồng Nhân, tooltips in ~/handoff/dtt-ref/kits/AUDIT-a.md).
+  // Attack = one Song Kiếm swing (2 x 75 = 150; was 2 x 70): sword waves 75% -> 113, Lôi Đình 127% -> 191, Âm Tốc 100% -> 150 and
+  // its wall slam 145% -> 218, Tinh Bạo 40% -> 60 a cut and the last strike 175% -> 263. Cooldowns 8 / 6 / 25 s in the clip ->
+  // 10 / 8 / 45. The passive's haste and four sword waves after a skill hit = row self on hit (G1 + G3 shots), cheat death =
+  // mods.save fatal (G2), the sword-wave penetration stacks, the wall slam of a carried foe and the split cuts are kit-remake G5
+  // (sim.js block "kit-remake G5 Kirito": passive bnPen, weapon patch bnWave, dash bnSlam, nova bnSplit).
   bongua: {
     name: 'Kirito', role: 'Thọc sườn', roleKey: 'flanker', price: 1700, tint: 0x1e2a22,
-    blurb: 'Mỗi nhát liềm trúng nạp một nấc, đủ sáu nấc thì chiêu kế tiếp nặng thêm một nửa. Chém Lướt được ba lần liên tiếp, Thế Đỡ gạt đòn rồi nổ một vòng, Song Liềm chém bảy nhát.',
+    blurb: 'Kiếm sĩ song kiếm: chiêu trúng địch thì chạy nhanh hơn và nhát chém kế tiếp tung bốn luồng kiếm khí hút máu. Biến mất rồi giáng sấm, lướt âm tốc cuốn kẻ địch đập tường, Tinh Bạo Khí Lưu Trảm chém mười lăm nhát.',
     hp: 2400, speed: 7.1, radius: 0.76,
     armor: 0.03, accel: 1.4, turn: 16, towerMul: 1.4,
-    passive: { do: 'meter', name: 'Kiếm Kỹ', desc: 'Mỗi nhát liềm thường trúng nạp một nấc. Đủ 6 nấc thì chiêu gây sát thương kế tiếp nặng thêm 50%.',
-      max: 6, gain: { weapon: 1 }, spend: { kind: 'skill', mul: 1.5 } },
-    weapon: { name: 'Đao Liềm', cd: 0.28, dmg: 70, n: 2, fan: 0.1, speed: 30, range: 8, r: 0.24, vis: 'pellet' },
+    passive: { do: 'trait', name: 'Tứ Phương Trảm', bnPen: { per: 0.1, max: 10, dur: 5 },
+      mods: { save: { fatal: true, icd: 30, invuln: 1.5, resetSlots: ['s1', 's2'] } },
+      desc: 'Chiêu trúng địch: 2 giây chạy nhanh hơn 50%, nhát chém thường kế tiếp thành bốn luồng kiếm khí tỏa hình quạt, mỗi luồng 113 sát thương và hút 25% máu. Mỗi luồng trúng cho bạn xuyên 10% giáp trong 5 giây, tối đa 10 tầng. Đòn chí mạng: bỏ qua đòn đó, hồi ngay Lôi Đình Thiên Giáng và Âm Tốc Xung Kích, miễn mọi sát thương 1,5 giây (30 giây một lần).' },
+    weapon: { name: 'Song Kiếm', cd: 0.3, dmg: 75, n: 2, fan: 0.1, speed: 30, range: 8, r: 0.24, vis: 'pellet' },
     skills: [
-      { id: 'chemluot', look: 'bnSlash', name: 'Chém Lướt', cd: 9, do: 'dash', dist: 6, speed: 34, dmg: 155, recast: { n: 3, window: 2.5 }, icon: 'dash',
-        desc: 'Lướt 6 m chém 155. Trong 2,5 giây sau bấm lại để lướt tiếp, tối đa ba lần; hồi chiêu tính từ lần cuối.' },
-      { id: 'thedo', look: 'bnGuard', name: 'Thế Đỡ', cd: 11, do: 'counter', window: 1.0, first: true, riposte: { nova: { radius: 3.5, dmg: 300, stun: 0.6 } }, icon: 'screen',
-        desc: 'Giữ thế 1 giây: đòn đầu tiên trúng bạn bị gạt hoàn toàn và bạn nổ vòng 3,5 m gây 300, choáng 0,6 giây. Không ai đánh thì hồi lại 40% thời gian hồi.' },
-      { id: 'songliem', look: 'bnFlurry', name: 'Song Liềm', cd: 40, do: 'flurry', n: 7, same: true, range: 6, speed: 30, dmg: 140, icon: 'swords',
-        desc: 'Khóa kẻ địch ở con trỏ (xa nhất 6 m) rồi lao xuyên qua nó bảy lượt, mỗi lượt 140 sát thương, vô địch suốt lúc lao.' },
+      { id: 'loidinh', look: 'bnThunder', name: 'Lôi Đình Thiên Giáng', cd: 10, do: 'warp', dist: 9, land: { radius: 3, dmg: 191, fx: { root: 1 } },
+        self: { on: 'hit', dur: 2, haste: 1.5, shots: 1, shotsFor: 2, patch: { bnWave: true, n: 4, fan: 0.22, dmg: 113, steal: 0.25, speed: 26, range: 8, r: 0.45, vis: 'wave' } }, icon: 'warp',
+        desc: 'Biến mất rồi hiện ra ở chỗ con trỏ (xa nhất 9 m), sấm giáng xuống vòng 3 m: 191 sát thương, giữ chân kẻ trúng 1 giây.' },
+      { id: 'amtoc', look: 'bnSonic', name: 'Âm Tốc Xung Kích', cd: 8, do: 'dash', dist: 7, speed: 34, dmg: 150, heal: 1, drag: true, bnSlam: { dmg: 218, stun: 1.5 },
+        self: { on: 'hit', dur: 2, haste: 1.5, shots: 1, shotsFor: 2, patch: { bnWave: true, n: 4, fan: 0.22, dmg: 113, steal: 0.25, speed: 26, range: 8, r: 0.45, vis: 'wave' } }, icon: 'dash',
+        desc: 'Lướt 7 m theo hướng ngắm, cuốn theo kẻ địch trên đường: 150 sát thương, bạn hồi máu bằng sát thương đó. Kẻ bị cuốn đập vào tường chịu thêm 218 và choáng 1,5 giây.' },
+      { id: 'tinhbao', look: 'bnStarburst', name: 'Tinh Bạo Khí Lưu Trảm', cd: 45, do: 'nova', windup: 0, repeat: 15, gap: 0.095, move: 0, radius: 4.5, dmg: 60, bnSplit: true, invuln: 1.5,
+        fx: { slow: 0.5, slowDur: 1, antiheal: { mul: 0, dur: 2 } },
+        self: { on: 'hit', dur: 2, haste: 1.5, shots: 1, shotsFor: 2, patch: { bnWave: true, n: 4, fan: 0.22, dmg: 113, steal: 0.25, speed: 26, range: 8, r: 0.45, vis: 'wave' } },
+        then: { id: 'tinhbao2', look: 'bnStarburst', do: 'beam', windup: 0, range: 8, width: 1.6, dmg: 263, fx: { lostHp: 0.2, air: 1 } }, icon: 'swords',
+        desc: 'Biến mất 1,5 giây, chém mười lăm nhát vào vòng 4,5 m quanh mình, mỗi nhát 60 chia đều cho mọi kẻ trúng, làm chậm 50% và chặn hồi máu. Rồi hiện ra tung nhát cuối về phía con trỏ: 263 sát thương cộng 20% máu đã mất của kẻ trúng (sát thương chuẩn), hất tung 1 giây.' },
     ],
   },
   // Hoa Mộc Lan: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p82, notes in ~/handoff/dtt-ref/bili/mulan/NOTES.md).
@@ -1176,7 +1188,7 @@ export const PERKS = {
   retdo: [perk('Dao Dày', 'Phóng Dao phóng bảy con.', 0, { burst: { n: 7, gap: 0.08 } }), perk('Thế Dài', 'Lộn Ngược giữ thế 0,8 giây, trả ba con dao 180.', 1, { window: 0.8, riposte: { volley: { n: 3, fan: 0.06, dmg: 180, speed: 34, range: 12, r: 0.22, vis: 'dart' } } }), perk('Loạn Sâu', 'Hỗn Loạn kéo dài 6 giây, thiêu 260 mỗi giây, hút 70%.', 2, { dur: 6, dps: 260, drain: 0.7 })],
   nhenthep: [perk('Tơ Xa', 'Móc Đu bay xa 15 m, gây 190.', 0, { range: 15, dmg: 190 }), perk('Chém Rộng', 'Vòng Chém lướt 7,5 m, gây 230.', 1, { dist: 7.5, dmg: 230 }), perk('Sáu Lượt', 'Đu Dây Liên Hoàn đu sáu lượt, mỗi lượt 270.', 2, { n: 6, dmg: 270 })],
   taothao: [perk('Kiếm Dài', 'Ỷ Thiên Kiếm gây 150.', 'weapon', { dmg: 150 }), perk('Bốn Nhát', 'Liên Trảm chém bốn nhát, mỗi nhát 170.', 1, { n: 4, dmg: 170 }), perk('Vương Bền', 'Bá Vương kéo dài 8 giây, hút máu 40%.', 2, { dur: 8, lifesteal: 0.4 })],
-  bongua: [perk('Liềm Nặng', 'Đao Liềm gây 88.', 'weapon', { dmg: 88 }), perk('Thế Rộng', 'Thế Đỡ giữ 1,3 giây, nổ rộng 4,2 m gây 340, choáng 0,8 giây.', 1, { window: 1.3, riposte: { nova: { radius: 4.2, dmg: 340, stun: 0.8 } } }), perk('Chín Liềm', 'Song Liềm chém chín nhát, mỗi nhát 150.', 2, { n: 9, dmg: 150 })],
+  bongua: [perk('Kiếm Nặng', 'Song Kiếm gây 2 x 88.', 'weapon', { dmg: 88 }), perk('Sấm Rộng', 'Lôi Đình Thiên Giáng giáng vòng 4 m, giữ chân 1,5 giây.', 0, { land: { radius: 4, dmg: 191, fx: { root: 1.5 } } }), perk('Mười Tám Nhát', 'Tinh Bạo Khí Lưu Trảm chém mười tám nhát.', 2, { repeat: 18, invuln: 1.8 })],
   moclan: [perk('Kiếm Nặng', 'Kiếm Khí gây 170 mỗi nhát.', 'weapon', { dmg: 170 }), perk('Tam Thức Sâu', 'Kinh Hồng Tam Thức: mỗi nhát mạnh hơn nhát trước 35%.', 1, { grow: 1.35 }), perk('Cự Kiếm Lâu', 'Cự kiếm của Liệt Không Trảm cắm lại 5 giây.', 0, { linger: { radius: 2.6, dur: 5, dps: 100, slow: 0.3, vis: 'mlSword' } })],
   anduong: [perk('Cung Nhanh', 'Thần Cung bắn mỗi 0,5 giây.', 'weapon', { cd: 0.5 }), perk('Bảy Mũi Tên', 'Tiễn Vô Hư Phát bắn bảy mũi.', 1, { n: 7 }), perk('Phục Thù Lâu', 'Bách Bộ Xuyên Dương kéo dài 12 giây.', 2, { dur: 12, self: { on: 'cast', dur: 12, guard: 0.25 } })],
   chuottui: [perk('Súng Mạnh', 'Súng Bóng gây 135.', 'weapon', { dmg: 135 }), perk('Robot Dày', 'Robot Quấy 900 máu, mỗi phát 75, kéo dài 12 giây.', 1, { hp: 900, dmg: 75, dur: 12 }), perk('Túi Lớn', 'Túi Đồ Nghề hồi 220 mỗi giây, khiên 450, kéo dài 6 giây.', 2, { hps: 220, shield: 450, dur: 6 })],
