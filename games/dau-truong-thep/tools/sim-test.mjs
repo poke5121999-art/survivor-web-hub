@@ -10,6 +10,7 @@ import { runK8Cases } from './k8-cases.mjs';   // kit lane k8: section K8
 import { runK9Cases, OLD_ANDUONG, OLD_BANG, oldBang, oldBaogam } from './k9-cases.mjs';   // kit lane k9: section K9
 import { runK7Cases } from './k7-cases.mjs';   // kit lane K7: section K7
 import { runK10Cases, OLD_BOCAP, OLD_BONGUA, oldK10 } from './k10-cases.mjs';   // kit lane K10: section K10, old kits kept as fixtures
+import { runK6Cases } from './k6-cases.mjs';   // kit lane K6: section K6
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -3372,6 +3373,9 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
     v.stkN = 2; v.stkBy = 7; v.stkT = 3; a.cd.s1 = 0; press(m, 0, 's1', { tx: 6, tz: 0 }); go(m, 10);
     check('43f marks of another attacker restart at 1 under the new owner', v.stkN === 1 && v.stkBy === a.id && v.stunT === 0, `stk ${v.stkN} by ${v.stkBy}`);
   }
+  // The batch-2 Magneto passive (Từ Tích) and weapon are a fixture now: samthep plays the kit ported from clip p86 (section K6).
+  const OLD_SAMTHEP = { passive: { do: 'stacks', name: 'Từ Tích', n: 4, dur: 4, on: 'any', fx: { root: 1.0 } }, weapon: { name: 'Mảnh Thép', cd: 0.4, dmg: 115, speed: 32, range: 12.5, r: 0.22, vis: 'rivet' } };
+  const oldSamthep = (u) => { u.def = { ...u.def, ...OLD_SAMTHEP }; u.passive = 'stacks'; return u; };
   // stacks 'any' (thuytinh, samthep): the batch-4 Thủy Tinh passive and drop are a fixture now (thuytinh plays the Siren, ported
   // from clip p70, section K7)
   const OLD_THUYTINH = { passive: { do: 'stacks', n: 3, dur: 4, on: 'any', fx: { slow: 0.5, slowDur: 2 } }, weapon: { name: 'Giọt Nước', cd: 0.35, dmg: 95, speed: 28, range: 13, r: 0.26, vis: 'wave' } };
@@ -3383,6 +3387,7 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
   }
   {
     const m = arena([[R('samthep', 0), 0, 0], [R('ung', 1), 6, 0]]), v = m.units[1];
+    oldSamthep(m.units[0]);
     go(m, 45, (i) => ({ 0: { fire: i < 30, tx: 6, tz: 0 } }));
     check('43h samthep: three hits leave 3 marks, no root', v.stkN === 3 && v.rootT === 0, `stk ${v.stkN} root ${v.rootT}`);
     go(m, 16, () => ({ 0: { fire: false } })); m.units[0].cd.fire = 0;
@@ -4452,6 +4457,7 @@ runK8Cases(check, section);   // kit lane k8
 runK9Cases(check, section);
 runK7Cases(check, section);
 runK10Cases(check, section);   // kit lane K10
+runK6Cases(check, section);   // kit lane K6
 
 section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yank/slam/chain.seq/antiheal.shield, selfShield frac/hits/burst, passive reShield/hitCap/healIn/lowHpScale, weapon mag, dash.windup, healIn, warp.to own objects, totem (test-only rows, literal expected values)');
 {

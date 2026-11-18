@@ -830,21 +830,31 @@ export const MECHS = {
         desc: 'Ném quả cầu nước tới con trỏ, hóa xoáy nước lớn 5 m trong 4 giây: địch trong đó cứ 0,5 giây mất 122 máu và thêm một dấu nước, bị chậm dần tới 50%. Bạn đứng trong xoáy thì cứ 0,5 giây hồi 75 máu.' },
     ],
   },
+  // Magneto: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p86 "83.万磁之王", tooltips read at 1.5-4 s; AUDIT-c.md). Attack =
+  // one Mảnh Thép blow (150; was 115 at 0.4 s, now 150 at 0.5 s, about the same dps), as lubo and moclan: Kim Loại Oanh Tạc 124% -> 186
+  // then 183% -> 275, a foe under both beams loses 10% of its max hp more; Trọng Lực Phản Xung 190% -> 285; Từ Năng Phong Bạo 25% -> 38,
+  // 8 times on every enemy on the map. The ult's "500% to one random unit near him" would be 750 x 8 on one mech here (the original
+  // also counts minions, we have none), so that bonus is ported as one attack (150) per strike. Cooldowns 6 / 8 / 30 s in the clip ->
+  // 8 / 10 / 55. All energy damage, no MP. The lift is the G3 lock `lift`; kit lane K6 fields (sim.js block "kit lane K6"): passive
+  // mgtHaste, barrage mgtSeq + mgtBoth, zone mgtStorm.
   samthep: {
     name: 'Magneto', role: 'Khống chế', roleKey: 'control', price: 1800, tint: 0x8a2a3a,
-    blurb: 'Mảnh thép bám vào địch: bốn đòn trúng liền là kẻ đó bị từ trường giữ chân. Mưa mảnh, hố từ và lồng từ nhốt cả nhóm.',
+    blurb: 'Chúa tể từ trường: mỗi chiêu trúng địch là chạy nhanh hẳn lên. Giáng hai thanh dầm thép xuống một chỗ, nhấc bổng kẻ địch rồi nện xuống đất, gọi bão từ đánh mọi kẻ địch trên khắp bản đồ.',
     hp: 2650, speed: 5.7, radius: 0.86,
     armor: 0.10, accel: 0.9, turn: 10, towerMul: 1.0,
-    passive: { do: 'stacks', name: 'Từ Tích', look: 'mgMark', desc: 'Mỗi đòn trúng một kẻ địch thêm một dấu từ (giữ 4 giây). Đủ 4 dấu thì kẻ đó bị giữ chân 1 giây.',
-      n: 4, dur: 4, on: 'any', fx: { root: 1.0 } },
-    weapon: { name: 'Mảnh Thép', cd: 0.4, dmg: 115, speed: 32, range: 12.5, r: 0.22, vis: 'rivet' },
+    passive: { do: 'trait', name: 'Từ Lực Gia Tốc', mgtHaste: { haste: 1.5, dur: 2 },
+      desc: 'Mỗi lần chiêu của bạn gây sát thương cho kẻ địch, từ trường đẩy bạn chạy nhanh hơn 50% trong 2 giây.' },
+    weapon: { name: 'Mảnh Thép', cd: 0.5, dmg: 150, speed: 32, range: 12.5, r: 0.22, vis: 'rivet' },
     skills: [
-      { id: 'muamanh', look: 'mgShards', name: 'Mưa Mảnh', cd: 7, do: 'volley', n: 3, fan: 0.06, dmg: 150, speed: 34, range: 15, r: 0.24, pierce: true, vis: 'rivet', icon: 'ricochet',
-        desc: 'Bắn ba mảnh thép xuyên thấu song song, mỗi mảnh 150 sát thương.' },
-      { id: 'tutruong', look: 'mgField', name: 'Từ Trường', cd: 12, do: 'zone', at: 'target', cast: 12, radius: 5, dur: 3, pull: 6, dps: 40, vis: 'magnet', icon: 'magnet',
-        desc: 'Mở từ trường ở con trỏ 3 giây: địch trong 5 m bị hút vào tâm và mất 40 máu mỗi giây.' },
-      { id: 'longtu', look: 'mgCage', name: 'Lồng Từ', cd: 44, do: 'zone', at: 'target', cast: 14, radius: 6, dur: 4, dps: 230, cage: true, vis: 'cage', icon: 'cage',
-        desc: 'Dựng lồng từ rộng 6 m ở con trỏ: kẻ địch bên trong không ra được trong 4 giây và mất 230 máu mỗi giây.' },
+      { id: 'oanhtac', look: 'mgBeams', name: 'Kim Loại Oanh Tạc', cd: 8, do: 'barrage', n: 2, cast: 12, radius: 0, blast: 2.4, delay: 0.45, span: 0, dmg: 186,
+        mgtSeq: [{ delay: 0.45, dmg: 186 }, { delay: 0.85, dmg: 275 }], mgtBoth: { maxHp: 0.1 }, icon: 'barrage',
+        desc: 'Gọi hai thanh dầm thép khổng lồ lần lượt giáng xuống chỗ con trỏ (xa nhất 12 m): thanh đầu 186 sát thương, thanh sau 275, mỗi thanh vòng 2,4 m. Kẻ trúng cả hai thanh mất thêm 10% máu tối đa.' },
+      { id: 'phanxung', look: 'mgLift', name: 'Trọng Lực Phản Xung', cd: 10, do: 'barrage', n: 2, cast: 12, radius: 0, blast: 3, delay: 0.3, span: 0, dmg: 285,
+        mgtSeq: [{ delay: 0.3, dmg: 0, fx: { lift: 1.5 } }, { delay: 1.8, dmg: 285, blast: 3.5, fx: { stun: 1 }, fxNew: true }], icon: 'magnet',
+        desc: 'Sau 0,3 giây nhấc bổng kẻ địch trong 3 m quanh con trỏ (xa nhất 12 m), giữ chúng lơ lửng 1,5 giây rồi nện xuống: 285 sát thương vòng 3,5 m; kẻ đứng quanh chỗ nện mà chưa bị nhấc thì choáng thêm 1 giây.' },
+      { id: 'phongbao', look: 'mgStorm', name: 'Từ Năng Phong Bạo', cd: 55, do: 'zone', at: 'self', follow: true, radius: 6, dur: 6, dps: 0, vis: 'mgStorm',
+        mgtStorm: { n: 8, dmg: 38, near: { r: 6, dmg: 150 } }, icon: 'storm',
+        desc: 'Bão từ 6 giây: đánh 8 lần vào mọi kẻ địch trên khắp bản đồ, mỗi lần 38 sát thương; mỗi lần còn giáng thêm 150 lên một kẻ địch ngẫu nhiên trong 6 m quanh bạn.' },
     ],
   },
   cuuvi: {
@@ -1180,7 +1190,7 @@ export const PERKS = {
   tumay: [perk('Cầu Nặng', 'Hắc Cầu gây 170.', 'weapon', { dmg: 170 }), perk('Pháp Cầu Bền', 'Quả cầu của Hỗn Độn Pháp Cầu ở lại 10 giây, nổ rộng 3 m.', 1, { leaveOrb: { dur: 10, blast: 3, dmg: 275 } }), perk('Phệ Sâu', 'Hỗn Độn Chi Phệ: mỗi quả cầu sau thêm 90 thay vì 75.', 2, { grow: 90 })],
   dieuthuyen: [perk('Băng Sâu', 'Băng Lưu gây 280 và làm chậm 2,2 giây.', 0, { dmg: 280, slowDur: 2.2 }), perk('Liên Băng Dài', 'Băng Liên rộng 3,6 m, choáng 1,4 giây.', 1, { blast: 3.6, fx: { stun: 1.4 } }), perk('Bão Dày', 'Phong Tuyết kéo dài 6,5 giây, thiêu 190 mỗi giây.', 2, { dur: 6.5, dps: 190 })],
   thuytinh: [perk('Giọt Xa', 'Giọt Nước bay xa 14,5 m.', 'weapon', { range: 14.5 }), perk('Màn Nước Dài', 'Thủy Mạc Bình Chướng dài bảy khối, đứng 5 giây.', 1, { n: 7, dur: 5 }), perk('Xoáy Lớn', 'Cuồng Lan Thúc Phược rộng 6 m.', 2, { radius: 6 })],
-  samthep: [perk('Bốn Mảnh', 'Mưa Mảnh bắn bốn mảnh thép.', 0, { n: 4 }), perk('Hút Mạnh', 'Từ Trường rộng 6 m, kéo mạnh hơn.', 1, { radius: 6, pull: 7 }), perk('Lồng Dày', 'Lồng Từ kéo dài 5 giây, thiêu 280 mỗi giây.', 2, { dur: 5, dps: 280 })],
+  samthep: [perk('Dầm Nặng', 'Thanh dầm thứ hai gây 330.', 0, { mgtSeq: [{ delay: 0.45, dmg: 186 }, { delay: 0.85, dmg: 330 }] }), perk('Nện Mạnh', 'Trọng Lực Phản Xung nện 340, rộng 4 m.', 1, { mgtSeq: [{ delay: 0.3, dmg: 0, fx: { lift: 1.5 } }, { delay: 1.8, dmg: 340, blast: 4, fx: { stun: 1 }, fxNew: true }] }), perk('Bão Dài', 'Từ Năng Phong Bạo kéo dài 7,5 giây, đánh 10 lần.', 2, { dur: 7.5, mgtStorm: { n: 10, dmg: 38, near: { r: 6, dmg: 150 } } })],
   cuuvi: [perk('Chùm Bốn Quả', 'Chùm Hồ Hỏa bắn bốn quả, nổ lan 1,8 m.', 0, { n: 4, splash: 1.8 }), perk('Ảnh Bền', 'Ảo Ảnh bền 550 máu, ở lại 4 giây, nổ 180.', 1, { leave: { hp: 550, dur: 4, blast: 4, dmg: 180, fx: { slow: 0.5, slowDur: 2 } } }), perk('Mười Một Đuôi', 'Cửu Vĩ Hỏa thả 11 quả, mỗi quả 160.', 2, { n: 11, dmg: 160 })],
   kiemthan: [perk('Kiếm Nặng', 'Kiếm Phong gây 85.', 'weapon', { dmg: 85 }), perk('Trận Dày', 'Kiếm Trận tám thanh, kéo dài 5 giây.', 1, { n: 8, dur: 5 }), perk('Mười Hai Kiếm', 'Vạn Kiếm Quy Tông giáng 12 thanh, mỗi thanh 260.', 2, { n: 12, dmg: 260 })],
   suatrang: [perk('Bóng Bền', 'Bong Bóng Hồi hồi 200 mỗi giây trong 5 giây.', 0, { hot: { hps: 200, dur: 5 } }), perk('Khiên Dày', 'Bay Đỡ che khiên 600, rộng 5 m.', 1, { landShield: 600, radius: 5 }), perk('Cứu Thương Dài', 'Cấp Cứu hồi 280 mỗi giây, kéo dài 6 giây.', 2, { hps: 280, dur: 6 })],

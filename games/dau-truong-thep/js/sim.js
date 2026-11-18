@@ -1501,6 +1501,7 @@ const CAST = {
     }
   },
   barrage(m, u, s, inp) {
+    if (s.mgtSeq) return mgtSeq(m, u, s, inp);   // kit-remake G5 Magneto
     // channel: one cast like a sweep: a strike every channel.every seconds around wherever the cursor is, the mech still walks (channel.move)
     if (s.channel) { u.cast = { skill: s, t: s.channel.dur, total: s.channel.dur, move: s.channel.move, lock: false, aim: u.aim, acc: 0 }; return; }
     const [cx, cz] = aimPoint(u, inp, s.cast);
@@ -1526,6 +1527,7 @@ const CAST = {
     addZone(m, u, { kind: 'field', vis: s.vis, x, z, r: s.radius, dur: s.dur, hps: s.hps || 0, dps: (s.dps || 0) * u.skillAmp, slow: s.slow || 0, hide: !!s.hide, pull: s.pull || 0, acc: 0,
       haste: s.haste || 0, blind: s.blind || null, follow: !!s.follow, armor: s.armor || 0, cage: !!s.cage, held: s.cage ? heldMask(m, u, x, z, s.radius) : 0, drain: s.drain || 0, shield: s.shield || 0, sh: {} });
     if (s.grow || s.ownerHps || s.marks || s.eye) k7Zone(m.zones[m.zones.length - 1], s);   // kit-remake G5 lane K7: Thủy Tinh's vortex, Ưng Nhãn's eye
+    mgtZone(s, m.zones[m.zones.length - 1]);   // kit-remake G5 Magneto
   },
   dome(m, u, s) {
     addZone(m, u, { kind: 'dome', x: u.x, z: u.z, r: s.radius, dur: s.dur });
@@ -2035,7 +2037,8 @@ function stepZones(m) {
     else if (z.kind === 'strike') {
       if (z.on >= 0) k2Follow(m, z);   // kit-remake G5 Athena: a locked strike rides its target
       z.delay -= dt;
-      if (z.delay <= 0) {
+      if (z.delay <= 0 && z.mgtGrp) { mgtStrike(m, owner, z); done = true; }   // kit-remake G5 Magneto
+      else if (z.delay <= 0) {
         curSrc = z.src || null; explode(m, owner, z.x, z.z, z.r, z.dmg, z.fx || null, 'strike', z.vis); if (z.src) bnRing(m, owner, z); curSrc = null; done = true;   // kit-remake G5 Băng Nha: bnRing
         // linger {radius, dur, dps, slow, vis}: what fell stays as a field that keeps cutting and slowing enemies around it
         const L = z.linger;
@@ -2080,6 +2083,7 @@ function stepZones(m) {
           }
         }
       }
+      if (z.mgtStorm) mgtStorm(m, z, owner);   // kit-remake G5 Magneto
       if (z.age > z.dur) done = true;
     } else if (z.kind === 'turret') {
       z.cd -= dt;
@@ -2360,6 +2364,7 @@ function damage(m, u, amount, src, raw) {
   if (foe && foe.alive && left + absorbed > 0 && !reflecting && curSrc && curSrc !== 'w') rowHit(m, foe, left);
   if (foe && left + absorbed > 0) k1Hurt(m, u, foe);
   if (foe && left + absorbed > 0) k10Hit(foe);   // kit lane K10: a sword wave adds a Kirito penetration stack
+  if (foe && left + absorbed > 0) mgtHurt(foe);   // kit-remake G5 Magneto
   if (foe && foe.alive && left > 0) {
     const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0, curShot && curShot.owner === foe.id ? curShot.steal : 0, k7Steal(foe));
     if (steal) heal(m, foe, left * steal, foe, true);
@@ -3548,3 +3553,75 @@ function k10Split(m, u, s, arc) {
   return 1 / Math.max(1, n);
 }
 /* ===== end kit lane K10 ===== */
+
+/* ===== kit-remake G5 Magneto (kit lane K6, feat/dtt-k6; AUDIT-c.md samthep) ===== */
+// Hooks, one line each, marked "kit-remake G5 Magneto": CAST.barrage -> mgtSeq, CAST.zone -> mgtZone, stepZones: a strike with mgtGrp
+// -> mgtStrike, a field -> mgtStorm; damage (after k1Hurt) -> mgtHurt. All host-side bookkeeping (haste travels as hasteT/hasteF).
+// passive `mgtHaste {haste, dur}`: every enemy a skill of his hurts (a hit with a skill source tag) gives him x haste for dur s
+// (the strongest haste running wins; mechs never collide, so the clip's "no unit collision" needs nothing).
+function mgtHurt(foe) {
+  const F = foe.def.passive;
+  if (F && F.mgtHaste && foe.alive && curSrc && curSrc !== 'w') k1Haste(foe, F.mgtHaste.dur, F.mgtHaste.haste);
+}
+// barrage `mgtSeq: [{delay, dmg, blast, fx, fxNew}]` + `mgtBoth: fx`: every strike falls on the cursor point (cast = reach), each at its
+// own delay, damage and blast (default the row's), with the usual falloff and the row's source tag. `fxNew`: that strike's fx only
+// lands on a mech no earlier strike of the press reached. `mgtBoth`: a mech hit by every damaging strike of the press gets that fx
+// once (Kim Loại Oanh Tạc: { maxHp: 0.1 }). The zone event of each strike carries its delay and index k for the look.
+function mgtSeq(m, u, s, inp) {
+  const [cx, cz] = aimPoint(u, inp, s.cast);
+  const grp = { hit: {}, seen: {}, need: s.mgtSeq.filter((q) => q.dmg > 0).length, both: s.mgtBoth || null };
+  s.mgtSeq.forEach((q, k) => {
+    addZone(m, u, { kind: 'strike', x: cx, z: cz, r: q.blast || s.blast, delay: q.delay, total: q.delay, dmg: (q.dmg || 0) * u.skillAmp, fx: null, src: s.id, vis: s.look, mgtGrp: grp, mgtQ: q });
+    const ev = m.events[m.events.length - 1]; ev.delay = q.delay; ev.k = k;
+  });
+}
+function mgtStrike(m, owner, z) {
+  const q = z.mgtQ, G = z.mgtGrp, list = [];
+  m.events.push({ t: 'explode', x: z.x, z: z.z, r: z.r, why: 'strike', vis: z.vis });
+  for (const o of m.units) {
+    if (o.team === owner.team || !o.alive || o.invulnT > 0) continue;
+    const reach = z.r + o.radius * 0.6;
+    if (dist2(o.x, o.z, z.x, z.z) <= reach * reach) list.push(o);
+  }
+  curSrc = z.src;
+  areaDamage(m, owner, z.x, z.z, z.r, z.dmg, null, null);
+  for (const o of list) {
+    if (!o.alive) continue;
+    if (q.fx && !(q.fxNew && G.seen[o.id])) applyFx(m, owner, o, q.fx, { cx: z.x, cz: z.z });
+    G.seen[o.id] = 1;
+    if (!(z.dmg > 0) || !G.both || !o.alive) continue;
+    G.hit[o.id] = (G.hit[o.id] || 0) + 1;
+    if (G.hit[o.id] === G.need) { m.events.push({ t: 'kit', look: z.vis, k: 'both', id: owner.id, o: o.id, x: o.x, z: o.z }); applyFx(m, owner, o, G.both); }
+  }
+  curSrc = null;
+}
+// zone `mgtStorm {n, dmg, near {r, dmg}}` (a field round the caster): n strikes spread evenly over the zone's dur (the first after half
+// a step); each hits every living enemy mech on the map for dmg x the caster's damage scale, then one enemy within near.r of the
+// caster (picked with m.rng() among them, in id order) for near.dmg more. Hits carry the row's source tag; events `kit` bolt / near.
+function mgtZone(s, z) {
+  if (!s.mgtStorm) return;
+  z.mgtStorm = s.mgtStorm; z.mgtLeft = s.mgtStorm.n; z.mgtAcc = s.dur / s.mgtStorm.n / 2; z.src = s.id;
+}
+function mgtStorm(m, z, owner) {
+  const S = z.mgtStorm, every = z.dur / S.n;
+  z.mgtAcc += TICK;
+  while (z.mgtAcc >= every - 1e-9 && z.mgtLeft > 0) {
+    z.mgtAcc -= every; z.mgtLeft--;
+    if (!owner.alive) continue;
+    const sc = dmgScale(owner), near = [];
+    curSrc = z.src;
+    for (const o of m.units) {
+      if (o.team === owner.team || !o.alive || o.invulnT > 0) continue;
+      m.events.push({ t: 'kit', look: z.vis, k: 'bolt', id: owner.id, o: o.id, x: o.x, z: o.z });
+      damage(m, o, S.dmg * sc, owner);
+      if (o.alive && S.near && dist2(o.x, o.z, owner.x, owner.z) <= S.near.r * S.near.r) near.push(o);
+    }
+    if (near.length) {
+      const o = near[Math.floor(m.rng() * near.length)];
+      m.events.push({ t: 'kit', look: z.vis, k: 'near', id: owner.id, o: o.id, x: o.x, z: o.z });
+      damage(m, o, S.near.dmg * sc, owner);
+    }
+    curSrc = null;
+  }
+}
+/* ===== end kit-remake G5 Magneto ===== */

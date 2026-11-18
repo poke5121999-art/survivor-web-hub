@@ -30,61 +30,6 @@ function loops(n, r, h, c) {
   return g;
 }
 const samthep = {
-  // Mưa Mảnh: three steel girders tumble out side by side, magenta light along their edges
-  mgShards: {
-    pal: [MG_RED, MG_PINK], hitR: 1.8,
-    skill(kit, e, u) { kit.ring(u.x, u.z, 1.6, MG_PINK, 0.25); muz(kit, u, e.a, 3.4, C(0.15, 0.16, 0.2), MG_RED); return true; },
-    shotMake(kit, s) { const g = girder(); g.scale.setScalar(4.2); const v = { g, h: held(kit, [g]), a: Math.atan2(s.dz, s.dx), spin: Math.random() * 6, x: s.x, z: s.z, live: true };
-      trail(kit, () => (v.live ? [v.x, 1.3, v.z] : null), 2.2, MG_RED, 0.5, { c2: MG_PINK, len: 10 }); return v; },
-    shot(kit, v, s, x, y, z, dt) {
-      v.spin += dt * 14; v.x = x; v.z = z; v.g.position.set(x, 1.3, z); v.g.rotation.set(v.spin, -v.a, 0, 'YXZ');
-      if (Math.random() < 0.6) kit.str.emit(x, 1.3, z, -s.dx * 8, 0, -s.dz * 8, MG_RED, 0.15, 0.12, 0.06, 0, 0, 0.9);
-      return true;
-    },
-    shotEnd(kit, v, s, x, z) { v.h.on = false; v.live = false; kit.sparks(x, 1.2, z, kit.N(10), MG_PINK, 9, 0.3, 0.05, 0.5, 10); kit.chips(x, 1.1, z, kit.N(3), C(0.55, 0.57, 0.6), 5, 0.6, 0.12); },
-  },
-  // Từ Trường: magenta field loops stand round the point and turn, a blue core sphere hums inside, a thin red ring marks the edge
-  mgField: {
-    pal: [MG_RED, MG_PINK], hitR: 1.8,
-    zoneMake(kit, z) {
-      const g = loops(6, z.r * 0.85, z.r * 0.45, MG_RED); g.position.set(z.x, 0, z.z);
-      const h = held(kit, [g]);
-      const core = shell(kit, z.x, 1.2, z.z, 3, MG_BLUE, { c2: C(1.2, 1.6, 2.4), p: 1.4, core: 0.15, life: 1e9, grow: 0.2, pulse: 2 });
-      const ring = sigil(kit, z.x, z.z, z.r, MG_RED, { n: 0, ticks: 0, inner: 0, fill: 0.35, w: 0.04, alpha: 0.8, life: 1e9, rev: 0.2 });
-      return { g, h, core, ring };
-    },
-    zone(kit, v, z, dt) {
-      v.g.rotation.y += dt * 1.2;
-      if (Math.random() < dt * 30) { const a = Math.random() * 6.283; kit.str.emit(z.x + Math.cos(a) * z.r, R(0.3, 1.8), z.z + Math.sin(a) * z.r, -Math.cos(a) * 10, 0, -Math.sin(a) * 10, Math.random() < 0.5 ? MG_PINK : MG_RED, 0.3, 0.06, 0.05, 0, 0, 1); }
-    },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.core); stop(v.ring); },
-  },
-  // Lồng Từ: a ring of steel girders stands up round the cage, leaning in, magenta arcs snapping between them
-  mgCage: {
-    pal: [MG_RED, MG_PINK], hitR: 1.8,
-    zoneMake(kit, z) {
-      const g = new THREE.Group(); g.position.set(z.x, 0, z.z); const posts = [];
-      for (let i = 0; i < 16; i++) { const a = (i / 16) * 6.283, p = new THREE.Group(); p.add(new THREE.Mesh(postGeo2, basic(0x8f98a3, false)), new THREE.Mesh(postGlow, basic(MG_RED, true, 0.22))); p.position.set(Math.cos(a) * z.r, 0, Math.sin(a) * z.r); p.rotation.set(Math.sin(a) * 0.25, 0, -Math.cos(a) * 0.25); p.scale.set(1.6, 1, 1.6); g.add(p); posts.push(p); }
-      const ring = sigil(kit, z.x, z.z, z.r, MG_RED, { c2: MG_PINK, n: 0, ticks: 12, inner: 0.9, fill: 0.55, alpha: 0.9, life: 1e9, rev: 0.25 });
-      kit.flash(z.x, 2, z.z, MG_PINK, 50, 0.3);
-      return { g, h: held(kit, [g]), posts, ring, t: 0 };
-    },
-    zone(kit, v, z, dt) {
-      v.t += dt; const k = Math.min(1, v.t / 0.25); for (const p of v.posts) p.scale.y = k * 1.3;
-      if (Math.random() < dt * 8) { const i = Math.floor(Math.random() * 16), a = (i / 16) * 6.283, b = ((i + 1) / 16) * 6.283; const e = kit.beam(z.x + Math.cos(a) * z.r, z.z + Math.sin(a) * z.r, z.x + Math.cos(b) * z.r, z.z + Math.sin(b) * z.r, 0.4, MG_PINK, 0.15, 3, R(1, 2.6)); e.fade = true; }
-    },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.ring); },
-  },
-  // Từ Tích (passive): the fourth mark pins the victim: a pink sphere snaps shut on it and four steel shards slam in
-  mgMark: {
-    stacks(kit, e) {
-      shell(kit, e.x, 1.1, e.z, 1.6, MG_PINK, { c2: MG_BLUE, p: 1.5, core: 0.12, life: 1, grow: 0.08 });
-      for (let i = 0; i < 4; i++) { const a = i * 1.571 + 0.785, g = girder(); g.scale.setScalar(0.6);
-        own(kit, [g], 0.3, (t) => { const d = 3 * (1 - t / 0.25); g.position.set(e.x + Math.cos(a) * Math.max(0.6, d), 1.2, e.z + Math.sin(a) * Math.max(0.6, d)); g.rotation.y = -a; }); }
-      kit.ring(e.x, e.z, 2, MG_RED, 0.35); kit.flash(e.x, 1.6, e.z, MG_PINK, 30, 0.2);
-      return true;
-    },
-  },
 };
 
 // ---- Kỳ Nhông (fire dragon king): a whirling ring of fire, jets of flame, a fist of fire -----------------------------------

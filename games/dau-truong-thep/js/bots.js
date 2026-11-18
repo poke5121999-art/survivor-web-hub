@@ -1322,6 +1322,7 @@ const SKILL_AI = {
   },
   zone(c, s) {
     const { u, tgt, td, m } = c;
+    if (s.mgtStorm) return mgtBotStorm(c, s);   // kit-remake G5 Magneto
     if (s.cage) return cageSkill(c, s);
     // a healing field set down at the cursor (at target): on the hurt group, not on the enemy
     if (s.hps && s.at === 'target') return healField(c, s);
@@ -2462,3 +2463,12 @@ function k7BotWall(c, s) {
   return true;
 }
 /* ===== end kit lane K7 ===== */
+/* ===== kit-remake G5 Magneto bots ===== */
+// Từ Năng Phong Bạo hits every enemy on the map: worth it with two enemies alive in sight, one within the near bonus, or one low.
+function mgtBotStorm(c, s) {
+  const { u } = c, N = s.mgtStorm.near;
+  let near = 0, low = false;
+  for (const e of c.enemies) { if (d2(e.x, e.z, u.x, u.z) < ((N ? N.r : 0) + 2) ** 2) near++; if (e.hp < e.maxHp * 0.45) low = true; }
+  return c.enemies.length >= 2 || near >= 1 || low;
+}
+/* ===== end kit-remake G5 Magneto bots ===== */
