@@ -234,23 +234,23 @@ export function runK10Cases(check, section) {
     const ev = go(m, 15, (i) => ({ 0: { s2: i === 0, tx: 9, tz: 0 } }));
     check('K10-E ... no wall, no slam (the foe is carried along)', only(ev, 'k10', (e) => e.kind === 'slam').length === 0 && blows(ev, 1, 0).length === 1 && v.x > 5, `x ${v.x}`);
   }
-  // Tinh Bạo Khí Lưu Trảm (R): 1.5 s untargetable, 15 cuts of 60 split among the foes in 4.5 m, slow and no healing; then the last strike
+  // Tinh Bạo Khí Lưu Trảm (R): 1.5 s untargetable, 15 cuts of 50 split among the foes in 4.5 m, slow and no healing; then the last strike
   {
     const m = arena([[R('bongua', 0), 0, 0], [R('ung', 1), 2, 0], [R('ung', 1), -2, 0]]), [a, v, w2] = m.units;
     const ev = go(m, 2, (i) => ({ 0: { ult: i === 0, tx: 6, tz: 0 } }));
     check('K10-F Tinh Bao: untargetable and cc immune for 1.5 s', a.invulnT > 1.4 && a.ccT > 1.4, `${a.invulnT}`);
     const ev2 = ev.concat(go(m, 46, () => ({ 0: { tx: 6, tz: 0 } })));
     const cuts = blows(ev2, 1, 0, 1).filter((e) => e.amt < 30);
-    check('K10-G ... fifteen cuts reach each of the two foes for 60 / 2 x falloff (2 m of 4.5) x armour', cuts.length === 15 && cuts.every((e) => near(e.amt, 30 * (1 - 0.5 * 2 / 4.5) * UNG_F, 1e-6)) && blows(ev2, 2, 0, 1).filter((e) => e.amt < 30).length === 15, `${cuts.length} ${cuts.slice(0, 2).map((e) => e.amt)}`);
+    check('K10-G ... fifteen cuts reach each of the two foes for 50 / 2 x falloff (2 m of 4.5) x armour', cuts.length === 15 && cuts.every((e) => near(e.amt, 25 * (1 - 0.5 * 2 / 4.5) * UNG_F, 1e-6)) && blows(ev2, 2, 0, 1).filter((e) => e.amt < 30).length === 15, `${cuts.length} ${cuts.slice(0, 2).map((e) => e.amt)}`);
     const last = only(ev2, 'beam', (e) => e.id === 0), big = blows(ev2, 1, 0, 100);
-    const lost = UNG.hp - 15 * 30 * (1 - 0.5 * 2 / 4.5) * UNG_F - 263 * UNG_F;
+    const lost = UNG.hp - 15 * 25 * (1 - 0.5 * 2 / 4.5) * UNG_F - 263 * UNG_F;
     check('K10-H ... then, still inside the 1.5 s, the last strike toward the cursor: 263 x armour + 20% of the lost hp (true), knocked up', last.length === 1 && big.length === 2 && near(big[0].amt, 263 * UNG_F, 1e-6) && near(big[1].amt, 0.2 * (UNG.hp - lost), 1e-6) && v.airT > 0, `${last.length} ${big.map((e) => e.amt)} air ${v.airT}`);
   }
   {
     const m = arena([[R('bongua', 0), 0, 0], [R('ung', 1), 2, 0]]), [a, v] = m.units;
     const ev = go(m, 3, (i) => ({ 0: { ult: i === 0, tx: 6, tz: 0 } }));
     const c = blows(ev, 1, 0, 1);
-    check('K10-I ... alone in reach the foe takes the whole 60 x falloff, slowed 50% and its healing cut to 0', c.length >= 1 && near(c[0].amt, 60 * (1 - 0.5 * 2 / 4.5) * UNG_F, 1e-6) && v.slowF === 0.5 && v.ahF === 0 && v.ahT > 1.5, `${c.map((e) => e.amt)} ${v.slowF} ${v.ahF}`);
+    check('K10-I ... alone in reach the foe takes the whole 50 x falloff, slowed 50% and its healing cut to 0', c.length >= 1 && near(c[0].amt, 50 * (1 - 0.5 * 2 / 4.5) * UNG_F, 1e-6) && v.slowF === 0.5 && v.ahF === 0 && v.ahT > 1.5, `${c.map((e) => e.amt)} ${v.slowF} ${v.ahF}`);
   }
   // passive save: a lethal blow leaves 1 hp, Lôi Đình and Âm Tốc are ready, 1.5 s untargetable; once per 30 s
   {

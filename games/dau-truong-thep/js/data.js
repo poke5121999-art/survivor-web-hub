@@ -1204,7 +1204,8 @@ export const MECHS = {
   },
   // Kirito: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p80 "77.桐人" Đồng Nhân, tooltips in ~/handoff/dtt-ref/kits/AUDIT-a.md).
   // Attack = one Song Kiếm swing (2 x 75 = 150; was 2 x 70): sword waves 75% -> 113, Lôi Đình 127% -> 191, Âm Tốc 100% -> 150 and
-  // its wall slam 145% -> 218, Tinh Bạo 40% -> 60 a cut and the last strike 175% -> 263. Cooldowns 8 / 6 / 25 s in the clip ->
+  // its wall slam 145% -> 218, Tinh Bạo 40% -> 60 a cut, trimmed to 50 (fix/dtt-balance: he sat at K/D 4.00 in sim-test 15e, the bot
+  // matches' strongest tank; the cut is split among the foes in reach anyway) and the last strike 175% -> 263. Cooldowns 8 / 6 / 25 s in the clip ->
   // 10 / 8 / 45. The passive's haste and four sword waves after a skill hit = row self on hit (G1 + G3 shots), cheat death =
   // mods.save fatal (G2), the sword-wave penetration stacks, the wall slam of a carried foe and the split cuts are kit-remake G5
   // (sim.js block "kit-remake G5 Kirito": passive bnPen, weapon patch bnWave, dash bnSlam, nova bnSplit).
@@ -1224,11 +1225,11 @@ export const MECHS = {
       { id: 'amtoc', look: 'bnSonic', name: 'Âm Tốc Xung Kích', cd: 8, do: 'dash', dist: 7, speed: 34, dmg: 150, heal: 1, drag: true, bnSlam: { dmg: 218, stun: 1.5 },
         self: { on: 'hit', dur: 2, haste: 1.5, shots: 1, shotsFor: 2, patch: { bnWave: true, n: 4, fan: 0.22, dmg: 113, steal: 0.25, speed: 26, range: 8, r: 0.45, vis: 'wave' } }, icon: 'dash',
         desc: 'Lướt 7 m theo hướng ngắm, cuốn theo kẻ địch trên đường: 150 sát thương, bạn hồi máu bằng sát thương đó. Kẻ bị cuốn đập vào tường chịu thêm 218 và choáng 1,5 giây.' },
-      { id: 'tinhbao', look: 'bnStarburst', name: 'Tinh Bạo Khí Lưu Trảm', cd: 45, do: 'nova', windup: 0, repeat: 15, gap: 0.095, move: 0, radius: 4.5, dmg: 60, bnSplit: true, invuln: 1.5,
+      { id: 'tinhbao', look: 'bnStarburst', name: 'Tinh Bạo Khí Lưu Trảm', cd: 45, do: 'nova', windup: 0, repeat: 15, gap: 0.095, move: 0, radius: 4.5, dmg: 50, bnSplit: true, invuln: 1.5,
         fx: { slow: 0.5, slowDur: 1, antiheal: { mul: 0, dur: 2 } },
         self: { on: 'hit', dur: 2, haste: 1.5, shots: 1, shotsFor: 2, patch: { bnWave: true, n: 4, fan: 0.22, dmg: 113, steal: 0.25, speed: 26, range: 8, r: 0.45, vis: 'wave' } },
         then: { id: 'tinhbao2', look: 'bnStarburst', do: 'beam', windup: 0, range: 8, width: 1.6, dmg: 263, fx: { lostHp: 0.2, air: 1 } }, icon: 'swords',
-        desc: 'Biến mất 1,5 giây, chém mười lăm nhát vào vòng 4,5 m quanh mình, mỗi nhát 60 chia đều cho mọi kẻ trúng, làm chậm 50% và chặn hồi máu. Rồi hiện ra tung nhát cuối về phía con trỏ: 263 sát thương cộng 20% máu đã mất của kẻ trúng (sát thương chuẩn), hất tung 1 giây.' },
+        desc: 'Biến mất 1,5 giây, chém mười lăm nhát vào vòng 4,5 m quanh mình, mỗi nhát 50 chia đều cho mọi kẻ trúng, làm chậm 50% và chặn hồi máu. Rồi hiện ra tung nhát cuối về phía con trỏ: 263 sát thương cộng 20% máu đã mất của kẻ trúng (sát thương chuẩn), hất tung 1 giây.' },
     ],
   },
   // Hoa Mộc Lan: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p82, notes in ~/handoff/dtt-ref/bili/mulan/NOTES.md).
