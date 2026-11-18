@@ -15,7 +15,7 @@ import { compileMap, mapsFor, castStatic, segCircle, solidAt, navBlock } from '.
 const NO_INPUT = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
 const SLOTS = ['s1', 's2', 'ult'];
 // Everything a unit's own damage is multiplied by: the garage track, a power pick-up, a transform (skill.dmg).
-const dmgScale = (u) => u.dmgMod * (u.dmgT > 0 ? u.dmgF : 1) * (u.tfT > 0 ? u.tfDmg : 1) * u.skillAmp;
+const dmgScale = (u) => u.dmgMod * (u.dmgT > 0 ? u.dmgF : 1) * (u.tfT > 0 ? u.tfDmg : 1) * u.skillAmp * (u.hkF > 0 ? 1 + u.hkF : 1);
 // Where the damage being dealt right now comes from ('w' = the main weapon, else a skill id); meter reads it (weapon, distinct).
 let curSrc = null;
 // The unscaled amount of the last damage() call (0 when it hurt nobody): what hitfx chain passes on.
@@ -114,6 +114,7 @@ function clearStatus(u) {
   u.hold = 0; u.holdT = [0, 0, 0]; u.hitN = {}; u.pressing = -1; u.pendCut = null;
   g2Clear(u);   // kit-remake G2
   g4Clear(u);
+  k1Clear(u);
 }
 
 function spawn(m, u, first) {
@@ -244,7 +245,7 @@ export function lowHpMod(u) {
 // ramp (passive): N stacks of step each, on one stat: 'rapid' (fire rate), 'dmg' (shot damage) or 'armor'.
 export function rampBonus(u, stat) {
   const P = u.passive === 'ramp' && u.def.passive;
-  return P && P.stat === stat ? u.rampN * P.step : 0;
+  return (P && P.stat === stat ? u.rampN * P.step : 0) + (stat === 'rapid' && u.hkF > 0 ? u.hkF : 0);
 }
 function rampGain(u, to) {
   const P = u.def.passive;
@@ -360,6 +361,7 @@ export function armorOf(m, u) {
     const P = o.def.passive;
     if (dist2(o.x, o.z, u.x, u.z) < P.radius * P.radius) { a += P.armor; break; }
   }
+  a += k1Armor(u);
   return Math.min(RULES.armorCap, a);
 }
 
@@ -416,6 +418,7 @@ function stepUnit(m, u, inp) {
   if (u.shieldT > 0) { u.shieldT -= dt; if (u.shieldT <= 0) { u.shield = 0; u.shieldT = 0; popShield(m, u); } }
   if (u.skillAmp !== 1 && !u.cast && !u.dash) u.skillAmp = 1;
   if (u.tfT > 0) { u.tfT -= dt; if (u.tfT <= 0) endTransform(m, u); }
+  k1Tick(m, u, dt);
   // burn (hitfx): damage over time, N stacks, credited to whoever lit it
   if (u.burnT > 0) {
     u.burnT -= dt;
@@ -557,6 +560,7 @@ function stepUnit(m, u, inp) {
     // cdAfter: the cooldown stands still while the row's state runs (stateOn); dur seconds for a row without a live state
     if (s.cdAfter) { u.hold |= 1 << i; u.holdT[i] = s.do === 'transform' || s.do === 'shield' ? 0 : s.dur || 0; }
     castHooks(u, s, i);
+    k1Cast(m, u, s);
     // thrifty (passive): a cast sometimes gives most of its cooldown back
     if (u.passive === 'thrifty' && !s.recast && m.rng() < u.def.passive.chance) { u.cd[key] *= 1 - u.def.passive.refund; m.events.push({ t: 'thrift', id: u.id, slot: i }); }
     // form (passive) flip: using the slot changes the stance
@@ -1097,6 +1101,7 @@ const CAST = {
     if (s.rapid) { o.rapidT = s.dur; o.rapidF = s.rapid; }
     // hot: heal over time on whoever it lands on (the same fields the heal item uses)
     if (s.hot) { o.healRate = Math.max(o.healT > 0 ? o.healRate : 0, s.hot.hps); o.healT = Math.max(o.healT, s.hot.dur); }
+    k1Bless(m, u, s, o);
     m.events.push({ t: 'bless', id: u.id, to: o.id, skill: s.id, x: o.x, z: o.z });
   },
   rally(m, u, s) {
@@ -1106,6 +1111,7 @@ const CAST = {
       o.slowT = 0; o.stunT = 0; o.markT = 0; o.burnT = 0; o.burnN = 0;
       o.hasteT = Math.max(o.hasteT, s.dur); o.hasteF = Math.max(o.hasteT > s.dur ? o.hasteF : 1, s.haste);
     }
+    k1Rally(m, u, s);
     m.events.push({ t: 'rally', id: u.id, x: u.x, z: u.z, r: s.radius });
   },
   leap(m, u, s, inp) {
@@ -1638,6 +1644,7 @@ function stepShots(m) {
     for (const u of m.units) {
       if (u.team === s.team || !u.alive) continue;
       const t = segCircle(s.x, s.z, ex, ez, u.x, u.z, u.radius + s.r);
+      if (u.bubT > 0) { const tb = segCircle(s.x, s.z, ex, ez, u.x, u.z, u.radius + s.r + 0.5); if (tb < best && tb <= 1) { best = tb; what = 'dome'; hitUnit = null; hitProp = null; hitTower = null; hitZone = null; } continue; }
       if (s.pierce) {
         // A piercing shot hurts every mech it crosses, once each, and flies on.
         if (t > Math.min(best, 1) || s.hit.includes(u.id)) continue;
@@ -1668,6 +1675,7 @@ function stepShots(m) {
     if (s.ret && !s.back && owner && owner.alive && (what === 'end' || what === 'wall')) {
       // volley.ret: out of range (or against a wall), turn round with a clean hit list and come home.
       s.back = true; s.over = true; s.hit = []; s.left = 80;
+      k1Back(owner, s);
       m.events.push({ t: 'impact', vis: s.vis, on: what, x: s.x, z: s.z, dx: s.dx, dz: s.dz, splash: 0 });
       continue;
     }
@@ -1703,7 +1711,8 @@ const shotDamage = (s, extra) => s.dmg * (s.far && s.flown + extra > s.far.after
 // The hook caught `o`: it is dragged to just in front of the hooker and cannot act on the way.
 function reel(m, u, o, s) {
   m.events.push({ t: 'hook', id: u.id, target: o.id, x: o.x, z: o.z });
-  if (o.def.heavy || o.stance) return;
+  // a mech in mid-leap is above the hook line (and maybe above a wall): it is hurt, not reeled
+  if (o.def.heavy || o.stance || (o.dash && o.dash.fly)) return;
   const dx = u.x - o.x, dz = u.z - o.z, d = Math.hypot(dx, dz), left = d - (u.radius + o.radius + 0.6);
   if (left <= 0.2) { o.stunT = Math.max(o.stunT, s.stun); return; }
   o.cast = null;
@@ -2005,6 +2014,7 @@ function damage(m, u, amount, src, raw) {
     if (foe.passive === 'brittle') { const P = foe.def.passive; if (P.when === 'low' ? u.hp < u.maxHp * P.below : P.when === 'burn' ? u.burnT > 0 : P.when === 'marked' ? u.markT > 0 || u.ampT > 0 : u.slowT > 0) amount *= P.mul; }
     if (foe.passive === 'ambush' && foe.ambushT > 0 && !hidden(foe)) { amount *= foe.def.passive.mul; foe.ambushT = 0; }
     amount *= lowHpScaleMul(foe);
+    if (u.inT > 0 && curSrc === 'w') amount *= 1 - k1Wdr(u);
   }
   // kit-remake G2: the hit's kind (weapon / skill) and a vsTag payoff the row reads off this victim's tag
   const kind = hitKind(), vt = foe && curSrc && !reflecting ? vsTagOf(foe, u) : null;
@@ -2041,6 +2051,7 @@ function damage(m, u, amount, src, raw) {
   }
   // a skill row's own on-hit fields (steal, healLost, healMax, self on hit, cdCut)
   if (foe && foe.alive && left + absorbed > 0 && !reflecting && curSrc && curSrc !== 'w') rowHit(m, foe, left);
+  if (foe && left + absorbed > 0) k1Hurt(m, u, foe);
   if (foe && foe.alive && left > 0) {
     const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0);
     if (steal) heal(m, foe, left * steal, foe, true);
@@ -2093,6 +2104,7 @@ function heal(m, u, amount, src, quiet) {
   // hitfx antiheal: what this mech is healed by anyone (itself too) is cut
   if (u.ahT > 0) amount *= u.ahF;
   amount *= healInMul(u);
+  amount *= k1HealMul(u);
   // meter spend 'heal': the next heal this mech gives somebody else is stronger
   if (src && src.alive && src.passive === 'meter' && src.def.passive.spend.kind === 'heal' && !(quiet && src === u) && u.hp < u.maxHp && amount > 0 && meterArmed(src)) { amount *= src.def.passive.spend.mul; meterSpent(m, src); }
   const got = Math.min(u.maxHp - u.hp, amount);
@@ -2553,3 +2565,108 @@ function pveBosses(m) {
 }
 import { railAt } from './data.js';
 /* ===== end feat/dtt-modes Phó bản waves ===== */
+
+/* ===== kit lane K1 (feat/dtt-k1): G5 mechanics of Hulk, Captain America, Tư Mã Ý, Star Lord ===== */
+// Hooks in shared paths, one line each: clearStatus -> k1Clear, stepUnit -> k1Tick (after the transform tick), damage -> k1Hurt
+// (the victim, after rowHit), heal -> k1HealMul, dmgScale (hkF while hkT runs), rampBonus 'rapid' (hkF while hkT runs).
+function k1Clear(u) {
+  u.hkN = 0; u.hkT = 0; u.hkF = 0; u.hkIcd = 0;
+  u.capT = 0; u.inT = 0; u.bubT = 0; u.bubCc = 1; u.bubPrev = null;
+  u.rsT = 0; u.rsDur = 1; u.rsS = 0; u.rsH = 1;
+}
+
+// Hulk (khidot). passive regen `healUp: f`: every heal it receives is x (1 + f x its lost share of max hp).
+// transform `hps: f` (heals f of max hp per second while it runs) and `hurtW { heal, cut, step, max, dur, icd }`: while it runs, a
+// weapon blow from an enemy (one per icd s) heals `heal` of the lost hp, cuts the other two slots' cooldowns by `cut` of their full
+// cooldown, and adds a stack (hkN, up to max) of +step damage and fire rate for dur s (hkT, refreshed by each stack).
+function k1HealMul(u) {
+  const P = u.def.passive;
+  return P && P.healUp ? 1 + P.healUp * Math.max(0, 1 - u.hp / u.maxHp) : 1;
+}
+const k1Tf = (u) => (u.tfT > 0 && u.tfSlot >= 0 ? u.def.skills[u.tfSlot] : null);
+function k1Tick(m, u, dt) {
+  if (u.capT > 0) u.capT = Math.max(0, u.capT - dt);
+  if (u.inT > 0) u.inT = Math.max(0, u.inT - dt);
+  if (u.bubT > 0) {
+    // bubble cc cut: a stun, slow or root that landed since the last tick lasts only bubCc of what it was given
+    const P = u.bubPrev;
+    if (P && u.bubCc < 1) for (let i = 0; i < 3; i++) { const k = CC_KEYS[i], d = u[k] - P[i]; if (d > 1e-9) u[k] = P[i] + d * u.bubCc; }
+    u.bubT = Math.max(0, u.bubT - dt); u.bubPrev = u.bubT > 0 ? [u.stunT, u.slowT, u.rootT] : null;
+  }
+  if (u.rsT > 0) {
+    // rally shield and haste fade linearly to nothing over their duration
+    u.rsT = Math.max(0, u.rsT - dt); const f = u.rsT / u.rsDur;
+    if (u.shield > u.rsS * f) { u.shield = u.rsS * f; if (u.shield <= 0) { u.shield = 0; u.shieldT = 0; } }
+    if (u.hasteT > 0 && u.rsH > 1) u.hasteF = Math.max(1 + (u.rsH - 1) * f, u.capT > 0 ? 1 + k1Cap().aura.speed : 1);
+  }
+  const P = u.def.passive;
+  if (P && P.aura && !((m.tick + u.id) % 6)) for (const o of m.units) {
+    if (o.team !== u.team || !o.alive || dist2(o.x, o.z, u.x, u.z) > P.aura.r * P.aura.r) continue;
+    o.capT = 0.25; k1Haste(o, 0.25, 1 + P.aura.speed);
+  }
+  if (u.hkIcd > 0) u.hkIcd = Math.max(0, u.hkIcd - dt);
+  if (u.hkT > 0) { u.hkT = Math.max(0, u.hkT - dt); if (u.hkT <= 0) { u.hkN = 0; u.hkF = 0; } }
+  const s = k1Tf(u);
+  if (s && s.hps) heal(m, u, u.maxHp * s.hps * dt, u, true);
+}
+function k1Hurt(m, u, foe) {
+  if (typeof curSrc === 'string' && curSrc.endsWith('~b')) k1BackHit(foe, curSrc);
+  const s = curSrc === 'w' && u.alive ? k1Tf(u) : null, H = s && s.hurtW;
+  if (!H || u.hkIcd > 0) return;
+  u.hkIcd = H.icd;
+  if (H.heal) heal(m, u, (u.maxHp - u.hp) * H.heal, u, true);
+  if (H.cut) for (let i = 0; i < 3; i++) if (i !== u.tfSlot && u.def.skills[i]) { const k = SLOTS[i]; u.cd[k] = Math.max(0, u.cd[k] - u.def.skills[i].cd * H.cut); }
+  u.hkN = Math.min(H.max, u.hkN + 1); u.hkF = u.hkN * H.step; u.hkT = H.dur;
+  m.events.push({ t: 'k1', kind: 'hurtW', id: u.id, n: u.hkN, x: u.x, z: u.z });
+}
+
+// Captain America (tacke). passive `aura { r, speed, armor }`: allies within r (itself too) move speed x (1 + speed) and get +armor
+// (capT, refreshed every 0.2 s). passive `inspire { r, dur, haste, wdr }`: every cast gives allies within r (itself too) dur s of
+// +haste speed and wdr less damage from weapon blows (inT/inS/inW).
+// The armour and weapon-damage factors are read from the one aura passive in MECHS (k1Cap), not stored per unit.
+let k1CapRow;
+const k1Cap = () => (k1CapRow !== undefined ? k1CapRow : (k1CapRow = Object.values(MECHS).map((r) => r.passive).find((P) => P && P.aura && P.inspire) || null));
+// Speed goes through the synced haste (hasteT/hasteF, the strongest haste running wins), so a guest's mirror moves the same; the
+// timers capT/inT/bubT and the factors stay host side (the netstate status mask has no room for them).
+function k1Haste(o, dur, f) { o.hasteF = Math.max(o.hasteT > 0 ? o.hasteF : 1, f); o.hasteT = Math.max(o.hasteT, dur); }
+const k1Armor = (u) => (u.capT > 0 ? k1Cap().aura.armor : 0);
+const k1Wdr = (u) => (u.inT > 0 ? k1Cap().inspire.wdr : 0);
+function k1Cast(m, u, s) {
+  const I = u.def.passive && u.def.passive.inspire;
+  if (!I) return;
+  for (const o of m.units) {
+    if (o.team !== u.team || !o.alive || dist2(o.x, o.z, u.x, u.z) > I.r * I.r) continue;
+    o.inT = I.dur; k1Haste(o, I.dur, 1 + I.haste);
+  }
+  m.events.push({ t: 'k1', kind: 'inspire', id: u.id, x: u.x, z: u.z, r: I.r });
+}
+// bless `bubble: s` (+ `bubCc: f`): the blessed ally AND the caster are wrapped for s seconds in a bubble that eats every enemy shot
+// that reaches it (stepShots: the shot ends as a 'dome' impact, no damage, no splash); the ally's new stuns, slows and roots last bubCc.
+function k1Bless(m, u, s, o) {
+  if (!s.bubble) return;
+  for (const w of o === u ? [u] : [o, u]) { w.bubT = Math.max(w.bubT, s.bubble); w.bubCc = w === o && s.bubCc ? s.bubCc : 1; w.bubPrev = [w.stunT, w.slowT, w.rootT]; }
+}
+// volley `back { dmg, fx, cut }` on a `ret` row: the shot turning home hits for back.dmg with back.fx, and each enemy it hurts on the way
+// home cuts this slot's cooldown by `cut` of the row's cd. The homeward shot carries the source tag '<id>~b' (rowHit ignores it).
+function k1Back(owner, s) {
+  const row = s.src && owner.def.skills.find((r) => r.id === s.src), B = row && row.back;
+  if (!B) return;
+  s.dmg = B.dmg * dmgScale(owner); s.fx = B.fx || null; s.pierce = true; s.hit = []; s.src = row.id + '~b';
+}
+function k1BackHit(foe, tag) {
+  const id = tag.slice(0, -2), i = foe.def.skills.findIndex((r) => r.id === id), B = i >= 0 && foe.def.skills[i].back;
+  if (!B || !B.cut) return;
+  const k = SLOTS[i]; foe.cd[k] = Math.max(0, foe.cd[k] - foe.def.skills[i].cd * B.cut);
+}
+// rally `shield, shieldDur, decay, ccImmune`: allies in the radius get a shield that fades to nothing over shieldDur (with the rally's
+// haste fading alongside) and ccImmune s of crowd-control immunity.
+function k1Rally(m, u, s) {
+  if (!s.shield) return;
+  for (const o of m.units) {
+    if (o.team !== u.team || !o.alive || dist2(o.x, o.z, u.x, u.z) > s.radius * s.radius) continue;
+    o.shield = Math.max(o.shield, s.shield); o.shieldMax = Math.max(o.shieldMax, o.shield); o.shieldT = Math.max(o.shieldT, s.shieldDur);
+    if (s.decay) { o.rsT = s.shieldDur; o.rsDur = s.shieldDur; o.rsS = s.shield; o.rsH = s.haste || 1; }
+    if (s.ccImmune) o.ccT = Math.max(o.ccT, s.ccImmune);
+  }
+}
+/* ===== end kit lane K1 ===== */

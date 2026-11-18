@@ -265,20 +265,28 @@ export const MECHS = {
         desc: 'Mọi đồng đội trong 8 m hồi 1100 máu, hết bị chậm, choáng và dấu tử, rồi chạy nhanh hơn 3 giây.' },
     ],
   },
+  // Captain America: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p21 "18.上尉", tooltips read at 2-8 s; AUDIT-c.md). Attack =
+  // 150 (lubo, moclan): Chính Nghĩa Chi Thuẫn 76% -> 114 out, 159% -> 239 home; Dũng Khí Chi Thuẫn 720% -> a 1080 shield. Cooldowns 6 / 6
+  // (2 uses 4 s apart) / 30 s in the clip -> 8 / 8 / 55. The disc weapon stays (bounce 2). The passive is the clip's command aura
+  // (+10% speed; "+10% armour" as +0.05 on our 0..0.3 armour axis) and inspire on every cast (K1 aura, inspire); Vinh Diệu's bullet-eating
+  // shield is bless.bubble (K1), the boomerang's homeward leg is volley.back (K1), the team shield is rally.shield + decay (K1).
+  // The ult's short charge is not ported (rally fires at the press).
   tacke: {
-    name: 'Tắc Kè', role: 'Xạ thủ nảy', roleKey: 'trickshot', price: 1750, tint: 0x3fb5a0,
-    blurb: 'Đĩa thép nảy tường: bắn vòng qua góc. Căng dây điện chặn lối.',
-    hp: 2250, speed: 6.6, radius: 0.8,
-    armor: 0.05, accel: 1.2, turn: 13, towerMul: 0.9,
-    passive: { do: 'rebound', name: 'Dội Tường', desc: 'Mỗi lần nảy tường đĩa mạnh thêm 30%.', mul: 0.3 },
-    weapon: { name: 'Đĩa Nảy', cd: 0.5, dmg: 158, speed: 30, range: 21, r: 0.24, bounce: 2, vis: 'disc' },
+    name: 'Captain America', role: 'Hỗ trợ', roleKey: 'support', price: 1750, tint: 0x2f5fb8,
+    blurb: 'Khiên tròn nảy tường. Chỉ huy đồng đội quanh mình chạy nhanh và cứng hơn, khiên vinh quang nuốt đạn, ném khiên đi về làm choáng, khiên dũng khí che cả đội.',
+    hp: 2500, speed: 6.4, radius: 0.84,
+    armor: 0.08, accel: 1.2, turn: 13, towerMul: 0.9,
+    passive: { do: 'trait', name: 'Chỉ Huy', aura: { r: 8, speed: 0.1, armor: 0.05 }, inspire: { r: 8, dur: 2, haste: 0.25, wdr: 0.25 },
+      desc: 'Đồng đội trong 8 m (kể cả bạn) chạy nhanh hơn 10% và thêm 5% giáp. Mỗi lần bạn dùng chiêu, đồng đội trong 8 m được cổ vũ 2 giây: chạy nhanh thêm 25% và nhận ít hơn 25% sát thương từ đòn đánh thường.' },
+    weapon: { name: 'Khiên Nảy', cd: 0.5, dmg: 150, speed: 30, range: 21, r: 0.24, bounce: 2, vis: 'disc' },
     skills: [
-      { id: 'daydien', look: 'tkWire', name: 'Dây Điện', cd: 12, do: 'wire', cast: 10, width: 6, dur: 14, dmg: 200, slow: 0.5, slowDur: 2, charges: 3, arm: 0.5, icon: 'wire',
-        desc: 'Căng một dây điện dài 6 m ở con trỏ trong 14 giây. Địch băng qua mất 200 máu và chậm 50%. Dùng được 3 lần.' },
-      { id: 'chumnay', look: 'tkBounce', name: 'Chùm Nảy', cd: 9, do: 'volley', n: 5, fan: 0.14, dmg: 85, speed: 30, range: 18, r: 0.2, bounce: 3, vis: 'disc', icon: 'ricochet',
-        desc: 'Bắn năm đĩa nhỏ tỏa hình quạt, mỗi đĩa nảy tường ba lần.' },
-      { id: 'baodia', look: 'tkStorm', name: 'Bão Đĩa', cd: 42, do: 'volley', n: 14, fan: 0.4488, dmg: 170, speed: 28, range: 22, r: 0.24, bounce: 3, vis: 'disc', icon: 'spin',
-        desc: 'Mười bốn đĩa bắn ra mọi hướng quanh bạn, mỗi đĩa nảy tường ba lần.' },
+      { id: 'vinhdieu', look: 'caGlory', name: 'Vinh Diệu Chi Thuẫn', cd: 8, do: 'bless', cast: 10, pick: 4, bubble: 1.25, bubCc: 0.5, icon: 'dome',
+        desc: 'Chọn đồng đội ở con trỏ (xa nhất 10 m; không có ai thì chính bạn): người đó và bạn được khiên vinh quang 1,25 giây nuốt mọi viên đạn bay tới; trong lúc đó đồng đội ấy chỉ chịu một nửa thời gian khống chế.' },
+      { id: 'chinhnghia', look: 'caJustice', name: 'Chính Nghĩa Chi Thuẫn', cd: 8, uses: { n: 2, gap: 4 }, do: 'volley', n: 1, dmg: 114, speed: 26, range: 13, r: 0.6, pierce: true, ret: true, fx: { stun: 0.5 },
+        back: { dmg: 239, fx: { stun: 1 }, cut: 0.15 }, vis: 'disc', icon: 'ricochet',
+        desc: 'Ném khiên theo hướng ngắm (xa 13 m): kẻ trên đường bay chịu 114 sát thương, choáng 0,5 giây. Hết tầm khiên bay về, kẻ trên đường về chịu 239 sát thương, choáng 1 giây, mỗi kẻ trúng giảm 15% hồi chiêu này. Tích 2 lượt, cách nhau 4 giây.' },
+      { id: 'dungkhi', look: 'caCourage', name: 'Dũng Khí Chi Thuẫn', cd: 55, do: 'rally', radius: 7, dur: 5, heal: 0, haste: 1.5, shield: 1080, shieldDur: 5, decay: true, ccImmune: 5, icon: 'shield',
+        desc: 'Che chở đồng đội trong 7 m (kể cả bạn): mỗi người được khiên 1080 trong 5 giây, chạy nhanh hơn 50% và miễn khống chế; khiên và tốc chạy nhạt dần tới hết 5 giây.' },
     ],
   },
   hoalong: {
@@ -788,21 +796,27 @@ export const MECHS = {
         desc: 'Vùng cứu thương bám theo bạn 5 giây: đồng đội trong 6,5 m hồi 220 máu mỗi giây và thêm 25% giáp.' },
     ],
   },
+  // Hulk: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p23 "20.巨人", tooltips read at 0.5-8.5 s; AUDIT-b.md). Attack = 150 on
+  // the kit scale (lubo, moclan): Chấn Không Nộ Hống 163% -> 245, Tử Vong Tiễn Đạp 155% -> 233. Cooldowns 6 / 10 / 25 s in the clip ->
+  // 8 / 12 / 45. The fist keeps its 200 per blow (a slow 0.75 s swing). Passive 6% max hp per 3 s -> regen hps 0.02, heals received up
+  // to +50% at low hp (healUp, K1). The ult's lifesteal became the clip's 3%/s heal (transform hps) and the stacks it gains from every
+  // weapon blow it takes (hurtW, K1): 3% of lost hp, the other cooldowns -10%, +5% damage and fire rate for 2 s, up to +100%.
   khidot: {
     name: 'Hulk', role: 'Trụ', roleKey: 'tank', price: 1900, tint: 0x3f7d2f,
-    blurb: 'Da lì tự lành theo phần máu đã mất, dưới ngưỡng thấp thì lành gấp đôi và cứng thêm. Đấm đất, nhảy vồ, rồi thịnh nộ phình to hút máu.',
+    blurb: 'Càng thấp máu càng hồi nhiều. Gầm chấn không làm địch chậm và yếu đi, tụ lực nhảy giẫm đánh tung, rồi phẫn nộ: càng bị đánh càng hồi máu và càng mạnh.',
     hp: 3300, speed: 5.4, radius: 1.0,
     armor: 0.12, accel: 0.8, turn: 9, towerMul: 1.5,
-    passive: { do: 'regen', name: 'Da Lì', desc: 'Mỗi giây tự hồi 2% máu đã mất, kể cả khi đang đánh. Dưới 35% máu hồi gấp đôi và thêm 10% giáp.',
-      missing: 0.02, mods: { lowHp: { below: 0.35, regen: 2, armor: 0.1 } } },
+    passive: { do: 'regen', name: 'Trùng Sinh Trị Dũ', desc: 'Mỗi giây tự hồi 2% máu tối đa, kể cả khi đang đánh. Máu càng thấp thì mọi lượng hồi máu nhận vào càng nhiều, tối đa thêm 50%.',
+      hps: 0.02, healUp: 0.5 },
     weapon: { name: 'Nắm Đấm', cd: 0.75, dmg: 200, speed: 24, range: 6.5, r: 0.5, splash: 1.6, knock: 1.5, vis: 'shell' },
     skills: [
-      { id: 'damdat', look: 'kdPound', name: 'Đấm Đất', cd: 9, do: 'nova', windup: 0.3, radius: 5, dmg: 260, slow: 0.4, slowDur: 2, icon: 'quake',
-        desc: 'Lấy đà 0,3 giây rồi đấm xuống đất: địch trong 5 m chịu 260 sát thương và chậm 40% trong 2 giây.' },
-      { id: 'nhayvo', look: 'kdLeap', name: 'Nhảy Vồ', cd: 12, do: 'leap', cast: 10, flight: 0.55, radius: 3.5, dmg: 240, knock: 3.5, icon: 'leap',
-        desc: 'Nhảy tới con trỏ (xa nhất 10 m), đáp xuống gây 240 sát thương và hất văng.' },
-      { id: 'thinhno', look: 'kdRage', name: 'Thịnh Nộ', cd: 45, do: 'transform', dur: 7, size: 1.25, armor: 0.2, dmg: 1.25, lifesteal: 0.2, weapon: { cd: 0.5 }, icon: 'rage',
-        desc: 'Trong 7 giây to hơn 25%, thêm 20% giáp, sát thương tăng 25%, hút máu 20% và đấm nhanh hơn (hồi 0,5 giây).' },
+      { id: 'chankhong', look: 'hkRoar', name: 'Chấn Không Nộ Hống', cd: 8, do: 'nova', windup: 0.3, radius: 5, dmg: 245, fx: { slow: 0.25, slowDur: 2, weaken: { mul: 0.75, dur: 2 } }, icon: 'quake',
+        desc: 'Lấy hơi 0,3 giây rồi gầm chấn động: địch trong 5 m chịu 245 sát thương, bị chậm 25% và giảm 25% sát thương trong 2 giây.' },
+      { id: 'tiendap', look: 'hkStomp', name: 'Tử Vong Tiễn Đạp', cd: 12, do: 'leap', windup: 0.25, move: 0, cast: 10, flight: 0.55, radius: 3.5, dmg: 233, fx: { air: 0.5 }, icon: 'leap',
+        desc: 'Tụ lực 0,25 giây rồi nhảy tới chỗ con trỏ (xa nhất 10 m), giẫm xuống gây 233 sát thương vòng 3,5 m và đánh tung kẻ trúng 0,5 giây.' },
+      { id: 'damanchino', look: 'hkRage', name: 'Dã Man Chi Nộ', cd: 45, do: 'transform', dur: 8, size: 1.2, haste: 1.25, ccResist: 0.5, hps: 0.03,
+        hurtW: { heal: 0.03, cut: 0.1, step: 0.05, max: 20, dur: 2, icd: 0.3 }, icon: 'rage',
+        desc: 'Phẫn nộ 8 giây: to hơn 20%, mỗi giây hồi 3% máu tối đa, chạy nhanh hơn 25%, khống chế trúng phải chỉ còn một nửa. Mỗi đòn đánh thường trúng bạn (cách nhau ít nhất 0,3 giây): hồi 3% máu đã mất, hai chiêu kia hồi nhanh thêm 10%, sát thương và tốc bắn +5% trong 2 giây, cộng dồn tới +100%.' },
     ],
   },
   retdo: {
@@ -1009,7 +1023,7 @@ export const PERKS = {
   hacho: [perk('Móng Sắc', 'Vồ gây 300.', 0, { dmg: 300 }), perk('Nộ Dai', 'Cuồng Nộ kéo dài 5,5 giây.', 1, { dur: 5.5 }), perk('Án Tử', 'Dấu Tử kết liễu dưới 28% máu.', 2, { execute: 0.28 })],
   holy: [perk('Bom Ảnh', 'Bản sao nổ 260.', 0, { dmg: 260 }), perk('Bước Xa', 'Xuyên Tường xa 9,5 m.', 1, { dist: 9.5 }), perk('Bốn Bóng', 'Vũ Điệu Ảo Ảnh thả bốn bản sao.', 2, { n: 4 })],
   domdom: [perk('Ong Bền', 'Ong Thợ bay 16 giây.', 0, { dur: 16 }), perk('Tiếp Khiên', 'Tiếp Sức kèm khiên 300.', 1, { shield: 300 }), perk('Sáng Rực', 'Vòng Sáng hồi 1500.', 2, { heal: 1500 })],
-  tacke: [perk('Dây Bền', 'Dây Điện dùng được 5 lần.', 0, { charges: 5 }), perk('Bảy Đĩa', 'Chùm Nảy bắn bảy đĩa.', 1, { n: 7 }), perk('Nảy Ba', 'Đĩa Nảy nảy tường ba lần.', 'weapon', { bounce: 3 })],
+  tacke: [perk('Vinh Quang Dài', 'Khiên vinh quang kéo dài 1,75 giây.', 0, { bubble: 1.75 }), perk('Khiên Nặng', 'Khiên bay về gây 280, choáng 1,2 giây.', 1, { back: { dmg: 280, fx: { stun: 1.2 }, cut: 0.15 } }), perk('Nảy Ba', 'Khiên Nảy nảy tường ba lần.', 'weapon', { bounce: 3 })],
   hoalong: [perk('Tụ Nhanh', 'Quá Tải hồi trong 6,5 giây.', 0, { cd: 6.5 }), perk('Màn Rộng', 'Màn Sáng dài bảy tấm.', 1, { n: 7 }), perk('Tuyến Dài', 'Thiên Hỏa Tuyến kéo dài 3,4 giây.', 2, { dur: 3.4 })],
   khiphao: [perk('Pháo Đằm', 'Pháo Tép làm chậm hoặc làm yếu với 45% quả.', 'weapon', { fx: { chance: 0.45, pick: [{ slow: 0.35, slowDur: 1.5 }, { weaken: { mul: 0.8, dur: 2 } }] } }), perk('Bẫy Dày', 'Mìn của Chuồn Lẹ nổ 360.', 1, { onStart: { mine: { trigger: 2, blast: 3, dmg: 360, arm: 0.4, life: 8, fx: { slow: 0.4, slowDur: 1.5 } } } }), perk('Mười Sáu Quả', 'Hội Pháo Hoa dội 16 quả.', 2, { n: 16 })],
   quancong: [perk('Đao Dài', 'Đao Khí bay xa 8 m.', 'weapon', { range: 8 }), perk('Xung Mạnh', 'Xung Phong gây 260 và choáng 0,8 giây.', 0, { dmg: 260, stun: 0.8 }), perk('Án Trảm', 'Trảm Tướng kết liễu dưới 32% máu.', 2, { fx: { execute: 0.32 } })],
@@ -1040,7 +1054,7 @@ export const PERKS = {
   cuuvi: [perk('Chùm Bốn Quả', 'Chùm Hồ Hỏa bắn bốn quả, nổ lan 1,8 m.', 0, { n: 4, splash: 1.8 }), perk('Ảnh Bền', 'Ảo Ảnh bền 550 máu, ở lại 4 giây, nổ 180.', 1, { leave: { hp: 550, dur: 4, blast: 4, dmg: 180, fx: { slow: 0.5, slowDur: 2 } } }), perk('Mười Một Đuôi', 'Cửu Vĩ Hỏa thả 11 quả, mỗi quả 160.', 2, { n: 11, dmg: 160 })],
   kiemthan: [perk('Kiếm Nặng', 'Kiếm Phong gây 85.', 'weapon', { dmg: 85 }), perk('Trận Dày', 'Kiếm Trận tám thanh, kéo dài 5 giây.', 1, { n: 8, dur: 5 }), perk('Mười Hai Kiếm', 'Vạn Kiếm Quy Tông giáng 12 thanh, mỗi thanh 260.', 2, { n: 12, dmg: 260 })],
   suatrang: [perk('Bóng Bền', 'Bong Bóng Hồi hồi 200 mỗi giây trong 5 giây.', 0, { hot: { hps: 200, dur: 5 } }), perk('Khiên Dày', 'Bay Đỡ che khiên 600, rộng 5 m.', 1, { landShield: 600, radius: 5 }), perk('Cứu Thương Dài', 'Cấp Cứu hồi 280 mỗi giây, kéo dài 6 giây.', 2, { hps: 280, dur: 6 })],
-  khidot: [perk('Đấm Rung', 'Đấm Đất rộng 6 m, gây 320.', 0, { radius: 6, dmg: 320 }), perk('Vồ Lớn', 'Nhảy Vồ rộng 4,2 m, gây 300.', 1, { radius: 4.2, dmg: 300 }), perk('Nộ Dài', 'Thịnh Nộ kéo dài 9 giây, hút máu 28%.', 2, { dur: 9, lifesteal: 0.28 })],
+  khidot: [perk('Gầm Vang', 'Chấn Không Nộ Hống rộng 6 m, gây 300.', 0, { radius: 6, dmg: 300 }), perk('Giẫm Lớn', 'Tử Vong Tiễn Đạp rộng 4,2 m, gây 280.', 1, { radius: 4.2, dmg: 280 }), perk('Nộ Dài', 'Dã Man Chi Nộ kéo dài 10 giây.', 2, { dur: 10 })],
   retdo: [perk('Dao Dày', 'Phóng Dao phóng bảy con.', 0, { burst: { n: 7, gap: 0.08 } }), perk('Thế Dài', 'Lộn Ngược giữ thế 0,8 giây, trả ba con dao 180.', 1, { window: 0.8, riposte: { volley: { n: 3, fan: 0.06, dmg: 180, speed: 34, range: 12, r: 0.22, vis: 'dart' } } }), perk('Loạn Sâu', 'Hỗn Loạn kéo dài 6 giây, thiêu 260 mỗi giây, hút 70%.', 2, { dur: 6, dps: 260, drain: 0.7 })],
   nhenthep: [perk('Tơ Xa', 'Móc Đu bay xa 15 m, gây 190.', 0, { range: 15, dmg: 190 }), perk('Chém Rộng', 'Vòng Chém lướt 7,5 m, gây 230.', 1, { dist: 7.5, dmg: 230 }), perk('Sáu Lượt', 'Đu Dây Liên Hoàn đu sáu lượt, mỗi lượt 270.', 2, { n: 6, dmg: 270 })],
   taothao: [perk('Kiếm Dài', 'Ỷ Thiên Kiếm gây 150.', 'weapon', { dmg: 150 }), perk('Bốn Nhát', 'Liên Trảm chém bốn nhát, mỗi nhát 170.', 1, { n: 4, dmg: 170 }), perk('Vương Bền', 'Bá Vương kéo dài 8 giây, hút máu 40%.', 2, { dur: 8, lifesteal: 0.4 })],

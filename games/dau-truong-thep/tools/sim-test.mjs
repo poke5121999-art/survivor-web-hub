@@ -4,6 +4,7 @@ import { createMatch, step, visibleTo, hidden, unitSpeed, towerOpen, armorOf, we
 import { botInput, allInputs } from '../js/bots.js';
 import { solidAt, MAP_ORDER, NHA_ORDER, MAPS, mapsFor, fitMap, findPath, compileMap, THEME_ORDER, THEMES, pickArena, losClear } from '../js/maps.js';
 import { runModeCases, runPveCases, runBossCases } from './modes-cases.mjs';   // feat/dtt-modes: section 50
+import { runK1Cases } from './k1-cases.mjs';   // kit lane K1: section K1
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -126,7 +127,8 @@ for (const key of MECH_ORDER) {
       a.hp = a.maxHp;
     }
     check(`${key}.${slot} (${s.do}) goes on cooldown = ${s.cd}s`, first === 0 && Math.abs(castTicks - s.cd) < 1e-9, `first ${first} cd ${castTicks}`);
-    check(`${key}.${slot} cannot recast before the cooldown ends`, second >= 0 && (second - first) * TICK >= (s.do === 'counter' ? 0.6 * s.cd : s.cd) - 2 * TICK && (second - first) * TICK <= s.cd + 0.5, `gap ${(second - first) * TICK}`);
+    // a row with uses (G1 skill charges) recasts after its gap, not after the cooldown
+    check(`${key}.${slot} cannot recast before the cooldown ends`, second >= 0 && (second - first) * TICK >= (s.uses ? s.uses.gap : s.do === 'counter' ? 0.6 * s.cd : s.cd) - 2 * TICK && (second - first) * TICK <= (s.uses ? s.uses.gap : s.cd) + 0.5, `gap ${(second - first) * TICK}`);
   }
 }
 
@@ -2152,6 +2154,8 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     // shooter (4,-6) aims 45 degrees at the face x = 10; a wall at z 1..2 hides the target at (4,6) from it
     const cover = [[10, 11, -10, 10], [1, 7, 1, 2]];
     const b = arena([[R('tacke', 0), 4, -6, Math.PI / 4], [R('ung', 1), 4, 6]], cover);
+    // the rebound passive is a fixture now (tacke plays Captain America, section 47): the batch-0 Tắc Kè passive on the same disc
+    b.units[0].def = { ...b.units[0].def, passive: { do: 'rebound', mul: 0.3 } }; b.units[0].passive = 'rebound';
     go(b, 40, FIRE0);
     check('bounce + rebound: a disc fired at a wall at 45 degrees comes back round the cover and hits for dmg x 1.3', near(b.units[1].hp, 1700 - MECHS.tacke.weapon.dmg * 1.3, 1e-9), `hp ${b.units[1].hp}`);
     const d = arena([[R('tacke', 0), 4, -6, Math.PI / 2], [R('ung', 1), 4, 6]], cover);
@@ -2398,7 +2402,9 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('rally: an ally farther than 8 m gets nothing', far1.hp === 1000 && far1.slowT > 2.9, `hp ${far1.hp} slow ${far1.slowT}`);
   }
   {
-    const mk = () => arena([[R('tacke', 0), -10, 0], [R('ung', 1), 0.03, -2.5], [R('ung', 1), 0.03, -1], [R('ung', 1), 0.03, 1], [R('ung', 1), 0.03, 2.5], [R('trau', 0), 2, 0]]);
+    // the wire row is a fixture now (tacke plays Captain America, section 47): the batch-0 Tắc Kè Dây Điện on slot 1
+    const WIRE = { id: 'daydien', cd: 12, do: 'wire', cast: 10, width: 6, dur: 14, dmg: 200, slow: 0.5, slowDur: 2, charges: 3, arm: 0.5 };
+    const mk = () => { const m = arena([[R('tacke', 0), -10, 0], [R('ung', 1), 0.03, -2.5], [R('ung', 1), 0.03, -1], [R('ung', 1), 0.03, 1], [R('ung', 1), 0.03, 2.5], [R('trau', 0), 2, 0]]); const u = m.units[0]; u.def = { ...u.def, passive: null, skills: [WIRE, u.def.skills[1], u.def.skills[2]] }; u.passive = null; return m; };
     const walkers = { 1: { mx: -1, aim: Math.PI }, 2: { mx: -1, aim: Math.PI }, 3: { mx: -1, aim: Math.PI }, 4: { mx: -1, aim: Math.PI } };
     const m = mk();
     go(m, 1, () => ({ 0: { s1: true, tx: 0, tz: 0 } }));
@@ -2476,6 +2482,8 @@ section('37 determinism with all 16 mechs');
 {
   const fingerprint = (m) => m.units.map((u) => [u.x, u.z, u.hp, u.aim, u.shield, u.stunT, u.slowT, u.cd.s1, u.cd.s2, u.cd.ult, u.stance ? 1 : 0, u.charge].join(',')).join('|') + '#' + m.shots.length + ',' + m.zones.length + ',' + m.score.join(',');
   for (const mode of ['tdm', 'nha']) {
+    // all 54 mechs in one bot brawl: it ends when a team reaches the kill limit, and every kit change moves that (809 ticks on 9bf02512,
+    // 550 with the K1 kits, a captain aura over half the brawl); the comparison only needs a few hundred ticks, so the floor is 450
     const make = () => createMatch({ seed: 77, mode, roster: MECH_ORDER.map((mech, i) => ({ team: i % 2, mech, name: mech, bot: true, diff: 'normal' })) });
     const a = make(), b = make();
     let diverged = -1, nan = false;
@@ -2484,7 +2492,7 @@ section('37 determinism with all 16 mechs');
       if (fingerprint(a) !== fingerprint(b)) diverged = t;
       if (a.units.some((u) => !Number.isFinite(u.x + u.z + u.hp + u.aim))) nan = true;
     }
-    check(`determinism: two ${mode} matches with all 16 mechs (8 v 8, bots, same seed) are identical tick by tick (1200 ticks or until the end)`, diverged < 0 && a.tick === b.tick && a.tick > 600, `diverged at tick ${diverged}, ticks ${a.tick}`);
+    check(`determinism: two ${mode} matches with all 16 mechs (8 v 8, bots, same seed) are identical tick by tick (1200 ticks or until the end)`, diverged < 0 && a.tick === b.tick && a.tick > 450, `diverged at tick ${diverged}, ticks ${a.tick}`);
     check(`determinism: ${mode} with all 16 mechs: no NaN in any unit`, !nan);
   }
 }
@@ -3396,9 +3404,16 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
     go(m, 30);
     check('43r Cham Soc: itself +1 % of max hp over 1 s, the hurt ally near +2.5 x that, the far ally nothing', near(a.hp - h[0], 0.01 * a.maxHp, 1e-6) && near(al.hp - h[1], 0.025 * al.maxHp, 1e-6) && far.hp === h[2], `${a.hp - h[0]} ${al.hp - h[1]} ${far.hp - h[2]}`);
   }
-  // regen (khidot): missing 2 %/s of the lost hp; under 35 % twice that and +0.10 armor
+  // The batch-4 Hulk passive and ult are a fixture now (khidot plays the kit ported from clip p23, section 47); these rows keep
+  // regen.missing, mods.lowHp.regen/armor and the transform's size/dmg/lifesteal/weapon swap covered.
+  const OLD_KHIDOT = {
+    passive: { do: 'regen', missing: 0.02, mods: { lowHp: { below: 0.35, regen: 2, armor: 0.1 } } },
+    ult: { id: 'thinhno', cd: 45, do: 'transform', dur: 7, size: 1.25, armor: 0.2, dmg: 1.25, lifesteal: 0.2, weapon: { cd: 0.5 } },
+  };
+  const oldKhidot = (u, ult) => { u.def = ult ? { ...u.def, skills: [u.def.skills[0], u.def.skills[1], OLD_KHIDOT.ult], tfWeapon: { 2: { ...u.def.weapon, cd: 0.5 } } } : { ...u.def, passive: OLD_KHIDOT.passive }; return u; };
+  // regen (khidot fixture): missing 2 %/s of the lost hp; under 35 % twice that and +0.10 armor
   {
-    const m = arena([[R('khidot', 0), 0, 0], [R('ung', 1), 25, 0]]), a = m.units[0];
+    const m = arena([[R('khidot', 0), 0, 0], [R('ung', 1), 25, 0]]), a = oldKhidot(m.units[0]);
     a.hp = a.maxHp * 0.5; const h = a.hp;
     go(m, 30);
     check('43s Da Li: two pulses, each 2 % x 0.5 s of the lost hp', near(a.hp, h + 0.01 * (a.maxHp - h) + 0.01 * (a.maxHp - h - 0.01 * (a.maxHp - h)), 1e-6), `${a.hp - h}`);
@@ -3451,7 +3466,7 @@ section('43 batch 4 primitives: stacks, orbit (seek, guard), regen, bless.hot, l
   }
   // khidot U: transform row
   {
-    const m = arena([[R('khidot', 0), 0, 0], [R('ung', 1), 12, 0]]), a = m.units[0];
+    const m = arena([[R('khidot', 0), 0, 0], [R('ung', 1), 12, 0]]), a = oldKhidot(m.units[0], true);
     press(m, 0, 'ult');
     check('43zf Thinh No: radius x1.25, damage x1.25, lifesteal 0.2, fist cooldown 0.5, armor 0.12 + 0.2', near(a.radius, MECHS.khidot.radius * 1.25) && a.tfDmg === 1.25 && a.rageF === 0.2 && weaponOf(a).cd === 0.5 && near(armorOf(m, a), MECHS.khidot.armor + 0.2), `${a.radius} ${weaponOf(a).cd}`);
   }
@@ -4377,6 +4392,7 @@ section('47 kit-remake G2 primitives (MECHANICS.md): hitfx tag + vsTag, mods.sav
     check('47O a scripted fight with every G2 field is deterministic', play() === play());
   }
 }
+runK1Cases(check, section);
 
 section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yank/slam/chain.seq/antiheal.shield, selfShield frac/hits/burst, passive reShield/hitCap/healIn/lowHpScale, weapon mag, dash.windup, healIn, warp.to own objects, totem (test-only rows, literal expected values)');
 {

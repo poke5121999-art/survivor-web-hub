@@ -8,7 +8,6 @@
 //     of dragon scales, one thick lava stream (not the flame jets, rings, fox fire or fire wheel of the other fire tanks).
 //   悟空 p25 (Khỉ Pháo): gold and orange, a spinning gold band, a staff from the sky. Ours keeps gold with the tank's violet:
 //     a grinning bomb, a golden somersault cloud, firework blooms.
-//   巨人 p23 (Khỉ Đột): a green giant: green aura and a rising green column, a green sphere wrapped in lime lightning.
 //   绮翠之心 p91 (Đom Đóm, partial): emerald healing bubbles on allies, green orbs. Ours: warm firefly light with mint bubbles.
 import * as THREE from '../../vendor/three.module.min.js';
 import { C, own, stop, sigil, shell, pillar, trail, burst } from './lookkit.js';
@@ -469,86 +468,6 @@ const khiphao = {
   },
 };
 
-// ---- Khỉ Đột: jade green, lime lightning ---------------------------------------------------------------------------------
-const KD_GREEN = C(0.25, 1.6, 0.35), KD_LIME = C(2.0, 2.6, 0.35), KD_DARK = C(0.03, 0.18, 0.05), KD_DEEP = C(0.08, 0.55, 0.14);
-const KG_EDGE = C(0.12, 0.72, 0.18), KG_CORE = C(0.92, 1, 0.6);
-// a giant clenched fist, knuckles along +x, smooth rounded parts (palm, four knuckles, curled fingers, thumb, wrist)
-const FIST = (() => {
-  const s = (x, y, z, sx, sy, sz) => keep(new THREE.SphereGeometry(1, 16, 12).scale(sx, sy, sz).translate(x, y, z));
-  const parts = [s(0, 0, 0, 0.85, 0.72, 1.0), s(-0.85, -0.05, 0, 0.55, 0.5, 0.62)];
-  for (let i = 0; i < 4; i++) { const zz = -0.6 + i * 0.4; parts.push(s(0.72, 0.18, zz, 0.3, 0.3, 0.21), s(0.6, -0.3, zz, 0.36, 0.28, 0.2)); }
-  parts.push(s(0.35, -0.25, 0.78, 0.48, 0.24, 0.24));
-  return parts;
-})();
-function fist() {
-  const g = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: 0x2e6a28, roughness: 0.6, metalness: 0.05, emissive: 0x05200a, transparent: true, opacity: 1 }), h = basic(KD_GREEN, true, 0.35);
-  for (const p of FIST) g.add(new THREE.Mesh(p, m));
-  const halo = new THREE.Mesh(sphGeo, h); halo.scale.set(1.3, 1.05, 1.3); h.opacity = 0.18; g.add(halo);
-  g.traverse((q) => { q.renderOrder = 8; }); return g;
-}
-// a crater: a dark scorched hollow with a broken earth rim and green light seeping from it
-function crater(kit, x, z, r, life) {
-  softRing(kit, x, z, r, C(0.1, 0.07, 0.04), { c2: C(0.32, 0.24, 0.15), w: 0.12, fill: 0.9, life, r0: 0.75, grow: 0.06, alpha: 0.85 });
-  softRing(kit, x, z, r * 0.55, KD_DEEP, { w: 0.2, life: life * 0.6, r0: 0.6, grow: 0.06, alpha: 0.6 });
-  kit.chips(x, 0.4, z, kit.N(14), C(0.32, 0.25, 0.16), 8, 0.9, 0.24);
-  kit.puffs(x, 0.4, z, kit.N(6), C(0.32, 0.28, 0.2), r * 0.3, 3, 0.8, 1.3, 2.4, 0.5, 0.55, kit.K.DUST, 3);
-}
-const khidot = {
-  // Đấm Đất: a giant green fist rises over him while he winds up, then slams down knuckles first into a crater
-  kdPound: {
-    pal: [KD_GREEN, KD_LIME], hitR: 2,
-    skill() { return true; },
-    castMake(kit, u) { const f = fist(); return { f, h: held(kit, [f]) }; },
-    cast(kit, v, u, s, k) { const a = u.aim; v.f.position.set(u.x + Math.cos(a) * 1.6, 2.4 + 3 * k, u.z + Math.sin(a) * 1.6); v.f.rotation.set(0, -a, 0.6 + 0.6 * k); v.f.scale.setScalar(2.2); },
-    castDrop(kit, v) { v.h.on = false; },
-    nova(kit, e, u) {
-      const r = e.r || 5, a = u ? u.aim : 0, x = e.x + Math.cos(a) * 1.6, z = e.z + Math.sin(a) * 1.6, f = fist();
-      own(kit, [f], 0.6, (t) => { const k = Math.min(1, t / 0.06); f.position.set(x, 5.4 - 4.2 * k, z); f.rotation.set(0, -a, -1.1); f.scale.setScalar(2.4); fadeAll(f, Math.min(1, (0.6 - t) / 0.25)); });
-      crater(kit, x, z, 2.6, 1.1);
-      softRing(kit, e.x, e.z, r * 1.05, KD_DEEP, { c2: KD_GREEN, w: 0.05, life: 0.5, r0: 0.3, grow: 0.3, alpha: 0.8 });
-      kit.flash(x, 2, z, KD_GREEN, 55, 0.3); kit.kick(x, z, 0.8);
-      return true;
-    },
-  },
-  // Nhảy Vồ: a green arc is drawn over to the cursor where a crater mark waits; he lands fists first and the earth caves in
-  kdLeap: {
-    pal: [KD_GREEN, KD_LIME], hitR: 2,
-    skill() { return true; },
-    leap(kit, e, u, row) {
-      const dur = e.dur || 0.55, r = row.radius || 3.5, x0 = e.x0, z0 = e.z0, n = 24;
-      const arc = ribbonMesh(n, KD_DEEP, false, 0.85), glow = ribbonMesh(n, KD_LIME, true, 0.9);
-      const pts = (f) => { const p = []; for (let i = 0; i < n; i++) { const q = (i / (n - 1)) * f; p.push([x0 + (e.x - x0) * q, 0.8 + Math.sin(q * Math.PI) * 5, z0 + (e.z - z0) * q]); } return p; };
-      own(kit, [arc, glow], dur + 0.5, (t) => { const f = Math.min(1, t / 0.12), p = pts(f); fillRibbon(arc, p, (q) => 0.35 * Math.sin(q * Math.PI) + 0.08); fillRibbon(glow, p, 0.06); const o = Math.min(1, (dur + 0.5 - t) / 0.3); arc.material.opacity = 0.85 * o; glow.material.opacity = 0.9 * o; });
-      softRing(kit, e.x, e.z, r, C(0.1, 0.07, 0.04), { c2: KD_DEEP, w: 0.08, fill: 0.35, life: dur + 0.1, r0: 0.92, grow: 0, alpha: 0.85 });
-      for (const sd of [-1, 1]) { const f = fist(); own(kit, [f], dur, (t) => { if (!u.alive) return false; const a = e.a ?? Math.atan2(e.z - z0, e.x - x0), h = 1.2 + Math.sin(Math.min(1, t / dur) * Math.PI) * 3.5; f.position.set(u.x - Math.sin(a) * sd * 1.6, h, u.z + Math.cos(a) * sd * 1.6); f.rotation.set(0, -a, -0.9); f.scale.setScalar(1.3); }); }
-      kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < dur) return true;
-        const x = u.alive ? u.x : e.x, z = u.alive ? u.z : e.z;
-        crater(kit, x, z, r * 0.9, 1.1); kit.flash(x, 2, z, KD_GREEN, 50, 0.3); kit.kick(x, z, 0.7);
-        return false; }, drop() {} });
-      return true;
-    },
-  },
-  // Thịnh Nộ: he swells into the rage form: a crest of green flame stands up behind him like a mane and two giant fists hang
-  // at his sides, pumping, for the whole rage
-  kdRage: {
-    pal: [KD_GREEN, KD_LIME], hitR: 1.8,
-    skill(kit, e, u, row) {
-      const dur = row.dur || 7, t0 = kit.time, live = () => u.alive && (kit.time - t0 < 0.5 || u.tfT > 0);
-      const mane = []; for (let i = 0; i < 9; i++) { const f = flame(KG_EDGE, KG_CORE, i * 1.9); f.userData.b = (i - 4) * 0.3; f.userData.h = 5.2 - Math.abs(i - 4) * 0.4; mane.push(f); }
-      const fists = [fist(), fist()];
-      own(kit, [...mane, ...fists], dur + 0.3, (t) => {
-        if (!live()) return false;
-        const k = Math.min(1, t / 0.3), a = u.aim, back = a + Math.PI;
-        mane.forEach((f, i) => { const b = back + f.userData.b; f.position.set(u.x + Math.cos(b) * 2.0, 0.5, u.z + Math.sin(b) * 2.0); f.scale.set(2.3 * k, f.userData.h * k * (0.85 + 0.15 * Math.sin(t * 10 + i)), 1); f.material.uniforms.uT.value = t; f.material.uniforms.uA.value = 1; });
-        fists.forEach((f, i) => { const sd = i ? 1 : -1, pump = Math.max(0, Math.sin(t * 6 + i * Math.PI)) * 0.6; f.position.set(u.x + Math.cos(a) * pump - Math.sin(a) * sd * 3.1, 1.6, u.z + Math.sin(a) * pump + Math.cos(a) * sd * 3.1); f.rotation.set(0, -a, 0); f.scale.setScalar(2.1 * k); });
-      });
-      crater(kit, u.x, u.z, 3, 1.2); kit.flash(u.x, 2, u.z, KD_GREEN, 60, 0.35); kit.kick(u.x, u.z, 0.4);
-      return true;
-    },
-    transform(kit, e) { if (!e.on) kit.puffs(e.x, 1, e.z, kit.N(5), C(0.2, 0.4, 0.2), 0.8, 2, 0.8, 1.1, 2, 0.6, 0.5, kit.K.SMOKE, 2); return true; },
-  },
-};
-
 // ---- Đom Đóm: warm firefly light, mint accent ----------------------------------------------------------------------------
 const DD_AMBER = C(2.6, 2.05, 0.5), DD_MINT = C(0.5, 2.4, 1.5), DD_LIT = C(2.2, 2.6, 0.6);
 // a leaf-shaped wing lying flat along +x from the root
@@ -624,4 +543,4 @@ const domdom = {
   },
 };
 
-export const B8 = { ...trau, ...tho, ...hoalong, ...khiphao, ...khidot, ...domdom };
+export const B8 = { ...trau, ...tho, ...hoalong, ...khiphao, ...domdom };   // Khỉ Đột moved to looks-k1.js (Hulk kit remake)

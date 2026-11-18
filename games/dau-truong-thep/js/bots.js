@@ -1426,6 +1426,7 @@ const SKILL_AI = {
   },
   bless(c, s) {
     const { u, m } = c, reach = s.cast - 0.5;
+    if (s.bubble) return k1BotBubble(c, s, reach);
     if (s.shield) {
       let best = null, bf = 0.8;
       for (const a of m.units) {
@@ -1538,6 +1539,7 @@ const SKILL_AI = {
   },
   rally(c, s) {
     const { u, m } = c;
+    if (s.shield) return k1BotRally(c, s);
     let value = 0, others = 0;
     for (const a of m.units) {
       if (a.team !== u.team || !a.alive || d2(a.x, a.z, u.x, u.z) > s.radius * s.radius) continue;
@@ -2290,3 +2292,35 @@ SKILL_AI.totem = function (c, s) {
   return true;
 };
 /* ===== end kit-remake G4 bots ===== */
+
+/* ===== kit lane K1 (feat/dtt-k1): bot use of the K1 rows ===== */
+// bless.bubble (Captain America Q): the bubble eats shots, so it goes on whoever is being shot at right now: the ally under fire
+// nearest to death within reach, else myself when I am under fire (the caster is wrapped too either way).
+function k1BotBubble(c, s, reach) {
+  const { u, m } = c;
+  if (!c.enemies.length) return false;
+  let best = null, bf = 0.9;
+  for (const a of m.units) {
+    if (a === u || a.team !== u.team || !a.alive || a.combatT > 0.8 || a.bubT > 0 || hyp(a.x - u.x, a.z - u.z) > reach) continue;
+    const f = a.hp / a.maxHp;
+    if (f < bf) { bf = f; best = a; }
+  }
+  if (best) { c.b.sk.x = best.x; c.b.sk.z = best.z; return true; }
+  if (!c.underFire || c.hpFrac > 0.85) return false;
+  for (const a of m.units) if (a !== u && a.team === u.team && a.alive && hyp(a.x - u.x, a.z - u.z) < s.pick + 0.5) return false;
+  c.b.sk.x = u.x; c.b.sk.z = u.z;
+  return true;
+}
+// rally.shield (Captain America ult): worth it when the team inside the radius is in a fight: two of us under fire, or me alone and low
+function k1BotRally(c, s) {
+  const { u, m } = c;
+  if (!c.enemies.length) return false;
+  let hot = 0, hurt = 0;
+  for (const a of m.units) {
+    if (a.team !== u.team || !a.alive || d2(a.x, a.z, u.x, u.z) > s.radius * s.radius) continue;
+    if (a.combatT < 1.2) hot++;
+    if (a.hp < a.maxHp * 0.6 || a.stunT > 0) hurt++;
+  }
+  return hot >= 2 || (hot >= 1 && hurt >= 1);
+}
+/* ===== end kit lane K1 ===== */

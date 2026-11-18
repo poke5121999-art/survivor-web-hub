@@ -300,6 +300,17 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   // TODO kit-remake G4: check magN / magT / blockN on the mirror once they are in STATUS (see netstate.js)
   check('G4: a totem zone is mirrored (hp 250 of 300, area 4)', !!gz && gz.hp === 250 && gz.maxHp === 300 && near(gz.area, 4, 0.011), `${gz && gz.hp} ${gz && gz.area}`);
 }
+// kit lane K1: no tank carries a wire row since tacke plays Captain America; mirror the old Dây Điện row as a fixture so the wire zone stays covered
+{
+  const WIRE = { id: 'daydien', cd: 12, do: 'wire', cast: 10, width: 6, dur: 14, dmg: 200, slow: 0.5, slowDur: 2, charges: 3, arm: 0.5 };
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'tacke', name: 'A' }, { team: 1, mech: 'ung', name: 'B' }] }), u = m.units[0];
+  u.def = { ...u.def, skills: [WIRE, u.def.skills[1], u.def.skills[2]] };
+  const idle = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
+  const t = mirrorRun('wire fixture', m, 40, (mm, i) => [{ ...idle, s1: i === 2, tx: u.x + 5, tz: u.z }, idle]);
+  // the patched def itself differs from the mirror's (built from the roster key); every other field must match
+  const other = t.bad.map((b) => b.replace(/^tick \d+: /, '').split('; ').filter((d) => !d.startsWith('unit0.def')).join('; ')).filter(Boolean);
+  check('wire fixture (old Tắc Kè row): the wire zone is mirrored with no other state difference', m.zones.some((z) => z.kind === 'wire') && other.length === 0, other.slice(0, 2).join(' | '));
+}
 check(`zone kinds exercised: ${[...seenKinds].sort().join(', ')}`, ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire', 'orbit', 'portal'].every((k) => seenKinds.has(k)));
 
 console.log('\n# snapshot size');

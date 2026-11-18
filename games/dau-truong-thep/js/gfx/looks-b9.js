@@ -452,65 +452,6 @@ const bongua = {
   },
 };
 
-// =====================================================================================================================
-// Tắc Kè: thrown shields of concentric rings with a star (clip 上尉 p21), gecko teal with silver-white
-const TK_TEAL = C(0.25, 2.1, 1.65), TK_SIL = 0xe8f2f0, TK_DARK = 0x0b3a34;
-const ring = (a, b) => keep(new THREE.RingGeometry(a, b, 40).rotateX(-Math.PI / 2));
-const starGeo = (() => { const s = new THREE.Shape(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 0.17 : 0.42, b = Math.PI / 2 + i * Math.PI / 5; i ? s.lineTo(Math.cos(b) * r, Math.sin(b) * r) : s.moveTo(Math.cos(b) * r, Math.sin(b) * r); } return keep(new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2)); })();
-const discParts = [[ring(0.78, 1.0), 0x1fa58c], [ring(0.56, 0.78), TK_SIL], [ring(0.44, 0.56), 0x1fa58c], [keep(new THREE.CircleGeometry(0.44, 32).rotateX(-Math.PI / 2)), TK_DARK], [starGeo, TK_SIL]], haloGeo = ring(0.95, 1.3);
-function shieldDisc() {
-  const g = new THREE.Group(), h = new THREE.Mesh(haloGeo, basic(TK_TEAL, true, 0.28)); h.renderOrder = 6; g.add(h);
-  discParts.forEach(([geo, c], i) => { const m = new THREE.Mesh(geo, basic(c, false, 0.97)); m.position.y = 0.01 * i; m.renderOrder = 8 + i; g.add(m); });
-  g.traverse((m) => { m.frustumCulled = false; });
-  return g;
-}
-const pylonGeo = keep(new THREE.CylinderGeometry(0.13, 0.22, 1.7, 12).translate(0, 0.85, 0)), capGeo = keep(new THREE.SphereGeometry(0.3, 14, 10));
-function discShot(sc) {
-  return {
-    shotMake(kit, s) { const g = shieldDisc(), v = { g, h: held(kit, [g]), x: s.x, z: s.z, live: true, t: 0 }; trail(kit, () => (v.live ? [v.x, 1.2, v.z] : null), 0.5 * sc, TK_TEAL, 0.35, { c2: C(0.02, 0.25, 0.2), len: 10, alpha: 0.8 }); return v; },
-    shot(kit, v, s, x, y, z, dt) { v.t += dt || 0.016; v.x = x; v.z = z; v.g.position.set(x, 1.25, z); v.g.rotation.y = v.t * 14; v.g.scale.setScalar(sc); return true; },
-    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; kit.sparks(x, 1.2, z, kit.N(8), TK_TEAL, 8, 0.3, 0.05, 0.5, 10); kit.glow(x, 1.2, z, TK_TEAL, 0.12, 1.3, 0.8, kit.K.STAR, 1.2); },
-  };
-}
-const tacke = {
-  // Dây Điện: two teal pylons and a crackling teal wire strung between them, a soft glow along the floor under it
-  tkWire: {
-    zones: ['wire'], pal: [TK_TEAL, C(2.4, 2.6, 2.6)], hitR: 1.3,
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const [p, q] = z.pts, posts = [], glowM = basic(TK_TEAL, true, 0.55);
-      for (const e of [p, q]) {
-        const g = new THREE.Group(), post = new THREE.Mesh(pylonGeo, basic(0x2a4a46, false, 1)), cap = new THREE.Mesh(capGeo, basic(TK_SIL, false, 1)), halo = new THREE.Mesh(capGeo, glowM);
-        cap.position.y = 1.85; halo.position.y = 1.85; halo.scale.setScalar(2.4); g.add(post, halo, cap); g.userData.s = 1.6; g.position.set(e[0], 0, e[1]); g.traverse((m) => { m.frustumCulled = false; }); posts.push(g);
-      }
-      const floor = strip(TK_TEAL, C(1.6, 2.6, 2.4), { p: 1.3 }), wire = ribbonMesh(13, TK_TEAL, true, 0.75), core = ribbonMesh(13, C(2.4, 2.6, 2.6), true, 1);
-      layStrip(floor, p[0], 0.13, p[1], q[0], q[1], 4.2);
-      const v = { posts, floor, wire, core, h: held(kit, [...posts, floor, wire, core]), acc: 9, p, q };
-      return v;
-    },
-    zone(kit, v, z, dt) {
-      const arm = z.delay > 0 ? 0.35 : 1, end = Math.min(1, (z.dur - z.age) * 2), k = Math.min(1, z.age / 0.2) * end;
-      v.acc += dt;
-      if (v.acc > 0.06) { v.acc = 0; const pts = boltPts([v.p[0], 3.7, v.p[1]], [v.q[0], 3.7, v.q[1]], 12, 0.35); fillRibbon(v.wire, pts, 0.7); fillRibbon(v.core, pts, 0.16); }
-      v.wire.material.opacity = 0.75 * arm * k * (0.7 + 0.3 * Math.random()); v.core.material.opacity = arm * k;
-      v.floor.material.uniforms.uA.value = 0.85 * arm * k;
-      for (const g of v.posts) { g.scale.setScalar(2.0 * Math.max(0.01, Math.min(1, z.age / 0.15))); fadeAll(g, end); }
-      if (arm === 1 && Math.random() < dt * 6) { const f = Math.random(); kit.sparks(v.p[0] + (v.q[0] - v.p[0]) * f, 1.8, v.p[1] + (v.q[1] - v.p[1]) * f, 3, TK_TEAL, 5, 0.25, 0.04, 0.4, 12); }
-    },
-    zoneDrop(kit, v) { v.h.on = false; },
-  },
-  // Chùm Nảy: five small shields spin out in a fan on short teal wakes
-  tkBounce: { pal: [TK_TEAL, C(2.4, 2.6, 2.6)], hitR: 1.2, skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.3, 1.3, u.z + Math.sin(e.a) * 1.3, TK_TEAL, 0.12, 1.5, 0.8, kit.K.STAR, 1.2); return true; }, ...discShot(1.95) },
-  // Bão Đĩa: a teal star emblem flashes under him and fourteen bigger shields fly out all round
-  tkStorm: {
-    pal: [TK_TEAL, C(2.4, 2.6, 2.6)], hitR: 1.3,
-    skill(kit, e, u) {
-      sigil(kit, u.x, u.z, 4.6, TK_TEAL, { c2: C(2.2, 2.6, 2.5), n: 5, m: 2, ticks: 0, inner: 0.62, fill: 0.12, w: 0.07, life: 0.75, rev: 0.12, spin: 4, grow: 14 });
-      kit.flash(u.x, 2, u.z, TK_TEAL, 50, 0.3); kit.kick(u.x, u.z, 0.4);
-      return true;
-    },
-    ...discShot(1.5),
-  },
-};
+// Tắc Kè's looks moved to looks-k1.js with the Captain America kit remake.
 
-export const B9 = { ...enbac, ...boica, ...retdo, ...bongua, ...tacke };
+export const B9 = { ...enbac, ...boica, ...retdo, ...bongua };
