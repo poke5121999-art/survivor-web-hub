@@ -1,12 +1,11 @@
-// Looks, batch 3: Sói Lửa, Bạch Hạc, Thần Công, Cá Kiếm, Chuột Túi. Render only (see looks.js for the hooks).
+// Looks, batch 3: Sói Lửa, Bạch Hạc, Thần Công, Cá Kiếm (Chuột Túi / Doraemon moved to looks-k14.js with his ported kit). Render only (see looks.js for the hooks).
 // Each look's own shape carries it; bursts are only brief flashes where blows land.
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP.md):
 //   鹰痕 p92 (Ưng Nhãn): its looks moved to looks-k7.js with the kit ported from the clip (kit lane K7).
 //   海贼猎人 p63 (Cá Kiếm): lime-green blades: three blades thrust at once, a green whirlwind round him, a green X flash where
 //     the big cut lands, green crescent waves.
-//   Sói Lửa, Bạch Hạc, Thần Công, Chuột Túi: no part (蓝胖子 p58 is blue lightning, not a door or a robot); built from their
-//     descriptions: a fire wolf's jaws and fangs, a white crane's feathers and wings, a siege cannon's struts and shells, a
-//     kangaroo's magic doors, wind-up robot and pouch of stars.
+//   Sói Lửa, Bạch Hạc, Thần Công: no part; built from their descriptions: a fire wolf's jaws and fangs, a white crane's
+//     feathers and wings, a siege cannon's struts and shells.
 import * as THREE from '../../vendor/three.module.min.js';
 import { C, own, stop, slash, cut, sigil, shell, pillar, trail, strands, spikes, burst, gate } from './lookkit.js';
 
@@ -211,52 +210,4 @@ const cakiem = {
   },
 };
 
-// ---- Chuột Túi: kangaroo of tricks, sunny yellow, sky blue and white stars ---------------------------------------------
-const CT_SUN = C(2.6, 1.9, 0.2), CT_SKY = C(0.4, 1.4, 2.6), CT_PINK = C(2.4, 0.6, 1.3);
-const doorFrame = new THREE.BoxGeometry(2.2, 3.2, 0.25), doorPane = new THREE.PlaneGeometry(1.7, 2.8); doorFrame.userData.keep = doorPane.userData.keep = true;
-function door(kit, c) { const g = new THREE.Group(); const f = new THREE.Mesh(doorFrame, basic(0xff7fbf, false)); const p = new THREE.Mesh(doorPane, basic(c, true, 0.85)); p.position.z = 0.14; f.position.y = p.position.y = 1.6; g.add(f, p); g.rotation.x = -0.25; return g; }
-const chuottui = {
-  // Cửa Thần: a pink magic door stands open at each end for as long as the gate lasts, light pouring out of it
-  ctDoor: {
-    zones: ['portal'],
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const d1 = door(kit, 0x9fd8ff), d2 = door(kit, 0xfff0a0); d1.position.set(z.x, 0, z.z); d2.position.set(z.x2, 0, z.z2); d1.scale.setScalar(1.5); d2.scale.setScalar(1.5);
-      const s1 = sigil(kit, z.x, z.z, z.r * 1.8, CT_SKY, { c2: CT_SUN, n: 0, ticks: 12, inner: 0.6, life: 1e9, rev: 0.2, spin: 1, fill: 0.3 });
-      const s2 = sigil(kit, z.x2, z.z2, z.r * 1.8, CT_SUN, { c2: CT_SKY, n: 0, ticks: 12, inner: 0.6, life: 1e9, rev: 0.2, spin: -1, fill: 0.3 });
-      return { d1, d2, s1, s2, h: held(kit, [d1, d2]), t: 0 };
-    },
-    zone(kit, v, z, dt) { v.t += dt; const k = Math.min(1, v.t / 0.2); v.d1.scale.set(1.5, 1.5 * k, 1.5); v.d2.scale.set(1.5, 1.5 * k, 1.5); if (Math.random() < dt * 8) kit.glow(z.x2, R(0.5, 3), z.z2, CT_SUN, 0.6, 0.4, 1, kit.K.STAR, 1, 0, 1, 0); },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.s1); stop(v.s2); },
-  },
-  // Robot Quấy: the robot drops in on a spring of stars: a sky-blue star ring under it while it works, a wind-up key turning
-  ctBot: {
-    zones: ['turret'], overlay: true,
-    skill() { return true; },
-    zoneMake(kit, z) {
-      const key = new THREE.Group(), m = basic(0xffd040, false); key.add(new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.2, 6, 16), m)); key.position.set(z.x, 2.6, z.z);
-      const s = sigil(kit, z.x, z.z, 3.8, CT_SKY, { c2: CT_SUN, n: 5, m: 2, ticks: 10, inner: 0.5, life: 1e9, rev: 0.2, spin: 1.5, fill: 0.45, w: 0.12 });
-      burst(kit, z.x, z.z, 2.6, CT_SKY, CT_SUN);
-      for (let i = 0; i < kit.N(12); i++) { const a = Math.random() * 6.283; kit.glow(z.x, 1, z.z, i % 2 ? CT_SUN : CT_PINK, 0.7, 0.4, 1, kit.K.STAR, 1, Math.cos(a) * 4, R(3, 6), Math.sin(a) * 4); }
-      return { key, s, h: held(kit, [key]) };
-    },
-    zone(kit, v, z, dt) { v.key.rotation.x += dt * 6; v.key.position.set(z.x, 2.6, z.z); },
-    zoneDrop(kit, v) { v.h.on = false; stop(v.s); },
-  },
-  // Túi Đồ Nghề: a ring of gold stars and sky-blue spanners circles her for the five seconds, a sunny ring on the floor
-  ctPouch: {
-    zoneMake(kit, z) {
-      const v0 = {};
-      const stars = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => sigil(kit, z.x, z.z, 1.2, i % 2 ? CT_SKY : CT_SUN, { c2: i % 2 ? CT_SUN : CT_PINK, n: 5, m: 2, ticks: 0, inner: 0, life: 1e9, rev: 0.05, spin: 3, fill: 0.5, y: 1.6, w: 0.12 }));
-      stars.forEach((m) => { m.rotation.x = 1.1; });
-      const s = sigil(kit, z.x, z.z, z.r * 0.75, CT_SUN, { c2: CT_SKY, n: 0, ticks: 24, inner: 0.6, w: 0.08, life: 1e9, rev: 0.3, spin: 0.5, fill: 0.4 });
-      // the magic pouch: a big sunny bag floating over her, stars fountaining out of its mouth
-      v0.bag = shell(kit, z.x, 3.4, z.z, 2.6, CT_SUN, { c2: C(2.6, 1.2, 0.2), inv: 1.0, core: 1, squash: 1.2, life: 1e9 });
-      return Object.assign(v0, { stars, s, t: 0 });
-    },
-    zone(kit, v, z, dt) { v.t += dt; v.s.position.set(z.x, 0.15, z.z); v.bag.position.set(z.x, 3.4, z.z); if (Math.random() < dt * 20) { const a = Math.random() * 6.283, sp = R(2, 5); kit.glow(z.x, 4.2, z.z, Math.random() < 0.5 ? CT_SUN : CT_SKY, 1, 0.5, 1, kit.K.STAR, 1, Math.cos(a) * sp, R(2, 5), Math.sin(a) * sp); } v.stars.forEach((m, i) => { const a = v.t * 1.6 + i * 0.785, r = z.r * 0.55; m.position.set(z.x + Math.cos(a) * r, 1.6 + 0.4 * Math.sin(v.t * 3 + i), z.z + Math.sin(a) * r); }); },
-    zoneDrop(kit, v) { v.stars.forEach(stop); stop(v.s); stop(v.bag); },
-  },
-};
-
-export const B3 = { ...soi, ...bachhac, ...thancong, ...cakiem, ...chuottui };
+export const B3 = { ...soi, ...bachhac, ...thancong, ...cakiem };

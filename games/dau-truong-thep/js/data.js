@@ -1143,20 +1143,28 @@ export const MECHS = {
         desc: 'Hồi ngay 25% máu tối đa rồi nổi Phục Thù Cuồng Nhiệt 10 giây: chạy nhanh hơn 25%, sát thương +25%, chịu ít hơn 25% sát thương, tên xuyên qua mọi kẻ địch (mỗi kẻ xuyên qua tên yếu đi 20%). Hạ gục trong lúc đó: kéo dài thêm 5 giây, Súc Thế Đãi Phát hồi chiêu ngay, và 5 giây chỗ hiểm đau thêm 25%, tên hút 25% máu. Sát thương lên công trình giảm 75%.' },
     ],
   },
+  // Doraemon: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p58 "55.蓝胖子", panel 蓝胖子II, audit AUDIT-a.md). Attack = one
+  // Súng Bóng (150, was 118 per 0.32 s, about the same dps): door heal 213% -> 320, trap heal 209% -> 314, trap 50% per 0.5 s -> 75,
+  // vortex 335% -> 503. Cooldowns 8 / 6 / 25 s -> 10 / 8 / 45. The MP of the trap heal is dropped. Weakened (虚弱): the trap tags
+  // ctT, the vortex tags ctV; the other skill on a tagged foe adds 10% of its max hp and roots it 2 s (vortex: vsTag; trap: K14).
+  // The one-use door, the trap field and the Bamboo-copter flight (untargetable by skills) are kit-remake K14.
   chuottui: {
     name: 'Doraemon', role: 'Hỗ trợ', roleKey: 'support', price: 1700, tint: 0xc98a4a,
-    blurb: 'Túi thần thỉnh thoảng trả lại gần hết thời gian hồi chiêu. Mở cửa thần cho cả đội đi qua, thả robot quấy, rồi tung túi đồ nghề hồi máu, tăng tốc và che khiên.',
+    blurb: 'Mèo máy bảo bối: bị bắn thì chạy nhanh, sắp gục thì bật chong chóng tre bay đi. Đặt Cửa Thần Kỳ cho đồng đội về bên mình, gài bẫy trò đùa khóa chiêu, ném máy tạo xoáy hút cả đám vào giữa.',
     hp: 2200, speed: 6.8, radius: 0.80,
     armor: 0.04, accel: 1.2, turn: 13, towerMul: 2.2,
-    passive: { do: 'thrifty', name: 'Túi Thần', desc: 'Mỗi lần dùng chiêu có 25% khả năng được hoàn lại 75% thời gian hồi.', chance: 0.25, refund: 0.75 },
-    weapon: { name: 'Súng Bóng', cd: 0.32, dmg: 118, speed: 28, range: 12.5, r: 0.26, vis: 'pulse' },
+    passive: { do: 'trait', name: 'Trúc Tinh Đình', ctFly: { below: 0.3, dur: 4, haste: 1.5, icd: 30 }, mods: { onHurt: { by: 'any', self: { haste: 1.25, dur: 2 } } },
+      desc: 'Trúng đòn thì chạy nhanh thêm 25% trong 2 giây. Tụt dưới 30% máu thì bật chong chóng tre bay 4 giây: chiêu địch không nhắm trúng, chạy nhanh thêm 50%; 30 giây một lần, dùng chiêu là đáp xuống.' },
+    weapon: { name: 'Súng Bóng', cd: 0.4, dmg: 150, speed: 28, range: 12.5, r: 0.26, vis: 'pulse' },
     skills: [
-      { id: 'cuathan', look: 'ctDoor', name: 'Cửa Thần', cd: 16, do: 'portal', cast: 10, dur: 8, r: 1.3, icon: 'warp',
-        desc: 'Mở một đầu cửa ở chỗ bạn đứng, đầu kia ở con trỏ (xa nhất 10 m) và bạn sang đó ngay. 8 giây: đồng đội bước vào một đầu thì sang đầu kia (mỗi người 3 giây một lần). Địch không dùng được.' },
-      { id: 'robotquay', look: 'ctBot', name: 'Robot Quấy', cd: 15, do: 'turret', cast: 5, hp: 600, dur: 10, range: 10, dmg: 55, rate: 0.35, icon: 'turret',
-        desc: 'Thả robot 600 máu ở con trỏ (xa nhất 5 m), bắn kẻ địch trong 10 m, mỗi phát 55, kéo dài 10 giây.' },
-      { id: 'tuidonghe', look: 'ctPouch', name: 'Túi Đồ Nghề', cd: 46, do: 'zone', at: 'self', follow: true, radius: 6.5, dur: 5, hps: 180, haste: 1.25, shield: 300, vis: 'heal', icon: 'dome',
-        desc: 'Túi đồ nghề bám theo bạn 5 giây: đồng đội trong 6,5 m hồi 180 máu mỗi giây, chạy nhanh thêm 25%, và có khiên 300 khi bước vào.' },
+      { id: 'nhamymon', look: 'ctDoor', name: 'Nhậm Ý Môn', cd: 10, do: 'portal', cast: 10, dur: 4, r: 1.4, ctDoor: { heal: 320, vanish: 1 }, icon: 'warp',
+        desc: 'Đặt Cửa Thần Kỳ ở con trỏ (xa nhất 10 m) trong 4 giây. Đồng đội bước vào thì ra ngay cạnh bạn; bạn bước vào thì về chỗ vừa đặt cửa. Người qua cửa hồi 320 máu và biến mất 1 giây (không bị nhắm trúng). Cửa dùng được một lần.' },
+      { id: 'baytrodua', look: 'ctTrap', name: 'Ác Tác Kịch Hãm Tỉnh', cd: 8, do: 'zone', at: 'target', cast: 10, radius: 3, dur: 3, dps: 150, slow: 0.3, vis: 'ctTrap',
+        ctTrap: { delay: 0.5, linger: 1, heal: 314, tag: 3, pay: { maxHp: 0.1, root: 2 } }, icon: 'cage',
+        desc: 'Mất 0,5 giây gài bẫy trò đùa ở con trỏ (xa nhất 10 m), giữ 3 giây. Địch trong bẫy không dùng được chiêu, chậm 30%, mất 75 máu mỗi 0,5 giây, ra khỏi bẫy còn bị vậy thêm 1 giây và bị Suy Yếu 3 giây. Đồng đội đi qua hồi 314 máu và sạch hiệu ứng xấu (mỗi người một lần). Kẻ đang Suy Yếu vì Máy Tạo Xoáy mà rơi vào bẫy: thêm 10% máu tối đa của nó và bị giữ chân 2 giây.' },
+      { id: 'maytaoxoay', look: 'ctVortex', name: 'Toàn Qua Chế Tạo Cơ', cd: 45, do: 'barrage', n: 1, radius: 0, blast: 4.5, dmg: 503, delay: 0.6, span: 0, cast: 12,
+        fx: { yank: { dist: 6, to: 'centre' }, tag: { key: 'ctV', dur: 3 } }, vsTag: { key: 'ctT', fx: { maxHp: 0.1, root: 2 }, consume: true }, icon: 'magnet',
+        desc: 'Ném Máy Tạo Xoáy tới con trỏ (xa nhất 12 m): sau 0,6 giây nổ 503 sát thương vòng 4,5 m và hút mọi kẻ trúng vào giữa, kẻ trúng bị Suy Yếu 3 giây. Kẻ đang Suy Yếu vì bẫy trò đùa: thêm 10% máu tối đa của nó và bị giữ chân 2 giây.' },
     ],
   },
   // Kurumi: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p61 "58.时光女神", tooltips in ~/handoff/dtt-ref/kits/AUDIT-c.md).
@@ -1282,7 +1290,7 @@ export const PERKS = {
   bongua: [perk('Kiếm Nặng', 'Song Kiếm gây 2 x 88.', 'weapon', { dmg: 88 }), perk('Sấm Rộng', 'Lôi Đình Thiên Giáng giáng vòng 4 m, giữ chân 1,5 giây.', 0, { land: { radius: 4, dmg: 191, fx: { root: 1.5 } } }), perk('Mười Tám Nhát', 'Tinh Bạo Khí Lưu Trảm chém mười tám nhát.', 2, { repeat: 18, invuln: 1.8 })],
   moclan: [perk('Kiếm Nặng', 'Kiếm Khí gây 170 mỗi nhát.', 'weapon', { dmg: 170 }), perk('Tam Thức Sâu', 'Kinh Hồng Tam Thức: mỗi nhát mạnh hơn nhát trước 35%.', 1, { grow: 1.35 }), perk('Cự Kiếm Lâu', 'Cự kiếm của Liệt Không Trảm cắm lại 5 giây.', 0, { linger: { radius: 2.6, dur: 5, dps: 100, slow: 0.3, vis: 'mlSword' } })],
   anduong: [perk('Cung Nhanh', 'Thần Cung bắn mỗi 0,5 giây.', 'weapon', { cd: 0.5 }), perk('Bảy Mũi Tên', 'Tiễn Vô Hư Phát bắn bảy mũi.', 1, { n: 7 }), perk('Phục Thù Lâu', 'Bách Bộ Xuyên Dương kéo dài 12 giây.', 2, { dur: 12, self: { on: 'cast', dur: 12, guard: 0.25 } })],
-  chuottui: [perk('Súng Mạnh', 'Súng Bóng gây 135.', 'weapon', { dmg: 135 }), perk('Robot Dày', 'Robot Quấy 900 máu, mỗi phát 75, kéo dài 12 giây.', 1, { hp: 900, dmg: 75, dur: 12 }), perk('Túi Lớn', 'Túi Đồ Nghề hồi 220 mỗi giây, khiên 450, kéo dài 6 giây.', 2, { hps: 220, shield: 450, dur: 6 })],
+  chuottui: [perk('Súng Mạnh', 'Súng Bóng gây 170.', 'weapon', { dmg: 170 }), perk('Bẫy Dai', 'Bẫy trò đùa giữ 4 giây.', 1, { dur: 4 }), perk('Xoáy Lớn', 'Máy Tạo Xoáy nổ rộng 5,5 m, gây 600.', 2, { blast: 5.5, dmg: 600 })],
   vesau: [perk('Thủ Hộ Bền', 'Thời Quang Thủ Hộ có 1300 máu, hồi 140 máu mỗi giây.', 0, { hp: 1300, decay: 130, hps: 140 }), perk('Ngủ Say', 'Thời Gian Can Nhiễu gây 300, ru ngủ 5 giây.', 1, { dmg: 300, fx: { sleep: 5 } }), perk('Hồi Tố Rộng', 'Thời Quang Hồi Tố rộng 10 m.', 2, { radius: 10 })],
 };
 

@@ -3722,7 +3722,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
 
   // ---- portal ----
   {
-    const m = arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 20, 8], [R('trau', 0), 0.5, 0.5]]), [a, e, t] = m.units;
+    const m = oldKit14(arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 20, 8], [R('trau', 0), 0.5, 0.5]]), 'chuottui'), [a, e, t] = m.units;
     const ev = press(m, 0, 's1', { tx: 8, tz: 0 });
     const z = m.zones.find((q) => q.kind === 'portal');
     check('44z Cua Than: a portal zone with the end A at the caster, B at the cursor (8 m), r 1.3, dur 8, and the caster already stands at B', !!z && z.x === 0 && z.z === 0 && near(z.x2, 8, 1e-9) && near(z.z2, 0, 1e-9) && z.r === 1.3 && z.dur === 8 && near(a.x, 8, 1e-9) && a.cd.s1 === 16, JSON.stringify(z));
@@ -3737,7 +3737,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     check('44ze the portal is gone after 8 s', !m.zones.some((q) => q.kind === 'portal'));
   }
   {
-    const m = arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 20, 0]]), a = m.units[0];
+    const m = oldKit14(arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 20, 0]]), 'chuottui'), a = m.units[0];
     const ev = press(m, 0, 's1', { tx: 1, tz: 0 });
     check('44zf a cursor too near (the ends overlap) opens nothing: no zone, 0.4 s lockout', !m.zones.length && only(ev, 'skill').length === 0 && near(a.cd.s1, 0.4, 1e-9));
   }
@@ -3774,11 +3774,11 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   }
   // ---- thrifty ----
   {
-    const m = arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 25, 0]]), a = m.units[0];
+    const m = oldKit14(arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 25, 0]]), 'chuottui'), a = m.units[0];
     m.rng = () => 0.1;
     const ev = press(m, 0, 's2', { tx: 5, tz: 0 });
     check('44zj Tui Than (chance 0.25, refund 0.75): a roll of 0.1 gives back 75% of Robot Quay (cd 15 -> 3.75) and says so', near(a.cd.s2, 3.75, 1e-9) && only(ev, 'thrift', (e) => e.id === 0 && e.slot === 1).length === 1, `${a.cd.s2}`);
-    const k = arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 25, 0]]);
+    const k = oldKit14(arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 25, 0]]), 'chuottui');
     k.rng = () => 0.9;
     press(k, 0, 's2', { tx: 5, tz: 0 });
     check('44zk a roll of 0.9 leaves the full cooldown', near(k.units[0].cd.s2, 15 - TICK, 1e-9) || near(k.units[0].cd.s2, 15, 1e-9), `${k.units[0].cd.s2}`);
@@ -3824,7 +3824,7 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     check('44zs Hon Loan: each 0.5 s pulse of 110 heals the owner drain 0.5 of it plus lifesteal (x(0.5 + frac) of the damage that got through)', hits.length === 2 && near(got, sum(hits, (e) => e.amt) * (0.5 + MECHS.retdo.passive.frac), 0.01), `${hits.length} ${got} ${sum(hits, (e) => e.amt)}`);
   }
   {
-    const m = arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 25, 0], [R('trau', 0), 3, 0]]), [a, e, t] = m.units;
+    const m = oldKit14(arena([[R('chuottui', 0), 0, 0], [R('ung', 1), 25, 0], [R('trau', 0), 3, 0]]), 'chuottui'), [a, e, t] = m.units;
     t.hp = t.maxHp - 500;
     press(m, 0, 'ult');
     check('44zt Tui Do Nghe: allies in 6.5 m get a 300 shield on stepping in (once), x1.25 run; the owner too', t.shield === 300 && a.shield === 300 && t.hasteF === 1.25 && t.hasteT > 0.2, `${t.shield} ${a.shield} ${t.hasteF}`);

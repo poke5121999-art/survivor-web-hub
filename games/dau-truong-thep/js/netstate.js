@@ -89,7 +89,7 @@ const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'r
   'hwkAimT',   // kit-remake G5 lane K7: Aim (Ưng Nhãn)
   'sntCT',   // kit-remake G5 Sơn Tinh: the curse left
   'tthHT',   // kit-remake G5 Tào Tháo: the hold left
-  'stTie', 'stWarT'];   // kit-remake K14: Baymax's chain (ally id + 1), his warrior
+  'stTie', 'stWarT', 'ctFlyT'];   // kit-remake K14: Baymax's chain (ally id + 1), his warrior, Doraemon's flight
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
 export const STATUS_NAMES = STATUS;   // tests read the wire order
 

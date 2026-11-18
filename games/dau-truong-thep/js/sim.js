@@ -428,7 +428,7 @@ function stepUnit(m, u, inp) {
   g4Tick(m, u);
   g3Tick(m, u);
   k4Tick(m, u);   // kit-remake K4: tumay's chaos orb pool
-  k14Tick(m, u);   // kit-remake K14: Baymax's chain
+  k14Tick(m, u);   // kit-remake K14: Baymax's chain, Doraemon's flight
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   // counter: the window runs out without a hit and 40% of the cooldown comes back
   if (u.parryT > 0) {
@@ -597,6 +597,7 @@ function stepUnit(m, u, inp) {
     castHooks(u, s, i);
     k1Cast(m, u, s);
     if (s.adHeal) heal(m, u, u.maxHp * s.adHeal, u);   // kit-remake G5 An Dương Vương
+    k14Cast(m, u);   // kit-remake K14: a cast lands Doraemon's flight
     // thrifty (passive): a cast sometimes gives most of its cooldown back
     if (u.passive === 'thrifty' && !s.recast && m.rng() < u.def.passive.chance) { u.cd[key] *= 1 - u.def.passive.refund; m.events.push({ t: 'thrift', id: u.id, slot: i }); }
     // form (passive) flip: using the slot changes the stance
@@ -1332,6 +1333,7 @@ const CAST = {
   form(m, u, s) { u.cast = { skill: s, t: s.setup, total: s.setup, move: s.move ?? 0.6, lock: false, aim: u.aim }; },
   // portal: one end here, the other at the cursor; the caster goes through at once, later allies who step into an end come out of the other
   portal(m, u, s, inp) {
+    if (s.ctDoor) return k14DoorCast(m, u, s, inp);   // kit-remake K14: Doraemon's one-use door
     const [tx, tz] = aimPoint(u, inp, s.cast), [x, z] = landing(m, u, tx, tz), x0 = u.x, z0 = u.z;
     if (Math.hypot(x - x0, z - z0) < s.r * 2) return false;
     addZone(m, u, { kind: 'portal', x: x0, z: z0, x2: x, z2: z, r: s.r, dur: s.dur, last: {} });
@@ -1541,6 +1543,7 @@ const CAST = {
     placeMine(m, u, x, z, s);
   },
   zone(m, u, s, inp) {
+    if (s.ctTrap) return k14TrapCast(m, u, s, inp);   // kit-remake K14: Doraemon's prank trap
     const [x, z] = s.at === 'self' ? [u.x, u.z] : aimPoint(u, inp, s.cast);
     addZone(m, u, { kind: 'field', vis: s.vis, x, z, r: s.radius, dur: s.dur, hps: s.hps || 0, dps: (s.dps || 0) * u.skillAmp, slow: s.slow || 0, hide: !!s.hide, pull: s.pull || 0, acc: 0,
       haste: s.haste || 0, blind: s.blind || null, follow: !!s.follow, armor: s.armor || 0, cage: !!s.cage, held: s.cage ? heldMask(m, u, x, z, s.radius) : 0, drain: s.drain || 0, shield: s.shield || 0, sh: {} });
@@ -1694,6 +1697,7 @@ function pickUnit(m, u, inp, s, ok) {
   let best = null, bd = s.pick * s.pick;
   for (const o of m.units) {
     if (o === u || !o.alive || !ok(o) || !visibleTo(m, o, u.team) || dist2(o.x, o.z, u.x, u.z) > s.cast * s.cast) continue;
+    if (o.ctFlyT > 0 && o.team !== u.team) continue;   // kit-remake K14: Doraemon's flight
     const d = dist2(o.x, o.z, inp.tx, inp.tz);
     if (d < bd) { bd = d; best = o; }
   }
@@ -2076,6 +2080,7 @@ function stepZones(m) {
         }
       }
       if (z.age > z.dur) done = true;
+    } else if (z.kind === 'field' && z.ctTrap) { done = k14Trap(m, z, owner);   // kit-remake K14: Doraemon's prank trap
     } else if (z.kind === 'field') {
       if (z.follow) { z.x = owner.x; z.z = owner.z; if (!owner.alive) done = true; }
       z.acc += dt;
@@ -2188,6 +2193,7 @@ function stepZones(m) {
           if (z.dps) for (const u of m.units) if (u.team !== z.team && u.alive && dist2(u.x, u.z, owner.x, owner.z) < (z.ring + 0.6 + u.radius * 0.5) ** 2) damage(m, u, z.dps * 0.5 * dmgScale(owner), owner);
         }
       }
+    } else if (z.kind === 'portal' && z.ctDoor) { done = k14Door(m, z, owner);   // kit-remake K14: the one-use door
     } else if (z.kind === 'portal') {
       // either end sends a friendly mech to the other, once per 3 s each
       for (const u of m.units) {
@@ -2334,6 +2340,7 @@ function damage(m, u, amount, src, raw) {
   trueHit = false;
   lastBase = 0;
   if (!u.alive || u.invulnT > 0 || amount <= 0) return;
+  if (k14SkillProof(u, src)) return;   // kit-remake K14: Doraemon's flight
   if (u.tthHO && u.tthHT > 0 && !raw && src && src !== u) amount = tthRedirect(m, u, amount);   // kit-remake G5 Tào Tháo
   lastBase = amount;
   const foe = src && src !== u && !raw ? src : null;
@@ -2957,7 +2964,8 @@ function k4Homing(m, u, s, inp) {
 }
 /* ===== end kit-remake K4 ===== */
 
-/* ===== kit-remake K14 (lane k14, G5 one-tank mechanics; ~/handoff/dtt-ref/kits/MECHANICS.md "Group 5": gilgamesh, suatrang). Hooks elsewhere are one line each, marked "kit-remake K14", and call into this block.
+/* ===== kit-remake K14 (lane k14, G5 one-tank mechanics; ~/handoff/dtt-ref/kits/MECHANICS.md "Group 5": gilgamesh, suatrang,
+   chuottui). Hooks elsewhere are one line each, marked "kit-remake K14", and call into this block.
    gilgamesh (Gilgamesh, clip p74):
      volley row `ggWind: s`: the press stands that long first (a cast, `move` x speed, aim free), then the volley (and its burst)
        goes; the row's G1 `unstoppable` covers the wind-up. FINISH.volley is wrapped here for it.
@@ -2968,14 +2976,37 @@ function k4Homing(m, u, s, inp) {
      leap row `stGuard: f`: the picked ally takes f less damage (guard) from the press until the landing.
      leap row `stPath {dmg, r, fx}`: every enemy within r (+ its radius) of the flying mech is hit once (the row's tag).
      transform row `stWar {push}`: no main weapon while it runs (u.stWarT, STATUS) and its follow zone shoves enemies out at push m/s.
-   New names carry a prefix (gg, st, ct = the tank, k14 = the lane): unit stTie, stWarT; dash stHit. ===== */
+   chuottui (Doraemon, clip p58):
+     passive `ctFly {below, dur, haste, icd}`: under below x max hp the mech flies for dur s (u.ctFlyT, STATUS): enemy skills
+       cannot pick it or hurt it (weapon shots still do), haste; once per icd s (u.ctIcd, host side); any cast ends it; event ctFly.
+     portal row `ctDoor {heal, vanish}`: one door at the cursor (zone portal, x2/z2 = where the caster stood) for dur s: an ally
+       stepping in comes out beside the caster, the caster (not while flying) goes back to x2/z2; heal (the caster x selfHealMul)
+       and vanish s untargetable; one use. Events warp {via}.
+     zone row `ctTrap {delay, linger, heal, tag, pay}`: a field (z.ctTrap) set up for delay s, then: enemies inside are silenced and
+       slowed (lasting linger s after they leave), take dps per 0.5 s with the row's tag, carry tag ctT `tag` s; one already
+       carrying this caster's ctV tag (the vortex) loses it and takes `pay` (event tagPay). An ally (the caster too) is healed
+       `heal` and cleansed once per trap (event ctCure). A new trap ends the caster's old one.
+   New names carry a prefix (gg, st, ct = the tank, k14 = the lane): unit stTie, stWarT, ctFlyT, ctIcd; zone ctDoor, ctTrap, ctSet;
+   dash stHit. ===== */
 let ggGo = false;
-function k14Clear(u) { u.stTie = 0; u.stWarT = 0; }
-// Every tick of a living mech: the warrior's timer, Baymax's chain.
+function k14Clear(u) { u.stTie = 0; u.stWarT = 0; u.ctFlyT = 0; u.ctIcd = 0; }
+// Every tick of a living mech: the timers, Doraemon's low-hp flight, Baymax's chain.
 function k14Tick(m, u) {
   if (u.stWarT > 0) u.stWarT = u.tfT > 0 ? Math.max(0, u.stWarT - TICK) : 0;
+  if (u.ctFlyT > 0) u.ctFlyT = Math.max(0, u.ctFlyT - TICK);
+  if (u.ctIcd > 0) u.ctIcd = Math.max(0, u.ctIcd - TICK);
+  const F = u.def.passive && u.def.passive.ctFly;
+  if (F && !(u.ctIcd > 0) && u.hp > 0 && u.hp < u.maxHp * F.below) {
+    u.ctFlyT = F.dur; u.ctIcd = F.icd;
+    selfBuff(u, { haste: F.haste, dur: F.dur });
+    m.events.push({ t: 'ctFly', id: u.id, x: u.x, z: u.z, dur: F.dur });
+  }
   if (u.stTie) k14TieStep(m, u);
 }
+// The cast loop, every successful press: a cast lands the flight.
+function k14Cast(m, u) { if (u.ctFlyT > 0) { u.ctFlyT = 0; m.events.push({ t: 'ctFly', id: u.id, x: u.x, z: u.z, dur: 0 }); } }
+// damage / pickUnit: an enemy skill does not touch a flying Doraemon
+const k14SkillProof = (u, src) => u.ctFlyT > 0 && !!src && src.team !== u.team && !!curSrc && curSrc !== 'w';
 
 // ---- Gilgamesh: the wind-up before the volley ----
 function k14Wind(u, s) { u.cast = { skill: s, t: s.ggWind, total: s.ggWind, move: s.move ?? 0.6, lock: false, aim: u.aim, acc: 0, left: 0, ggW: 1 }; }
@@ -3031,6 +3062,65 @@ function k14War(m, u, s) {
 }
 const k14NoFire = (u) => u.stWarT > 0 && u.tfT > 0;
 
+// ---- Doraemon: the Anywhere Door, the prank trap ----
+function k14DoorCast(m, u, s, inp) {
+  const [tx, tz] = aimPoint(u, inp, s.cast), [x, z] = landing(m, u, tx, tz);
+  addZone(m, u, { kind: 'portal', x, z, x2: u.x, z2: u.z, r: s.r, dur: s.dur, last: {}, ctDoor: s.ctDoor });
+}
+function k14Door(m, z, owner) {
+  if (!owner || !owner.alive || z.age > z.dur) return true;
+  if (z.age < 0.2) return false;   // the door swings open
+  const D = z.ctDoor;
+  for (const u of m.units) {
+    if (u.team !== z.team || !u.alive || u.dash || dist2(u.x, u.z, z.x, z.z) > z.r * z.r) continue;
+    if (u === owner && u.ctFlyT > 0) continue;
+    const [tx, tz] = u === owner ? [z.x2, z.z2] : landing(m, u, owner.x, owner.z), x0 = u.x, z0 = u.z;
+    u.x = u.px = tx; u.z = u.pz = tz; u.vx = u.vz = 0;
+    heal(m, u, D.heal * (u === owner ? RULES.selfHealMul : 1), owner);
+    u.invulnT = Math.max(u.invulnT, D.vanish);
+    m.events.push({ t: 'warp', id: u.id, x0, z0, x: u.x, z: u.z, via: z.id });
+    return true;
+  }
+  return false;
+}
+function k14TrapCast(m, u, s, inp) {
+  const [x, z] = aimPoint(u, inp, s.cast), T = s.ctTrap;
+  for (const q of m.zones) if (q.kind === 'field' && q.ctTrap && q.owner === u.id) q.dur = 0;   // traps do not stack: the old one goes
+  addZone(m, u, { kind: 'field', vis: s.vis, x, z, r: s.radius, dur: s.dur + T.delay, hps: 0, dps: (s.dps || 0) * u.skillAmp, slow: s.slow || 0, hide: false, pull: 0, acc: 0,
+    haste: 0, blind: null, follow: false, armor: 0, cage: false, held: 0, drain: 0, shield: 0, sh: {}, ctTrap: T, ctSet: T.delay, src: s.id });
+}
+function k14Trap(m, z, owner) {
+  if (!owner || !owner.alive || z.age > z.dur) return true;
+  if (z.ctSet > 0) { z.ctSet -= TICK; return false; }
+  const T = z.ctTrap;
+  z.acc += TICK;
+  const pulse = z.acc >= 0.5 - 1e-9;
+  if (pulse) z.acc -= 0.5;
+  for (const u of m.units) {
+    if (!u.alive || dist2(u.x, u.z, z.x, z.z) > z.r * z.r) continue;
+    if (u.team === z.team) {
+      if (z.sh[u.id]) continue;
+      z.sh[u.id] = 1;
+      cleanse(u);
+      heal(m, u, T.heal * (u === owner ? RULES.selfHealMul : 1), owner);
+      m.events.push({ t: 'ctCure', id: u.id, by: owner.id, x: u.x, z: u.z });
+      continue;
+    }
+    if (u.invulnT > 0) continue;
+    applyFx(m, owner, u, { silence: T.linger, slow: z.slow, slowDur: T.linger });
+    if (!u.tags) continue;
+    const V = 'ctV@' + owner.id;
+    if (u.tags[V] > 0) {
+      delete u.tags[V];
+      m.events.push({ t: 'tagPay', id: u.id, by: owner.id, key: 'ctV', x: u.x, z: u.z });
+      applyFx(m, owner, u, T.pay);
+    }
+    const k = 'ctT@' + owner.id;
+    u.tags[k] = Math.max(u.tags[k] || 0, T.tag); u.tgT = Math.max(u.tgT, u.tags[k]);
+    if (pulse && z.dps && u.alive) { curSrc = z.src; damage(m, u, z.dps * 0.5, owner); curSrc = null; }
+  }
+  return false;
+}
 /* ===== end kit-remake K14 ===== */
 
 /* ===== feat/dtt-modes: Phó bản waves ===== */

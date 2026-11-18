@@ -1,10 +1,12 @@
-// Looks, kit lane k14: Gilgamesh and Baymax, remade with the kits ported from the owner's clips. Render only (see looks.js).
+// Looks, kit lane k14: Gilgamesh, Baymax and Doraemon, remade with the kits ported from the owner's clips. Render only (see looks.js).
 // One main colour and one accent per tank, one strong shape per skill, soft halos.
 //   英雄王 p74 (Gilgamesh): a golden lattice sphere round him (Thiên Chi Tỏa); a huge pale-gold sword plunged into a thin sky-blue
 //     ring with orange flashes where it tears (Quai Ly); golden ripples opening in a fan behind him, gold blades pouring out of
 //     them (Vương Chi Tài Bảo); golden chains closing round a bound foe (the passive).
 //   小白 p59 (Baymax): a bright mint-green chain between him and the ally; a white bomb lobbed into a pale-blue flash; an ice-blue
 //     comet with rings when he flies, golden-white shields on both, ice-crystal wings and a cold ring while he is the warrior.
+//   蓝胖子 p58 (Doraemon): a sky-blue door frame standing on the floor with violet lightning in it; a cyan diamond tile for the
+//     trap, crackling; an aiming ring, then a white-blue cloud whirling inward with lightning for the vortex.
 import * as THREE from '../../vendor/three.module.min.js';
 import { C, own, stop, slash, sigil, shell, trail, weapon, burst } from './lookkit.js';
 
@@ -233,4 +235,105 @@ const suatrang = {
   },
 };
 
-export const K14 = { ...gilgamesh, ...suatrang };
+// ---- Doraemon: sky blue, violet-white lightning accent -----------------------------------------------------------------
+const DR_BLUE = C(0.3, 1.2, 2.6), DR_CYAN = C(0.3, 2.2, 2.6), DR_VIO = C(1.6, 1.0, 2.6), DR_WHITE = C(2.4, 2.5, 2.6), DR_DEEP = C(0.04, 0.15, 0.5);
+const frameGeo = keep(new THREE.BoxGeometry(0.22, 1, 0.22)), paneGeo = keep(new THREE.PlaneGeometry(1, 1));
+// the Anywhere Door: a glowing blue frame standing on the floor with a violet pane, turned toward the camera a little
+function door(kit, x, z) {
+  const g = new THREE.Group(), fm = basic(0x6fc4ff, true, 1), pm = basic(0x7a4dff, true, 0.6), W = 2.6, H = 4.0;
+  const parts = [[-W / 2, H / 2, 0.36, H], [W / 2, H / 2, 0.36, H], [0, H, W + 0.36, 0.36], [0, 0.05, W + 0.36, 0.36]];
+  for (const [px, py, sx, sy] of parts) { const b = new THREE.Mesh(frameGeo, fm); b.position.set(px, py, 0); b.scale.set(sx / 0.22, sy, 1); g.add(b); }
+  const p = new THREE.Mesh(paneGeo, pm); p.position.set(0, H / 2, 0); p.scale.set(W, H, 1); g.add(p);
+  g.position.set(x, 0, z); g.rotation.x = -0.3;
+  g.traverse((o) => { o.renderOrder = 7; });
+  return { g, fm, pm, H };
+}
+const chuottui = {
+  // Nhậm Ý Môn: the door stands at its spot while it waits, violet lightning crawling in the pane; whoever goes through comes
+  // out in a violet star by Doraemon
+  ctDoor: {
+    zones: ['portal'],
+    skill() { return true; },
+    zoneMake(kit, z) {
+      const d = door(kit, z.x, z.z), h = held(kit, [d.g]);
+      const s = sigil(kit, z.x, z.z, (z.r || 1.4) * 2, DR_BLUE, { c2: DR_VIO, n: 0, ticks: 12, inner: 0.7, fill: 0.4, life: 1e9, rev: 0.2, spin: 1, w: 0.1 });
+      const sh = shell(kit, z.x, 2, z.z, 2.4, DR_BLUE, { c2: DR_VIO, p: 2.2, core: 0.04, life: 1e9, squash: 1.1, alpha: 0.7 });
+      kit.flash(z.x, 1.8, z.z, DR_BLUE, 40, 0.25);
+      return { d, h, s, sh, t: 0, z };
+    },
+    zone(kit, v, z, dt) {
+      v.t += dt;
+      const k = Math.min(1, v.t / 0.2), H = v.d.H;
+      v.d.g.scale.set(1, k, 1);
+      v.d.pm.opacity = 0.5 + 0.15 * Math.sin(v.t * 8);
+      if (Math.random() < dt * 14) bolt(kit, z.x + R(-0.7, 0.7), H * k * 0.95, z.z, z.x + R(-0.7, 0.7), 0.2, z.z, DR_VIO, 4);
+    },
+    zoneDrop(kit, v, z) {
+      v.h.on = false; stop(v.s); stop(v.sh);
+      if (!(v.t < (v.z.dur || 4) - 0.1)) return;   // it was used: a violet star where the traveller came out (by Doraemon)
+      const o = kit.match.units[v.z.owner];
+      for (const [x, zz] of [[v.z.x, v.z.z], ...(o ? [[o.x, o.z]] : [])]) {
+        burst(kit, x, zz, 3, DR_VIO, DR_WHITE, { life: 0.4 });
+        sigil(kit, x, zz, 2.4, DR_VIO, { c2: DR_WHITE, n: 5, m: 2, ticks: 0, inner: 0.5, fill: 0.2, life: 0.6, rev: 0.05, spin: 3, w: 0.08 });
+        for (let i = 0; i < 5; i++) { const a = Math.random() * 6.283; bolt(kit, x, 2.2, zz, x + Math.cos(a) * 2, 0.3, zz + Math.sin(a) * 2, DR_VIO, 4); }
+      }
+    },
+  },
+  // Ác Tác Kịch Hãm Tỉnh: a cyan diamond tile unfolds on the floor in the half second it takes to set, then crackles with blue
+  // sparks while it holds
+  ctTrap: {
+    zoneMake(kit, z) {
+      const R0 = z.r * 1.05;
+      const tile = sigil(kit, z.x, z.z, R0, DR_CYAN, { c2: DR_WHITE, n: 4, m: 1, ticks: 0, inner: 0, fill: 0.0, w: 0.09, life: 1e9, rev: 0.45, spin: 0, rot: 0 });
+      const glowT = sigil(kit, z.x, z.z, R0 * 0.72, DR_CYAN, { c2: DR_BLUE, n: 4, m: 1, ticks: 0, inner: 0, fill: 0.0, w: 0.22, life: 1e9, rev: 0.45, spin: 0, alpha: 0.6 });
+      const pane = new THREE.Mesh(paneGeo, basic(0x40d8ff, true, 0.0)); pane.rotation.set(-Math.PI / 2, 0, Math.PI / 4); pane.position.set(z.x, 0.14, z.z); pane.scale.setScalar(R0 * 1.41);
+      const wm = basic(0x40e0ff, true, 0), walls = new THREE.Group();
+      for (let i = 0; i < 4; i++) {
+        const a = i * Math.PI / 2, w = new THREE.Mesh(paneGeo, wm);
+        w.scale.set(R0 * 1.41, 1.3, 1);
+        w.position.set((Math.cos(a) + Math.cos(a + Math.PI / 2)) * R0 * 0.5, 0.65, (Math.sin(a) + Math.sin(a + Math.PI / 2)) * R0 * 0.5);
+        w.rotation.y = -(a + Math.PI * 0.75); walls.add(w);
+      }
+      walls.position.set(z.x, 0, z.z);
+      const h = held(kit, [pane, walls]);
+      return { tile, glowT, pane, walls, wm, h, t: 0 };
+    },
+    zone(kit, v, z, dt) {
+      v.t += dt;
+      const k = Math.min(1, v.t / 0.5);
+      v.pane.material.opacity = 0.4 * k * (0.85 + 0.15 * Math.sin(v.t * 7)); v.wm.opacity = 0.35 * k; v.walls.scale.y = Math.max(0.01, k);
+      if (k >= 1 && Math.random() < dt * 16) { const a = Math.random() * 6.283, d = R(0.2, z.r * 0.8); bolt(kit, z.x + Math.cos(a) * d, 0.3, z.z + Math.sin(a) * d, z.x + Math.cos(a + 1) * d * 0.5, R(0.8, 1.6), z.z + Math.sin(a + 1) * d * 0.5, Math.random() < 0.5 ? DR_CYAN : DR_VIO, 3); }
+    },
+    zoneDrop(kit, v) { stop(v.tile); stop(v.glowT); v.h.on = false; },
+  },
+  // Toàn Qua Chế Tạo Cơ: an aiming ring with four brackets where it falls, the little machine lobbed into it; then a white-blue
+  // cloud whirls inward with three blue strokes turning round it and lightning snapping
+  ctVortex: {
+    zones: ['strike'], ownDisc: true, pal: [DR_BLUE, DR_WHITE], hitR: 2.2,
+    skill() { return true; },
+    zoneMake(kit, z) {
+      const o = kit.match.units[z.owner], x0 = o ? o.x : z.x, z0 = o ? o.z : z.z;
+      const ring = sigil(kit, z.x, z.z, z.r, DR_BLUE, { c2: DR_WHITE, n: 0, ticks: 4, inner: 0.78, fill: 0.12, w: 0.1, life: 1e9, rev: 0.1, spin: 2.4 });
+      const cap = shell(kit, x0, 1.2, z0, 0.5, DR_WHITE, { c2: DR_BLUE, p: 1.2, core: 0.6, life: 1e9 });
+      return { ring, cap, x0, z0, t: 0 };
+    },
+    zone(kit, v, z, dt) {
+      v.t += dt;
+      const k = Math.min(1, v.t / Math.max(0.1, z.total || 0.6));
+      v.cap.position.set(v.x0 + (z.x - v.x0) * k, 1.2 + 3.5 * Math.sin(k * Math.PI), v.z0 + (z.z - v.z0) * k);
+    },
+    zoneDrop(kit, v) { stop(v.ring); stop(v.cap); },
+    land(kit, e) {
+      const r = e.r || 4.5;
+      for (let i = 0; i < 3; i++) slash(kit, e.x, e.z, i * 2.094, r * (0.95 - i * 0.12), DR_BLUE, { c2: DR_DEEP, edge: DR_WHITE, span: 1.7, life: 0.8, w: r * 0.2, sweep: 0.25, arcs: 2, dir: -1, sparks: false });
+      shell(kit, e.x, 1.3, e.z, r * 0.9, DR_WHITE, { c2: DR_BLUE, inv: 1.4, core: 0.8, life: 0.8, step: (t, m) => { m.scale.setScalar(r * 0.9 * (1 - 0.55 * Math.min(1, t / 0.8))); } });
+      sigil(kit, e.x, e.z, r * 1.1, DR_BLUE, { c2: DR_WHITE, n: 0, ticks: 12, inner: 0.6, fill: 0.35, life: 0.9, rev: 0.05, spin: -4, w: 0.1 });
+      kit.puffs(e.x, 1.0, e.z, kit.N(16), C(0.85, 0.92, 1.0), r * 0.8, -4, 0.8, 1.4, 1.5, 0.5, 0.6, kit.K.SMOKE, 3);
+      for (let i = 0; i < 7; i++) { const a = Math.random() * 6.283, d = R(1, r); bolt(kit, e.x + Math.cos(a) * d, R(0.4, 2.2), e.z + Math.sin(a) * d, e.x, 1.3, e.z, Math.random() < 0.5 ? DR_VIO : DR_WHITE, 5); }
+      kit.flash(e.x, 1.8, e.z, DR_BLUE, 60, 0.3); kit.kick(e.x, e.z, 0.45);
+      return true;
+    },
+  },
+};
+
+export const K14 = { ...gilgamesh, ...suatrang, ...chuottui };

@@ -25,7 +25,16 @@ export const OLD_SUATRANG = {
     { id: 'capcuu', cd: 48, do: 'zone', at: 'self', follow: true, radius: 6.5, dur: 5, hps: 220, armor: 0.25, vis: 'heal' },
   ],
 };
-const OLD = { gilgamesh: OLD_GILGAMESH, suatrang: OLD_SUATRANG };
+export const OLD_CHUOTTUI = {
+  passive: { do: 'thrifty', chance: 0.25, refund: 0.75 },
+  weapon: { name: 'Súng Bóng', cd: 0.32, dmg: 118, speed: 28, range: 12.5, r: 0.26, vis: 'pulse' },
+  skills: [
+    { id: 'cuathan', cd: 16, do: 'portal', cast: 10, dur: 8, r: 1.3 },
+    { id: 'robotquay', cd: 15, do: 'turret', cast: 5, hp: 600, dur: 10, range: 10, dmg: 55, rate: 0.35 },
+    { id: 'tuidonghe', cd: 46, do: 'zone', at: 'self', follow: true, radius: 6.5, dur: 5, hps: 180, haste: 1.25, shield: 300, vis: 'heal' },
+  ],
+};
+const OLD = { gilgamesh: OLD_GILGAMESH, suatrang: OLD_SUATRANG, chuottui: OLD_CHUOTTUI };
 // Swap the old kit onto every unit of that mech (before the first step).
 export function oldKit14(m, mech) {
   const K = OLD[mech];
@@ -152,6 +161,65 @@ export function runK14Cases(check, section) {
     const h = al.hp;
     go(m, 14, (i) => ({ 2: { fire: i === 0, aim: Math.PI, tx: 5, tz: 0 } }));
     check('62x Sieu Nang Tri Du (passive): the ally under 30% is healed 30% of max hp and guarded 50%, icd 30 on Baymax', al.hp > h && al.guardF === 0.5 && a.svT > 29, `${al.hp - h} ${al.guardF} ${a.svT}`);
+  }
+  // ---- Doraemon ----
+  {
+    // Nhậm Ý Môn: one door at the cursor, 4 s; an ally stepping in comes out beside Doraemon, heals 320, vanishes 1 s; one use
+    const m = arena([[R('chuottui', 0), 0, 0], [R('trau', 0), 6, 0], [R('trau', 1), 30, 8]]), [a, al] = m.units;
+    al.hp = 1000;
+    go(m, 1, () => ({ 0: { s1: true, tx: 6, tz: 0 } }));
+    const z = m.zones.find((q) => q.kind === 'portal');
+    check('62y the door stands at the cursor (6, 0), r 1.4, 4 s; its other end is where Doraemon stood; he has not moved', !!z && near(z.x, 6) && z.x2 === 0 && z.r === 1.4 && z.dur === 4 && a.x === 0 && near(a.cd.s1, 10, 1e-9), JSON.stringify(z));
+    const ev = go(m, 8);
+    check('62z after it opens the ally standing in it comes out at Doraemon, +320, untargetable ~1 s, the door gone', Math.hypot(al.x - a.x, al.z - a.z) < 1.2 && near(al.hp, 1320, 1e-6) && al.invulnT > 0.7 && !m.zones.some((q) => q.kind === 'portal') && only(ev, 'warp', (w) => w.id === 1).length === 1, `${al.x} ${al.hp} ${al.invulnT}`);
+    a.cd.s1 = 0; put(al, 0, 5); go(m, 1, () => ({ 0: { s1: true, tx: -7, tz: 0 } }));
+    put(a, -7, 0); a.hp = 1000; go(m, 8);
+    check('62za Doraemon stepping into his own door goes back to where he set it (0, 0), +320 x selfHealMul', near(a.x, 0, 1e-6) && near(a.z, 0, 1e-6) && near(a.hp, 1000 + 320 * RULES.selfHealMul, 1e-6), `${a.x} ${a.hp}`);
+  }
+  {
+    // Ác Tác Kịch Hãm Tỉnh: 0.5 s to set, then 3 s: foes inside silenced and slowed 30% (1 s more after leaving), 75 a pulse,
+    // tagged ctT 3 s; an ally passing heals 314 and is cleansed (once)
+    const m = arena([[R('chuottui', 0), 0, 0], [R('trau', 1), 6, 0], [R('trau', 0), 6, 2]]), [a, v, al] = m.units;
+    v.speed = 0; al.hp = 1000; al.slowT = 3; al.slowF = 0.5;
+    go(m, 1, () => ({ 0: { s2: true, tx: 6, tz: 0 } }));
+    go(m, 13);
+    check('62zb setting up (0.5 s): nothing yet', !(v.silenceT > 0) && v.hp === v.maxHp && al.hp === 1000, `${v.silenceT}`);
+    const ev = go(m, 32);
+    check('62zc then: the foe is silenced, slowed 30%, tagged ctT, two pulses of 75 x armor', v.silenceT > 0.9 && near(v.slowF, 0.3) && v.tags['ctT@0'] > 2.9 && near(sum(only(ev, 'hit', (e) => e.id === 1)), 2 * 75 * TF, 1e-6), `${v.silenceT} ${v.slowF} ${sum(only(ev, 'hit', (e) => e.id === 1))}`);
+    check('62zd the ally inside healed 314 once and cleansed', near(al.hp, 1314, 1e-6) && al.slowT === 0 && only(ev, 'ctCure', (e) => e.id === 2).length === 1, `${al.hp} ${al.slowT}`);
+    put(v, 12, 0); go(m, 15);
+    check('62ze out of the trap the silence runs out about 1 s later', v.silenceT > 0 && v.silenceT < 0.6, `${v.silenceT}`);
+  }
+  {
+    // Toàn Qua Chế Tạo Cơ: 0.6 s after the throw, 503 in 4.5 m, everyone hit pulled to the centre and tagged ctV; on a ctT-tagged foe
+    // also 10% of its max hp (armour cuts it, as moclan's maxHp) and a 2 s root (the tag is used up)
+    const m = arena([[R('chuottui', 0), 0, 0], [R('trau', 1), 8, 3], [R('trau', 1), 8, -2]]), [a, v, w] = m.units;
+    v.speed = 0; w.speed = 0;
+    w.tags['ctT@0'] = 2;
+    go(m, 1, () => ({ 0: { ult: true, tx: 8, tz: 0 } }));
+    const ev = go(m, 20), hv = only(ev, 'hit', (e) => e.id === 1), hw = only(ev, 'hit', (e) => e.id === 2);
+    check('62zf the vortex hits both with falloff and pulls them to the centre (within 1.5 m)', hv.length >= 1 && near(hv[0].amt, 503 * (1 - 0.5 * 3 / 4.5) * TF, 1e-3) && Math.hypot(v.x - 8, v.z) < 1.5 && Math.hypot(w.x - 8, w.z) < 1.5, `${hv.map((e) => e.amt)} ${v.x},${v.z}`);
+    check('62zg the plain foe is tagged ctV 3 s; the trapped one also takes 10% max hp, rooted 2 s, its ctT used up', v.tags['ctV@0'] > 2.3 && v.rootT === 0 && w.rootT > 1.3 && !w.tags['ctT@0'] && hw.some((e) => near(e.amt, 0.1 * w.maxHp * TF, 1e-6)), `${v.tags['ctV@0']} ${w.rootT} ${hw.map((e) => e.amt)}`);
+    // the other way round: the ctV-tagged foe walks into the trap
+    a.cd.s2 = 0; go(m, 1, () => ({ 0: { s2: true, tx: v.x, tz: v.z } }));
+    const ev2 = go(m, 16);
+    check('62zh a ctV-tagged foe in the trap: 10% of max hp and a 2 s root, the tag used up (tagPay)', only(ev2, 'tagPay', (e) => e.id === 1 && e.key === 'ctV').length === 1 && v.rootT > 1.5 && !v.tags['ctV@0'], `${v.rootT}`);
+  }
+  {
+    // Trúc Tinh Đình: hurt -> x1.25 for 2 s; under 30% -> flight 4 s (enemy skills miss, x1.5), 30 s once; a cast lands it
+    const m = arena([[R('chuottui', 0), 0, 0], [R('gilgamesh', 1), 6, 0]]), [a, g] = m.units;
+    go(m, 14, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
+    check('62zi a hit: x1.25 run for 2 s', a.hasteF === 1.25 && a.hasteT > 1.5, `${a.hasteF} ${a.hasteT}`);
+    a.hp = a.maxHp * 0.25;
+    const ev = go(m, 1);
+    check('62zj under 30%: flying 4 s, x1.5, the icd 30 s (event ctFly)', a.ctFlyT > 3.9 && a.hasteF === 1.5 && a.ctIcd > 29 && only(ev, 'ctFly').length === 1, `${a.ctFlyT} ${a.hasteF} ${a.ctIcd}`);
+    const hp = a.hp;
+    g.cd.s2 = 0; go(m, 1, () => ({ 1: { s2: true, tx: 0, tz: 0 } })); go(m, 40);
+    check('62zk enemy skills do not touch him while he flies (Quai Ly on him: no damage)', a.hp >= hp, `${a.hp} ${hp}`);
+    a.cd.s1 = 0; go(m, 1, () => ({ 0: { s1: true, tx: -6, tz: 0 } }));
+    check('62zl a cast of his own lands him', a.ctFlyT === 0);
+    a.hp = a.maxHp * 0.2; go(m, 2);
+    check('62zm the flight does not come back inside 30 s', a.ctFlyT === 0);
   }
 }
 

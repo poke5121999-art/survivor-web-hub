@@ -1542,6 +1542,7 @@ const SKILL_AI = {
   },
   // portal: slip back toward my base when hurt and hunted, or open a way to the ally who is far away while nobody is in sight
   portal(c, s) {
+    if (s.ctDoor) return k14BotDoor(c, s);   // kit-remake K14: Doraemon's one-use door
     const { u, m } = c;
     for (const z of m.zones) if (z.kind === 'portal' && z.owner === u.id) return false;
     let to = null;
@@ -2484,7 +2485,7 @@ function tthBotAura(c, s) {
 }
 /* ===== end kit-remake G5 Tào Tháo bots ===== */
 
-/* ===== kit-remake K14 (suatrang): bot policy for the G5 rows (sim.js "kit-remake K14") ===== */
+/* ===== kit-remake K14 (gilgamesh, suatrang, chuottui): bot policy for the G5 rows (sim.js "kit-remake K14") ===== */
 // Baymax's chain: the most hurt ally inside the chain's reach, with energy to spare; a chain that holds is never taken off
 function k14BotTie(c, s) {
   const { u, m } = c;
@@ -2493,6 +2494,22 @@ function k14BotTie(c, s) {
   let best = null, bf = 0.75;
   for (const a of m.units) {
     if (a === u || a.team !== u.team || !a.alive || hyp(a.x - u.x, a.z - u.z) > reach) continue;
+    const f = a.hp / a.maxHp;
+    if (f < bf) { bf = f; best = a; }
+  }
+  if (!best) return false;
+  c.b.sk.x = best.x; c.b.sk.z = best.z;
+  return true;
+}
+// Doraemon's door: dropped on a hurt ally in the fight, it pulls the ally out to him at once (heal, 1 s untargetable)
+function k14BotDoor(c, s) {
+  const { u, m } = c;
+  for (const z of m.zones) if (z.kind === 'portal' && z.owner === u.id) return false;
+  let best = null, bf = 0.45;
+  for (const a of m.units) {
+    if (a === u || a.team !== u.team || !a.alive || a.combatT > 3) continue;
+    const d = hyp(a.x - u.x, a.z - u.z);
+    if (d < 4 || d > s.cast - 0.5) continue;
     const f = a.hp / a.maxHp;
     if (f < bf) { bf = f; best = a; }
   }
