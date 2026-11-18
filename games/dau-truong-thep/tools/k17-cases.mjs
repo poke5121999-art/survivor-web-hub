@@ -14,7 +14,16 @@ export const OLD_LUONDIEN = {
     { id: 'samset', name: 'Sấm Sét', cd: 42, do: 'barrage', n: 8, radius: 5, blast: 2, dmg: 330, delay: 0.4, span: 2, cast: 12, seek: { radius: 9, prefer: 'meterMark' }, fx: { chain: { n: 2, r: 5, mul: 0.5 } } },
   ],
 };
-const OLD = { luondien: OLD_LUONDIEN };
+export const OLD_MANGXA = {
+  passive: { do: 'trophy', name: 'Chiến Tích', heal: 0.1 },
+  weapon: { name: 'Nanh Thép', cd: 0.7, dmg: 178, speed: 30, range: 10.5, r: 0.28, vis: 'slug' },
+  skills: [
+    { id: 'mocxich', name: 'Móc Xích', cd: 11, do: 'hook', speed: 30, range: 13, r: 0.4, dmg: 120, stun: 0.4, vis: 'hook' },
+    { id: 'hoanvi', name: 'Hoán Vị', cd: 13, do: 'swap', cast: 12, pick: 3, slow: 0.4, slowDur: 1.5 },
+    { id: 'longxich', name: 'Lồng Xích', cd: 40, do: 'zone', at: 'self', radius: 5.5, dur: 3.5, dps: 110, cage: true, vis: 'cage' },
+  ],
+};
+const OLD = { luondien: OLD_LUONDIEN, mangxa: OLD_MANGXA };
 // Every tank of this lane in the match plays its old kit (the match must be fresh: nothing pressed yet).
 export function oldK17(m) {
   for (const u of m.units) {
@@ -136,6 +145,56 @@ export function runK17Cases(check, section) {
     d.stunT = 0.5;
     go(s, 1);
     check('K17-n ... a stun ends it', !(d.tfT > 0));
+  }
+  // ---- Medusa (mangxa), clip p42 ----
+  const MX = MECHS.mangxa, [MQ, ME, MU] = MX.skills;
+  // Nanh Độc: 150, steals 5 energy, one curse mark; five marks petrify 0.5 s
+  {
+    const m = arena([[R('mangxa', 0), 0, 0], [R('luondien', 1), 6, 0]]), [a, v] = m.units;
+    a.en = 100; v.en = 200;
+    const ev = go(m, 10, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } }));
+    const b = blows(ev, 1, 0), F = 1 - MECHS.luondien.armor;
+    check('K17-o Nanh Doc: 150 x armour, 5 energy stolen (200 -> 195, then regen; Medusa 100 -> 105 + regen), one curse mark', b.length === 1 && near(b[0].amt, 150 * F, 1e-6) && v.en >= 195 && v.en < 196.7 && near(a.en, 105 + 5 * 10 * TICK, 1e-6) && v.stkN === 1 && v.stkBy === 0,
+      `${b.map((e) => e.amt)} en ${v.en} / ${a.en} marks ${v.stkN}`);
+    check('K17-p ... each mark takes 0.02 armour off', near(v.stkShred, 0.02, 1e-9), `${v.stkShred}`);
+    v.stkN = 4; v.stkT = 2; a.cd.fire = 0;
+    const ev2 = go(m, 10, (i) => ({ 0: { fire: i === 0, tx: 6, tz: 0 } }));
+    check('K17-q ... the fifth mark petrifies 0.5 s (G3 loc petrify) and clears', LOC_KINDS[v.locK] === 'petrify' && v.locT > 0.1 && v.stkN === 0 && only(ev2, 'stacks').length === 1, `${LOC_KINDS[v.locK]} ${v.locT} ${v.stkN}`);
+  }
+  // Tử Vong Ngưng Thị: 0.5 s later the 7 m cone in front is petrified 1 s and takes 281; behind her nothing
+  {
+    const m = arena([[R('mangxa', 0), 0, 0], [R('ung', 1), 3, 0], [R('ung', 1), -3, 0]]), [a, v, back] = m.units;
+    const ev = go(m, 20, (i) => ({ 0: { s1: i === 0 } }));
+    const b = blows(ev, 1, 0), f = 1 - 0.5 * 3 / MQ.radius;
+    check('K17-r Tu Vong Ngung Thi: 281 (falloff at 3 m) after 0.5 s, petrified 1 s; the foe behind untouched', b.length === 1 && near(b[0].amt, MQ.dmg * f, 1e-6) && LOC_KINDS[v.locK] === 'petrify' && v.locT > 0.8 && back.hp === back.maxHp,
+      `${b.map((e) => e.amt)} ${LOC_KINDS[v.locK]} ${v.locT} back ${back.hp}`);
+    check('K17-s ... the blow lands at the end of the 0.5 s wind-up', only(ev, 'nova').length === 1 && !a.cast);
+  }
+  // Bí Thuật Dị Xà: 227 on the first, then four bites one after another, each x1.1; each bite cuts 1 s (10%) off the recharge
+  {
+    const m = arena([[R('mangxa', 0), 0, 0], [R('ung', 1), 5, 0], [R('ung', 1), 9, 0], [R('ung', 1), 13, 0], [R('ung', 1), 13, 5], [R('ung', 1), 13, 10], [R('ung', 1), 13, 16]]);
+    const [a] = m.units;
+    const ev = go(m, 20, (i) => ({ 0: { s2: i === 0, tx: 5, tz: 0 } }));
+    const got = [1, 2, 3, 4, 5, 6].map((id) => blows(ev, id, 0).reduce((t, e) => t + e.amt, 0));
+    const want = [227, 227 * 1.1, 227 * 1.21, 227 * 1.331, 227 * 1.4641, 0];
+    check('K17-t Bi Thuat Di Xa: 227, then 249.7, 274.7, 302.1, 332.4 down the chain (6 m hops), the sixth never', got.every((g, i) => near(g, want[i], 1e-6)), JSON.stringify(got));
+    check('K17-u ... five bites cut the recharge by 5 x 1 s (10 - elapsed - 5)', near(a.cd.s2, ME.cd - 19 * TICK - 5, 1e-6) && a.use1 === 1, `cd ${a.cd.s2} use ${a.use1}`);
+  }
+  // Ma Xà Chi Xúc: the ward turns away skill damage, kept up by the energy spent; three snakes every 0.25 s; same-target x0.9
+  {
+    const m = arena([[R('mangxa', 0), 0, 0], [R('ung', 1), 6, 0], [R('luondien', 1), 3, 4]]), [a, v, z] = m.units;
+    a.en = 150;
+    const ev = go(m, 30, (i) => ({ 0: { ult: i === 0, tx: 6, tz: 0 } }));
+    check('K17-v Ma Xa Chi Xuc: the ward is up (guard 1 vs skill) and the cooldown stands full while the snakes fly', a.mdWT > 0.5 && a.gvF === 1 && a.gvK === 'skill' && !!a.cast && a.cd.ult === MU.cd, `ward ${a.mdWT} gv ${a.gvF} ${a.gvK} cd ${a.cd.ult}`);
+    const b = blows(ev, 1, 0);
+    check('K17-w ... the bites on one mech of one press: 150, then x0.9 each', b.length >= 3 && near(b[0].amt, 150, 1e-6) && near(b[1].amt, 135, 1e-6) && near(b[2].amt, 121.5, 1e-6), `${b.map((e) => e.amt)}`);
+    const hp0 = a.hp; z.cd.s2 = 0; z.use1 = 0; z.gap1 = 0;
+    const ev2 = go(m, 20, (i) => ({ 2: { s2: i === 0, tx: 0, tz: 0 } }));
+    check('K17-x ... an enemy skill (Razor\'s trap) lands on her for nothing', a.hp >= hp0 && blows(ev2, 0, 2, 1).length === 0 && only(ev2, 'hit', (e) => e.id === 0 && e.by === 2).length >= 1, `hp ${hp0} -> ${a.hp}`);
+    let n = 0; while (a.cast && n < 200) { go(m, 1); n++; }
+    check('K17-y ... 125 energy (150 - 25) runs dry after about 2.5 s; the ward lasts up to 1 s more, then the cooldown runs', a.en < 3 && a.mdWT > 0.5 && a.mdWT <= 1.1 && a.cd.ult === MU.cd, `en ${a.en} ward ${a.mdWT} cd ${a.cd.ult} after ${n}`);
+    go(m, 40);
+    check('K17-z ... the ward is down after it, the cooldown counts', a.mdWT === 0 && !(a.gvT > 0) && a.cd.ult < MU.cd, `ward ${a.mdWT} gv ${a.gvT} cd ${a.cd.ult}`);
   }
 }
 

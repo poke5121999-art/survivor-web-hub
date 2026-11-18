@@ -149,22 +149,23 @@ for (const key of MECH_ORDER) {
     const a = m.units[0];
     // orbit devour (tumay ult) needs a chaos orb to send: the pool timer is primed so the first tick grows one before the press
     if (s.mode === 'devour') a.tmAcc = MECHS[key].passive.every;
-    let first = -1, second = -1, castTicks = 0;
+    let first = -1, second = -1, castTicks = 0, held = 0;
     // cdAfter (G1): the cooldown stands full while the row's state runs (a buff's or a transform's dur, kit lane K13: domdom's
-    // nova ult with its dur), so the recast comes that much later
-    const held = s.cdAfter ? s.dur || 0 : 0;
-    for (let t = 0; t < Math.ceil((s.cd + held + 1.5) / TICK); t++) {
+    // nova ult with its dur; kit lane k17: Medusa's ult cast, which ends when her energy does), so the recast comes that much
+    // later: held counts the ticks the slot's hold bit stands
+    for (let t = 0; t < Math.ceil((s.cd + 1.5 + (s.cdAfter ? (s.dur || 4) + 3 : 0)) / TICK); t++) {
       const o = inp({ [slot]: true, aim: 0, tx: s.do === 'portal' ? (a.x > 0 ? a.x - 6 : a.x + 6) : m.units[ally ? 2 : 1].x, tz: -1, mx: s.do === 'swap' || s.do === 'mark' || s.do === 'flurry' || s.do === 'portal' || s.ktLock || s.aoqNear ? 0 : 1 });   // aoqNear: kit lane k16 (the leap needs the foe within 7 m)
       step(m, ally ? [o, inp(), inp()] : [o, inp()]);
       // a follow-up (G3 then, Black Panther's second charge) carries `then` on its skill event: it is not a press
       // a second stage (next.row, kit lane k16: an unconditional one like Lạc Long Quân's ult) names its own row: it is no press of this one
       for (const e of m.events) if (e.t === 'skill' && e.id === 0 && e.slot === i && !e.then && e.skill === s.id) { if (first < 0) { first = t; castTicks = a.cd[slot]; } else if (second < 0) second = t; }
+      if (first >= 0 && second < 0 && a.hold & (1 << i)) held++;
       a.hp = a.maxHp;
       if (s.do === 'flurry') m.units[1].hp = m.units[1].maxHp;   // a flurry that kills its lone foe would find nobody to recast on
     }
     check(`${key}.${slot} (${s.do}) goes on cooldown = ${s.cd}s`, first === 0 && Math.abs(castTicks - s.cd) < 1e-9, `first ${first} cd ${castTicks}`);
     // a row with uses (G1 skill charges) recasts after its gap, not after the cooldown; a follow-up (then, its event says so) is no recast
-    check(`${key}.${slot} cannot recast before the cooldown ends`, second >= 0 && (second - first) * TICK >= (s.uses ? s.uses.gap : s.do === 'counter' ? 0.6 * s.cd : s.cd + held) - 2 * TICK && (second - first) * TICK <= (s.uses ? s.uses.gap : s.cd + held) + 0.5, `gap ${(second - first) * TICK}`);
+    check(`${key}.${slot} cannot recast before the cooldown ends`, second >= 0 && (second - first - held) * TICK >= (s.uses ? s.uses.gap : s.do === 'counter' ? 0.6 * s.cd : s.cd) - 2 * TICK && (second - first - held) * TICK <= (s.uses ? s.uses.gap : s.cd) + 0.5, `gap ${(second - first) * TICK} held ${held * TICK}`);
   }
 }
 
@@ -2157,7 +2158,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('mechanic: turret hp 800 x 1.3 = 1040 for 18 x 1.3 = 23.4 s; mines last 30 x 1.3 = 39 s', !!t && near(t.maxHp, 1040, 1e-9) && near(t.dur, 23.4, 1e-9) && mines.length === 5 && mines.every((z) => near(z.dur, 39, 1e-9)), `hp ${t && t.maxHp} dur ${t && t.dur} mines ${mines.map((z) => z.dur)}`);
   }
   {
-    const m = arena([[R('mangxa', 0), 0, 0], [R('ung', 1), 5, 0]]);
+    const m = oldK17(arena([[R('mangxa', 0), 0, 0], [R('ung', 1), 5, 0]]));
     m.units[0].hp = 1000; m.units[1].hp = 10;
     for (let i = 0; i < 20 && m.units[1].alive; i++) step(m, [inp({ fire: true }), inp({ aim: Math.PI })]);
     check('trophy: mangxa heals 10% of its max hp on a takedown (1000 -> 1000 + 10%)', !m.units[1].alive && near(m.units[0].hp, 1000 + 0.1 * MECHS.mangxa.hp, 1e-9), `hp ${m.units[0].hp}`);
@@ -2255,7 +2256,7 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     check('piercing shot: Dan Xuyen hits both mechs in the line once each (1700 - its damage) and nobody off the line', per(1) === 1 && per(2) === 1 && per(3) === 0 && m.units[1].hp === 1700 - SAB && m.units[2].hp === 1700 - SAB && m.units[3].hp === 1700, `${m.units.map((u) => u.hp)}`);
   }
   {
-    const m = arena([[R('mangxa', 0), 0, 0], [R('ung', 1), 9, 0]]);
+    const m = oldK17(arena([[R('mangxa', 0), 0, 0], [R('ung', 1), 9, 0]]));
     const a = m.units[0], b = m.units[1];
     let hooked = -1;
     for (let i = 0; i < 60 && hooked < 0; i++) { step(m, [inp({ s1: i === 0 }), inp({ aim: Math.PI })]); if (m.events.some((e) => e.t === 'hook')) hooked = i; }
@@ -2263,26 +2264,26 @@ section('36 stats, passives and skill primitives (open arena, literal expected v
     while (b.dash && n++ < 60) step(m, [inp(), inp({ aim: Math.PI })]);
     check('hook: the target is reeled in to radius 0.88 + 0.76 + 0.6 = 2.24 m from mangxa and arrives stunned', hooked >= 0 && near(Math.hypot(b.x - a.x, b.z - a.z), 2.24, 0.02) && b.stunT > 0.3, `hooked ${hooked} dist ${Math.hypot(b.x - a.x, b.z - a.z)} stun ${b.stunT}`);
     check('hook: and took the hook damage 120 (1700 - 120)', b.hp === 1580, `hp ${b.hp}`);
-    const h = arena([[R('mangxa', 0), 0, 0], [R('titan', 1), 9, 0]]);
+    const h = oldK17(arena([[R('mangxa', 0), 0, 0], [R('titan', 1), 9, 0]]));
     go(h, 40, (i) => ({ 0: { s1: i === 0 } }));
     check('hook: the heavy boss is hit (100000 - 120) but not pulled (x stays 9) and not stunned', h.units[1].hp === 99880 && near(h.units[1].x, 9, 1e-9) && h.units[1].stunT === 0, `hp ${h.units[1].hp} x ${h.units[1].x}`);
   }
   {
-    const m = arena([[R('mangxa', 0), -5, 0], [R('ung', 1), 4, 0], [R('dummy', 0), 20, 15]]);
+    const m = oldK17(arena([[R('mangxa', 0), -5, 0], [R('ung', 1), 4, 0], [R('dummy', 0), 20, 15]]));
     const ev = go(m, 1, () => ({ 0: { s2: true, tx: 4, tz: 0 } }));
     check('swap: positions are exchanged (caster at 4, enemy at -5) and the enemy is slowed 40% for 1.5 s (6.0 x 0.6 = 3.6)', near(m.units[0].x, 4, 1e-9) && near(m.units[1].x, -5, 1e-9) && only(ev, 'swap').length === 1 && near(unitSpeed(m.units[1]), 3.6, 1e-9) && near(m.units[1].slowT, 1.5, 0.04), `x ${m.units[0].x} ${m.units[1].x} speed ${unitSpeed(m.units[1])}`);
-    const al = arena([[R('mangxa', 0), -5, 0], [R('dummy', 0), 4, 0], [R('ung', 1), 20, 15]]);
+    const al = oldK17(arena([[R('mangxa', 0), -5, 0], [R('dummy', 0), 4, 0], [R('ung', 1), 20, 15]]));
     go(al, 1, () => ({ 0: { s2: true, tx: 4, tz: 0 } }));
     check('swap: an ally can be swapped too and is not slowed', near(al.units[0].x, 4, 1e-9) && near(al.units[1].x, -5, 1e-9) && al.units[1].slowT === 0, `slowT ${al.units[1].slowT}`);
-    const n = arena([[R('mangxa', 0), -5, 0], [R('ung', 1), 4, 0]]);
+    const n = oldK17(arena([[R('mangxa', 0), -5, 0], [R('ung', 1), 4, 0]]));
     const evn = go(n, 1, () => ({ 0: { s2: true, tx: 15, tz: 10 } }));
     check('swap: with nobody at the cursor nothing happens (no skill event, no move) and the cooldown is 0.4 s, not 13', only(evn, 'skill').length === 0 && only(evn, 'swap').length === 0 && near(n.units[0].x, -5, 1e-9) && near(n.units[0].cd.s2, 0.4, 1e-9), `cd ${n.units[0].cd.s2}`);
-    const far = arena([[R('mangxa', 0), -15, 0], [R('ung', 1), 4, 0]]);
+    const far = oldK17(arena([[R('mangxa', 0), -15, 0], [R('ung', 1), 4, 0]]));
     go(far, 1, () => ({ 0: { s2: true, tx: 4, tz: 0 } }));
     check('swap: an enemy beyond the cast range 12 cannot be picked (cooldown 0.4 s)', near(far.units[0].x, -15, 1e-9) && near(far.units[0].cd.s2, 0.4, 1e-9), `cd ${far.units[0].cd.s2}`);
   }
   {
-    const m = arena([[R('mangxa', 0), 0, 0], [R('ung', 1), 3, 0], [R('ung', 1), 8, 0]]);
+    const m = oldK17(arena([[R('mangxa', 0), 0, 0], [R('ung', 1), 3, 0], [R('ung', 1), 8, 0]]));
     const [a, inside, outside] = m.units;
     let maxD = 0, enteredAt = -1, held = 0;
     go(m, 1, () => ({ 0: { ult: true } }));

@@ -255,20 +255,32 @@ export const MECHS = {
         desc: 'Dội tám quả đạn xuống một vùng xa tới 24 m. Vòng đỏ báo trước chỗ rơi.' },
     ],
   },
+  // Mãng Xà = Medusa (美杜莎III): ported from the owner's earlier game (clip BV1Kp4y1b7i6 p42 "39.美杜莎", tooltips in
+  // ~/handoff/dtt-ref/kits/AUDIT-b.md). Attack = one Nanh Độc shot (150; was 178 at 0.7 s, now 150 at 0.6 s, same dps; range 480 ->
+  // 13 m): Tử Vong Ngưng Thị 187% -> 281, Bí Thuật Dị Xà 151% -> 227 (each next bite +10%), Ma Xà Chi Xúc 100% -> 150 a snake.
+  // Cooldowns 10 / 8 / 15 s in the clip -> 12 / 10 / 30. Energy is kept (the ult runs on it): 150 max, +5 a second; every hit steals
+  // 5 (the snake's bites 10). The curse mark's "-10% armour pen" -> 0.02 armour off a mark (G3 stacks per.armor), 5 marks petrify
+  // 0.5 s. The ult: 3 snakes every 0.25 s for 3 s at 50 energy a second (the cast ends when the energy does), each further bite on
+  // the same mech of one press x0.9 (sameDecay). "Immune to energy damage" -> skill damage. Kit-remake G5 field (sim.js block
+  // "kit-remake G5 Medusa"): volley mdWard (the ward that every 25 energy spent keeps up 0.5 s longer).
   mangxa: {
-    name: 'Mãng Xà', role: 'Bắt giữ', roleKey: 'hooker', price: 1500, tint: 0x4f8f6a,
-    blurb: 'Móc kéo địch về, đổi chỗ với bất kỳ ai, nhốt cả nhóm trong lồng xích.',
-    hp: 3200, speed: 5.7, radius: 0.88,
-    armor: 0.15, accel: 0.9, turn: 10, towerMul: 1.9,
-    passive: { do: 'trophy', name: 'Chiến Tích', desc: 'Hạ gục hoặc trợ công thì hồi 10% máu.', heal: 0.1 },
-    weapon: { name: 'Nanh Thép', cd: 0.7, dmg: 178, speed: 30, range: 10.5, r: 0.28, vis: 'slug' },
+    name: 'Medusa', role: 'Khống chế', roleKey: 'control', price: 1500, tint: 0x4f8f6a,
+    blurb: 'Nữ yêu rắn: đòn nào trúng cũng hút năng lượng và in trớ chú, đủ năm dấu thì kẻ địch hóa đá. Ánh nhìn hóa đá cả hình quạt, rắn độc nảy từ kẻ này sang kẻ khác mạnh dần, rồi mở khiên miễn sát thương chiêu và xả từng đàn rắn xuyên thấu.',
+    hp: 2700, speed: 5.7, radius: 0.88,
+    armor: 0.1, accel: 0.9, turn: 10, towerMul: 1.4,
+    energy: { max: 150, regen: 5, start: 150 },
+    passive: { do: 'stacks', name: 'Tử Vong Ngưng Thị', look: 'mdCurse', n: 5, dur: 3, on: 'any', per: { armor: 0.02 }, fx: { petrify: 0.5 },
+      desc: 'Đòn thường và chiêu trúng địch hút 5 năng lượng của nó và in một dấu trớ chú 3 giây: mỗi dấu giảm giáp của nó; đủ 5 dấu thì nó hóa đá 0,5 giây. Năng lượng tối đa 150, hồi 5 mỗi giây.' },
+    weapon: { name: 'Nanh Độc', cd: 0.6, dmg: 150, speed: 30, range: 13, r: 0.26, vis: 'pulse', fx: { enSteal: 5 } },
     skills: [
-      { id: 'mocxich', look: 'mxBite', name: 'Móc Xích', cd: 11, do: 'hook', speed: 30, range: 13, r: 0.4, dmg: 120, stun: 0.4, vis: 'hook', icon: 'hook',
-        desc: 'Phóng móc theo hướng ngắm. Trúng kẻ địch nào thì kéo nó về trước mặt bạn và làm choáng.' },
-      { id: 'hoanvi', look: 'mxSwap', name: 'Hoán Vị', cd: 13, do: 'swap', cast: 12, pick: 3, slow: 0.4, slowDur: 1.5, icon: 'swap',
-        desc: 'Đổi chỗ với cỗ máy ở con trỏ, bạn hay địch đều được. Địch bị đổi chỗ sẽ chậm 40%.' },
-      { id: 'longxich', look: 'mxCage', name: 'Lồng Xích', cd: 40, do: 'zone', at: 'self', radius: 5.5, dur: 3.5, dps: 110, cage: true, vis: 'cage', icon: 'cage',
-        desc: 'Dựng vòng xích quanh mình 3,5 giây: kẻ địch đang ở trong không thoát ra được và mất máu dần.' },
+      { id: 'ngungthi', look: 'mdGaze', name: 'Tử Vong Ngưng Thị', cd: 12, do: 'nova', windup: 0.5, move: 0.5, arc: 0.6, radius: 7, dmg: 281, fx: { petrify: 1, enSteal: 5 }, icon: 'skull',
+        desc: 'Nhìn chằm chằm vào hình quạt 7 m phía trước: 0,5 giây sau kẻ địch trong đó hóa đá 1 giây và chịu 281 sát thương.' },
+      { id: 'dixa', look: 'mdSnake', name: 'Bí Thuật Dị Xà', cd: 10, do: 'volley', n: 1, dmg: 227, speed: 20, range: 13, r: 0.35, vis: 'lance', uses: { n: 2, gap: 3 },
+        fx: { enSteal: 5, chain: { n: 4, r: 6, mul: 1.1, seq: { falloff: 1.1 }, fx: { enSteal: 10 } } }, cdCut: { slot: 'self', frac: 0.1, max: 5 }, icon: 'ricochet',
+        desc: 'Gọi rắn độc lao theo hướng ngắm: kẻ đầu tiên chạm phải chịu 227, rồi rắn nảy sang kẻ địch gần nhất trong 6 m, tối đa thêm 4 lần, mỗi lần mạnh hơn 10% và hút 10 năng lượng. Mỗi lần rắn cắn, chiêu này giảm 10% hồi chiêu. Tích 2 lượt, cách nhau 3 giây.' },
+      { id: 'maxa', look: 'mdSwarm', name: 'Ma Xà Chi Xúc', cd: 30, do: 'volley', n: 3, fan: 0.18, dmg: 150, speed: 24, range: 13, r: 0.3, pierce: true, vis: 'dart', burst: { n: 12, gap: 0.25 }, move: 0.75,
+        sameDecay: 0.9, fx: { enSteal: 5 }, en: { cost: 25, drain: 50 }, cdAfter: true, mdWard: { base: 1, per: 25, add: 0.5 }, icon: 'barrage',
+        desc: 'Tốn năng lượng (50 mỗi giây): mở khiên phép miễn sát thương chiêu và liên tục phóng ba con rắn xuyên thấu theo hướng ngắm, mỗi con 150, cắn cùng một kẻ thì yếu dần. Khiên còn 1 giây sau khi dừng. Trong lúc đó không bắn thường, chạy chậm 25%. Hồi chiêu tính từ lúc dừng.' },
     ],
   },
   kimquy: {
@@ -1395,7 +1407,7 @@ export const PERKS = {
   bang: [perk('Gai Buốt', 'Gai Băng gây 165.', 'weapon', { dmg: 165 }), perk('Vòng Rộng', 'Băng Sương Chi Hoàn rộng 3,8 m.', 0, { blast: 3.8 }), perk('Bão Dai', 'Băng Thiên Tuyết Địa giáng sáu đợt.', 2, { channel: { dur: 3.65, every: 0.6, move: 0 }, self: { on: 'cast', dur: 3.65, guard: 0.25 } })],
   tho: [perk('Hạt Nặng', 'Lạp Tử Năng Lượng gây 480 sát thương.', 0, { dmg: 480 }), perk('Mưa Dày', 'Phi Đạn Không Tập phủ rộng 4,5 m.', 1, { blast: 4.5, radius: 2.25 }), perk('Lò Phản Ứng', 'Ngõa Giải Xạ Tuyến dài 20 m.', 2, { range: 20 })],
   thancong: [perk('Lõi Vonfram', 'Đạn Xuyên gây 1000.', 1, { dmg: 1000 }), perk('Chốt Nhanh', 'Cắm Chốt chỉ mất 0,35 giây.', 0, { setup: 0.35 }), perk('Mười Một Quả', 'Oanh Tạc dội 11 quả.', 2, { n: 11 })],
-  mangxa: [perk('Xích Dài', 'Móc Xích vươn tới 16 m.', 0, { range: 16 }), perk('Choáng Váng', 'Hoán Vị với xa 15 m, địch chậm 2,5 giây.', 1, { cast: 15, slowDur: 2.5 }), perk('Lồng Chắc', 'Lồng Xích giữ 4,5 giây.', 2, { dur: 4.5 })],
+  mangxa: [perk('Nhìn Xa', 'Tử Vong Ngưng Thị với xa 8,5 m.', 0, { radius: 8.5 }), perk('Rắn Dai', 'Bí Thuật Dị Xà nảy thêm 1 lần.', 1, { fx: { enSteal: 5, chain: { n: 5, r: 6, mul: 1.1, seq: { falloff: 1.1 }, fx: { enSteal: 10 } } } }), perk('Đàn Rắn', 'Ma Xà Chi Xúc phóng năm con rắn mỗi đợt.', 2, { n: 5, fan: 0.14 })],
   kimquy: [perk('Khiên Dày', 'Khiên Tặng hấp thụ 1000.', 0, { amount: 1000, shield: 1000 }), perk('Gai Mai', 'Mai Rùa phản 50%.', 1, { reflect: 0.5 }), perk('Thành Vững', 'Thành Đồng kéo dài 6,5 giây.', 2, { dur: 6.5 })],
   hacho: [perk('Móng Sắc', 'Vồ gây 300.', 0, { dmg: 300 }), perk('Nộ Dai', 'Cuồng Nộ kéo dài 5,5 giây.', 1, { dur: 5.5 }), perk('Án Tử', 'Dấu Tử kết liễu dưới 28% máu.', 2, { execute: 0.28 })],
   holy: [perk('Bom Ảnh', 'Bản sao nổ 260.', 0, { dmg: 260 }), perk('Bước Xa', 'Xuyên Tường xa 9,5 m.', 1, { dist: 9.5 }), perk('Bốn Bóng', 'Vũ Điệu Ảo Ảnh thả bốn bản sao.', 2, { n: 4 })],

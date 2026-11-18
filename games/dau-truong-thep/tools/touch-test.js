@@ -331,13 +331,13 @@ session(async (br, base) => {
     await t.page.evaluate(() => { window.__rec = new Map(); setInterval(() => { for (const s of __G.match.shots) if (s.owner === 0 && !window.__rec.has(s.id)) window.__rec.set(s.id, { dx: s.dx, dz: s.dz, hook: !!s.hook }); }, 8); });
     return t;
   };
-  let t = await skillPage('mangxa');
+  let t = await skillPage('nhenthep');   // Móc Đu: Medusa (mangxa) has no hook since kit lane k17
   await scene(t.page, { me: [0, 0], aim: 0, units: { 3: { at: [0, -8] }, 4: { at: [9, 3] } } });
   let br2 = await rectOf(t.page, 's1');
   await t.f.tap(br2.cx, br2.cy);
   await wait(t.page, 700);
   const hk = await t.page.evaluate(() => [...window.__rec.values()].filter((s) => s.hook));
-  check(hk.length === 1 && aimsAt(hk, -Math.PI / 2, 0.2), `tapping a directional skill (Móc Xích) casts toward the lock, the nearest enemy (${hk.length} hooks)`);
+  check(hk.length === 1 && aimsAt(hk, -Math.PI / 2, 0.2), `tapping a directional skill (Móc Đu) casts toward the lock, the nearest enemy (${hk.length} hooks)`);
   check((await t.page.evaluate(() => window.__errors)).length === 0 && t.problems.length === 0, 'no errors in the directional skill page');
   await t.close();
 

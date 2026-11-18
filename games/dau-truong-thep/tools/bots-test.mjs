@@ -7,6 +7,7 @@ import { losClear, solidAt, MAP_ORDER, NHA_ORDER } from '../js/maps.js';
 import { MECHS, MECH_ORDER, MODES, TICK } from '../js/data.js';
 import { oldK13 } from './k13-cases.mjs';   // kit lane K13: the medic checks run on the old Đom Đóm kit (fixture)
 import { oldKit as oldKit15 } from './k15-cases.mjs';   // kit lane k15: hoalong's charge beam lives on as the fixture OLD_HOALONG
+import { oldK17 } from './k17-cases.mjs';   // kit lane k17: the old Mãng Xà kit (hook) as a fixture
 
 let failed = 0, passed = 0;
 const check = (name, cond, detail = '') => {
@@ -345,7 +346,7 @@ section('5 charge weapon');
 
 section('6 hook, decoys, idle');
 {
-  const m = createMatch({ seed: 7, roster: [{ team: 0, mech: 'mangxa', name: 'H', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'T' }] });
+  const m = oldK17(createMatch({ seed: 7, roster: [{ team: 0, mech: 'mangxa', name: 'H', bot: true, diff: 'hard' }, { team: 1, mech: 'dummy', name: 'T' }] }));   // the old hook kit
   put(m.units[0], -6, -1); put(m.units[1], 5, -1);
   let hooks = 0, minD = 99;
   for (let i = 0; i < 120; i++) { step(m, allInputs(m, { 1: IN })); hooks += m.events.filter((e) => e.t === 'hook').length; minD = Math.min(minD, Math.hypot(m.units[0].x - m.units[1].x, m.units[0].z - m.units[1].z)); }

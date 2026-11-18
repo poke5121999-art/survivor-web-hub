@@ -139,6 +139,7 @@ function clearStatus(u) {
   bdClear(u);   // kit-remake G5 buomdem
   ckClear(u);   // kit-remake G5 cakiem
   ldClear(u);   // kit-remake G5 Razor
+  mdClear(u);   // kit-remake G5 Medusa
 }
 
 function spawn(m, u, first) {
@@ -520,6 +521,7 @@ function stepUnit(m, u, inp) {
   if (u.tthHT > 0) inp = tthHeld(u);   // kit-remake G5 Tào Tháo: a hold
   const stunned = u.stunT > 0;
   ldTick(m, u, inp, stunned);   // kit-remake G5 Razor: the channel (breaks on a move or cc), orb buff stacks
+  if (u.mdWT > 0) mdTick(u);   // kit-remake G5 Medusa: the ward kept up by the energy the ult spends
   if (stunned) { inp = NO_INPUT; u.cast = null; u.charge = 0; }
   else {
     // A tracking beam (beam.track) keeps its aim on the target picked at cast time while it winds up.
@@ -609,6 +611,7 @@ function stepUnit(m, u, inp) {
     ckCast(u, s);   // kit-remake G5 cakiem: the parry window opens
     if (u.passive === 'castHeal') k2CastHeal(m, u);   // kit-remake G5 Athena
     if (u.def.passive && u.def.passive.ldOrb) ldOrbDrop(m, u);   // kit-remake G5 Razor: every press drops a lightning orb
+    if (s.mdWard) mdWardOn(m, u, s);   // kit-remake G5 Medusa: the ult's ward
     if (nx) { castHooks(u, s, i); u.next = s.next && u.next !== nx ? u.next : null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }   // kit lane K13: a stage with its own next arms the one after
     if (amped) meterSpent(m, u);
     if (P) meterAdd(m, u, 'cast', 1);
@@ -4839,3 +4842,23 @@ function ldAmp(foe) {
   return O && curSrc && curSrc !== 'w' ? 1 + O.amp * foe.ldN : 1;
 }
 /* ===== end kit-remake G5 Razor ===== */
+/* ===== kit-remake G5 Medusa (kit lane k17; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-b.md mangxa) =====
+   row `mdWard {base, per, add}`: the press raises a ward for `base` s that turns away all skill damage (G2 guard 1 vs 'skill');
+   while the row's cast runs and its en.drain takes energy, every `per` energy spent keeps the ward up `add` s longer (mdAcc counts).
+   mdWT (the ward left) is in netstate STATUS; events k17 {kind: 'ward', on}. */
+function mdClear(u) { u.mdWT = 0; u.mdAcc = 0; u.mdRow = null; }
+function mdWardOn(m, u, s) {
+  u.mdWT = Math.max(u.mdWT, s.mdWard.base); u.mdAcc = 0; u.mdRow = s;
+  m.events.push({ t: 'k17', kind: 'ward', id: u.id, on: 1, x: u.x, z: u.z });
+}
+function mdTick(u) {
+  const s = u.mdRow, W = s && s.mdWard, D = u.enDrain;
+  if (W && u.cast && u.cast.skill === s && D && D.s === s) {
+    u.mdAcc += D.rate * TICK;
+    while (u.mdAcc >= W.per - 1e-9) { u.mdAcc -= W.per; u.mdWT += W.add; }
+  }
+  u.mdWT = Math.max(0, u.mdWT - TICK);
+  if (u.mdWT > 0) g2Guard(u, 1, 'skill', 2 * TICK);
+  else { u.mdRow = null; u.mdAcc = 0; }
+}
+/* ===== end kit-remake G5 Medusa ===== */

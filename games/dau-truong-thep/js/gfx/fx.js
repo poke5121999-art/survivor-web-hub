@@ -873,6 +873,7 @@ export function makeFx(G, mechs) {
     if (e.t === 'kit') { const L = LOOKS[e.look]; if (L && L.ev) L.ev(kit, e, u, m); return; }   // kit lanes: an event { t: 'kit', look } draws through that look's `ev` hook
     if (e.t === 'k18' && u) { const L = lookOf(u.def.passive); if (L && L.k18) L.k18(kit, e, u); return; }   // kit lane K18: Ngưu Ma's whirl, Mikasa's grapple bite and crit
     if (e.t === 'k16' && u) { const L = lookOf(u.def.passive); if (L && L.k16) L.k16(kit, e, u); return; }   // kit lane k16: Natsu's mana burst
+    if (e.t === 'chain' && u) { const p = pressed.get(u.id), L = p && lookOf(p.row); if (L && L.chain && time - p.t < 2 && L.chain(kit, e, u)) return; }   // kit lane k17: a look may draw a chain (Medusa's snake hops)
     if (e.t === 'k17' && u) { const L = lookOf(u.def.passive); if (L && L.k17) L.k17(kit, e, u); return; }   // kit lane k17: Razor's orbs, Medusa's ward, Na Tra's wraps
     switch (e.t) {
       case 'fire': {
