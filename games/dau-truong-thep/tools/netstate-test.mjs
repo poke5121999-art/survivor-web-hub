@@ -16,7 +16,7 @@ const check = (name, cond, detail = '') => {
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 // Angles travel as a fraction of a turn: 3.2 rad and 3.2 - 2 pi are the same direction.
 const turn = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
-const TIMERS = ['respawnT', 'shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'meter', 'stkN', 'stkT', 'parryT'];
+const TIMERS = ['respawnT', 'shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'meter', 'stkN', 'stkT', 'parryT', 'airT'];
 const COUNTS = ['kills', 'deaths', 'assists', 'bush'];
 const ZONE_FIELDS = {
   strike: ['r', 'age', 'delay', 'total', 'lob', 'x0', 'z0'],
@@ -248,6 +248,24 @@ console.log('\n# every skill of every mech: casts, zones, dashes, walls, turrets
   applySnapshot(mir, decodeSnap(encodeSnap(snap)), TICK);
   check('a form change reaches the guest: the mirror plays the heavy bow (same def object, form 1, Nỏ Nặng)', m.units[0].form === 1 && mir.units[0].form === 1 && mir.units[0].def === m.units[0].def && mir.units[0].def.weapon.name === 'Nỏ Nặng', `${mir.units[0].form}`);
   check('the rewind history stays on the host (no hpHist in a snapshot, none on the mirror)', !JSON.stringify(snap).includes('hpHist') && mir.units.every((u) => !u.hpHist || u.hpHist.length === 0));
+}
+// Lữ Bố: a second stage in its wind-up (Hoành Tảo, a next.row) travels as its own row, and a knock-up (airT) reaches the guest
+{
+  const m = createMatch({ map: 'denrung', seed: 3, roster: [{ team: 0, mech: 'lubo', name: 'A' }, { team: 1, mech: 'ung', name: 'B' }] });
+  for (const p of m.props) p.alive = false;
+  m.map.walls.length = 0; m.map.rounds.length = 0;
+  const [a, v] = m.units;
+  a.x = a.px = 0; a.z = a.pz = 0; v.x = v.px = 7; v.z = v.pz = 0;
+  const mir = createMirror(roster(m));
+  const none = { mx: 0, mz: 0, aim: 0, fire: false, s1: false, s2: false, ult: false, heal: false, tx: 0, tz: 0 };
+  step(m, [{ ...none, s2: true, tx: 6, tz: 0 }, none]);
+  applySnapshot(mir, decodeSnap(encodeSnap(snapshot(m))), TICK);
+  check('a knock-up reaches the guest (airT to the hundredth)', v.airT > 0.4 && near(mir.units[1].airT, v.airT, 0.011), `${v.airT} ${mir.units[1].airT}`);
+  step(m, [none, none]);
+  step(m, [{ ...none, s2: true, tx: 7, tz: 0 }, none]);
+  applySnapshot(mir, decodeSnap(encodeSnap(snapshot(m))), TICK);
+  const c = m.units[0].cast, mc = mir.units[0].cast;
+  check('a second-stage wind-up is mirrored as that row (hoanhtao, the same row object)', !!c && c.skill.id === 'hoanhtao' && !!mc && mc.skill === c.skill && near(mc.t, c.t, 0.011), `${c && c.skill.id} ${mc && mc.skill && mc.skill.id}`);
 }
 check(`zone kinds exercised: ${[...seenKinds].sort().join(', ')}`, ['strike', 'mine', 'field', 'dome', 'wall', 'turret', 'decoy', 'drone', 'wire', 'orbit', 'portal'].every((k) => seenKinds.has(k)));
 

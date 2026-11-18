@@ -398,20 +398,25 @@ export const MECHS = {
         desc: 'Mở cửa âm phủ ở con trỏ trong 4 giây: kéo địch vào tâm và thiêu 220 sát thương mỗi giây.' },
     ],
   },
+  // Lữ Bố: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p9 "6.吕布", tooltips read at 2-10 s). Attack = one Phương Thiên Kích
+  // blow (150), as moclan: Tuy Viễn 184% -> 276, Bạo Nộ 155% -> 232, Hoành Tảo 158% -> 237, Quỷ Thần 388% -> 582. Cooldowns 6 / 8 / 25 s in
+  // the clip -> 8 / 10 / 45 on our scale. No MP here: the energy refunds are dropped.
   lubo: {
     name: 'Lữ Bố', role: 'Đấu sĩ', roleKey: 'bruiser', price: 1700, tint: 0xb3262b,
-    blurb: 'Kích dài quét hai đường, bắn càng lâu càng nhanh. Xung phong hai lần liền, hóa Chiến Thần hồi máu và bất chấp khống chế.',
+    blurb: 'Phương Thiên Kích chém nổ quanh mục tiêu. Phóng kích xuyên hàng giữ chân, lóe tới đánh tung rồi quét kích hồi máu, nhảy từ trời giáng xuống đánh tung cả vùng.',
     hp: 2700, speed: 6.3, radius: 0.88,
     armor: 0.1, accel: 1.1, turn: 11, towerMul: 1.3,
-    passive: { do: 'ramp', name: 'Chiến Ý', desc: 'Mỗi lần trúng đòn bắn nhanh thêm 6%, cộng dồn tối đa 5 lần, mất dần sau 3 giây không trúng.', on: 'hit', stat: 'rapid', step: 0.06, max: 5, dur: 3 },
-    weapon: { name: 'Phương Thiên Kích', cd: 0.5, dmg: 75, n: 2, fan: 0.12, speed: 26, range: 7.5, r: 0.36, pierce: true, vis: 'wave' },
+    passive: { do: 'meter', name: 'Vô Song', max: 1, gain: { cast: 1 }, spend: { kind: 'shot', reach: 1.5, cdr: 1 }, castShield: { frac: 0.15, dur: 1.5 },
+      desc: 'Đòn kích thường trúng thì nổ lan sang kẻ đứng quanh mục tiêu. Mỗi lần dùng chiêu được khiên bằng 15% máu tối đa trong 1,5 giây, và đòn kích thường kế tiếp với xa gấp rưỡi; đòn đó trúng thì mọi chiêu hồi nhanh thêm 1 giây.' },
+    weapon: { name: 'Phương Thiên Kích', cd: 0.5, dmg: 150, speed: 26, range: 7.5, r: 0.5, splash: 2.2, splashHit: true, vis: 'wave' },
     skills: [
-      { id: 'dotkich', look: 'lbDash', name: 'Đột Kích', cd: 10, do: 'dash', dist: 7, speed: 30, dmg: 150, stun: 0.2, knock: 1, recast: { n: 2, window: 3 }, icon: 'dash',
-        desc: 'Lao tới theo hướng ngắm, húc sát thương và choáng nhẹ. Trong 3 giây sau bấm lại để lao thêm một lần nữa.' },
-      { id: 'kichchan', look: 'lbWave', name: 'Kích Chấn', cd: 9, do: 'volley', n: 1, dmg: 260, speed: 22, range: 7, r: 1.3, pierce: true, knock: 3, vis: 'wave', icon: 'quake',
-        desc: 'Vung kích tạo sóng rộng xuyên qua mọi kẻ địch phía trước, hất văng chúng.' },
-      { id: 'chienthan', look: 'lbGod', name: 'Chiến Thần', cd: 45, do: 'transform', dur: 6, cleanse: true, ccImmune: 2, heal: 0.3, dmg: 1.2, rapid: 1.2, icon: 'rage',
-        desc: 'Hóa Chiến Thần 6 giây: xóa mọi hiệu ứng xấu, miễn choáng và làm chậm trong 2 giây đầu, hồi 30% máu đã mất, gây thêm 30% sát thương và bắn nhanh hơn 20%.' },
+      { id: 'tuyvien', look: 'lbThrow', name: 'Tuy Viễn Tất Tru', cd: 8, do: 'volley', n: 1, dmg: 276, speed: 24, range: 11, r: 0.55, pierce: true, fx: { root: 1 }, vis: 'rail', icon: 'pierce',
+        desc: 'Phóng Phương Thiên Kích theo hướng ngắm, xa 11 m: mọi kẻ địch trên đường bay chịu 276 sát thương và bị giữ chân 1 giây (vẫn bắn được).' },
+      { id: 'baono', look: 'lbBlink', name: 'Bạo Nộ Đả Kích', cd: 10, do: 'warp', dist: 8, land: { radius: 3, dmg: 232, fx: { air: 0.5, slow: 0.5, slowDur: 2.5 } }, icon: 'warp',
+        next: { window: 3, onHit: true, row: { id: 'hoanhtao', name: 'Hoành Tảo Thiên Quân', do: 'nova', windup: 0.15, move: 0.35, radius: 4.5, arc: 1.05, dmg: 237, healLost: 0.15, look: 'lbSweep' } },
+        desc: 'Lóe tới chỗ con trỏ (xa nhất 8 m), giáng 232 sát thương vòng 3 m, đánh tung kẻ trúng 0,5 giây rồi làm chậm 50% trong 2 giây. Trúng ai thì trong 3 giây bấm lại để Hoành Tảo Thiên Quân: quét kích hình quạt 120° trước mặt, 237 sát thương, mỗi kẻ trúng hồi cho bạn 15% máu đã mất.' },
+      { id: 'quythan', look: 'lbSlam', name: 'Quỷ Thần Giáng Lâm', cd: 45, do: 'leap', windup: 1, move: 0, cast: 10, flight: 0.45, invuln: true, radius: 4, dmg: 582, fx: { air: 1, slow: 0.5, slowDur: 3 }, icon: 'leap',
+        desc: 'Tụ lực 1 giây rồi nhảy tới chỗ con trỏ (xa nhất 10 m), giáng 582 sát thương vòng 4 m, đánh tung kẻ trúng 1 giây rồi làm chậm 50% trong 2 giây. Từ lúc bấm tới lúc đáp không bị nhắm trúng, không bị khống chế.' },
     ],
   },
   mucma: {
@@ -1012,7 +1017,7 @@ export const PERKS = {
   duongtien: [perk('Tiêm Sâu', 'Tam Tiêm Đao làm lộ điểm yếu 22% trong 5 giây.', 0, { fx: { amp: { amp: 0.22, dur: 5 } } }), perk('Khuyển Nhanh', 'Hao Thiên Khuyển chạy nhanh hơn, nổ 320.', 1, { seek: { speed: 10.5, range: 16 }, dmg: 320 }), perk('Mắt Tinh', 'Thần Nhãn Truy Kích gây 1500, lấy đà 0,65 giây.', 2, { dmg: 1500, windup: 0.65 })],
   athena: [perk('Khiên Nặng', 'Khiên Bay gây 300.', 0, { dmg: 300 }), perk('Khiên Dày', 'Khiên Thần hấp thụ 750.', 1, { shield: 750 }), perk('Kết Giới Bền', 'Kết Giới kéo dài 6,5 giây, hồi 350.', 2, { dur: 6.5, heal: 350 })],
   hades: [perk('Ám Lưu Sâu', 'Ám Lưu làm chậm 50% trong 2,2 giây.', 0, { slow: 0.5, slowDur: 2.2 }), perk('Tay Dài', 'Bàn Tay Âm Giới giữ chân 2 giây, rộng 3,6 m.', 1, { blast: 3.6, fx: { root: 2 } }), perk('Cửa Rộng', 'Cửa Âm Phủ rộng 7,5 m, kéo dài 5 giây.', 2, { radius: 7.5, dur: 5 })],
-  lubo: [perk('Kích Dài', 'Phương Thiên Kích với xa 9 m.', 'weapon', { range: 9 }), perk('Tam Đột', 'Đột Kích lao được ba lần liền, trong 3,5 giây.', 0, { recast: { n: 3, window: 3.5 } }), perk('Thần Uy', 'Chiến Thần kéo dài 8 giây, hồi 40% máu đã mất.', 2, { dur: 8, heal: 0.4 })],
+  lubo: [perk('Kích Dài', 'Phương Thiên Kích với xa 9 m.', 'weapon', { range: 9 }), perk('Định Thân Lâu', 'Tuy Viễn Tất Tru giữ chân 1,5 giây.', 0, { fx: { root: 1.5 } }), perk('Quỷ Thần Uy', 'Quỷ Thần Giáng Lâm giáng rộng 5 m.', 2, { radius: 5 })],
   mucma: [perk('Bốn Xúc Tu', 'Xúc Tu bắn bốn đường.', 'weapon', { n: 4, fan: 0.12 }), perk('Xuyên Sâu', 'Xuyên Thân lao xa 9,5 m, gây 260.', 1, { dist: 9.5, dmg: 260 }), perk('Ma Dài', 'Hóa Ma kéo dài 8 giây, hút máu 45%.', 2, { dur: 8, lifesteal: 0.45 })],
   kynhong: [perk('Lửa Dai', 'Hỏa Quyền thiêu 26 mỗi giây mỗi tầng.', 'weapon', { fx: { burn: { dps: 26, dur: 3, max: 4 } } }), perk('Bảy Luồng Lửa', 'Hỏa Long Khiếu phun bảy luồng.', 0, { n: 7 }), perk('Long Uy', 'Long Hóa kéo dài 6,5 giây.', 2, { dur: 6.5 })],
   nguma: [perk('Rìu Nặng', 'Rìu Chấn gây 290.', 'weapon', { dmg: 290 }), perk('Húc Xa', 'Húc Ma lao xa 11 m và choáng 0,7 giây.', 1, { dist: 11, stun: 0.7 }), perk('Pháp Tướng Lớn', 'Pháp Tướng to hơn 50%, chấn động rộng 7 m gây 500.', 2, { size: 1.5, nova: { windup: 0.3, radius: 7, dmg: 500, stun: 1.3 } })],

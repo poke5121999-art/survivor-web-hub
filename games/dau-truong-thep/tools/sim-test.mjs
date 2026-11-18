@@ -2840,10 +2840,22 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   }
   const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
   const UNG = MECHS.ung, UNG_F = 1 - UNG.armor;
+  // The batch-2 Lữ Bố kit (ramp passive, twin pierce shots, recast dash, transform) is a fixture now: lubo plays the kit ported from the
+  // owner's clip (section 45), and these rows keep the primitives covered.
+  const OLD_LUBO = {
+    passive: { do: 'ramp', on: 'hit', stat: 'rapid', step: 0.06, max: 5, dur: 3 },
+    weapon: { name: 'Phương Thiên Kích', cd: 0.5, dmg: 75, n: 2, fan: 0.12, speed: 26, range: 7.5, r: 0.36, pierce: true, vis: 'wave' },
+    skills: [
+      { id: 'dotkich', cd: 10, do: 'dash', dist: 7, speed: 30, dmg: 150, stun: 0.2, knock: 1, recast: { n: 2, window: 3 } },
+      { id: 'kichchan', cd: 9, do: 'volley', n: 1, dmg: 260, speed: 22, range: 7, r: 1.3, pierce: true, knock: 3, vis: 'wave' },
+      { id: 'chienthan', cd: 45, do: 'transform', dur: 6, cleanse: true, ccImmune: 2, heal: 0.3, dmg: 1.2, rapid: 1.2 },
+    ],
+  };
+  const oldLubo = (m) => { for (const u of m.units) if (u.mech === 'lubo') { u.def = { ...u.def, ...OLD_LUBO, tfWeapon: {} }; u.passive = 'ramp'; } return m; };
 
   // transform (lubo): buff fields, damage x1.3, cleanse, heal 30% of the lost hp, cc immunity 2 s
   {
-    const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 4, 0]]), [a, v] = m.units;
+    const m = oldLubo(arena([[R('lubo', 0), 0, 0], [R('ung', 1), 4, 0]])), [a, v] = m.units;
     a.hp = 1000; a.slowT = 3; a.slowF = 0.5; a.burnT = 2; a.burnN = 2; a.rootT = 2; a.markT = 2;
     go(m, 1, () => ({ 0: { ult: true } }));
     check('41a transform: tfT ~6 s, dmg x1.2, rapid x1.2, cc immunity ~2 s, slot 2', a.tfT > 5.9 && a.tfT <= 6 && a.tfDmg === 1.2 && a.rapidF === 1.2 && a.ccT > 1.9 && a.ccT <= 2 && a.tfSlot === 2, `tfT ${a.tfT} ccT ${a.ccT}`);
@@ -2857,7 +2869,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
     a.stunT = 0;
     const tev = go(m, 130);
     check('41f the transform ends after 6 s: tfT 0, tfDmg 1, tfSlot -1, one event transform on:0', a.tfT === 0 && a.tfDmg === 1 && a.tfSlot === -1 && only(tev, 'transform', (e) => e.on === 0).length === 1);
-    const w = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 4, 0]]);
+    const w = oldLubo(arena([[R('lubo', 0), 0, 0], [R('ung', 1), 4, 0]]));
     w.units[0].tfT = 6; w.units[0].tfDmg = 1.2; w.units[0].tfSlot = 2;
     go(w, 12, (i) => ({ 0: { fire: i === 0 } }));
     check('41g a transformed lubo hits for 1.2x: two pierce shots 75 x 1.2 x 2 = 180 x (1 - ung armor)', near(UNG.hp - w.units[1].hp, 180 * UNG_F), `${UNG.hp - w.units[1].hp}`);
@@ -2885,14 +2897,14 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   }
   // ramp 'hit' (lubo): +1 per hit, fire rate, fades 1 per 0.5 s after dur 3
   {
-    const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 4, 0]]), a = m.units[0];
+    const m = oldLubo(arena([[R('lubo', 0), 0, 0], [R('ung', 1), 4, 0]])), a = m.units[0];
     go(m, 12, (i) => ({ 0: { fire: i === 0 } }));
     check('41o ramp hit: two pierce shots hit -> rampN 2, rapid bonus 0.12', a.rampN === 2 && near(rampBonus(a, 'rapid'), 0.12), `rampN ${a.rampN}`);
     go(m, 88);
     check('41p ramp fades: 3 s after the hits one stack is gone (1 left)', a.rampN === 1, `rampN ${a.rampN}`);
     go(m, 25);
     check('41q ... and the last one 0.5 s later', a.rampN === 0, `rampN ${a.rampN}`);
-    const w = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 20, 0]]), b = w.units[0];
+    const w = oldLubo(arena([[R('lubo', 0), 0, 0], [R('ung', 1), 20, 0]])), b = w.units[0];
     b.rampN = 5; b.rampT = 3; b.cd.fire = 0.5;
     go(w, 10);
     check('41r ramp rapid: 5 stacks cool the gun 1.3x: 0.5 - 10/30 x 1.3 = 0.0667', near(b.cd.fire, 0.5 - 10 / 30 * 1.3, 1e-9), `${b.cd.fire}`);
@@ -2940,16 +2952,16 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   }
   // dash.recast (lubo Q): two dashes inside the window, the cooldown only after the last
   {
-    const m = arena([[R('lubo', 0), 0, -4], [R('ung', 1), 20, 4]]), a = m.units[0];
+    const m = oldLubo(arena([[R('lubo', 0), 0, -4], [R('ung', 1), 20, 4]])), a = m.units[0];
     const ev = go(m, 40, (i) => ({ 0: { s1: i === 0 || i === 12, aim: 0 } }));
     check('41ze dash.recast: the skill event fires twice (slot 0), distance about 14 m', only(ev, 'skill', (e) => e.slot === 0).length === 2 && a.x > 12.5 && a.x < 14.2, `x ${a.x}`);
     check('41zf ... cooldown starts after the second: cd.s1 ~10 and the recast window is closed', a.recast === null && a.cd.s1 > 9 && a.cd.s1 <= 10, `cd ${a.cd.s1}`);
-    const w = arena([[R('lubo', 0), 0, -4], [R('ung', 1), 20, 4]]), b = w.units[0];
+    const w = oldLubo(arena([[R('lubo', 0), 0, -4], [R('ung', 1), 20, 4]])), b = w.units[0];
     go(w, 12, (i) => ({ 0: { s1: i === 0 } }));
     check('41zg after one dash the key is still ready (cd 0) with a recast pending', b.cd.s1 === 0 && b.recast && b.recast.left === 1);
     go(w, 100);
     check('41zh the window lapses after 3 s: cd.s1 back to 10 from the first dash only', b.recast === null && b.cd.s1 > 9 && b.cd.s1 <= 10, `cd ${b.cd.s1}`);
-    const x = arena([[R('lubo', 0), 0, -4], [R('ung', 1), 20, 4]]), c = x.units[0];
+    const x = oldLubo(arena([[R('lubo', 0), 0, -4], [R('ung', 1), 20, 4]])), c = x.units[0];
     const ev3 = go(x, 80, (i) => ({ 0: { s1: i % 12 === 0, aim: 0 } }));
     check('41zi only n = 2 dashes per cast: a third press does nothing while it cools', only(ev3, 'skill', (e) => e.slot === 0).length === 2);
   }
@@ -3000,7 +3012,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   // determinism: the same seed gives the same events and hp for a scripted fight
   {
     const play = () => {
-      const m = arena([[R('lubo', 0), 0, 0], [R('kynhong', 1), 3, 0], [R('enbac', 0), 0, 4], [R('mucma', 1), 4, 4]]);
+      const m = oldLubo(arena([[R('lubo', 0), 0, 0], [R('kynhong', 1), 3, 0], [R('enbac', 0), 0, 4], [R('mucma', 1), 4, 4]]));
       const ev = go(m, 240, (i) => ({ 0: { fire: true, ult: i === 20, s1: i === 40 }, 1: { fire: true, ult: i === 30, s2: i === 60, aim: Math.PI }, 2: { fire: true, ult: i === 50, tx: 4, tz: 4 }, 3: { fire: true, s1: i === 70, aim: Math.PI } }));
       return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.rampN, u.burnN, u.tfT])]);
     };
@@ -3782,6 +3794,129 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
       return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.meter, u.shield, u.form, u.parryT, u.hpHist])]);
     };
     check('44zzb batch 5 fight is deterministic: same seed, same events and state', play() === play());
+  }
+}
+
+section('45 Lữ Bố ported from the owner\'s clip (p9): meter castShield/reach/cdr, weapon splash, hitfx air (knock-up), warp land arms next, nova healLost, leap windup + invuln (literal expected values)');
+{
+  const R = (mech, team = 0) => ({ team, mech, name: mech + team });
+  function arena(units) {
+    const m = createMatch({ seed: 5, roster: units.map((u) => u[0]) });
+    m.map.walls.length = 0; m.map.rounds.length = 0; m.map.bushes.length = 0; m.map.hazards.length = 0;
+    for (const p of m.props) p.alive = false;
+    units.forEach(([, x, z, aim], i) => { const u = m.units[i]; put(u, x, z); u.aim = u.heading = aim ?? (u.team ? Math.PI : 0); u.combatT = 0; });
+    m.crateT = 1e9;
+    return m;
+  }
+  function go(m, ticks, f) {
+    const ev = [];
+    for (let i = 0; i < ticks; i++) {
+      const o = (f && f(i)) || {};
+      step(m, m.units.map((u, k) => inp({ aim: u.aim, tx: u.x, tz: u.z, ...o[k] })));
+      for (const e of m.events) ev.push(e);
+    }
+    return ev;
+  }
+  const only = (ev, t, f = () => true) => ev.filter((e) => e.t === t && f(e));
+  const press = (m, k, slot, extra) => go(m, 1, () => ({ [k]: { [slot]: true, ...extra } }));
+  const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
+  const LB = MECHS.lubo, UNG = MECHS.ung, UNG_F = 1 - UNG.armor;
+  const [S1, S2, ULT] = LB.skills, SW = S2.next.row;
+
+  // Tuy Viễn Tất Tru: a thrown halberd pierces the whole line, roots each victim 1 s; the cast shields Lữ Bố and arms the long blow
+  {
+    const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 4, 0], [R('ung', 1), 8, 0.3]]), [a, v1, v2] = m.units;
+    press(m, 0, 's1', { aim: 0 });
+    check('45a Tuy Vien Tat Tru: cooldown 8, a 15% max hp shield (405) for 1.5 s, the meter armed (1 of 1)', near(a.cd.s1, 8, 1e-9) && near(a.shield, LB.hp * 0.15) && near(a.shieldT, 1.5, 1e-9) && a.meter === 1, `${a.cd.s1} ${a.shield} ${a.shieldT} ${a.meter}`);
+    const ev = go(m, 18), h1 = only(ev, 'hit', (e) => e.id === 1), h2 = only(ev, 'hit', (e) => e.id === 2);
+    check('45b the halberd hits both in the line for 276 x armor each and roots both for 1 s (still rooted 18 ticks after the throw)', h1.length === 1 && h2.length === 1 && near(h1[0].amt, 276 * UNG_F) && near(h2[0].amt, 276 * UNG_F) && v1.rootT > 0.3 && v2.rootT > 0.3 && v1.rootT <= 1 && v2.rootT <= 1, `${h1.map((e) => e.amt)} ${h2.map((e) => e.amt)} ${v1.rootT} ${v2.rootT}`);
+    go(m, 30);
+    check('45c the shield is gone after 1.5 s', a.shield === 0 && a.shieldT === 0, `${a.shield}`);
+  }
+  // Vô Song: the armed blow reaches 1.5x (11.25 m) and, landing, cuts every cooldown by 1 s; the next blow is back to 7.5 m
+  {
+    const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 10, 0]]), [a, v] = m.units;
+    press(m, 0, 's1', { aim: Math.PI });   // thrown away from the target: nothing hit, the meter armed
+    a.cd.s2 = 5; a.cd.ult = 20;
+    const cd1 = a.cd.s1, ev = go(m, 14, (i) => ({ 0: { fire: i === 0, aim: 0 } })), h = only(ev, 'hit', (e) => e.id === 1);
+    check('45d the armed blow flies 11.25 m: it hits Ung at 10 m for 150 x armor, the meter is spent', h.length === 1 && near(h[0].amt, 150 * UNG_F) && a.meter === 0, `${h.map((e) => e.amt)} ${a.meter}`);
+    check('45e ... and every skill cooldown drops by 1 s more than the time gone by (s1, s2, ult)', near(a.cd.s1, cd1 - 14 * TICK - 1, 1e-6) && near(a.cd.s2, 5 - 14 * TICK - 1, 1e-6) && near(a.cd.ult, 20 - 14 * TICK - 1, 1e-6), `${a.cd.s1} ${a.cd.s2} ${a.cd.ult}`);
+    const hp = v.hp, ev2 = go(m, 20, (i) => ({ 0: { fire: i < 3, aim: 0 } }));
+    check('45f the next blow is a plain one: 7.5 m, it falls short of Ung at 10 m', only(ev2, 'hit', (e) => e.id === 1).length === 0 && v.hp === hp && only(ev2, 'fire', (e) => e.id === 0).length === 1);
+  }
+  // Phương Thiên Kích: a hit bursts round the target: the one beside it takes the splash, 60% with the falloff
+  {
+    const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 5, 0], [R('ung', 1), 5.6, 1.6]]), [a, v1, v2] = m.units;
+    const ev = go(m, 10, (i) => ({ 0: { fire: i === 0, aim: 0 } })), h2 = only(ev, 'hit', (e) => e.id === 2);
+    check('45g the blow lands on the first for 150 x armor and splashes the second (more than 0, at most 90 x armor)', near(UNG.hp - v1.hp, 150 * UNG_F) && h2.length === 1 && h2[0].amt > 0 && h2[0].amt <= 90 * UNG_F + 1e-6, `${UNG.hp - v1.hp} ${h2.map((e) => e.amt)}`);
+  }
+  // Bạo Nộ Đả Kích -> Hoành Tảo Thiên Quân
+  {
+    const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 7, 0], [R('ung', 1), 6.4, -1.6]]), [a, v, w] = m.units;
+    a.hp = 1000;
+    const ev = press(m, 0, 's2', { tx: 6, tz: 0 }), h = only(ev, 'hit', (e) => e.id === 1);
+    check('45h Bao No: Lu Bo is at the cursor at once (6, 0), one warp and one nova event with the look, cooldown 10', near(a.x, 6, 1e-6) && near(a.z, 0, 1e-6) && only(ev, 'warp', (e) => e.skill === 'baono').length === 1 && only(ev, 'nova', (e) => e.skill === 'baono').length === 1 && near(a.cd.s2, 10, 1e-9), `${a.x} ${a.z} ${a.cd.s2}`);
+    check('45i ... 232 x falloff (1 m of 3) x armor on Ung at 7, knocked up 0.5 s (stun and airT), slowed 50% for 2.5 s', h.length === 1 && near(h[0].amt, 232 * (1 - 0.5 / 3) * UNG_F) && near(v.stunT, 0.5, TICK + 1e-9) && near(v.airT, v.stunT, 1e-9) && v.slowF === 0.5 && near(v.slowT, 2.5, TICK + 1e-9), `${h.map((e) => e.amt)} ${v.stunT} ${v.airT} ${v.slowT}`);
+    check('45j the second stage is armed on the first victim, window 3 s', !!a.next && a.next.armed && a.next.target === 1 && near(a.next.t, 3, 1e-9), JSON.stringify(a.next));
+    const knocked = go(m, 6);
+    check('45k a knocked-up mech cannot act: Ung pressing fire and s1 casts and shoots nothing while airT runs', only(knocked, 'fire', (e) => e.id === 1).length === 0 && v.airT > 0, `${v.airT}`);
+    go(m, 1);   // the key comes up
+    const hpBefore = a.hp, lost = a.maxHp - hpBefore;
+    const ev2 = go(m, 1, () => ({ 0: { s2: true, aim: 0, tx: 7, tz: 0 } }));
+    check('45l a fresh press casts Hoanh Tao (a 0.15 s wind-up, row hoanhtao); the s2 cooldown runs on untouched', !!a.cast && a.cast.skill.id === 'hoanhtao' && a.next === null && only(ev2, 'skill', (e) => e.skill === 'hoanhtao').length === 1, JSON.stringify(a.cast && a.cast.skill.id));
+    const ev3 = go(m, 6, () => ({ 0: { aim: 0 } })), nv = only(ev3, 'nova', (e) => e.skill === 'hoanhtao'), hv = only(ev3, 'hit', (e) => e.id === 1), hw = only(ev3, 'hit', (e) => e.id === 2);
+    const dv = Math.hypot(v.x - a.x, v.z - a.z);
+    check('45m the sweep: one nova with the look and its aim, Ung in front takes 237 x falloff x armor', nv.length === 1 && near(nv[0].a, 0, 1e-6) && hv.length === 1 && near(hv[0].amt, 237 * (1 - 0.5 * Math.min(1, dv / 4.5)) * UNG_F, 1e-6), `${nv.length} ${hv.map((e) => e.amt)} ${dv}`);
+    const n = hv.length + hw.length;
+    let want = hpBefore;
+    for (let i = 0; i < n; i++) want += (a.maxHp - want) * 0.15;
+    check('45n healLost: each enemy the sweep hits heals 15% of the hp lost, one after another (' + n + ' hit)', n >= 1 && near(a.hp, want, 1e-6) && lost > 0, `${a.hp} want ${want} n ${n}`);
+  }
+  {
+    const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 0, 9]]), a = m.units[0];
+    press(m, 0, 's2', { tx: 6, tz: 0 });
+    check('45o a Bao No that lands on nobody arms no second stage, and the window closes', !!a.next && !a.next.armed, JSON.stringify(a.next));
+    go(m, 30);
+    const ev = go(m, 2, (i) => ({ 0: { s2: i === 1 } }));
+    check('45p ... a press inside the cooldown then does nothing', a.next === null && only(ev, 'skill', (e) => e.id === 0).length === 0 && !a.cast);
+  }
+  // hitfx air: cc immunity and heavy mechs shrug the knock-up off; airT never outlives the stun
+  {
+    const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 5, 0]]), [a, v] = m.units;
+    applyFx(m, a, v, { air: 1 });
+    check('45q air 1: stun 1, airT 1', v.stunT === 1 && v.airT === 1);
+    v.ccT = 0.5; go(m, 1);
+    check('45r cc immunity wipes the stun and the knock-up with it', v.stunT === 0 && v.airT === 0);
+  }
+  // Quỷ Thần Giáng Lâm
+  {
+    const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 8, 0]]), [a, v] = m.units;
+    press(m, 0, 'ult', { tx: 8, tz: 0 });
+    check('45s Quy Than: a 1 s wind-up first (cast leap, aim locked, no step), untargetable and cc-immune from the press', !!a.cast && a.cast.skill.id === 'quythan' && a.cast.lock && a.invulnT > 1.4 && a.ccT > 1.4 && near(a.cd.ult, 45, 1e-9), `${a.invulnT} ${a.ccT}`);
+    const evw = go(m, 20, () => ({ 0: { mx: 1 }, 1: { fire: true, aim: Math.PI } }));
+    applyFx(m, v, a, { stun: 2 }); go(m, 1);
+    check('45t ... Ung shoots at it during the wind-up: no damage, a stun is wiped, Lu Bo has not moved', a.hp === a.maxHp && a.stunT === 0 && Math.abs(a.x) < 1e-9 && only(evw, 'hit', (e) => e.id === 0).length === 0, `${a.hp} ${a.x}`);
+    const ev = go(m, 30), lp = only(ev, 'leap', (e) => e.id === 0), nv = only(ev, 'nova', (e) => e.skill === 'quythan'), h = only(ev, 'hit', (e) => e.id === 1);
+    check('45u after the wind-up it leaps to the point chosen at the press (8, 0) and lands there with the look', lp.length === 1 && near(lp[0].x, 8, 1e-6) && nv.length === 1 && near(a.x, 8, 0.3), `${lp.length} ${nv.length} ${a.x}`);
+    check('45v the landing: 582 x armor at the centre, knocked up 1 s, slowed 50% (3 s from the landing)', h.length === 1 && near(h[0].amt, 582 * UNG_F, 1e-6) && v.airT > 0.6 && v.slowF === 0.5, `${h.map((e) => e.amt)} ${v.airT} ${v.slowT}`);
+  }
+  // the bots play the new kit: every Lữ Bố row (the second stage too) is cast in bot matches
+  {
+    const seen = new Set();
+    for (let k = 0; k < 6 && seen.size < 4; k++) {
+      const m = createMatch({ seed: 40 + k, mode: 'tdm', roster: [{ team: 0, mech: 'lubo', name: 'L', bot: true, diff: 'hard' }, { team: 0, mech: 'trau', name: 'T', bot: true, diff: 'hard' }, { team: 1, mech: 'ung', name: 'U', bot: true, diff: 'hard' }, { team: 1, mech: 'hac', name: 'H', bot: true, diff: 'hard' }] });
+      for (let i = 0; i < 2400 && !m.over && seen.size < 4; i++) { step(m, allInputs(m)); for (const e of m.events) if (e.t === 'skill' && e.id === 0) seen.add(e.skill); }
+    }
+    check('45w bots cast Tuy Vien, Bao No, Hoanh Tao and Quy Than', ['tuyvien', 'baono', 'hoanhtao', 'quythan'].every((k) => seen.has(k)), [...seen].join());
+  }
+  // determinism
+  {
+    const play = () => {
+      const m = arena([[R('lubo', 0), 0, 0], [R('ung', 1), 6, 0], [R('moclan', 1), 7, 2]]);
+      const ev = go(m, 220, (i) => ({ 0: { fire: true, s1: i === 5, s2: i === 40 || i === 50, ult: i === 120, tx: 6, tz: 0 }, 1: { fire: true, aim: Math.PI, s1: i === 60 }, 2: { fire: true, aim: Math.PI, tx: 0, tz: 0, s2: i === 90 } }));
+      return JSON.stringify([ev, m.units.map((u) => [u.hp, u.x, u.z, u.meter, u.shield, u.airT, u.cd])]);
+    };
+    check('45x a scripted Lu Bo fight is deterministic', play() === play());
   }
 }
 

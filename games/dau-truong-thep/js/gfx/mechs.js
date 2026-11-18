@@ -1367,7 +1367,10 @@ export function makeMechs(G, tex) {
       const moved = Math.hypot(x - v.lastX, z - v.lastZ); v.lastX = x; v.lastZ = z;
       v.walk += moved;
       v.spawn = Math.min(1, v.spawn + dt * 2.5);
-      v.root.position.set(x, 0, z);
+      // knocked up (airT, hitfx air): the mech hops up at once and comes down over the last quarter second of it
+      const air = u.airT > 0 ? Math.min(1, u.airT / 0.25) : 0;
+      v.air = (v.air || 0) + (air - (v.air || 0)) * Math.min(1, dt * 16);
+      v.root.position.set(x, v.air * 1.2, z);
       v.root.scale.setScalar(0.4 + 0.6 * (1 - (1 - v.spawn) * (1 - v.spawn)));
       // A transform that grows the hitbox (transform.size) grows the model with it, eased over a few frames.
       const grow = u.def && u.def.radius ? u.radius / u.def.radius : 1;

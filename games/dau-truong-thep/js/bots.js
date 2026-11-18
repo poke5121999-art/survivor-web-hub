@@ -1804,7 +1804,9 @@ function chooseSkill(c) {
     const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.def.skills[i].next.row : null;
     if (nx) {
       const o = m.units[u.next.target];
-      if (o && o.alive && hyp(o.x - u.x, o.z - u.z) < nx.dist && c.hpFrac > 0.35) { sk.x = o.x; sk.z = o.z; sk.aim = null; sk.mx = null; sk.mz = null; sk.slot = i; return sk; }
+      // a warp second stage must reach its target; a sweep second stage (nova) must have it inside the blade (any hp: it heals)
+      const reach = nx.dist ?? nx.radius * 0.9, keen = nx.do === 'nova' || c.hpFrac > 0.35;
+      if (o && o.alive && hyp(o.x - u.x, o.z - u.z) < reach && keen) { sk.x = o.x; sk.z = o.z; sk.aim = nx.do === 'nova' ? Math.atan2(o.z - u.z, o.x - u.x) : null; sk.mx = null; sk.mz = null; sk.slot = i; return sk; }
       continue;
     }
     if (u.cd[SLOTS[i]] > 0) continue;

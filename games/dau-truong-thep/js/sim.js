@@ -104,7 +104,7 @@ function clearStatus(u) {
   u.tfT = 0; u.tfSlot = -1; u.tfDmg = 1; u.ccT = 0; u.radius = u.def.radius;
   u.rampN = 0; u.rampT = 0; u.rampTo = -1; u.rampAcc = 0; u.recast = null;
   u.stkN = 0; u.stkT = 0; u.stkBy = -1;
-  u.guardT = 0; u.guardF = 0; u.silenceT = 0; u.next = null;
+  u.guardT = 0; u.guardF = 0; u.silenceT = 0; u.next = null; u.airT = 0;
   u.parryT = 0; u.parrySlot = -1; u.flurry = null; u.tfCc = 1; u.ccPrev = null; u.hpHist = [];
   u.form = 0; u.def = formDef(u.def, 0);
   u.meter = 0; u.lastSrc = null; u.hurtAt = -99; u.skillAmp = 1; u.shieldBurst = null; u.blindT = 0; u.blindF = 1; u.blindSpread = 0; u.mmT = 0; u.mmBy = -1;
@@ -288,7 +288,7 @@ function meterShot(m, u) {
   if (!meterArmed(u) || u.def.passive.spend.kind !== 'shot') return null;
   const S = u.def.passive.spend;
   meterSpent(m, u);
-  return { mul: S.mul || 1, stun: S.stun || 0, patch: S.patch || null };
+  return { mul: S.mul || 1, stun: S.stun || 0, patch: S.patch || null, cdr: S.cdr || 0, reach: S.reach || 0 };
 }
 // hitfx chain: from the mech just hit, jump to the n nearest other enemies inside r (nearest first, lower id on a tie) for base x mul each. It never chains again.
 function chainHit(m, src, o, C, base) {
@@ -387,7 +387,7 @@ function stepUnit(m, u, inp) {
   // transform.ccResist: a stun, slow or root that landed since last tick lasts only tfCc of what it was given
   if (u.ccPrev) for (let i = 0; i < 3; i++) { const k = CC_KEYS[i], d = u[k] - u.ccPrev[i]; if (d > 1e-9) u[k] = u.ccPrev[i] + d * u.tfCc; }
   for (const k in u.cd) if (u.cd[k] > 0) u.cd[k] = Math.max(0, u.cd[k] - dt * (k === 'fire' ? (u.rapidT > 0 ? u.rapidF : 1) * (1 + rampBonus(u, 'rapid')) : 1));
-  for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT', 'blindT', 'mmT', 'stkT', 'guardT', 'silenceT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
+  for (const k of ['slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'armorT', 'rageT', 'markT', 'primeT', 'ambushT', 'rootT', 'weakenT', 'ampT', 'ccT', 'blindT', 'mmT', 'stkT', 'guardT', 'silenceT', 'airT']) if (u[k] > 0) u[k] = Math.max(0, u[k] - dt);
   if (u.stkN > 0 && u.stkT <= 0) u.stkN = 0;
   u.ccPrev = u.tfT > 0 && u.tfCc < 1 ? [u.stunT, u.slowT, u.rootT] : null;
   // counter: the window runs out without a hit and 40% of the cooldown comes back
@@ -443,6 +443,8 @@ function stepUnit(m, u, inp) {
   if (u.def.heavy) { u.stunT = 0; u.kx = 0; u.kz = 0; }
   if (u.ccT > 0) { u.stunT = 0; u.slowT = 0; u.rootT = 0; u.kx = 0; u.kz = 0; }
   if (u.stance) { u.kx = 0; u.kz = 0; }
+  // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
+  if (u.airT > u.stunT) u.airT = u.stunT;
   const stunned = u.stunT > 0;
   if (stunned) { inp = NO_INPUT; u.cast = null; u.charge = 0; }
   else {
@@ -503,10 +505,14 @@ function stepUnit(m, u, inp) {
     // meter 'skill': an armed meter powers up the next skill that deals damage (skillAmp lives until its cast or dash is over)
     const P = u.passive === 'meter' ? u.def.passive : null, amped = !!P && P.spend.kind === 'skill' && u.meter >= P.max && !!(s.dmg || s.dps);
     if (amped) u.skillAmp = P.spend.mul;
-    if (CAST[s.do](m, u, s, inp) === false) { m.events.length = at; if (!nx) u.cd[key] = 0.4; u.stealthT = wasHidden; u.revealT = hide; u.skillAmp = 1; continue; }
-    if (nx) { u.next = null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }
-    // next.onHit: the second stage is armed only once this cast has hit an enemy (see damage); otherwise at once
+    // next.onHit: the second stage is armed only once this cast has hit an enemy (see damage); otherwise at once. It exists before
+    // the cast runs, so a first stage that hits at once (warp.land) arms it in the same tick.
+    const nextWas = u.next;
     if (s.next) u.next = { slot: i, src: s.id, t: s.next.onHit ? (s.delay || 0) + 0.6 : s.next.window, armed: !s.next.onHit, up: false, target: -1 };
+    if (CAST[s.do](m, u, s, inp) === false) { m.events.length = at; if (!nx) u.cd[key] = 0.4; u.stealthT = wasHidden; u.revealT = hide; u.skillAmp = 1; if (s.next) u.next = nextWas; continue; }
+    // meter castShield {frac, dur}: every cast (a second stage too) wraps the mech in a shield of frac of its max hp
+    if (P && P.castShield) { u.shield = Math.max(u.shield, u.maxHp * P.castShield.frac); u.shieldMax = Math.max(u.shieldMax, u.shield); u.shieldT = Math.max(u.shieldT, P.castShield.dur); }
+    if (nx) { u.next = null; if (!u.cast && !u.dash) u.skillAmp = 1; u.charge = 0; return; }
     if (amped) meterSpent(m, u);
     if (P) meterAdd(m, u, 'cast', 1);
     if (!u.cast && !u.dash) u.skillAmp = 1;
@@ -637,7 +643,8 @@ function fireWeapon(m, u, inp) {
   const st = u.stance ? u.stanceDef : null;
   const boost = u.passive === 'meter' ? meterShot(m, u) : null;
   // meter 'shot' patch: the armed shot flies as a different projectile (longer, faster, wider)
-  const sw = boost && boost.patch ? { ...w, ...boost.patch } : w;
+  // reach: the armed shot flies that many times the weapon's range (garage range levels included)
+  const sw = boost && (boost.patch || boost.reach) ? { ...w, ...boost.patch, ...(boost.reach ? { range: w.range * boost.reach } : {}) } : w;
   for (let i = 0; i < n; i++) spawnShot(m, u, sw, base + (i - (n - 1) / 2) * (w.fan || 0), side, st, 'w', boost);
   m.events.push({ t: 'fire', id: u.id, vis: sw.vis, x: u.x, z: u.z, a: base, side, boost: boost ? 1 : 0 });
 }
@@ -655,7 +662,7 @@ function spawnShot(m, u, w, a, side, st, src, boost) {
     id: m.nextId++, team: u.team, owner: u.id, x, z, px: x, pz: z, dx, dz, speed: w.speed, left: w.range * (st ? st.range : 1) * (u.blindT > 0 ? u.blindF : 1),
     color: u.color, dmg: w.dmg * dmgScale(u) * (1 + rampBonus(u, 'dmg')) * (st ? st.dmg : 1) * (boost ? boost.mul : 1), splash: w.splash || 0, knock: w.knock || 0, slow: w.slow || 0, slowDur: w.slowDur || 0, r: w.r, vis: w.vis,
     pierce: !!w.pierce, bounce: w.bounce || 0, hook: w.do === 'hook' ? w : null, far: w.far || null, flown: 0, hit: w.pierce ? [] : null,
-    fx: boost && boost.stun ? { ...(w.fx || {}), stun: boost.stun } : w.fx || null, ret: !!w.ret, back: false, src: src || null,
+    fx: boost && boost.stun ? { ...(w.fx || {}), stun: boost.stun } : w.fx || null, ret: !!w.ret, back: false, src: src || null, cdr: boost ? boost.cdr : 0, splashHit: !!w.splashHit,
   });
 }
 
@@ -806,10 +813,17 @@ const CAST = {
       if (!o) return false;
       tx = o.x; tz = o.z;
     }
-    const [x, z] = landing(m, u, tx, tz);
-    const d = Math.hypot(x - u.x, z - u.z) || 0.01;
-    u.dash = { dx: (x - u.x) / d, dz: (z - u.z) / d, left: d, speed: Math.max(4, d / s.flight), s: { dmg: 0 }, hit: [], fly: true, land: s };
-    m.events.push({ t: 'leap', id: u.id, x0: u.x, z0: u.z, x, z, dur: s.flight });
+    // invuln: untargetable (no damage, no crowd control) from the press until it lands, wind-up included
+    if (s.invuln) { const T = (s.windup || 0) + s.flight + 0.1; u.invulnT = Math.max(u.invulnT, T); u.ccT = Math.max(u.ccT, T); }
+    // windup: stand charging that long (aim locked), then jump to the point chosen at the press (FINISH.leap)
+    if (s.windup) {
+      u.cast = { skill: s, t: s.windup, total: s.windup, move: s.move ?? 0, lock: true, aim: u.aim, tx, tz };
+      // the press event (pushed just before this) carries the landing point, so every end can mark it during the wind-up
+      const ev = m.events[m.events.length - 1];
+      if (ev && ev.t === 'skill' && ev.id === u.id) { ev.tx = tx; ev.tz = tz; }
+      return;
+    }
+    jump(m, u, s, tx, tz);
   },
   mark(m, u, s, inp) {
     const o = pickUnit(m, u, inp, s, (o) => o.team !== u.team);
@@ -851,7 +865,7 @@ const CAST = {
       u.dash = { dx: (x - x0) / d, dz: (z - z0) / d, left: d, speed: s.glide, s: { dmg: 0 }, hit: [], fly: true };
     } else { u.x = u.px = x; u.z = u.pz = z; u.vx = u.vz = 0; }
     m.events.push({ t: 'warp', id: u.id, x0, z0, x, z, ...(s.look ? { skill: s.id } : {}) });
-    if (s.land) { m.events.push({ t: 'nova', id: u.id, x, z, r: s.land.radius }); areaDamage(m, u, x, z, s.land.radius, s.land.dmg, s.land, null); }
+    if (s.land) { m.events.push({ t: 'nova', id: u.id, x, z, r: s.land.radius, ...(s.look ? { skill: s.id } : {}) }); curSrc = s.id; areaDamage(m, u, x, z, s.land.radius, s.land.dmg, s.land, null); curSrc = null; }
   },
   // orbit: n orbs circle the caster. 'seek': each `rate` seconds the next orb flies off at the nearest enemy in range and is spent;
   // 'guard': the orbs shoot down enemy shots and the ring cuts enemies close to the caster.
@@ -1048,6 +1062,14 @@ function placeMine(m, u, x, z, s) {
 const lasting = (u) => (u.passive === 'mechanic' ? u.def.passive.mul : 1);
 
 // The unit a targeted skill lands on: the one nearest the cursor within s.pick of it and s.cast of the caster, that `ok` accepts.
+// leap: fly from here to (tx, tz), or the nearest free ground there, over flight seconds; the landing (stepDash) hits as s says.
+function jump(m, u, s, tx, tz) {
+  const [x, z] = landing(m, u, tx, tz);
+  const d = Math.hypot(x - u.x, z - u.z) || 0.01;
+  u.dash = { dx: (x - u.x) / d, dz: (z - u.z) / d, left: d, speed: Math.max(4, d / s.flight), s: { dmg: 0 }, hit: [], fly: true, land: s };
+  m.events.push({ t: 'leap', id: u.id, x0: u.x, z0: u.z, x, z, dur: s.flight });
+}
+
 function pickUnit(m, u, inp, s, ok) {
   let best = null, bd = s.pick * s.pick;
   for (const o of m.units) {
@@ -1125,7 +1147,10 @@ const FINISH = {
   nova(m, u, s, c) {
     const k = (s.repeat || 1) - (c.left || 1), arc = s.arc ? { a: u.aim, half: s.arc } : null;
     m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: s.radius, ...(s.look ? { skill: s.id, k, a: u.aim } : {}) });
-    curSrc = s.id; areaDamage(m, u, u.x, u.z, s.radius, s.dmg * (c.mul || 1) * (s.grow ? s.grow ** k : 1), s, null, arc);
+    curSrc = s.id;
+    const n = areaDamage(m, u, u.x, u.z, s.radius, s.dmg * (c.mul || 1) * (s.grow ? s.grow ** k : 1), s, null, arc);
+    // healLost: each enemy the blow lands on heals the caster that share of the hp it has lost (one after another)
+    if (s.healLost && u.alive) for (let i = 0; i < n; i++) heal(m, u, (u.maxHp - u.hp) * s.healLost, u);
     if (s.last && (c.left || 1) <= 1) {
       for (const o of m.units) {
         if (o.team === u.team || !o.alive || o.def.boss) continue;
@@ -1146,6 +1171,7 @@ const FINISH = {
     curSrc = s.id; fireBeam(m, u, row, c.aim); curSrc = null;
   },
   barrage() {},
+  leap(m, u, s, c) { jump(m, u, s, c.tx ?? u.x, c.tz ?? u.z); },
   volley(m, u, s, c) { while (c.left > 0) { c.left--; fireVolley(m, u, s); } },
   form(m, u) { flipForm(m, u); },
   transform(m, u, s) {
@@ -1183,7 +1209,7 @@ function stepDash(m, u) {
   if (d.left <= 0.01 || moved < stepLen * 0.4) {
     u.dash = null; u.vx = d.dx * 2; u.vz = d.dz * 2;
     if (u.flurry) flurryNext(m, u);
-    if (d.land) { [u.x, u.z] = landing(m, u, u.x, u.z); m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: d.land.radius }); curSrc = d.land.id || null; areaDamage(m, u, u.x, u.z, d.land.radius, d.land.dmg, d.land, null); curSrc = null; landShield(m, u, d.land); }
+    if (d.land) { [u.x, u.z] = landing(m, u, u.x, u.z); m.events.push({ t: 'nova', id: u.id, x: u.x, z: u.z, r: d.land.radius, ...(d.land.look ? { skill: d.land.id } : {}) }); curSrc = d.land.id || null; areaDamage(m, u, u.x, u.z, d.land.radius, d.land.dmg, d.land, null); curSrc = null; landShield(m, u, d.land); }
   }
 }
 
@@ -1314,6 +1340,7 @@ function stepShots(m) {
         if (t > Math.min(best, 1) || s.hit.includes(u.id)) continue;
         s.hit.push(u.id);
         damage(m, u, shotDamage(s, len * t), owner);
+        if (s.cdr) cutCooldowns(owner, s);
         if (u.alive) {
           if (s.knock) { u.kx += s.dx * s.knock * 3; u.kz += s.dz * s.knock * 3; }
           if (s.slow) { u.slowT = Math.max(u.slowT, s.slowDur); u.slowF = Math.max(u.slowF, s.slow); }
@@ -1345,18 +1372,26 @@ function stepShots(m) {
     if (what === 'tower') hurtTower(m, hitTower, dmg, owner);
     else if (what === 'unit') {
       damage(m, hitUnit, dmg, owner);
+      if (s.cdr) cutCooldowns(owner, s);
       if (s.knock && hitUnit.alive) { hitUnit.kx += s.dx * s.knock * 3; hitUnit.kz += s.dz * s.knock * 3; }
       if (s.slow && hitUnit.alive) { hitUnit.slowT = Math.max(hitUnit.slowT, s.slowDur); hitUnit.slowF = Math.max(hitUnit.slowF, s.slow); }
       if (s.fx && owner && hitUnit.alive) applyFx(m, owner, hitUnit, s.fx);
       if (s.hook && !s.hook.self && hitUnit.alive && owner && owner.alive) reel(m, owner, hitUnit, s.hook);
     } else if (what === 'prop') damageProp(m, hitProp, dmg, owner);
     else if (hitZone) hitZone.hp -= dmg;
-    if (s.splash && what !== 'dome' && owner) areaDamage(m, owner, s.x, s.z, s.splash, dmg * 0.6, s.fx ? { fx: s.fx } : null, hitUnit);
+    // splashHit (weapon row): the burst goes off only round a mech it hit, not at the end of its range or on a wall
+    if (s.splash && what !== 'dome' && owner && (!s.splashHit || what === 'unit')) areaDamage(m, owner, s.x, s.z, s.splash, dmg * 0.6, s.fx ? { fx: s.fx } : null, hitUnit);
     if (s.hook && s.hook.self && owner && owner.alive && (what === 'wall' || what === 'unit' || what === 'prop' || what === 'tower')) reelSelf(m, owner, s.x, s.z, hitUnit || hitProp || hitTower, s.hook);
     m.events.push({ t: 'impact', vis: s.vis, on: what, x: s.x, z: s.z, dx: s.dx, dz: s.dz, splash: s.splash });
     m.shots.splice(i, 1);
   }
   curSrc = null;
+}
+
+// meter spend.cdr: the armed shot hit a mech: every skill cooldown of its owner drops by cdr seconds, once per shot.
+function cutCooldowns(u, s) {
+  if (u && u.alive) for (const k of ['s1', 's2', 'ult']) u.cd[k] = Math.max(0, u.cd[k] - s.cdr);
+  s.cdr = 0;
 }
 
 // extra: metres this tick's hit lies beyond s.flown.
@@ -1567,6 +1602,7 @@ function inArc(u, x, z, d, arc) {
 }
 function areaDamage(m, src, x, z, r, dmg, fx, skip, arc) {
   const scale = dmgScale(src);
+  let n = 0;
   for (const u of m.units) {
     if (u.team === src.team || !u.alive || u === skip) continue;
     const reach = r + u.radius * 0.6, d2 = dist2(u.x, u.z, x, z);
@@ -1574,6 +1610,7 @@ function areaDamage(m, src, x, z, r, dmg, fx, skip, arc) {
     const d = Math.sqrt(d2);
     if (!inArc(u, x, z, d, arc)) continue;
     damage(m, u, dmg * scale * (1 - 0.5 * Math.min(1, d / r)), src);
+    n++;
     if (!u.alive || !fx) continue;
     if (fx.fx) applyFx(m, src, u, fx.fx);
     if (!u.alive) continue;
@@ -1587,6 +1624,7 @@ function areaDamage(m, src, x, z, r, dmg, fx, skip, arc) {
     if (dist2(p.x, p.z, x, z) < reach * reach) damageProp(m, p, dmg * scale, src);
   }
   for (const t of m.towers) { const reach = r + t.r; if (t.alive && t.team !== src.team && dist2(t.x, t.z, x, z) < reach * reach) hurtTower(m, t, dmg * scale * 0.75, src); }
+  return n;
 }
 
 // hitfx: the `fx` key any damaging row may carry. { chance, pick: [fx, ...] } rolls m.rng() (once for the chance, once for the pick);
@@ -1609,6 +1647,8 @@ export function applyFx(m, src, o, fx, ctx) {
   if (fx.amp) applyAmp(o, fx.amp.amp, fx.amp.dur);
   if (fx.reveal) { o.revealT = Math.max(o.revealT, fx.reveal); o.stealthT = 0; }
   if (fx.silence) o.silenceT = Math.max(o.silenceT, fx.silence);
+  // air (s): knocked up: a stun that also lifts the mech (airT, drawn as a hop); heavy mechs and cc immunity shrug it off like a stun
+  if (fx.air && !o.def.heavy) { o.stunT = Math.max(o.stunT, fx.air); o.airT = Math.max(o.airT || 0, fx.air); }
   // maxHp: an extra blow worth that share of the victim's max hp (armour applies; bosses are spared); it carries no source tag so it never feeds stacks
   if (fx.maxHp && !o.def.boss) { const keep = curSrc; curSrc = null; damage(m, o, o.maxHp * fx.maxHp, src); curSrc = keep; if (!o.alive) return; }
   if (fx.execute && !o.def.boss && o.hp < o.maxHp * fx.execute) {

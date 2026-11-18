@@ -23,7 +23,7 @@ function momentFor(r) {
   switch (r.do) {
     case 'volley': return 0.15 + (r.burst ? r.burst.gap : 0);
     case 'dash': case 'blink': case 'hook': case 'swap': case 'warp': case 'flurry': return 0.25;
-    case 'leap': return 0.3;
+    case 'leap': return r.windup ? r.windup + (r.flight || 0) + 0.1 : 0.3;   // a wound-up leap is caught as it lands
     case 'stance': case 'form': return (r.setup || 0.3) + 0.25;
     case 'nova': return (r.windup || 0) + 0.08;
     case 'beam': return r.charge ? 0.1 : (r.windup || 0) + 0.1;

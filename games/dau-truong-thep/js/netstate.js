@@ -76,15 +76,23 @@ function decZoneField(v, type) {
 // F_GUESS: the host is moving this guest's mech on a guess while its inputs are late, and will put it right when they come.
 const F_ALIVE = 1, F_DASH = 2, F_BOT = 4, F_STANCE = 16, F_FORM = 32;
 export const F_GUESS = 8;
-const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter', 'stkN', 'stkT', 'parryT', 'guardT', 'silenceT'];
+const STATUS = ['shield', 'shieldMax', 'shieldT', 'slowT', 'stunT', 'hasteT', 'rapidT', 'dmgT', 'stealthT', 'invulnT', 'revealT', 'healT', 'armorT', 'rageT', 'markT', 'primeT', 'charge', 'rootT', 'tfT', 'burnT', 'meter', 'stkN', 'stkT', 'parryT', 'guardT', 'silenceT', 'airT'];
 const CD = ['fire', 's1', 's2', 'ult', 'heal'];
+
+// A cast is sent as the index of its row: 0..2 the skills, 3..5 the second stage (next.row) of skill 0..2.
+function castIndex(def, s) {
+  const i = def.skills.indexOf(s);
+  if (i >= 0) return i;
+  return 3 + def.skills.findIndex((r) => r.next && r.next.row === s);
+}
+const castRow = (def, i) => (i < 3 ? def.skills[i] : def.skills[i - 3].next.row);
 
 function unitRow(u) {
   const r = [rd(u.x), rd(u.z), ang(u.aim), rd(u.heading), Math.round(u.hp), u.maxHp,
     (u.alive ? F_ALIVE : 0) | (u.dash ? F_DASH : 0) | (u.bot ? F_BOT : 0) | (u.guess ? F_GUESS : 0) | (u.stance ? F_STANCE : 0) | (u.form ? F_FORM : 0), tm(u.respawnT)];
   for (const k of CD) r.push(tm(u.cd[k]));
   for (const k of STATUS) r.push(tm(u[k]));
-  r.push(u.bush, u.cast ? [u.def.skills.indexOf(u.cast.skill), rd(u.cast.t), rd(u.cast.total), ang(u.cast.aim)] : 0,
+  r.push(u.bush, u.cast ? [castIndex(u.def, u.cast.skill), rd(u.cast.t), rd(u.cast.total), ang(u.cast.aim)] : 0,
     rd(u.slowF || 0), rd(u.hasteF || 1), u.kills, u.deaths, u.assists, Math.round(u.dmg), Math.round(u.healed));
   return r;
 }
@@ -184,7 +192,7 @@ export function applySnapshot(m, snap, dt) {
     u.bush = r[at++];
     const c = r[at++];
     if (c) {
-      const skill = u.def.skills[c[0]];
+      const skill = castRow(u.def, c[0]);
       u.cast = { skill, t: c[1], total: c[2], aim: c[3], move: skill.move ?? (skill.channel ? skill.channel.move : skill.do === 'beam' ? 0.12 : skill.do === 'stance' ? 0 : 0.35), lock: skill.do === 'beam' };
     } else u.cast = null;
     u.slowF = r[at++]; u.hasteF = r[at++];
