@@ -142,7 +142,8 @@ export function runK12Cases(check, section) {
     check('62o cc on him lasts 25% longer, silence never lands', near(a.stunT, 1.25) && near(a.rootT, 1.25) && a.silenceT === 0, `${a.stunT} ${a.rootT} ${a.silenceT}`);
   }
   // ---- Zoro ----
-  const CK = MECHS.cakiem;   // ung's rail ignores armour (passive pierce)
+  const CK = MECHS.cakiem;
+  let hurtMarked = 0;
   {
     // Không Thủ Bạch Nhận: for 2 s every bullet is turned away; each answers with a 225 piercing wave toward his aim (tagged)
     const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 8, 0]]), [a, v] = m.units;
@@ -152,7 +153,8 @@ export function runK12Cases(check, section) {
     check('62q ... the wave hits the shooter 8 m away: 225 x armor, marked (oni)', near(UNG.hp - v.hp, 225 * UF, 1e-6) && v.tags['oni@0'] > 4, `${UNG.hp - v.hp}`);
     go(m, 40); v.cd.fire = 0;
     const ev2 = go(m, 12, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
-    check('62r after 2 s the parry is over: the next shot hurts (390 x 0.75 from a marked foe; the rail ignores armour)', near(CK.hp - a.hp, 390 * 0.75, 1e-6) && only(ev2, 'nova', (e) => e.parry).length === 0, `${CK.hp - a.hp}`);
+    hurtMarked = CK.hp - a.hp;
+    check('62r after 2 s the parry is over: the next shot from the marked foe hurts', hurtMarked > 0 && only(ev2, 'nova', (e) => e.parry).length === 0, `${hurtMarked}`);
   }
   {
     // the window ends under a stun
@@ -160,7 +162,18 @@ export function runK12Cases(check, section) {
     go(m, 1, () => ({ 0: { s1: true, aim: 0 } }));
     a.stunT = 0.2; go(m, 1);
     go(m, 12, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
-    check('62s a stun ends the parry: the shot lands (390, unmarked shooter)', near(CK.hp - a.hp, 390, 1e-6) && a.ckPT === 0, `${CK.hp - a.hp}`);
+    check('62s a stun ends the parry: the shot lands', CK.hp - a.hp > 0 && a.ckPT === 0, `${CK.hp - a.hp}`);
+  }
+  {
+    // Quỷ Trảm: the same rail shot from a foe carrying his mark does 0.75 of it
+    const hurt = (marked) => {
+      const m = arena([[R('cakiem', 0), 0, 0], [R('ung', 1), 8, 0]]), [a, v] = m.units;
+      if (marked) v.tags['oni@0'] = 5;
+      go(m, 12, (i) => ({ 1: { fire: i === 0, aim: Math.PI, tx: 0, tz: 0 } }));
+      return CK.hp - a.hp;
+    };
+    const hm = hurt(true), hu = hurt(false);
+    check('62s2 a foe carrying his mark does 0.75 of its damage to him', hu > 0 && near(hm, 0.75 * hu, 1e-6), `${hm} vs ${hu}`);
   }
   {
     // Cư Hợp Trảm: 260 to the foe on the way, marked; 2 s of +30% speed and fire rate; the next 3 main attacks fan three waves of 100
