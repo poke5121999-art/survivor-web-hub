@@ -2572,7 +2572,7 @@ import { railAt } from './data.js';
 function k1Clear(u) {
   u.hkN = 0; u.hkT = 0; u.hkF = 0; u.hkIcd = 0;
   u.capT = 0; u.inT = 0; u.bubT = 0; u.bubCc = 1; u.bubPrev = null;
-  u.rsT = 0; u.rsDur = 1; u.rsS = 0; u.rsH = 1;
+  u.rlT = 0; u.rlDur = 1; u.rlS = 0; u.rlH = 1;
 }
 
 // Hulk (khidot). passive regen `healUp: f`: every heal it receives is x (1 + f x its lost share of max hp).
@@ -2593,11 +2593,11 @@ function k1Tick(m, u, dt) {
     if (P && u.bubCc < 1) for (let i = 0; i < 3; i++) { const k = CC_KEYS[i], d = u[k] - P[i]; if (d > 1e-9) u[k] = P[i] + d * u.bubCc; }
     u.bubT = Math.max(0, u.bubT - dt); u.bubPrev = u.bubT > 0 ? [u.stunT, u.slowT, u.rootT] : null;
   }
-  if (u.rsT > 0) {
+  if (u.rlT > 0) {
     // rally shield and haste fade linearly to nothing over their duration
-    u.rsT = Math.max(0, u.rsT - dt); const f = u.rsT / u.rsDur;
-    if (u.shield > u.rsS * f) { u.shield = u.rsS * f; if (u.shield <= 0) { u.shield = 0; u.shieldT = 0; } }
-    if (u.hasteT > 0 && u.rsH > 1) u.hasteF = Math.max(1 + (u.rsH - 1) * f, u.capT > 0 ? 1 + k1Cap().aura.speed : 1);
+    u.rlT = Math.max(0, u.rlT - dt); const f = u.rlT / u.rlDur;
+    if (u.shield > u.rlS * f) { u.shield = u.rlS * f; if (u.shield <= 0) { u.shield = 0; u.shieldT = 0; } }
+    if (u.hasteT > 0 && u.rlH > 1) u.hasteF = Math.max(1 + (u.rlH - 1) * f, u.capT > 0 ? 1 + k1Cap().aura.speed : 1);
   }
   const P = u.def.passive;
   if (P && P.aura && !((m.tick + u.id) % 6)) for (const o of m.units) {
@@ -2666,7 +2666,7 @@ function k1Rally(m, u, s) {
   for (const o of m.units) {
     if (o.team !== u.team || !o.alive || dist2(o.x, o.z, u.x, u.z) > s.radius * s.radius) continue;
     o.shield = Math.max(o.shield, s.shield); o.shieldMax = Math.max(o.shieldMax, o.shield); o.shieldT = Math.max(o.shieldT, s.shieldDur);
-    if (s.decay) { o.rsT = s.shieldDur; o.rsDur = s.shieldDur; o.rsS = s.shield; o.rsH = s.haste || 1; }
+    if (s.decay) { o.rlT = s.shieldDur; o.rlDur = s.shieldDur; o.rlS = s.shield; o.rlH = s.haste || 1; }
     if (s.ccImmune) o.ccT = Math.max(o.ccT, s.ccImmune);
   }
 }
