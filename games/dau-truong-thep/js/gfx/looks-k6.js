@@ -226,8 +226,8 @@ export const K6 = {
     castDrop(kit, v) { stop(v.g); },
     nova(kit, e, u) {
       const r = e.r;
-      sigil(kit, e.x, e.z, r, CURSE, { c2: EARTH, n: 6, m: 2, ticks: 24, inner: 0.86, fill: 0.08, w: 0.07, life: 1.1, rev: 0.12, spin: 0.8 });
-      shell(kit, e.x, 0, e.z, r, CURSE, { c2: STONE, dome: true, p: 2.4, core: 0.04, bands: 1.1, life: 1.0, grow: 0.12, alpha: 0.85 });
+      sigil(kit, e.x, e.z, r, CURSE, { c2: EARTH, n: 0, ticks: 48, inner: 0.6, fill: 0.08, w: 0.07, life: 1.1, rev: 0.12, spin: 0.8 });
+      shell(kit, e.x, 0, e.z, r, CURSE, { c2: STONE, dome: true, p: 2.0, core: 0.05, bands: 2.4, life: 1.0, grow: 0.12, alpha: 0.9 });
       kit.ring(e.x, e.z, r, CURSE, 0.5); kit.flash(e.x, 1.4, e.z, CURSE, 35, 0.2);
       rockDust(kit, e.x, e.z, r * 0.6, 8, 1.0); dustRing(kit, e.x, e.z, r * 0.9, 18, DUSTC, 2);
       kit.puffs(e.x, 0.6, e.z, kit.N(22), SOOT, r * 0.85, 0.8, 1.3, 1.5, 1.8, 0.5, 0.7, kit.K.SMOKE, 1.5);
