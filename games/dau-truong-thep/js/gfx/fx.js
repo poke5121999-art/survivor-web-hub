@@ -871,6 +871,7 @@ export function makeFx(G, mechs) {
     if (e.t === 'stacks') { const by = m.units[e.by], L = by && lookOf(by.def.passive); if (L && L.stacks && L.stacks(kit, e, by)) return; }
     if (e.t === 'k7' && u) { const L = lookOf(u.def.passive); if (L && L.k7) L.k7(kit, e, u); return; }   // kit lane K7: passive states (Serious Mode, ice block, aim)
     if (e.t === 'kit') { const L = LOOKS[e.look]; if (L && L.ev) L.ev(kit, e, u, m); return; }   // kit lanes: an event { t: 'kit', look } draws through that look's `ev` hook
+    if (e.t === 'k18' && u) { const L = lookOf(u.def.passive); if (L && L.k18) L.k18(kit, e, u); return; }   // kit lane K18: Ngưu Ma's whirl, Mikasa's grapple bite and crit
     switch (e.t) {
       case 'fire': {
         mechs.muzzle(u, e.side || 0, V);

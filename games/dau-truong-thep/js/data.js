@@ -568,20 +568,32 @@ export const MECHS = {
         desc: 'Long Hóa 5 giây: thêm 15% giáp, chạy nhanh hơn 15%, hơi thở lửa phun xa 11 m và mạnh hơn.' },
     ],
   },
+  // Ngưu Ma Vương: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p85 "82.牛魔王", tooltips in ~/handoff/dtt-ref/kits/AUDIT-b.md,
+  // gameplay 18-66 s). Attack = one Rìu Chấn blow, set to 150 (was 200 every 0.9 s; now every 0.68 s, the same dps) so the % numbers
+  // keep their meaning: Chiến Tiêu 50% -> 75, Bạo Lệ Tiễn Đạp 100% -> 150, Cuồng Dã Giác Tập 162% -> 243, Tàn Phong Đoạn Dã 357% -> 536.
+  // Cooldowns 6 / 8 / 25 s in the clip -> 8 / 10 / 45. MP dropped. "+10% 能量护盾" per own stack is read as 2% less skill damage a
+  // stack (G2 guard vs 'skill', 20% at 10); the clip shows a lime bubble on him. The Q's slow and weaken "after the stun" run from the
+  // hit for 0.5 + 2 s (pilot rule, as air). Kit-remake G5 fields (sim.js block "kit lane K18"): passive nmGale (the whirl every 3 s,
+  // at each press and each 10% of max hp taken; stacks on foes and on him), row nmToHp (the E's shield turns into hp), hitfx nmMute
+  // (the ult's 50% less skill damage dealt).
   nguma: {
     name: 'Ngưu Ma Vương', role: 'Trụ', roleKey: 'tank', price: 1800, tint: 0x5a1e1e,
-    blurb: 'Rìu chấn nặng nề, càng bị đánh dồn càng cứng. Pháp Tướng hóa khổng lồ, hồi máu và giáng một đòn chấn động.',
+    blurb: 'Chiến Tiêu xoáy quanh mình theo nhịp, mỗi chiêu và mỗi lần bị đánh đau lại xoáy thêm. Giậm đất đẩy lùi làm choáng, húc sừng cuốn cả đám theo kèm khiên hóa máu, giáng rìu xuống dải đất trước mặt đánh tung cả hàng.',
     hp: 3100, speed: 5.0, radius: 1.0,
     armor: 0.14, accel: 0.8, turn: 9, towerMul: 1.5,
-    passive: { do: 'ramp', name: 'Da Trâu', desc: 'Mỗi lần bị trúng đòn thêm 2% giáp, cộng dồn tối đa 6 lần, mất dần sau 3 giây không bị đánh.', on: 'hurt', stat: 'armor', step: 0.02, max: 6, dur: 3 },
-    weapon: { name: 'Rìu Chấn', cd: 0.9, dmg: 200, speed: 24, range: 8, r: 0.6, pierce: true, knock: 1.5, vis: 'wave' },
+    passive: { do: 'trait', name: 'Chiến Tiêu', look: 'nmGale', nmGale: { every: 3, radius: 3.5, dmg: 75, amp: 0.15, slow: 0.05, max: 10, dur: 5, hurt: 0.1, guard: 0.02 },
+      desc: 'Cứ 3 giây, mỗi lần dùng chiêu và mỗi lần mất đủ 10% máu tối đa, Chiến Tiêu xoáy quanh bạn: 75 sát thương trong 3,5 m. Kẻ trúng nhận một lớp (tối đa 10, 5 giây): chậm 5% mỗi lớp và chịu thêm 15% mỗi lớp từ Chiến Tiêu kế tiếp. Bạn cũng nhận một lớp: sát thương kỹ năng phải nhận giảm 2% mỗi lớp trong 5 giây.' },
+    weapon: { name: 'Rìu Chấn', cd: 0.68, dmg: 150, speed: 24, range: 8, r: 0.6, pierce: true, knock: 1.5, vis: 'wave' },
     skills: [
-      { id: 'songriu', look: 'nmAxe', name: 'Sóng Rìu', cd: 8, do: 'volley', n: 3, fan: 0.08, dmg: 220, speed: 24, range: 8, r: 0.45, pierce: true, vis: 'wave', icon: 'spin',
-        desc: 'Tung ba sóng rìu liền nhau, xuyên qua mọi kẻ địch.' },
-      { id: 'humma', look: 'nmCharge', name: 'Húc Ma', cd: 12, do: 'dash', dist: 9, speed: 26, dmg: 200, stun: 0.4, knock: 4.5, icon: 'dash',
-        desc: 'Cúi sừng húc tới, gây sát thương, choáng và hất văng kẻ chắn đường.' },
-      { id: 'phaptuong', look: 'nmAvatar', name: 'Pháp Tướng', cd: 46, do: 'transform', dur: 6, size: 1.35, armor: 0.2, heal: 0.25, nova: { windup: 0.3, radius: 6, dmg: 320, stun: 1.1 }, icon: 'quake',
-        desc: 'Hóa Pháp Tướng 6 giây: to hơn 35%, thêm 20% giáp, hồi 25% máu đã mất và giáng một đòn chấn động 320 sát thương, choáng 1,1 giây.' },
+      { id: 'baole', look: 'nmStomp', name: 'Bạo Lệ Tiễn Đạp', cd: 8, uses: { n: 2, gap: 3 }, do: 'nova', windup: 0.3, move: 0.2, radius: 4, dmg: 150, stun: 0.5, knock: 2,
+        fx: { slow: 0.25, slowDur: 2.5, weaken: { mul: 0.75, dur: 2.5 } }, icon: 'quake',
+        desc: 'Tụ lực 0,3 giây rồi giậm đất quanh mình (4 m): 150 sát thương, đẩy lùi, choáng 0,5 giây; hết choáng kẻ trúng vẫn chậm 25% và yếu đi 25% thêm 2 giây. Tích 2 lần, cách nhau 3 giây.' },
+      { id: 'cuongda', look: 'nmHorn', name: 'Cuồng Dã Giác Tập', cd: 10, do: 'dash', windup: 0.3, move: 0, dist: 8, speed: 26, dmg: 243, drag: true,
+        fx: { slow: 0.75, slowDur: 4, slowDecay: true }, selfShield: { frac: 0.25, dur: 4 }, nmToHp: true, icon: 'dash',
+        desc: 'Tụ lực 0,3 giây rồi húc sừng lao 8 m theo hướng ngắm, cuốn theo mọi kẻ địch trên đường: mỗi kẻ 243 sát thương và chậm 75%, giảm dần trong 4 giây. Bạn nhận khiên 25% máu tối đa trong 4 giây, khiên dần chuyển thành máu.' },
+      { id: 'tanphong', look: 'nmRend', name: 'Tàn Phong Đoạn Dã', cd: 45, do: 'beam', windup: 0.5, range: 10, width: 4, dmg: 536,
+        fx: { air: 1.5, slow: 0.5, slowDur: 4, nmMute: { mul: 0.5, dur: 4 } }, icon: 'quake',
+        desc: 'Tụ lực 0,5 giây rồi giáng rìu xuống dải 10 x 4 m trước mặt: 536 sát thương, đánh tung 1,5 giây; rơi xuống rồi kẻ trúng chậm 50% và sát thương kỹ năng của nó giảm 50% thêm 2,5 giây.' },
     ],
   },
   // Sơn Tinh: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p14 "11.山精", tooltips read at 1.5-4.5 s; AUDIT-c.md). Attack = 150
@@ -1291,7 +1303,7 @@ export const PERKS = {
   lubo: [perk('Kích Dài', 'Phương Thiên Kích với xa 9 m.', 'weapon', { range: 9 }), perk('Định Thân Lâu', 'Tuy Viễn Tất Tru giữ chân 1,5 giây.', 0, { fx: { root: 1.5 } }), perk('Quỷ Thần Uy', 'Quỷ Thần Giáng Lâm giáng rộng 5 m.', 2, { radius: 5 })],
   mucma: [perk('Bốn Xúc Tu', 'Xúc Tu bắn bốn đường.', 'weapon', { n: 4, fan: 0.12 }), perk('Săn Xa', 'Cơ Ngạ Bộ Liệp lao xa 9,5 m.', 1, { dist: 9.5 }), perk('Hách Tử Lâu', 'Hách Tử Tiến Hóa kéo dài 6,5 giây.', 2, { dur: 6.5, ccImmune: 6.5 })],
   kynhong: [perk('Lửa Dai', 'Hỏa Quyền thiêu 26 mỗi giây mỗi tầng.', 'weapon', { fx: { burn: { dps: 26, dur: 3, max: 4 } } }), perk('Bảy Luồng Lửa', 'Hỏa Long Khiếu phun bảy luồng.', 0, { n: 7 }), perk('Long Uy', 'Long Hóa kéo dài 6,5 giây.', 2, { dur: 6.5 })],
-  nguma: [perk('Rìu Nặng', 'Rìu Chấn gây 290.', 'weapon', { dmg: 290 }), perk('Húc Xa', 'Húc Ma lao xa 11 m và choáng 0,7 giây.', 1, { dist: 11, stun: 0.7 }), perk('Pháp Tướng Lớn', 'Pháp Tướng to hơn 50%, chấn động rộng 7 m gây 500.', 2, { size: 1.5, nova: { windup: 0.3, radius: 7, dmg: 500, stun: 1.3 } })],
+  nguma: [perk('Rìu Nặng', 'Rìu Chấn gây 215.', 'weapon', { dmg: 215 }), perk('Húc Xa', 'Cuồng Dã Giác Tập lao xa 11 m, gây 320.', 1, { dist: 11, dmg: 320 }), perk('Đoạn Dã Rộng', 'Tàn Phong Đoạn Dã rộng 5,5 m, gây 680.', 2, { width: 5.5, dmg: 680 })],
   sontinh: [perk('Đá Nặng', 'Đá Lăn gây 250.', 'weapon', { dmg: 250 }), perk('Trớ Chú Rộng', 'Đại Địa Trớ Chú rộng 6 m.', 0, { radius: 6 }), perk('Thần Lâu', 'Sơn Thần đứng 15 giây.', 2, { dur: 16 })],
   enbac: [perk('Thương Xa', 'Song Thương bắn xa 15 m.', 'weapon', { range: 15 }), perk('Năm Đạo Đạn', 'Cân Tung Đạo Đạn phóng năm tên lửa.', 1, { n: 5 }), perk('Pháo Rộng', 'Lôi Xạ Đại Pháo rộng 2,2 m.', 2, { width: 2.2 })],
   boica: [perk('Nòng Sắc', 'Súng Lặn gây 390.', 'weapon', { dmg: 390 }), perk('Bẫy Bền', 'Bẫy Cảnh Giới làm chậm 60% trong 3 giây, lộ diện 7 giây, tồn tại 45 giây.', 1, { fx: { slow: 0.6, slowDur: 3, reveal: 7 }, life: 45 }), perk('Tia Chí Mạng', 'Khóa Mục Tiêu gây 2400, lấy đà 0,9 giây.', 2, { dmg: 2400, windup: 0.9 })],

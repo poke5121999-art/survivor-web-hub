@@ -133,6 +133,7 @@ function clearStatus(u) {
   hdClear(u);   // kit-remake G5 hades
   hlClear(u);   // kit-remake G5 hoalong
   ktClear(u);   // kit-remake G5 kiemthan
+  k18Clear(u);   // kit lane K18
 }
 
 function spawn(m, u, first) {
@@ -498,6 +499,7 @@ function stepUnit(m, u, inp) {
   krTick(m, u);   // kit-remake G5 Kurumi: a rewind mark snaps hp back when it ends
   k7Tick(m, u);   // kit-remake G5 lane K7: Serious Mode
   k10Tick(m, u);   // kit lane K10: Apocalypse's timed burst, Kirito's penetration stacks
+  k18Tick(m, u);   // kit lane K18: Chiến Tiêu, shield into hp, Mikasa's shield and combo window
   if (u.stance) { u.kx = 0; u.kz = 0; }
   // knock-up (hitfx air): the mech is in the air only while the stun it came with lasts (cc immunity, heavy, ccResist cut both)
   if (u.airT > u.stunT) u.airT = u.stunT;
@@ -550,12 +552,13 @@ function stepUnit(m, u, inp) {
     else if (c.up && c.total - c.t >= c.skill.charge.min) { u.cast = null; FINISH[c.skill.do](m, u, c.skill, c); }
   }
   if (u.cast && u.cast.skill.bnStop) bnStop(m, u, inp);   // kit-remake G5 Băng Nha: press again to stop the channel
-  if (u.cast || u.dash) { u.charge = 0; return; }
+  if (u.cast || (u.dash && !nhFree(u))) { u.charge = 0; return; }   // kit lane K18: Mikasa may spin while she reels
   // silence (hitfx): no skills, the weapon still works
   for (let i = 0; i < 3 && !(u.silenceT > 0); i++) {
     const key = SLOTS[i], rc = u.recast, re = !!rc && rc.slot === i && rc.t > 0;
     // next: the second stage of a two-stage skill is ready (armed, key pressed afresh): this press casts it, whatever the cooldown says
     const nx = u.next && u.next.slot === i && u.next.armed && u.next.up ? u.next : null;
+    if (!nhSlotOk(u, i)) continue;   // kit lane K18: only the spin while reeling
     if (!inp[key] || (!skillReady(u, i) && !re && !nx)) continue;
     const s = nx ? nx.row || u.def.skills[i].next.row : u.def.skills[i], at = m.events.length, wasHidden = u.stealthT;   // kit lane K13: nx.row, a later stage of a chain
     if (u.rootT > 0 && ROOT_BLOCKS[s.do] && !s.rootOk) continue;   // kit-remake G5 An Dương Vương: rootOk
@@ -583,6 +586,7 @@ function stepUnit(m, u, inp) {
     // meter castShield {frac, dur}: every cast (a second stage too) wraps the mech in a shield of frac of its max hp
     if (P && P.castShield) { u.shield = Math.max(u.shield, u.maxHp * P.castShield.frac); u.shieldMax = Math.max(u.shieldMax, u.shield); u.shieldT = Math.max(u.shieldT, P.castShield.dur); }
     g4Cast(m, u, s);
+    k18Cast(m, u, s);   // kit lane K18: Chiến Tiêu at each press, nmToHp, Mikasa's refill and combo crit
     k7Cast(m, u, s);   // kit-remake G5 lane K7: a cast breaks the ice block, the dash reloads
     k13Cast(m, u, s);   // kit lane K13
     if (u.passive === 'castHeal') k2CastHeal(m, u);   // kit-remake G5 Athena
@@ -612,6 +616,7 @@ function stepUnit(m, u, inp) {
     u.charge = 0;
     return;
   }
+  if (u.dash) return;   // kit lane K18: no weapon while Mikasa reels
   if (weaponOf(u).charge) stepCharge(m, u, inp);
   else if (inp.fire && u.cd.fire <= 0 && !(u.magT > 0) && !(u.sirT > 0)) fireWeapon(m, u, inp);   // sirT: kit-remake G5 Thủy Tinh
 }
@@ -1674,6 +1679,7 @@ function allyHurt(m, u, amount) {
 
 // hook.self: the hook caught a wall or a mech: the hooker is dragged to just short of it
 function reelSelf(m, u, x, z, o, s) {
+  if (s.nhWall) return nhReel(m, u, x, z, o, s);   // kit lane K18: Mikasa's grapple catches walls only
   if (o) { x = o.x; z = o.z; }
   const dx = x - u.x, dz = z - u.z, d = Math.hypot(dx, dz) || 0.01, left = d - (u.radius + (o ? o.radius ?? o.r ?? 0 : 0) + 0.45);
   if (o && o.radius !== undefined && o.alive) m.events.push({ t: 'hook', id: u.id, target: o.id, x, z });
@@ -1979,7 +1985,7 @@ function stepShots(m) {
       }
     }
     for (const u of m.units) {
-      if (u.team === s.team || !u.alive || volFull(s, u)) continue;
+      if (u.team === s.team || !u.alive || volFull(s, u) || (s.hook && s.hook.nhWall)) continue;   // kit lane K18: nhWall flies through mechs
       const t = segCircle(s.x, s.z, ex, ez, u.x, u.z, u.radius + s.r);
       if (u.bubT > 0) { const tb = segCircle(s.x, s.z, ex, ez, u.x, u.z, u.radius + s.r + 0.5); if (tb < best && tb <= 1) { best = tb; what = 'dome'; hitUnit = null; hitProp = null; hitTower = null; hitZone = null; } continue; }
       if (s.pierce) {
@@ -2332,6 +2338,7 @@ export function applyFx(m, src, o, fx, ctx) {
   }
   // antiheal {mul, dur}: heals it receives are x mul (the strongest cut that still runs wins)
   if (fx.antiheal) { o.ahF = o.ahT > 0 ? Math.min(o.ahF, fx.antiheal.mul) : fx.antiheal.mul; o.ahT = Math.max(o.ahT, fx.antiheal.dur); }
+  if (fx.nmMute) nmMute(o, fx.nmMute);   // kit lane K18: Ngưu Ma's ult mutes skill damage
   if (fx.yank || fx.slam || (fx.antiheal && fx.antiheal.shield)) g4Fx(m, src, o, fx, ctx);
   if (fx.execute && !o.def.boss && o.hp < o.maxHp * fx.execute) {
     m.events.push({ t: 'execute', id: o.id, by: src.id, x: o.x, z: o.z });
@@ -2376,6 +2383,7 @@ function damage(m, u, amount, src, raw) {
     if (foe.passive === 'ambush' && foe.ambushT > 0 && !hidden(foe)) { amount *= foe.def.passive.mul; foe.ambushT = 0; }
     amount *= lowHpScaleMul(foe);
     amount *= k7AimMul(foe, u);   // kit-remake G5 Ưng Nhãn: Aim vs a shielded mech
+    amount *= k18Mul(m, foe, u);   // kit lane K18: whirl stacks, armour sense, spin stacks, muted attacker
     if (u.inT > 0 && curSrc === 'w') amount *= 1 - k1Wdr(u);
   }
   // kit-remake G2: the hit's kind (weapon / skill) and a vsTag payoff the row reads off this victim's tag
@@ -2420,6 +2428,7 @@ function damage(m, u, amount, src, raw) {
   if (foe && left + absorbed > 0) tthHurt(m, u, left + absorbed);   // kit-remake G5 Tào Tháo
   if (foe && left + absorbed > 0) mgtHurt(foe);   // kit-remake G5 Magneto
   if (foe && foe.alive && left + absorbed > 0) k13Hit(m, foe, u);   // kit lane K13: passives that ride every hit
+  if (foe && left + absorbed > 0 && !reflecting) k18Hit(m, foe, u, left + absorbed);   // kit lane K18
   if (foe && foe.alive && left > 0) {
     const low = lowHpMod(foe), steal = Math.max(foe.passive === 'lifesteal' ? foe.def.passive.frac * (low && low.steal ? low.steal : 1) : 0, foe.rageT > 0 ? foe.rageF : 0, curShot && curShot.owner === foe.id ? curShot.steal : 0, k7Steal(foe));
     if (steal) heal(m, foe, left * steal, foe, true);
@@ -4267,3 +4276,123 @@ function knThirst(u, P) {
   u.hiF = Math.max(u.hiT > 0 ? u.hiF : 1, g); u.hiT = Math.max(u.hiT, P.dur);
 }
 /* ===== end kit lane K13 ===== */
+
+/* ===== kit lane K18 (feat/dtt-k18; ~/handoff/dtt-ref/kits/MECHANICS.md group 5, AUDIT-b.md nguma, nhenthep) =====
+   Hooks elsewhere are one line each, marked "kit lane K18", and call into this block.
+   kit-remake G5 Ngưu Ma Vương: passive `nmGale {every, radius, dmg, amp, slow, max, dur, hurt, guard}` (Chiến Tiêu: a whirl round
+     him every `every` s, at each press (second stages too) and each time he has taken `hurt` x his max hp from foes: dmg with the
+     area falloff, tag 'nmGale'; each enemy it hurts gets one of his stacks (`nmN/nmT/nmBy`, at most max, gone dur s after the last):
+     slowed slow x stacks, and his next whirl hurts it x (1 + amp x stacks); he gets one of his own (`nmS/nmST`): G2 guard vs 'skill'
+     of guard x his stacks for dur s; event k18 {kind: 'gale', r, n}), row `nmToHp: true` beside a selfShield (the shield the press
+     gave turns into hp bit by bit over its time, `nmCvT`), hitfx `nmMute {mul, dur}` (the victim's skill damage, every hit not
+     tagged 'w', is x mul: `nmMT/nmMF`).
+   kit-remake G5 Mikasa: passive `nhArmor: f` (her hits do x (1 + f x the target's armour)), row `nhShield {haste}` with `nhEn: n`
+     (the press cleanses her and gives n energy; while the shield it gave lasts (`nhQT`), she is cc immune, runs x haste and the
+     slot's cooldown stands full: it starts when the shield is gone), hook `nhWall {dmg, fx, combo}` (the hook flies through mechs
+     and catches only walls, props and towers; she reels to it cc immune, hurting every enemy she touches on the way with dmg x
+     her damage scale and fx (row tag), and for `combo` s from the catch (`nhCT`) her nhCombo row crits; while she reels she may
+     press that row, nothing else, and does not shoot; event k18 {kind: 'latch', x, z}), nova `nhStack {amp, max, dur}` (each enemy
+     it hurts takes amp x stacks more from her next one of the same row: `nhN/nhT/nhBy`), nova `nhCombo {mul, guard, dur}` (pressed
+     inside the combo window: that blow x mul and G2 guard vs 'skill' for dur s; the window is spent; event k18 {kind: 'crit'}).
+   In netstate STATUS: nmS, nmN, nmMT, nhCT, nhN, nhQT. */
+const NM_GALE = 'nmGale';
+function k18Clear(u) {
+  u.nmClock = 0; u.nmAcc = 0; u.nmS = 0; u.nmST = 0; u.nmN = 0; u.nmT = 0; u.nmBy = -1; u.nmCvT = 0; u.nmMT = 0; u.nmMF = 1;
+  u.nhQT = 0; u.nhCT = 0; u.nhN = 0; u.nhT = 0; u.nhBy = -1;
+}
+const nmOf = (u) => (u.def.passive && u.def.passive.nmGale) || null;
+function k18Tick(m, u) {
+  const dt = TICK;
+  if (u.nmT > 0 && (u.nmT -= dt) <= 1e-9) { u.nmT = 0; u.nmN = 0; u.nmBy = -1; }
+  if (u.nhT > 0 && (u.nhT -= dt) <= 1e-9) { u.nhT = 0; u.nhN = 0; u.nhBy = -1; }
+  if (u.nmST > 0 && (u.nmST -= dt) <= 1e-9) { u.nmST = 0; u.nmS = 0; }
+  if (u.nmMT > 0 && (u.nmMT -= dt) <= 1e-9) { u.nmMT = 0; u.nmMF = 1; }
+  if (u.nhCT > 0) u.nhCT = Math.max(0, u.nhCT - dt);
+  // nmToHp: the rest of the shield turns into hp evenly over the time it has left (the shield's own timer, already counted this tick)
+  if (u.nmCvT > 0) {
+    u.nmCvT = Math.max(0, u.nmCvT - dt);
+    const T = Math.min(u.nmCvT + dt, u.shieldT);
+    if (u.shield <= 0 || !(T > 0)) u.nmCvT = 0;
+    else { const x = u.shield * Math.min(1, dt / T); u.shield -= x; heal(m, u, x, u, true); }
+  }
+  // nhShield: cc immune and faster while the shield lasts, the slot's cooldown held full; gone with the shield
+  if (u.nhQT > 0) {
+    u.nhQT = Math.max(0, u.nhQT - dt);
+    const i = u.def.skills.findIndex((r) => r.nhShield), s = u.def.skills[i];
+    if (u.shield <= 0 || !s) u.nhQT = 0;
+    else {
+      u.ccT = Math.max(u.ccT, 2 * dt);
+      u.hasteF = Math.max(u.hasteT > 0 ? u.hasteF : 1, s.nhShield.haste || 1); u.hasteT = Math.max(u.hasteT, 2 * dt);
+      u.cd[SLOTS[i]] = s.cd;
+    }
+  }
+  const G = nmOf(u);
+  if (G && u.alive && (u.nmClock += dt) >= G.every - 1e-9) nmGale(m, u, G);
+}
+function nmGale(m, u, G) {
+  u.nmClock = 0;
+  m.events.push({ t: 'k18', kind: 'gale', id: u.id, x: u.x, z: u.z, r: G.radius, n: u.nmS });
+  const keep = curSrc;
+  curSrc = NM_GALE; areaDamage(m, u, u.x, u.z, G.radius, G.dmg, null, null); curSrc = keep;
+  if (!u.alive) return;
+  u.nmS = Math.min(G.max, u.nmS + 1); u.nmST = G.dur;
+  g2Guard(u, G.guard * u.nmS, 'skill', G.dur);
+}
+// Every successful press, after its cast: Chiến Tiêu, the shield that turns into hp, Mikasa's refill and her combo crit.
+function k18Cast(m, u, s) {
+  const G = nmOf(u);
+  if (G) nmGale(m, u, G);
+  if (s.nmToHp && s.selfShield) u.nmCvT = s.selfShield.dur ?? 3;
+  if (s.nhShield) { cleanse(u); u.nhQT = s.selfShield ? s.selfShield.dur ?? 3 : 0; if (s.nhEn) enAdd(u, s.nhEn); }
+  if (s.nhCombo && u.nhCT > 0) {
+    const C = s.nhCombo;
+    u.nhCT = 0;
+    if (u.cast && u.cast.skill === s) u.cast.mul = (u.cast.mul || 1) * C.mul;
+    g2Guard(u, C.guard, 'skill', C.dur);
+    m.events.push({ t: 'k18', kind: 'crit', id: u.id, x: u.x, z: u.z });
+  }
+}
+// What damage() multiplies an enemy hit by: his whirl on his own stacks, her armour sense and spin stacks, a muted attacker.
+function k18Mul(m, foe, u) {
+  let k = 1;
+  const G = nmOf(foe);
+  if (G && curSrc === NM_GALE && u.nmBy === foe.id && u.nmT > 0) k *= 1 + G.amp * u.nmN;
+  const P = foe.def.passive;
+  if (P && P.nhArmor) k *= 1 + P.nhArmor * armorOf(m, u);
+  if (u.nhN > 0 && u.nhT > 0 && u.nhBy === foe.id && curSrc && nhRow(foe, curSrc)) k *= 1 + nhRow(foe, curSrc).nhStack.amp * u.nhN;
+  if (foe.nmMT > 0 && curSrc !== 'w') k *= foe.nmMF;
+  return k;
+}
+const nhRow = (u, src) => (u.def.skills ? u.def.skills.find((r) => r.id === src && r.nhStack) : null) || null;
+// After an enemy hit landed (amt: hp + shield it took): stacks of his whirl and of her spin on the victim, his hurt count.
+function k18Hit(m, foe, u, amt) {
+  const G = nmOf(foe);
+  if (G && curSrc === NM_GALE && u.alive) {
+    u.nmN = u.nmBy === foe.id && u.nmT > 0 ? Math.min(G.max, u.nmN + 1) : 1; u.nmBy = foe.id; u.nmT = G.dur;
+    if (!(u.ccT > 0)) { u.slowF = Math.max(u.slowT > 0 ? u.slowF : 0, G.slow * u.nmN); u.slowT = Math.max(u.slowT, G.dur); }
+  }
+  const S = curSrc ? nhRow(foe, curSrc) : null;
+  if (S && u.alive) { u.nhN = u.nhBy === foe.id && u.nhT > 0 ? Math.min(S.nhStack.max, u.nhN + 1) : 1; u.nhBy = foe.id; u.nhT = S.nhStack.dur; }
+  const H = nmOf(u);
+  if (H && u.alive && H.hurt) {
+    u.nmAcc += amt;
+    while (u.nmAcc >= H.hurt * u.maxHp - 1e-9 && u.alive) { u.nmAcc -= H.hurt * u.maxHp; nmGale(m, u, H); }
+  }
+}
+function nmMute(o, M) { o.nmMF = o.nmMT > 0 ? Math.min(o.nmMF, M.mul) : M.mul; o.nmMT = Math.max(o.nmMT, M.dur); }
+// nhWall: the hook caught a wall, prop or tower: she reels to it, cc immune, cutting every enemy she touches on the way.
+function nhReel(m, u, x, z, o, s) {
+  const W = s.nhWall;
+  if (o) { x = o.x; z = o.z; }
+  const dx = x - u.x, dz = z - u.z, d = Math.hypot(dx, dz) || 0.01, left = d - (u.radius + (o ? o.radius ?? o.r ?? 0 : 0) + 0.45);
+  m.events.push({ t: 'k18', kind: 'latch', id: u.id, x, z, x0: u.x, z0: u.z });
+  u.nhCT = W.combo || 0;
+  if (left <= 0.2 || u.def.heavy) return;
+  u.cast = null;
+  u.dash = { dx: dx / d, dz: dz / d, left, speed: s.speed, s: { id: s.id, dmg: W.dmg, fx: W.fx || null }, hit: [], nh: true };
+  u.ccT = Math.max(u.ccT, left / s.speed + 0.1);
+}
+// While she reels (nhWall) the cast loop stays open, for her nhCombo row only.
+const nhFree = (u) => !!(u.dash && u.dash.nh);
+const nhSlotOk = (u, i) => !u.dash || (nhFree(u) && !!u.def.skills[i].nhCombo);
+/* ===== end kit lane K18 ===== */

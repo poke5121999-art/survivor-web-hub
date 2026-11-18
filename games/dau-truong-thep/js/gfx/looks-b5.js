@@ -3,7 +3,7 @@
 // Clip notes (bilibili BV1Kp4y1b7i6, mapping in ~/handoff/dtt-ref/bili/MAP.md):
 //   佐助 p75 (Quạ Sét): a cyan-white Chidori streak, a violet flame Susanoo round the mech, cyan lances.
 //   琦玉 p77 (Saitama, tegiac): its looks moved to looks-k7.js with the kit ported from the clip (kit lane K7).
-//   牛魔王 p85 (Ngưu Ma Vương): lime-green swirling arcs and rings round the bull; ours keeps the bull's dark red hide.
+//   牛魔王 p85 (Ngưu Ma Vương): its looks moved to looks-k18.js with the kit ported from the clip (kit lane K18).
 //   黑豹 p89 (Báo Gấm): three white claw slashes, a dark ink swirl of kinetic rings.
 //   雷神 p28 (Lôi Công): the golden hammer wrapped in lightning, an orange blast disc with cracks and a blue rim.
 //   美杜莎 p42 (Mãng Xà): green serpents, a cage of tilted green rings like a gyroscope.
@@ -160,65 +160,7 @@ const quaset = {
 function fadeAll(g, k) { g.traverse((m) => { if (m.material) { if (m.userData.op === undefined) m.userData.op = m.material.opacity; m.material.opacity = m.userData.op * k; } }); }
 
 // ---- Ngưu Ma Vương: dark red bull, iron axe, lime demon fire ---------------------------------------------------------
-const NM_LIME = C(1.1, 2.6, 0.25), NM_RED = C(2.2, 0.25, 0.12), NM_DARK = C(0.12, 0.3, 0.02);
-const axeGeo = (() => { const s = new THREE.Shape(); s.moveTo(-0.2, -0.22); s.lineTo(0.45, -0.3); s.quadraticCurveTo(0.9, -0.8, 1.25, -1.15); s.quadraticCurveTo(1.75, 0, 1.25, 1.15); s.quadraticCurveTo(0.9, 0.8, 0.45, 0.3); s.lineTo(-0.2, 0.22); s.lineTo(-0.2, -0.22); return keep(new THREE.ShapeGeometry(s, 12).rotateX(-Math.PI / 2)); })();
-const haftGeo = keep(new THREE.BoxGeometry(2.2, 0.12, 0.2).translate(-1.2, 0, 0));
-function axe() { const g = new THREE.Group(), h = new THREE.Mesh(axeGeo, basic(NM_LIME, true, 0.85)), b = new THREE.Mesh(axeGeo, basic(0x2a1410, false, 0.95)), hf = new THREE.Mesh(haftGeo, basic(0x3a1a12, false, 1)); h.scale.setScalar(1.3); h.position.set(-0.15, -0.02, 0); g.add(h, b, hf); return g; }
-const hornGeo = (() => { const c = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.5, 0.15, 0.55), new THREE.Vector3(1.2, 0.55, 0.75), new THREE.Vector3(1.75, 1.2, 0.45)]); return keep(new THREE.TubeGeometry(c, 14, 0.2, 6)); })();
-const hornTip = keep(new THREE.ConeGeometry(0.2, 0.6, 6).rotateZ(-0.6).translate(1.9, 1.45, 0.4));
-function horns(glowOp = 0.7) {
-  const g = new THREE.Group(), m = basic(0xe8dcc0, false, 1), gl = basic(NM_LIME, true, glowOp);
-  for (const sd of [-1, 1]) { const h = new THREE.Group(); h.add(new THREE.Mesh(hornGeo, m), new THREE.Mesh(hornTip, m)); const hg = new THREE.Mesh(hornGeo, gl); hg.scale.setScalar(1.15); h.add(hg); h.scale.z = sd; h.position.z = sd * 0.35; g.add(h); }
-  return g;
-}
-const nguma = {
-  // Sóng Rìu: three iron axe heads wrapped in lime fire fly out, blade first, each leaving a lime wake
-  nmAxe: {
-    pal: [NM_DARK, NM_LIME], hitR: 1.8,
-    skill(kit, e, u) { kit.glow(u.x + Math.cos(e.a) * 1.5, 1.3, u.z + Math.sin(e.a) * 1.5, NM_LIME, 0.15, 2.4, 1, kit.K.STAR, 1.3); return true; },
-    shotMake(kit, s) { const g = axe(); g.scale.setScalar(2.6); const v = { g, h: held(kit, [g]), a: Math.atan2(s.dz, s.dx), x: s.x, z: s.z, live: true }; trail(kit, () => (v.live ? [v.x, 1.0, v.z] : null), 2.0, NM_LIME, 0.45, { c2: NM_DARK, len: 12 }); return v; },
-    shot(kit, v, s, x, y, z) { v.x = x; v.z = z; v.g.position.set(x, 1.1, z); v.g.rotation.set(0, -v.a, 0); if (Math.random() < 0.5) kit.glow(x, 1.1, z, NM_LIME, 0.3, 0.6, 1, kit.K.FLAME, 1.1, 0, R(1, 3), 0); return true; },
-    shotEnd(kit, v, s, x, z) { v.live = false; v.h.on = false; kit.sparks(x, 1.1, z, kit.N(8), NM_LIME, 7, 0.3, 0.05, 0.5, 8); },
-  },
-  // Húc Ma: great horns lower in front of him, two hoof tracks burn behind and dust boils up; where he stops, a lime blow
-  nmCharge: {
-    pal: [NM_RED, NM_LIME], hitR: 2,
-    skill(kit, e, u) {
-      const a = e.a, ca = Math.cos(a), sa = Math.sin(a), h = horns(); let done = false;
-      own(kit, [h], 0.75, (t) => {
-        if (!u.alive) return false;
-        const go = !done; if (go && t > 0.06 && !u.dash) { done = true; burst(kit, u.x + ca * 2, u.z + sa * 2, 2.4, NM_RED, NM_LIME); kit.kick(u.x, u.z, 0.5); }
-        h.position.set(u.x + ca * 0.9, 0.7, u.z + sa * 0.9); h.rotation.y = -a; h.scale.setScalar(2.2); fadeAll(h, done ? Math.max(0, 1 - (t - 0.35) / 0.3) : 1);
-        if (!done) { for (const sd of [-1, 1]) kit.scorch(u.x + sa * sd * 0.7, u.z - ca * sd * 0.7, 0.45, 3, 1.2, NM_LIME); if (Math.random() < 0.6) kit.puffs(u.x - ca, 0.4, u.z - sa, 1, C(0.45, 0.32, 0.22), 0.6, 2, 0.8, 1.2, 2.2, 0.6, 0.5, kit.K.DUST, 3); }
-      });
-      for (const sd of [-1, 1]) trail(kit, (t) => (t < 0.4 && u.alive && (t < 0.06 || u.dash) ? [u.x + ca * 2.4 - sa * sd * 1.6, 1.8, u.z + sa * 2.4 + ca * sd * 1.6] : null), 0.7, NM_LIME, 0.6, { c2: NM_DARK, len: 14 });
-      return true;
-    },
-  },
-  // Pháp Tướng: a giant pair of lime demon horns rises over him, lime arcs swirl round him; after the wind-up the ground
-  // quakes in a ring of lime fire with red cracks
-  nmAvatar: {
-    pal: [NM_RED, NM_LIME], hitR: 2.4,
-    skill(kit, e, u, row) {
-      const dur = row.dur || 6, t0 = kit.time, live = () => u.alive && (kit.time - t0 < 0.6 || u.tfT > 0), wind = (row.nova && row.nova.windup) || 0.3, R6 = (row.nova && row.nova.radius) || 6;
-      const h = horns(0.9);
-      own(kit, [h], dur + 0.3, (t) => { if (!live()) return false; const k = Math.min(1, t / 0.3); h.position.set(u.x - Math.cos(u.aim) * 0.6, 2.2 + 0.6 * k, u.z - Math.sin(u.aim) * 0.6); h.rotation.set(0, -u.aim, 1.15); h.scale.setScalar(2.4 * k); });
-      sigil(kit, u.x, u.z, 4.2, NM_LIME, { c2: NM_RED, n: 0, ticks: 9, inner: 0.82, fill: 0.14, w: 0.12, spin: 2.5, follow: u, life: dur, rev: 0.2, alpha: 0.9 });
-      sigil(kit, u.x, u.z, 3.0, NM_LIME, { n: 0, ticks: 6, inner: 0.7, fill: 0, w: 0.1, spin: -3.5, follow: u, life: dur, rev: 0.2, alpha: 0.8 });
-      kit.anims.push({ t: 0, step(dt) { this.t += dt; if (this.t < wind) return true; if (!u.alive) return false;
-        const x = u.x, z = u.z;
-        sigil(kit, x, z, R6, NM_LIME, { c2: NM_RED, n: 0, ticks: 0, inner: 0.72, fill: 0.55, life: 0.6, rev: 0.12, w: 0.1 });
-        shell(kit, x, 1.2, z, R6 * 0.6, NM_LIME, { c2: C(2.2, 2.6, 1.2), p: 1.1, core: 0.3, life: 0.7, grow: 0.1 });
-        for (const [rr, sp] of [[0.95, 4], [0.75, -5], [0.55, 6]]) sigil(kit, x, z, R6 * rr, NM_RED, { c2: NM_LIME, n: 0, ticks: 5, inner: 0.86, fill: 0, w: 0.16, spin: sp, life: 0.8, rev: 0.1 });
-        for (let i = 0; i < kit.N(20); i++) { const b = Math.random() * 6.283, d = R6 * R(0.6, 1); kit.glow(x + Math.cos(b) * d, 0.3, z + Math.sin(b) * d, NM_LIME, 0.6, R(0.7, 1.2), 1, kit.K.FLAME, 1.2, 0, R(3, 6), 0); }
-        kit.flash(x, 2, z, NM_LIME, 70, 0.35); kit.kick(x, z, 0.9);
-        return false; }, drop() {} });
-      kit.follow(u, dur, () => { if (live() && Math.random() < 0.5) { const b = Math.random() * 6.283; kit.glow(u.x + Math.cos(b) * 1.4, R(0.3, 1.5), u.z + Math.sin(b) * 1.4, NM_LIME, 0.5, 0.6, 1, kit.K.FLAME, 1.2, 0, R(2, 4), 0); } });
-      return true;
-    },
-    transform(kit, e) { if (!e.on) kit.ring(e.x, e.z, 3, NM_LIME, 0.35); return true; },
-  },
-};
+// ---- Ngưu Ma Vương moved to looks-k18.js with the kit ported from clip p85 (kit lane K18) ---------------------------
 
 // ---- Black Panther (Báo Gấm) moved to looks-k9.js with the kit ported from clip p89 ----------------------------------
 
@@ -372,5 +314,5 @@ const mangxa = {
   },
 };
 
-export const B5 = { ...quaset, ...nguma, ...loi, ...mangxa };
+export const B5 = { ...quaset, ...loi, ...mangxa };   // nguma moved to looks-k18.js with its ported kit
 export { zap, forks, ribbonMesh, fillRibbon };

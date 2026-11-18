@@ -14,6 +14,7 @@ import { runK6Cases } from './k6-cases.mjs';   // kit lane K6: section K6
 import { runK13Cases, oldK13, OLD_DOMDOM, OLD_DUONGTIEN } from './k13-cases.mjs';   // kit lane K13: section K13, old domdom/duongtien/mucma kits as fixtures
 import { runK14Cases, oldKit14 } from './k14-cases.mjs';   // kit lane k14: section 62, old gilgamesh/suatrang/chuottui kits as fixtures
 import { runK15Cases, oldKit as oldKit15, OLD_HOALONG, OLD_KIEMTHAN } from './k15-cases.mjs';   // kit lane k15: section k15, old hades/hoalong/kiemthan kits as fixtures
+import { runK18Cases, oldK18 } from './k18-cases.mjs';   // kit lane K18: section K18, the old nguma kit kept as a fixture
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -2919,7 +2920,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   }
   // transform (nguma): size 1.35 hitbox, armor +0.2, nova after the windup, radius back at the end
   {
-    const m = arena([[R('nguma', 0), 0, 0], [R('trau', 1), 3, 0]]), [a, v] = m.units;
+    const m = oldK18(arena([[R('nguma', 0), 0, 0], [R('trau', 1), 3, 0]])), [a, v] = m.units;
     go(m, 1, () => ({ 0: { ult: true } }));
     check('41h transform size: radius 1.0 -> 1.35 at once, unitRadius agrees', near(a.radius, 1.35) && near(unitRadius(a), 1.35), `${a.radius}`);
     check('41i transform armor: 0.14 + 0.2 = 0.34', near(armorOf(m, a), 0.34), `${armorOf(m, a)}`);
@@ -2954,7 +2955,7 @@ section('41 batch 2 primitives: transform, ramp, burn, dash.recast, dash.stop, b
   }
   // ramp 'hurt' (nguma armor)
   {
-    const m = arena([[R('ung', 0), 0, 0], [R('nguma', 1), 5, 0]]), v = m.units[1];
+    const m = oldK18(arena([[R('ung', 0), 0, 0], [R('nguma', 1), 5, 0]])), v = m.units[1];
     go(m, 12, (i) => ({ 0: { fire: i === 0 } }));
     check('41s ramp hurt: one hit -> rampN 1, armor 0.14 + 0.02 = 0.16', v.rampN === 1 && near(armorOf(m, v), 0.16), `rampN ${v.rampN} armor ${armorOf(m, v)}`);
     v.rampN = 9;
@@ -4481,6 +4482,7 @@ runK9Cases(check, section);
 runK7Cases(check, section);
 runK10Cases(check, section);   // kit lane K10
 runK6Cases(check, section);   // kit lane K6
+runK18Cases(check, section);   // kit lane K18
 
 section('60 kit-remake G4 primitives (MECHANICS.md Group 4): far.ramp, hitfx yank/slam/chain.seq/antiheal.shield, selfShield frac/hits/burst, passive reShield/hitCap/healIn/lowHpScale, weapon mag, dash.windup, healIn, warp.to own objects, totem (test-only rows, literal expected values)');
 {

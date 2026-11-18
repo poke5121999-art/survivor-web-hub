@@ -1096,6 +1096,7 @@ const SKILL_AI = {
   },
   dash(c, s) {
     if (s.back) return k4BotBack(c, s);   // kit-remake K4: enbac fires forward while backing off
+    if (s.nhShield) return k18BotQ(c, s);   // kit lane K18: Mikasa's refill dash
     const { u, tgt, td, los } = c;
     if (s.rootOk && !s.dmg && s.cdCut) return adBotRoll(c, s);   // kit-remake G5 An Dương Vương
     // a dash that hurts nobody but leaves a trap behind (onStart): use it to break contact, away from the nearest enemy
@@ -1125,6 +1126,7 @@ const SKILL_AI = {
   },
   nova(c, s) {
     if (s.orbKnock) return k4BotKnock(c, s);   // kit-remake K4: tumay's cone also throws its orbs
+    if (s.nhCombo) return k18BotSpin(c, s);   // kit lane K18: Mikasa's spin
     if (c.u.def.passive && c.u.def.passive.hdSplit) return hdBotNova(c, s);   // kit-remake G5 hades: Lợi Nhận on one foe in reach
     if (s.ktFree) return ktBotDrink(c, s);   // kit-remake G5 kiemthan: the wine (cleanse, haste, push)
     const { u, tgt } = c;
@@ -1401,6 +1403,7 @@ const SKILL_AI = {
     return false;
   },
   hook(c, s) {
+    if (s.nhWall) return k18BotHook(c, s);   // kit lane K18: Mikasa's grapple catches walls only
     const { u, m, tgt, td } = c;
     if (!tgt || !c.los || tgt.def.heavy || tgt.stance || td < 4.5 || td > s.range - 1 || c.hpFrac < 0.3) return false;
     if (m.mode === 'tudo' ? c.near > 1 : c.near - c.allyNear >= 2) return false;
@@ -2579,3 +2582,55 @@ function ktBotRain(c, s) {
   return n >= 2 || (n >= 1 && (low || c.D.skill >= 0.9));
 }
 /* ===== end kit-remake G5 kiemthan ===== */
+
+/* ===== kit lane K18 bots: Mikasa's refill dash, wall grapple and spin ===== */
+// Cực Tốc Điền Sung: to shake off a hold (cleanse) or break away when hurt (away from the nearest foe), else to close in on the target
+function k18BotQ(c, s) {
+  const { u, m, tgt, td } = c;
+  if (!c.enemies.length) return false;
+  let near = c.enemies[0], nd = 1e9;
+  for (const e of c.enemies) { const d = hyp(e.x - u.x, e.z - u.z); if (d < nd) { nd = d; near = e; } }
+  const held = u.slowT > 0.4 || u.rootT > 0.4 || u.silenceT > 0.4 || u.burnT > 1;
+  const flee = c.hpFrac < 0.45 && (c.underFire || nd < 6);
+  if (!flee && !(held && nd < 9) && !(tgt && c.los && td > 3.5 && td < s.dist + 4 && (c.underFire || c.D.skill >= 0.8))) return false;
+  const base = flee ? Math.atan2(u.z - near.z, u.x - near.x) : tgt ? Math.atan2(tgt.z - u.z, tgt.x - u.x) : Math.atan2(u.z - near.z, u.x - near.x);
+  for (const da of [0, 0.5, -0.5, 1.1, -1.1]) {
+    const a = base + da, ex = u.x + Math.cos(a) * s.dist, ez = u.z + Math.sin(a) * s.dist;
+    if (solidAt(m.map, ex, ez, u.moveRadius * 0.8) || lavaSeg(m.map, u.x, u.z, ex, ez, 0.5)) continue;
+    c.b.sk.aim = a; c.b.sk.tol = 0.25;
+    return true;
+  }
+  return false;
+}
+// Đạn Xạ Câu Trảo (nhWall): the grapple only catches walls. Aim it at a wall the reel crosses the target on the way to, or lands
+// within weapon reach of it; hurt and hunted, at a wall away from the foes.
+function k18BotHook(c, s) {
+  const { u, m, tgt, td, w } = c;
+  if (!tgt || c.hpFrac < 0.2) return false;
+  const flee = c.hpFrac < 0.4 && c.underFire;
+  if (!flee && (td > s.range + w.range || td < 2.5)) return false;
+  const base = Math.atan2(tgt.z - u.z, tgt.x - u.x) + (flee ? Math.PI : 0);
+  for (const da of [0, 0.25, -0.25, 0.5, -0.5, 0.8, -0.8]) {
+    const a = base + da, dx = Math.cos(a), dz = Math.sin(a);
+    const t = castStatic(m.map, u.x, u.z, u.x + dx * s.range, u.z + dz * s.range, 0.2);
+    if (!(t < 1)) continue;
+    const L = t * s.range - u.radius - 0.45;
+    if (L < 4) continue;
+    if (flee) { c.b.sk.aim = a; c.b.sk.tol = 0.12; return true; }
+    const ex = u.x + dx * L, ez = u.z + dz * L, along = (tgt.x - u.x) * dx + (tgt.z - u.z) * dz, side = Math.abs((tgt.x - u.x) * dz - (tgt.z - u.z) * dx);
+    const cuts = along > 0 && along < L && side < u.radius + tgt.radius + 0.35;
+    if (!cuts && hyp(tgt.x - ex, tgt.z - ez) > w.range * 0.9) continue;
+    if (c.near - c.allyNear >= 2 && !cuts) continue;
+    c.b.sk.aim = a; c.b.sk.tol = 0.08;
+    return true;
+  }
+  return false;
+}
+// Hồi Toàn Trảm Kích (nhCombo): three cheap spins; any foe inside the ring is worth one, at once inside the grapple's combo window
+function k18BotSpin(c, s) {
+  const u = c.u;
+  let n = 0;
+  for (const e of c.enemies) if (hyp(e.x - u.x, e.z - u.z) < s.radius * (u.nhCT > 0 ? 1.1 : 0.85)) n++;
+  return n >= 1;
+}
+/* ===== end kit lane K18 bots ===== */
