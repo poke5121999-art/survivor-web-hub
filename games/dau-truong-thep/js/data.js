@@ -1064,21 +1064,34 @@ export const MECHS = {
         desc: 'Cơn loạn đao bám theo bạn 5 giây: địch trong 4,5 m mất 220 máu mỗi giây, và bạn hồi bằng một nửa số máu đó.' },
     ],
   },
+  // Mikasa: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p56 "53.米卡莎", tooltips in ~/handoff/dtt-ref/kits/AUDIT-b.md,
+  // gameplay 35-61 s watched by kit lane k18: a thin cyan grapple line to the wall, a dark slate shield bubble, a ring of steel blade
+  // shards spinning round her, crit numbers right after a grapple). Attack = one Song Lưỡi pair (2 x 64 = 128, kept): Đạn Xạ Câu
+  // Trảo 100% -> 128 on everyone the reel touches, Hồi Toàn Trảm Kích 100% -> 128. Cooldowns 8 / 4 / 4 s in the clip -> 10 / 5 / 5
+  // (her "ult" is a three-use spin, as in the clip). Her energy is kept (G2 def.energy: 100, +5 a second, +2.5 a weapon hit = +5 a
+  // pair; the grapple costs 50, Cực Tốc Điền Sung gives 75). Crit after a grapple = x1.5. Kit-remake G5 fields (sim.js block "kit
+  // lane K18"): passive nhArmor (more damage on heavy armour), dash nhShield + nhEn (cleanse, energy, cc immune and haste while the
+  // shield lasts, cooldown after it), hook nhWall (catches walls only, cuts along the reel, combo window, spin while reeling), nova
+  // nhStack (+25% a stack for the next spin) and nhCombo (the crit and 50% less skill damage taken for 2 s).
   nhenthep: {
     name: 'Mikasa', role: 'Thọc sườn', roleKey: 'flanker', price: 1700, tint: 0x4a4f58,
-    blurb: 'Móc tơ kéo mình tới địch, vòng chém lướt vô địch và đánh dấu mục tiêu, rồi đu dây năm nhát liên hoàn. Hạ gục là móc tơ sẵn sàng ngay.',
+    blurb: 'Thiết bị cơ động lập thể: móc câu vào tường rồi bay tới, chém mọi kẻ trên đường, vừa đáp là xoay chém chí mạng. Giáp địch càng dày càng chém đau. Cực Tốc Điền Sung giải khống chế, lướt đi và bọc khiên.',
     hp: 2350, speed: 7.3, radius: 0.76,
     armor: 0.02, accel: 1.4, turn: 16, towerMul: 1.4,
-    passive: { do: 'brittle', name: 'Thợ Săn', desc: 'Gây thêm 25% sát thương lên kẻ đang bị đánh dấu. Hạ gục một kẻ thì Móc Đu hồi xong ngay.',
-      mul: 1.25, when: 'marked', mods: { onKill: { reset: { slots: ['s1'], frac: 1 } } } },
+    energy: { max: 100, regen: 5, start: 100, gain: { weapon: 2.5 } },
+    passive: { do: 'trait', name: 'Thiết Bị Cơ Động', look: 'nhGear', nhArmor: 1.5,
+      desc: 'Móc câu tốn năng lượng: tối đa 100, hồi 5 mỗi giây, mỗi lượt chém thường trúng hồi thêm 5. Giáp mục tiêu càng dày bạn chém càng đau: thêm 1,5 lần giáp của nó (giáp 20% là thêm 30%).' },
     weapon: { name: 'Song Lưỡi', cd: 0.3, dmg: 64, n: 2, fan: 0.12, speed: 30, range: 8, r: 0.24, vis: 'pellet' },
     skills: [
-      { id: 'mocdu', look: 'ntHook', name: 'Móc Đu', cd: 7, do: 'hook', speed: 36, range: 13, r: 0.35, dmg: 140, self: true, vis: 'hook', icon: 'hook',
-        desc: 'Bắn móc tơ 140 sát thương; trúng tường hoặc một cỗ máy thì kéo bạn lao tới đó (không kéo mục tiêu).' },
-      { id: 'vongchem', look: 'ntSlash', name: 'Vòng Chém', cd: 9, do: 'dash', dist: 6, speed: 32, dmg: 165, invuln: true, fx: { amp: { amp: 0.2, dur: 4 } }, icon: 'dash',
-        desc: 'Lướt 6 m, vô địch suốt lúc lướt, chém 165; kẻ trúng nhận thêm 20% sát thương từ mọi người trong 4 giây.' },
-      { id: 'dudaylienhoan', look: 'ntSwing', name: 'Đu Dây Liên Hoàn', cd: 40, do: 'flurry', n: 5, range: 9, speed: 38, dmg: 240, invuln: true, icon: 'swords',
-        desc: 'Khóa kẻ địch ở con trỏ (xa nhất 9 m) rồi đu qua đu lại năm lượt: mỗi lượt chém kẻ gần nhất chưa bị chém 240, vô địch suốt chuỗi. Không có ai thì không phóng.' },
+      { id: 'cuctoc', look: 'nhRefill', name: 'Cực Tốc Điền Sung', cd: 10, do: 'dash', windup: 0.15, move: 0, dist: 5, speed: 30, dmg: 0, rootOk: true,
+        selfShield: { frac: 0.25, dur: 4 }, nhShield: { haste: 1.25 }, nhEn: 75, icon: 'boost',
+        desc: 'Tụ lực 0,15 giây, giải mọi hiệu ứng xấu rồi lướt nhanh 5 m theo hướng ngắm, nhận khiên 25% máu tối đa (tối đa 4 giây) và 75 năng lượng. Còn khiên thì miễn khống chế và chạy nhanh hơn 25%; hết khiên mới bắt đầu hồi chiêu. Dùng được cả khi bị giữ chân.' },
+      { id: 'cautrao', look: 'nhGrapple', name: 'Đạn Xạ Câu Trảo', cd: 5, uses: { n: 3, gap: 1.5 }, en: { cost: 50 }, do: 'hook', self: true, speed: 36, range: 13, r: 0.35, dmg: 0, vis: 'hook',
+        nhWall: { dmg: 128, fx: { slow: 0.5, slowDur: 2 }, combo: 1 }, icon: 'hook',
+        desc: 'Bắn móc câu (tốn 50 năng lượng) xa 13 m, bay xuyên qua mech: móc trúng tường hay công trình thì bạn bay tới đó, miễn khống chế, chém mọi kẻ địch chạm phải 128 và làm chậm 50% trong 2 giây. Trong 1 giây sau khi móc trúng, Hồi Toàn Trảm Kích chí mạng; đang bay vẫn xoay chém được. Tích 3 lần, cách nhau 1,5 giây.' },
+      { id: 'hoitoan', look: 'nhSpin', name: 'Hồi Toàn Trảm Kích', cd: 5, uses: { n: 3, gap: 1.5 }, do: 'nova', windup: 0.05, move: 1, radius: 4, dmg: 128, steal: 0.5, towerMul: 0.75,
+        nhStack: { amp: 0.25, max: 3, dur: 4 }, nhCombo: { mul: 1.5, guard: 0.5, dur: 2 }, icon: 'spin',
+        desc: 'Xoay chém quanh mình (4 m): 128 sát thương, hút 50% số đó thành máu; kẻ trúng chịu thêm 25% từ lần xoay kế tiếp trong 4 giây, cộng dồn 3 lần. Trong 1 giây sau khi móc trúng tường: chí mạng x1,5 và sát thương kỹ năng phải nhận giảm 50% trong 2 giây. Tích 3 lần, cách nhau 1,5 giây. Công trình chỉ chịu 75%.' },
     ],
   },
   // Tào Tháo: ported from the owner's earlier game (clip BV1Kp4y1b7i6 p11 "8.曹操", tooltips read at 2-5 s; AUDIT-c.md). The clip shows
@@ -1325,7 +1338,7 @@ export const PERKS = {
   suatrang: [perk('Xích Ấm', 'Xích hồi máu hồi 190 mỗi giây cho cả hai.', 0, { tie: { hps: 190, drain: 10, range: 9 } }), perk('Bom Nặng', 'Siêu Năng Tạc Đạn gây 360.', 1, { dmg: 360 }), perk('Khiên Chiến Sĩ', 'Siêu Năng Chiến Sĩ che khiên 1300.', 2, { landShield: 1300 })],
   khidot: [perk('Gầm Vang', 'Chấn Không Nộ Hống rộng 6 m, gây 300.', 0, { radius: 6, dmg: 300 }), perk('Giẫm Lớn', 'Tử Vong Tiễn Đạp rộng 4,2 m, gây 280.', 1, { radius: 4.2, dmg: 280 }), perk('Nộ Dài', 'Dã Man Chi Nộ kéo dài 10 giây.', 2, { dur: 10 })],
   retdo: [perk('Dao Dày', 'Phóng Dao phóng bảy con.', 0, { burst: { n: 7, gap: 0.08 } }), perk('Thế Dài', 'Lộn Ngược giữ thế 0,8 giây, trả ba con dao 180.', 1, { window: 0.8, riposte: { volley: { n: 3, fan: 0.06, dmg: 180, speed: 34, range: 12, r: 0.22, vis: 'dart' } } }), perk('Loạn Sâu', 'Hỗn Loạn kéo dài 6 giây, thiêu 260 mỗi giây, hút 70%.', 2, { dur: 6, dps: 260, drain: 0.7 })],
-  nhenthep: [perk('Tơ Xa', 'Móc Đu bay xa 15 m, gây 190.', 0, { range: 15, dmg: 190 }), perk('Chém Rộng', 'Vòng Chém lướt 7,5 m, gây 230.', 1, { dist: 7.5, dmg: 230 }), perk('Sáu Lượt', 'Đu Dây Liên Hoàn đu sáu lượt, mỗi lượt 270.', 2, { n: 6, dmg: 270 })],
+  nhenthep: [perk('Khiên Dày', 'Cực Tốc Điền Sung cho khiên 35% máu tối đa.', 0, { selfShield: { frac: 0.35, dur: 4 } }), perk('Tơ Xa', 'Đạn Xạ Câu Trảo bay xa 16 m, chém 170 trên đường.', 1, { range: 16, nhWall: { dmg: 170, fx: { slow: 0.5, slowDur: 2 }, combo: 1 } }), perk('Xoáy Rộng', 'Hồi Toàn Trảm Kích rộng 4,6 m, gây 165.', 2, { radius: 4.6, dmg: 165 })],
   taothao: [perk('Kiếm Dài', 'Ỷ Thiên Kiếm gây 165.', 'weapon', { dmg: 165 }), perk('Tay Dài', 'Bá Đạo Chi Thủ kéo 4 m, rộng 3,5 m.', 1, { blast: 3.5, fx: { slow: 0.5, slowDur: 2, yank: { dist: 4, to: 'centre' } } }), perk('Khóa Lâu', 'Hiệp Thiên Tử khóa 3,5 giây.', 2, { tthHold: { dur: 3.5, every: 0.25, dmg: 30, redirect: 0.5, also: 0 } })],
   bongua: [perk('Kiếm Nặng', 'Song Kiếm gây 2 x 88.', 'weapon', { dmg: 88 }), perk('Sấm Rộng', 'Lôi Đình Thiên Giáng giáng vòng 4 m, giữ chân 1,5 giây.', 0, { land: { radius: 4, dmg: 191, fx: { root: 1.5 } } }), perk('Mười Tám Nhát', 'Tinh Bạo Khí Lưu Trảm chém mười tám nhát.', 2, { repeat: 18, invuln: 1.8 })],
   moclan: [perk('Kiếm Nặng', 'Kiếm Khí gây 170 mỗi nhát.', 'weapon', { dmg: 170 }), perk('Tam Thức Sâu', 'Kinh Hồng Tam Thức: mỗi nhát mạnh hơn nhát trước 35%.', 1, { grow: 1.35 }), perk('Cự Kiếm Lâu', 'Cự kiếm của Liệt Không Trảm cắm lại 5 giây.', 0, { linger: { radius: 2.6, dur: 5, dps: 100, slow: 0.3, vis: 'mlSword' } })],

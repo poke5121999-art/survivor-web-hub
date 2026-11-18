@@ -14,7 +14,7 @@ import { runK6Cases } from './k6-cases.mjs';   // kit lane K6: section K6
 import { runK13Cases, oldK13, OLD_DOMDOM, OLD_DUONGTIEN } from './k13-cases.mjs';   // kit lane K13: section K13, old domdom/duongtien/mucma kits as fixtures
 import { runK14Cases, oldKit14 } from './k14-cases.mjs';   // kit lane k14: section 62, old gilgamesh/suatrang/chuottui kits as fixtures
 import { runK15Cases, oldKit as oldKit15, OLD_HOALONG, OLD_KIEMTHAN } from './k15-cases.mjs';   // kit lane k15: section k15, old hades/hoalong/kiemthan kits as fixtures
-import { runK18Cases, oldK18 } from './k18-cases.mjs';   // kit lane K18: section K18, the old nguma kit kept as a fixture
+import { runK18Cases, OLD_NHENTHEP, oldK18 } from './k18-cases.mjs';   // kit lane K18: section K18, old nguma/nhenthep kits kept as fixtures
 import { MECHS, MECH_ORDER, RULES, TICK, PICKUPS, MODES, BOSSES, buildDef, formDef, cleanLv, ruleFor, matchSize, TEAM_SIZES, TEAM_SIZE } from '../js/data.js';
 // Numbers below follow the data rows, so a balance pass does not break the arithmetic these tests check.
 const near = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
@@ -134,6 +134,7 @@ for (const key of MECH_ORDER) {
     const s = MECHS[key].skills[i], slot = SLOTS[i];
     if (s.recast) continue;   // dash.recast keeps the key ready after the first press: section 41 checks its cooldown
     if (s.uses) continue;   // uses (skill charges): the next use waits for its gap, not the cooldown; sections 46 and 48 check them
+    if (s.nhShield) continue;   // kit lane K18: Mikasa's cooldown starts once her shield is gone; K18-x, K18-y and K18-z check it
     // leap.to 'ally' needs somebody to fly to: a third mech of the caster's team stands at 4 m
     const ally = s.to === 'ally';
     // a flurry (and a leap onto a foe) needs somebody in reach: the foe stands 4 m away; so does a barrage ktLock (kiemthan ult), whose strikes need a foe within its reach
@@ -3699,21 +3700,21 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
     check('44s heal 0.4 of the damage dealt plus lifesteal 0.1 of what got through: +76 a hit', near(a.hp - (a.maxHp - 1000), 3 * (0.4 + 0.1) * 160 * UNG_F, 0.01), `${a.hp - (a.maxHp - 1000)}`);
   }
   {
-    const m = arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 4, 0], [R('trau', 1), 4, 6]]), a = m.units[0];
+    const m = oldK18(arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 4, 0], [R('trau', 1), 4, 6]])), a = m.units[0];
     const ev = press(m, 0, 'ult', { tx: 4, tz: 0 }).concat(go(m, 90));
     const fl = only(ev, 'flurry');
     check('44t Du Day (n 5, not same): the first step goes to the enemy under the cursor, the second to the other one (nearest not yet cut), then the list wraps: 5 steps in all', fl.length === 5 && fl[0].x === 4 && Math.abs(fl[1].z - 6) < 1.5, JSON.stringify(fl.map((e) => [e.step, Math.round(e.x), Math.round(e.z)])));
     check('44u the chain ends when the steps are spent (no dash, no flurry state)', a.flurry === null && !a.dash);
   }
   {
-    const m = arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 6, 0]]), [a, v] = m.units;
+    const m = oldK18(arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 6, 0]])), [a, v] = m.units;
     press(m, 0, 'ult', { tx: 6, tz: 0 });
     check('44v the flurry makes the caster invulnerable for the chain: invulnT covers the step', a.invulnT > 0.1, `${a.invulnT}`);
     go(m, 80, () => ({ 1: { fire: true, aim: Math.PI, tx: 0, tz: 0 } }));
     check('44w nothing the enemy fires during the chain hurts', a.hp === a.maxHp && v.hp < v.maxHp, `${a.hp}/${a.maxHp}`);
   }
   {
-    const m = arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 20, 0]]), a = m.units[0];
+    const m = oldK18(arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 20, 0]])), a = m.units[0];
     const ev = press(m, 0, 'ult', { tx: 20, tz: 0 });
     check('44x nobody within 9 m: the flurry does not happen (no skill event, no state, 0.4 s lockout)', only(ev, 'skill').length === 0 && a.flurry === null && !a.dash && near(a.cd.ult, 0.4, 1e-9), `${a.cd.ult}`);
   }
@@ -3799,22 +3800,22 @@ section('44 batch 5 primitives: counter, flurry, form, portal, rewind, thrifty, 
   }
   // ---- hook.self / dash.invuln ----
   {
-    const m = arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 30, 20]], [[8, 9, -3, 3]]), a = m.units[0];
+    const m = oldK18(arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 30, 20]], [[8, 9, -3, 3]])), a = m.units[0];
     const ev = press(m, 0, 's1', { tx: 8, tz: 0 }).concat(go(m, 25));
     check('44zn Moc Du on a wall: the hooker is dragged to just short of it (x about 6.8), no one else moves', a.x > 6.3 && a.x < 7.3 && !a.dash && a.hp === a.maxHp, `${a.x}`);
   }
   {
-    const m = arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 7, 0]]), [a, v] = m.units;
+    const m = oldK18(arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 7, 0]])), [a, v] = m.units;
     press(m, 0, 's1', { tx: 7, tz: 0 }); go(m, 25);
     check('44zo Moc Du on a mech: it takes 140, stays where it was; the hooker is dragged to it (beside it, x about 5)', near(UNG.hp - v.hp, 140 * UNG_F, 1e-6) && near(v.x, 7, 0.05) && a.x > 4.5 && a.x < 5.6, `${UNG.hp - v.hp} ${v.x} ${a.x}`);
   }
   {
-    const m = arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 3, 0]]), [a, v] = m.units;
+    const m = oldK18(arena([[R('nhenthep', 0), 0, 0], [R('ung', 1), 3, 0]])), [a, v] = m.units;
     press(m, 0, 's2', { tx: 3, tz: 0 });
     check('44zp Vong Chem is invulnerable while it runs (dist 6 / speed 32 + 0.1)', near(a.invulnT, 6 / 32 + 0.1 - 0, 0.05), `${a.invulnT}`);
     go(m, 10);
-    check('44zq the dash hits and puts a +20% amp on the target for 4 s; invulnerability is over a few ticks after the dash', near(UNG.hp - v.hp, MECHS.nhenthep.skills[1].dmg * UNG_F, 1e-6) && v.ampF === 0.2 && v.ampT > 3.4 && a.invulnT === 0, `${UNG.hp - v.hp} ${v.ampF} ${a.invulnT}`);
-    const nh = MECHS.nhenthep, hit = nh.weapon.dmg * (1 - UNG.armor) * 1.2 * 1.25;
+    check('44zq the dash hits and puts a +20% amp on the target for 4 s; invulnerability is over a few ticks after the dash', near(UNG.hp - v.hp, OLD_NHENTHEP.skills[1].dmg * UNG_F, 1e-6) && v.ampF === 0.2 && v.ampT > 3.4 && a.invulnT === 0, `${UNG.hp - v.hp} ${v.ampF} ${a.invulnT}`);
+    const nh = OLD_NHENTHEP, hit = nh.weapon.dmg * (1 - UNG.armor) * 1.2 * 1.25;
     // Tho San: brittle on a marked target: x1.25 on top of the amp
     a.cd.fire = 0; const ev = go(m, 12, () => ({ 0: { fire: true, aim: Math.PI, tx: 3, tz: 0 } }));
     check('44zr Tho San: the weapon does x1.25 to an amped target (x1.2 amp x1.25 brittle)', only(ev, 'hit', (e) => e.id === 1 && e.by === 0).some((e) => near(e.amt, hit, 1e-6)), JSON.stringify(only(ev, 'hit', (e) => e.id === 1).map((e) => e.amt)));

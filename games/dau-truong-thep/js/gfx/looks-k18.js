@@ -1,10 +1,13 @@
-// Looks, kit lane K18: Ngưu Ma Vương (kit ported from the owner's clips, see data.js). Render only (see looks.js for
-// the hooks; the passives' k18 events come through fx.js). One main colour and one accent.
+// Looks, kit lane K18: Ngưu Ma Vương and Mikasa (kits ported from the owner's clips, see data.js). Render only (see looks.js for
+// the hooks; the passives' k18 events come through fx.js). One main colour and one accent per tank.
 // Ngưu Ma Vương (bilibili BV1Kp4y1b7i6 p85 "82.牛魔王", gameplay 18-66 s): lime green, accent warm gold. Chiến Tiêu is a ring of
 //   lime crescents whirling round the bull with a faint lime bubble on him; Q stamps a lime shock ring with stone spikes bursting
 //   up; E lowers a lime horn crescent and charges inside a lime shield bubble; R draws the two long lime lines of the strip, then
 //   the axe comes down along it in a lime band with gold blasts.
-import { C, sigil, shell, burst, slash, trail, spikes } from './lookkit.js';
+// Mikasa (p56 "53.米卡莎", gameplay 35-61 s): steel blue-grey, accent cyan. The grapple is a thin cyan cable with a steel hook
+//   head, a cyan anchor flash where it bites; Q wraps her in a dark slate bubble swirling with cyan; R is a ring of steel blade
+//   shards and two blue-white arcs spinning round her, a white X where it crits.
+import { C, stop, sigil, shell, burst, slash, cut, trail, spikes } from './lookkit.js';
 
 const R = (a, b) => a + Math.random() * (b - a);
 
@@ -109,4 +112,110 @@ const nguma = {
   },
 };
 
-export const K18 = { ...nguma };
+// ---- Mikasa -------------------------------------------------------------------------------------------------------
+const MK_STEEL = C(1.3, 1.7, 2.3), MK_CY = C(0.35, 2.1, 2.6), MK_WHITE = C(2.3, 2.5, 2.6), MK_SLATE = C(0.1, 0.14, 0.26);
+// the grapple now in flight or reeling, per mech (render side): the passive's latch event pins its head
+const hooks = new Map();
+// a thin cyan cable from her to (x, z), drawn this frame
+// the manoeuvre gear's gas: a soft cyan-white jet blown out along a from (x, z)
+function gas(kit, x, z, a, n) {
+  for (let i = 0; i < kit.N(n); i++) {
+    const b = a + R(-0.45, 0.45), sp = R(4, 9);
+    kit.puffs(x + Math.cos(b) * 0.6, R(0.8, 1.4), z + Math.sin(b) * 0.6, 1, i % 2 ? C(0.75, 0.9, 1.0) : C(0.55, 0.75, 0.9), 0.3, sp, 0.6, 1.1, 2.6, 0.2, 0.6, kit.K.SMOKE, 3);
+  }
+  kit.glow(x + Math.cos(a) * 1.2, 1.2, z + Math.sin(a) * 1.2, MK_CY, 0.18, 2.6, 0.6, kit.K.GLOW, 1.2, Math.cos(a) * 4, 0, Math.sin(a) * 4);
+}
+const cable = (kit, u, x, z) => { const b = kit.beam(u.x, u.z, x, z, 0.24, MK_CY, 0.05, 0, 1.3); b.fade = true; kit.glow(x, 1.3, z, MK_WHITE, 0.05, 0.7, 1, kit.K.STAR, 1); };
+const mikasa = {
+  // Thiết Bị Cơ Động (passive): the anchor biting the wall (a cyan flash, a ring, chips) and the cable while she reels;
+  // a white X where the spin crits
+  nhGear: {
+    k18(kit, e, u) {
+      if (e.kind === 'latch') {
+        const h = hooks.get(u.id) || {};
+        h.done = true; h.x = e.x; h.z = e.z; hooks.set(u.id, h);
+        kit.glow(e.x, 1.3, e.z, MK_WHITE, 0.15, 2.2, 1, kit.K.STAR, 1.3);
+        kit.ring(e.x, e.z, 1.6, MK_CY, 0.35, 0.9);
+        kit.sparks(e.x, 1.3, e.z, kit.N(8), MK_CY, 7, 0.3, 0.05, 0.5, 8);
+        kit.chips(e.x, 1, e.z, kit.N(5), C(0.5, 0.5, 0.55), 5, 0.5, 0.1);
+        trail(kit, (t) => (t < 0.6 && u.alive ? [u.x, 1.0, u.z] : null), 1.0, MK_STEEL, 0.4, { c2: MK_SLATE, len: 14 });
+        kit.follow(u, 0.6, () => { if (u.dash || kit.time - (h.at || 0) < 0.1) cable(kit, u, e.x, e.z); });
+        h.at = kit.time;
+      } else if (e.kind === 'crit') {
+        cut(kit, u.x, u.z, Math.random() * 3.14, 3.6, MK_CY, { edge: MK_WHITE, sparks: 5, life: 0.18 });
+        kit.flash(u.x, 1.6, u.z, MK_WHITE, 40, 0.18);
+      }
+    },
+  },
+  // Cực Tốc Điền Sung: a cyan glint for the wind-up, a slate streak along the dash, then her dark slate bubble swirling with cyan
+  // for as long as the shield lasts; a puff of dark smoke when it goes
+  nhRefill: {
+    skill(kit, e, u, row) {
+      const w = (row && row.windup) || 0.15, T = w + ((row && row.dist) || 5) / ((row && row.speed) || 30) + 0.05;
+      kit.flash(u.x, 1.4, u.z, MK_CY, 30, 0.18);
+      sigil(kit, u.x, u.z, 3.2, MK_CY, { c2: MK_WHITE, n: 0, ticks: 10, inner: 0.6, fill: 0.55, w: 0.08, life: 0.6, rev: 0.05, spin: 5 });
+      gas(kit, u.x, u.z, e.a + Math.PI, 8);
+      trail(kit, (t) => (t > w * 0.5 && t < T && u.alive ? [u.x, 0.9, u.z] : null), 1.8, MK_SLATE, 0.5, { c2: MK_STEEL, len: 16 });
+      trail(kit, (t) => (t > w * 0.5 && t < T && u.alive ? [u.x, 1.6, u.z] : null), 0.9, MK_CY, 0.35, { c2: MK_STEEL, len: 12, up: true });
+      const sh = shell(kit, u.x, 1.0, u.z, 2.0, MK_SLATE, { c2: C(0.22, 0.32, 0.6), p: 1.1, core: 0.55, bands: 1.4, life: 4.1, grow: 0.08, follow: u, alpha: 0.95, pulse: 1.5 });
+      const ring = sigil(kit, u.x, u.z, 2.0, MK_CY, { c2: MK_STEEL, n: 0, ticks: 12, inner: 0.8, fill: 0.15, w: 0.06, life: 4.1, rev: 0.1, spin: 3, follow: u, alpha: 0.7 });
+      let gone = false;
+      kit.follow(u, 4.1, (t) => {
+        if (gone || t < 0.1 || u.shield > 1) { if (!gone && Math.random() < 0.35) { const b = Math.random() * 6.283; kit.glow(u.x + Math.cos(b) * 1.3, R(0.5, 1.6), u.z + Math.sin(b) * 1.3, MK_CY, 0.3, 0.35, 0.9, kit.K.SPARK, 1, -Math.sin(b) * 3, 0, Math.cos(b) * 3); } return; }
+        gone = true; stop(sh); stop(ring);
+        kit.puffs(u.x, 1, u.z, kit.N(6), C(0.18, 0.2, 0.26), 1, 2, 0.8, 1.4, 2.4, 0.5, 0.65, kit.K.SMOKE);
+      }, () => { stop(sh); stop(ring); });
+      return true;
+    },
+  },
+  // Đạn Xạ Câu Trảo: the steel hook head flies out on its cyan cable (it passes through mechs); the passive draws the bite and the reel
+  nhGrapple: {
+    pal: [MK_STEEL, MK_WHITE], hitR: 1.5,
+    skill(kit, e, u, row) {
+      const sp = (row && row.speed) || 36, L = (row && row.range) || 13, a = e.a, ca = Math.cos(a), sa = Math.sin(a), x0 = u.x, z0 = u.z;
+      const h = { done: false, at: 0 };
+      hooks.set(u.id, h);
+      kit.flash(u.x, 1.3, u.z, MK_CY, 30, 0.18);
+      kit.glow(u.x + ca, 1.3, u.z + sa, MK_WHITE, 0.15, 2.2, 1, kit.K.STAR, 1.3);
+      // the gear fires its gas: a cyan-white jet blown out behind her, a cyan ring at her feet
+      gas(kit, u.x, u.z, a + Math.PI, 14);
+      sigil(kit, u.x, u.z, 3.3, MK_CY, { c2: MK_WHITE, n: 0, ticks: 12, inner: 0.65, fill: 0.6, w: 0.08, life: 0.5, rev: 0.04, spin: -6 });
+      const head = { x: x0, z: z0 };
+      trail(kit, (t) => (!h.done && t < L / sp ? [head.x, 1.3, head.z] : null), 1.1, MK_CY, 0.35, { c2: MK_STEEL, len: 18 });
+      trail(kit, (t) => (!h.done && t < L / sp ? [head.x, 1.3, head.z] : null), 1.2, MK_WHITE, 0.3, { c2: MK_CY, len: 12, up: true });
+      kit.follow(u, L / sp + 0.15, (t) => {
+        if (h.done || hooks.get(u.id) !== h) return;
+        const d = Math.min(L, t * sp);
+        head.x = x0 + ca * d; head.z = z0 + sa * d;
+        cable(kit, u, head.x, head.z);
+        cut(kit, head.x, head.z, a, 0.9, MK_STEEL, { edge: MK_CY, sparks: 0, life: 0.05 });
+        kit.glow(head.x, 1.3, head.z, MK_CY, 0.08, 2.4, 0.8, kit.K.GLOW, 1);
+      });
+      return true;
+    },
+  },
+  // Hồi Toàn Trảm Kích: she spins: a ring of steel blade shards whirling out round her, two blue-white arcs chasing each other,
+  // a pale steel ring on the ground
+  nhSpin: {
+    pal: [MK_STEEL, MK_WHITE], hitR: 1.6,
+    skill() { return true; },
+    nova(kit, e, u) {
+      const r = e.r || 3.5, x = e.x, z = e.z, a0 = Math.random() * 6.283;
+      // three blade arcs at once (no slow sweep: the spin is all round her in the first frames), a wind wake beyond the blades
+      for (let i = 0; i < 3; i++) slash(kit, x, z, a0 + i * 2.094, r * (1.0 - 0.1 * i), i === 1 ? MK_CY : MK_STEEL, { y: 0.9 + 0.2 * i, dir: 1, life: 0.38, w: r * 0.3, span: 1.25, sweep: 0.04, arcs: 2, c2: MK_SLATE, edge: MK_WHITE, wake: 1.7, sparks: i === 0 });
+      slash(kit, x, z, a0 + 1.0, r * 1.6, MK_STEEL, { y: 0.4, dir: 1, life: 0.42, w: r * 0.45, span: 1.6, sweep: 0.05, arcs: 1, c2: MK_SLATE, edge: MK_CY, sparks: false, wake: 1.3 });
+      sigil(kit, x, z, r * 1.55, MK_STEEL, { c2: MK_CY, n: 0, ticks: 18, inner: 0.65, fill: 0.6, w: 0.08, life: 0.5, rev: 0.02, spin: 9 });
+      shell(kit, x, 0, z, r * 1.25, MK_STEEL, { c2: MK_CY, dome: true, p: 1.3, core: 0.12, bands: 1.6, life: 0.45, grow: 0.03, squash: 0.45, alpha: 0.8, follow: u });
+      // steel blade shards flung round and outward (the grey ring of the clip)
+      for (let i = 0, n = kit.N(30); i < n; i++) {
+        const b = a0 + i / n * 6.283, q = r * R(0.7, 1.05), v = R(7, 12);
+        kit.str.emit(x + Math.cos(b) * q, R(0.6, 1.4), z + Math.sin(b) * q, -Math.sin(b) * v + Math.cos(b) * 5, R(-0.3, 0.5), Math.cos(b) * v + Math.sin(b) * 5, i % 3 ? MK_STEEL : MK_WHITE, R(0.3, 0.45), 0.2, 0.14, 0, 1, 1);
+      }
+      kit.chips(x, 1, z, kit.N(10), C(0.5, 0.55, 0.62), 9, 0.6, 0.12);
+      kit.flash(x, 1.5, z, MK_CY, 30, 0.18);
+      return true;
+    },
+  },
+};
+
+export const K18 = { ...nguma, ...mikasa };

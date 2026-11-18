@@ -4,8 +4,7 @@
 //   毒蝎女王 p52 (Bọ Cạp): magenta-violet sting streaks, a violet swirl round her when she spins, magenta poison bubbles on
 //     the foes she hits.
 //   电魂 p51 (Lươn Điện): violet-white plasma orbs crackling, a cyan electric bubble round the caster, a blue storm cloud.
-//   网虫 p17 (Nhện Thép): white spider webs on a blue disc where the silk lands, a big black web under the spider, a violet
-//     glow on the webbed foe.
+//   米卡莎 p56 (Nhện Thép = Mikasa): its looks moved to looks-k18.js with the kit ported from the clip (kit lane K18).
 //   冰雪女王 p81 (Băng Nha): white frost arcs flying out, a big ice-blue frost dome with snow swirling, an ice prison.
 //   李白 p65 (Kiếm Thần): red flame swords falling in fire columns, white blades ringing the caster, a red flying sword.
 import * as THREE from '../../vendor/three.module.min.js';
@@ -107,114 +106,9 @@ const luondien = {
   },
 };
 
-// ---- Nhện Thép: white silk, webs on a blue disc, black steel legs, a violet glow on the prey --------------------------------
-const NT_VIO = C(1.4, 0.45, 2.6), NT_SILK = C(2.4, 2.45, 2.6), NT_STEEL = 0x2a2e38;
-const WEB_VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
-const WEB_FRAG = `uniform vec3 uC, uF; uniform float uA, uN, uK, uW, uFA, uRev; varying vec2 vUv;
-  void main() {
-    vec2 p = vUv * 2.0 - 1.0; float r = length(p); if (r > 1.0 || r > uRev) discard;
-    float sec = 6.28318 / uN, la = mod(atan(p.y, p.x) + 6.28318, sec), m = min(la, sec - la);
-    float spoke = 1.0 - smoothstep(uW * 0.5, uW, r * sin(m));
-    float q = r * cos(abs(la - 0.5 * sec)) / cos(0.5 * sec) * (1.0 + 0.16 * sin(la / sec * 3.14159));
-    float d = abs(fract(q * uK + 0.5) - 0.5) / uK, ring = (1.0 - smoothstep(uW * 0.5, uW, d)) * step(0.12, q);
-    float rim = 1.0 - smoothstep(uW * 0.5, uW, abs(r - 0.96));
-    float line = max(max(spoke, ring), rim);
-    float fill = uFA * (0.4 + 0.6 * r);
-    float al = clamp(line + fill * (1.0 - line), 0.0, 1.0) * uA;
-    vec3 c = mix(uF, uC, line);
-    gl_FragColor = vec4(c * al, al);
-  }`;
-const webGeo = keep(new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2));
-// a spider web lying on the floor: o.c line colour, o.fill disc colour and o.fillA its strength, o.n spokes, o.k rings,
-// o.w line width, o.life, o.rev (s to spin out from the middle), o.at(t) -> [x, z] to move it, o.spin
-function web(kit, x, z, r, o = {}) {
-  const n1 = (c) => c.clone().multiplyScalar(1 / Math.max(1, c.r, c.g, c.b));
-  const mat = new THREE.ShaderMaterial({ vertexShader: WEB_VERT, fragmentShader: WEB_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, premultipliedAlpha: true,
-    uniforms: { uC: { value: n1(o.c || C(1, 1, 1)) }, uF: { value: n1(o.fill || C(0.1, 0.35, 0.9)) }, uA: { value: 1 }, uN: { value: o.n ?? 10 }, uK: { value: o.k ?? 4.5 }, uW: { value: o.w ?? 0.05 }, uFA: { value: o.fillA ?? 0.45 }, uRev: { value: 0 } } });
-  const mesh = new THREE.Mesh(webGeo, mat), life = o.life ?? 1, rev = o.rev ?? 0.12, rot = Math.random() * 6.283;
-  mesh.position.set(x, o.y ?? 0.13, z); mesh.scale.setScalar(r); mesh.renderOrder = 5; mesh.rotation.y = rot;
-  own(kit, [mesh], life, (t) => {
-    if (o.at) { const p = o.at(t); if (!p) return false; mesh.position.x = p[0]; mesh.position.z = p[1]; }
-    mesh.rotation.y = rot + (o.spin || 0) * t;
-    mat.uniforms.uRev.value = Math.min(1.01, t / rev); mat.uniforms.uA.value = (o.alpha ?? 1) * Math.min(1, (life - t) / Math.min(0.3, life * 0.4));
-  });
-  return mesh;
-}
-// a silk line: a white core on a violet glow, straight from A to B ([x, y, z] or fns; null ends it)
-function silk(kit, A, B, w, life) {
-  const glow = ribbonMesh(2, NT_VIO, true, 0.75), core = ribbonMesh(2, NT_SILK, true, 1);
-  own(kit, [glow, core], life, (t) => {
-    const a = typeof A === 'function' ? A(t) : A, b = typeof B === 'function' ? B(t) : B; if (!a || !b) return false;
-    fillRibbon(glow, [a, b], w); fillRibbon(core, [a, b], w * 0.35);
-    const k = Math.min(1, (life - t) / 0.2); glow.material.opacity = 0.75 * k; core.material.opacity = k;
-  });
-}
-// a steel leg: the femur goes up and out, the tibia down to the floor; a violet halo round both
-const femurGeo = keep(new THREE.CylinderGeometry(0.1, 0.14, 1.4, 8).rotateZ(-Math.PI / 2).translate(0.7, 0, 0)), tibiaGeo = keep(new THREE.CylinderGeometry(0.015, 0.1, 1.8, 8).rotateZ(-Math.PI / 2).translate(0.9, 0, 0));
-function leg() {
-  const g = new THREE.Group(), m = basic(NT_STEEL, false, 1), gl = basic(NT_VIO, true, 0.55);
-  const fem = new THREE.Group(), tib = new THREE.Group();
-  for (const [mm, s] of [[gl, 2.4], [m, 1]]) { const a = new THREE.Mesh(femurGeo, mm); a.scale.set(1, s, s); fem.add(a); const b = new THREE.Mesh(tibiaGeo, mm); b.scale.set(1, s, s); tib.add(b); }
-  tib.position.x = 1.4; fem.add(tib); g.add(fem); g.userData.fem = fem; g.userData.tib = tib;
-  return order(g, 7);
-}
-function setLeg(g, lift, bend) { g.userData.fem.rotation.z = lift; g.userData.tib.rotation.z = -bend; }
-const nhenthep = {
-  // Móc Đu: a silk line shoots out with a little web spinning at its tip; where it catches, a web splashes open on a blue disc
-  ntHook: {
-    pal: [NT_VIO, NT_SILK], hitR: 1.6,
-    skill(kit, e, u) {
-      const st = { x: null, z: null, id: -1, end: -1 };
-      silk(kit, (t) => (u.alive && (st.end < 0 || t < st.end + 0.5 || u.dash) && t < 1.6 ? [u.x, 1.2, u.z] : null), () => (st.x === null ? [u.x, 1.2, u.z] : [st.x, 1.2, st.z]), 0.45, 1.7);
-      web(kit, u.x, u.z, 1.3, { c: C(1, 1, 1), fill: C(0.5, 0.2, 0.9), fillA: 0.35, n: 8, k: 3, w: 0.07, life: 1.2, spin: 9, at: () => (st.end < 0 && st.x !== null ? [st.x, st.z] : st.end < 0 ? [u.x, u.z] : null) });
-      kit.anims.push({ t: 0, step(dt) {
-        this.t += dt; const m = kit.match; if (!m || st.end >= 0) return false;
-        const s = st.id >= 0 ? m.shots.find((q) => q.id === st.id) : m.shots.find((q) => q.owner === u.id && q.vis === 'hook');
-        if (s) { st.id = s.id; st.x = s.x; st.z = s.z; }
-        else if (st.id >= 0 || this.t > 0.15) {
-          st.end = this.t;
-          if (st.x !== null) { web(kit, st.x, st.z, 2.4, { life: 1.1, n: 12, k: 4.5, w: 0.05 }); kit.flash(st.x, 1.2, st.z, NT_VIO, 25, 0.2); }
-          return false;
-        }
-        return this.t < 1.5;
-      }, drop() {} });
-      return true;
-    },
-    hook(kit, e) { web(kit, e.x, e.z, 2.2, { fill: C(0.5, 0.15, 0.9), fillA: 0.5, life: 1, n: 12 }); return true; },
-  },
-  // Vòng Chém: eight black steel legs stride round him as he slides, a violet wake behind; the cut foe is wrapped in a web
-  ntSlash: {
-    pal: [NT_VIO, NT_SILK], hitR: 1.6,
-    hit(kit, e) { web(kit, e.x, e.z, 1.9, { fill: C(0.55, 0.15, 0.95), fillA: 0.55, life: 1.3, n: 10, k: 3.5, w: 0.07 }); return true; },
-    skill(kit, e, u) {
-      const legs = [], A = [0.55, 1.1, 1.75, 2.4];
-      for (const sd of [-1, 1]) for (const b of A) { const l = leg(); l.userData.b = sd * b; l.scale.setScalar(1.5); legs.push(l); }
-      trail(kit, (t) => (t < 0.45 && u.alive && (t < 0.06 || u.dash) ? [u.x, 0.6, u.z] : null), 1.9, NT_VIO, 0.6, { c2: C(0.15, 0.05, 0.3), len: 14 });
-      let end = -1;
-      own(kit, legs, 0.75, (t) => {
-        if (!u.alive) return false;
-        if (end < 0 && ((t > 0.06 && !u.dash) || t > 0.45)) end = t;
-        const stab = end < 0 ? 0 : Math.min(1, (t - end) / 0.1);
-        legs.forEach((l, i) => { const b = (e.a || 0) + l.userData.b; l.position.set(u.x, 1.0, u.z); l.rotation.y = -b; setLeg(l, 0.75 + 0.25 * Math.sin(t * 28 + i * 1.7) - 0.5 * stab, 1.75 + 0.5 * stab); fadeAll(l, Math.min(1, (0.75 - t) / 0.25)); });
-      });
-      return true;
-    },
-  },
-  // Đu Dây Liên Hoàn: a black web spreads under him; on each swing a silk line drops from high above to him and a white web
-  // splashes on the foe he cuts
-  ntSwing: {
-    pal: [NT_VIO, NT_SILK], hitR: 1.8,
-    skill(kit, e, u) { web(kit, u.x, u.z, 4.2, { c: C(0.1, 0.08, 0.14), fill: C(0.35, 0.15, 0.6), fillA: 0.22, life: 1.2, n: 12, k: 5, w: 0.04 }); return true; },
-    flurry(kit, e, u) {
-      const ax = (u.x + e.x) / 2, az = (u.z + e.z) / 2;
-      silk(kit, [ax, 11, az], (t) => (u.alive && (t < 0.1 || u.dash) && t < 0.5 ? [u.x, 1.3, u.z] : null), 0.4, 0.6);
-      web(kit, e.x, e.z, 2.4, { life: 0.9, n: 12, k: 4.5, w: 0.055 });
-      return true;
-    },
-  },
-};
+// ---- Nhện Thép (Mikasa) moved to looks-k18.js with the kit ported from clip p56 (kit lane K18) ---------------------
 
 // ---- Băng Nha moved to looks-k9.js with the kit ported from clip p81; Kiếm Thần still borrows BN_WHITE -------------------------
 const BN_WHITE = C(2.3, 2.5, 2.6);
 
-export const B6 = { ...luondien, ...nhenthep };   // vesau, bang and bocap moved to looks-k8.js / looks-k9.js / looks-k10.js with their ported kits
+export const B6 = { ...luondien };   // vesau, bang and bocap moved to looks-k8.js / looks-k9.js / looks-k10.js with their ported kits
