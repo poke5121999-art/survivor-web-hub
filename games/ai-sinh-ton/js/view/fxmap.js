@@ -66,6 +66,8 @@ const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 export function createFxMap(H, marks, ctx) {
   const { G, scene, camera } = H;
+  // Blockade Z's blast shock rings are additive 0xffe0b0 at 0.9: on the pale chapter floors they clip to pure white, so they are tinted down
+  scene.traverse((o) => { const m = o.isMesh && o.material; if (m && o.geometry.type === 'RingGeometry' && m.blending === THREE.AdditiveBlending && m.color.getHex() === 0xffe0b0) m.color.multiplyScalar(0.4); });
   const counters = {}; const missing = new Set(); const bump = (k) => { counters[k] = (counters[k] || 0) + 1; };
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   let budget = { pop: 0, boom: 0, puff: 0 };

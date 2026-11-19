@@ -76,6 +76,10 @@ const FALL_LOOK = {
 const FALL_H = 22;
 
 const FLARE_K = 0.65;
+// hard caps on live ground meshes: past them the oldest is recycled
+const CAP = { teles: 24, zones: 12 };
+const TELE_GRACE = 0.15; // a warning is gone this long after its own t at the latest
+const ZONE_GRACE = 1.0;  // a zone the sim no longer holds is ended after this long
 
 export function createMarks(H) {
   const { scene, G } = H;
@@ -83,14 +87,15 @@ export function createMarks(H) {
   const ringGeo = new THREE.RingGeometry(0.86, 1, 56);
   const discGeo = new THREE.CircleGeometry(1, 40);
   const teles = []; const falls = []; const zones = new Map(); const fades = []; const rings = [];
-  let clock = 0;
+  let clock = 0; let lastB = null; let lastSimT = -1;
   const flat = (mesh, x, z, y = 0.05) => { mesh.rotation.order = 'YXZ'; mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, y, z); mesh.renderOrder = 3; mesh.frustumCulled = false; scene.add(mesh); return mesh; };
   const col3 = (hex) => new THREE.Color(hex);
 
   // ---- warnings ----
   const ENEMY_COL = col3(0xff4a1c); const HERO_COL = col3(0xcfe6ff);
   function tele(e, fallKind) {
-    const enemy = e.team === 1; const T = Math.max(0.15, e.t);
+    const enemy = e.team === 1; const T = Math.min(6, Math.max(0.15, Number.isFinite(e.t) ? e.t : 0.6));
+    while (teles.length >= CAP.teles) dropTele(teles.shift());
     const uni = { uK: { value: 0 }, uCol: { value: (enemy ? ENEMY_COL : HERO_COL).clone() }, uA: { value: enemy ? 1 : 0.4 }, uShape: { value: 0 }, uSize: { value: new THREE.Vector2(1, 1) }, uHalf: { value: 0 }, uTime: { value: 0 } };
     const mat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: VERT, fragmentShader: TELE_FRAG, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     const mesh = new THREE.Mesh(planeGeo, mat);
@@ -101,7 +106,7 @@ export function createMarks(H) {
     } else {
       uni.uShape.value = 2; uni.uHalf.value = (e.deg * Math.PI) / 360; uni.uSize.value.set(e.r * 2, e.r * 2); mesh.scale.set(e.r * 2, e.r * 2, 1); flat(mesh, e.x, e.z); mesh.rotation.y = -e.ang;
     }
-    const rec = { mesh, uni, t: 0, T, x: e.x, z: e.z };
+    const rec = { mesh, uni, t: 0, T, x: e.x, z: e.z, bt: lastB ? lastB.t : Infinity };
     teles.push(rec);
     if (e.fall) {
       const mk = FALL_LOOK[fallKind] || FALL_LOOK.shell; const obj = mk(); obj.position.set(e.x, FALL_H, e.z); scene.add(obj);
@@ -110,9 +115,12 @@ export function createMarks(H) {
     return rec;
   }
 
+  function dropTele(t) { scene.remove(t.mesh); t.mesh.material.dispose(); }
+
   // ---- zones ----
   function zoneStart(e, look) {
     if (!look) return;
+    while (zones.size >= CAP.zones) { const old = zones.values().next().value; dropZone(old); }
     const [style, c1, c2, rate] = look;
     const uni = { uStyle: { value: style }, uT: { value: 0 }, uA: { value: 0 }, uHalf: { value: e.cone ? (e.cone * Math.PI) / 360 : 0 }, uC1: { value: col3(c1) }, uC2: { value: col3(c2) }, uR: { value: e.r } };
     const mat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: VERT, fragmentShader: ZONE_FRAG, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
@@ -188,13 +196,17 @@ export function createMarks(H) {
   }
 
   function update(dt, B) {
-    clock += dt;
+    clock += dt; lastB = B || lastB;
+    // a fast-forward moves the sim far ahead of the view clock: decals dry up on the sim clock as well
+    if (B) { const extra = lastSimT >= 0 && B.t >= lastSimT ? B.t - lastSimT - dt : 0; if (extra > 0.05 && G.fx.ageDecals) G.fx.ageDecals(extra); lastSimT = B.t; }
     for (const r of strips) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; r.mesh.visible = false; continue; } r.mesh.material.opacity = r.a * (1 - k); }
     for (let i = pillars.length - 1; i >= 0; i--) { const q = pillars[i]; q.t += dt; const k = q.t / q.life; if (k >= 1) { scene.remove(q.mesh); q.mesh.geometry.dispose(); q.mesh.material.dispose(); pillars.splice(i, 1); continue; } q.mesh.material.opacity = 0.24 * (1 - k); q.mesh.scale.set(1 - k * 0.6, 1, 1 - k * 0.6); }
     for (let i = teles.length - 1; i >= 0; i--) {
       const t = teles[i]; t.t += dt; const k = Math.min(1, t.t / t.T);
       t.uni.uK.value = k; t.uni.uTime.value = clock;
-      if (t.t >= t.T + 0.12) { scene.remove(t.mesh); t.mesh.material.dispose(); teles.splice(i, 1); } else if (t.t > t.T) t.uni.uA.value *= 0.6;
+      // dead on its own clock, and on the sim clock too (a fast-forward moves the sim far ahead of the view clock)
+      const simOver = B && B.t > t.bt + t.T + TELE_GRACE;
+      if (t.t >= t.T + TELE_GRACE || simOver) { dropTele(t); teles.splice(i, 1); } else if (t.t > t.T) t.uni.uA.value *= 0.6;
     }
     for (let i = falls.length - 1; i >= 0; i--) {
       const f = falls[i]; f.t += dt; const k = Math.min(1, f.t / f.T);
@@ -205,6 +217,8 @@ export function createMarks(H) {
     for (const z of [...zones.values()]) {
       z.age += dt;
       const live = B && B.zones.find((q) => q.id === z.id);
+      if (B && !live && z.end < 0 && z.age > ZONE_GRACE) z.end = 0;
+      if (z.age > (z.dur || 0) + 8) z.end = Math.max(z.end, 0);
       if (live) { z.x = live.x; z.z = live.z; z.r = live.r; z.ang = live.ang; z.remain = live.t; }
       z.mesh.position.set(z.x, 0.06, z.z);
       if (z.cone) { z.mesh.scale.set(z.r * 2, z.r * 2, 1); z.mesh.rotation.y = -z.ang; } else z.mesh.scale.set(z.r * 2, z.r * 2, 1);
@@ -221,14 +235,14 @@ export function createMarks(H) {
   }
 
   function clear() {
-    for (const t of teles) { scene.remove(t.mesh); t.mesh.material.dispose(); } teles.length = 0;
+    for (const t of teles) dropTele(t); teles.length = 0;
     for (const f of falls) scene.remove(f.obj); falls.length = 0;
     for (const z of [...zones.values()]) dropZone(z);
     for (const r of rings) { r.on = false; r.mesh.visible = false; }
     for (const f of flares) { f.on = false; f.mesh.visible = false; }
     for (const r of strips) { r.on = false; r.mesh.visible = false; }
-    for (const q of pillars) scene.remove(q.mesh); pillars.length = 0;
+    for (const q of pillars) { scene.remove(q.mesh); q.mesh.geometry.dispose(); q.mesh.material.dispose(); } pillars.length = 0; lastB = null; lastSimT = -1;
   }
   void fades;
-  return { tele, zoneStart, zoneEnd, ring, flare, strip, pillar, update, clear, stats: () => ({ teles: teles.length, falls: falls.length, zones: zones.size }), teleRecs: teles };
+  return { tele, zoneStart, zoneEnd, ring, flare, strip, pillar, update, clear, stats: () => ({ teles: teles.length, falls: falls.length, zones: zones.size, rings: rings.filter((r) => r.on).length, flares: flares.filter((r) => r.on).length, strips: strips.filter((r) => r.on).length, pillars: pillars.length }), teleRecs: teles };
 }
