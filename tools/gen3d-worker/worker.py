@@ -39,6 +39,7 @@ ap.add_argument("--fake", action="store_true", help="dùng fake_pipeline.py cho 
 ap.add_argument("--poll", type=float, default=4.0)
 ap.add_argument("--once", action="store_true", help="thoát sau một job")
 ap.add_argument("--max-idle", type=float, default=0, help="thoát sau N giây không có job (0 = chạy mãi)")
+ap.add_argument("--keep-jobs", action="store_true", help="giữ thư mục jobs/<id> sau khi xong (mặc định xoá, kết quả đã nằm trên bucket)")
 ap.add_argument("--min-commit-gb", type=float, default=8.0, help="Windows: commit trống tối thiểu")
 ap.add_argument("--min-ram-gb", type=float, default=6.0, help="Linux: MemAvailable tối thiểu")
 ap.add_argument("--min-vram-gb", type=float, default=4.0, help="VRAM trống tối thiểu (0 = bỏ kiểm GPU)")
@@ -318,6 +319,8 @@ class Job:
             self.stop_hb.set()
             if self.proc:
                 kill_tree(self.proc)
+            if not A.keep_jobs:
+                shutil.rmtree(job_dir, ignore_errors=True)
 
     def run_proc(self, argv, out_dir, timeout, cwd):
         kw = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if WIN else {"start_new_session": True}
