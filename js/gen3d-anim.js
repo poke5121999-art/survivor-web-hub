@@ -279,7 +279,7 @@ function paintList() {
       b.addEventListener("mouseleave", () => { gif.hidden = true; });
     }
     return b;
-  }), filtered.length > 400 ? h("p", { class: "g3-dim", text: `… còn ${filtered.length - 400} anim, gõ để lọc` }) : null);
+  }), filtered.length > 400 ? h("p", { class: "g3-dim", text: `… còn ${filtered.length - 400} anim, gõ để lọc` }) : "");
   const cur = box.querySelector('[aria-pressed="true"]');
   if (cur) cur.scrollIntoView({ block: "nearest" });
 }
