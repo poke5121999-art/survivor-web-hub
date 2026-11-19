@@ -290,8 +290,12 @@ export function createEquip(game) {
   }
   // the number that rises: a big +N over the stat it changed, and the stat strip pulses
   function popGain(g) {
-    const rows = [['atk', 96, g.atk], ['hp', 266, g.hp]].filter((r) => r[2] > 0);
-    for (const [key, x, n] of rows) { ui.fly('+' + fmt(n), x, 116, { size: 34 }); U.fly = { stat: key, text: '+' + fmt(n), n }; U.flyN++; }
+    const rows = [['atk', 88, g.atk], ['hp', 262, g.hp]].filter((r) => r[2] > 0);
+    for (const [key, x, n] of rows) {
+      const text = '+' + fmt(n), size = 26, w = text.length * size * 0.62 + 8, h = size + 6;
+      ui.fly(text, x, 112, { size });
+      U.fly = { stat: key, text, n, rect: { x: x - w / 2, y: 112 - 46 - h / 2, w, h: 46 + h }, title: { x: 180 - title.w / 2, y: 50 - title.h / 2, w: title.w, h: title.h * 1.5 } }; U.flyN++;
+    }
     if (rows.length) pulse = 0.55;
   }
   const statDiff = (a, b) => ({ atk: b.atk - a.atk, hp: b.hp - a.hp });

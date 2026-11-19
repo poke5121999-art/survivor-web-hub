@@ -65,13 +65,19 @@ try {
           check(hit === 'guide-block', `step ${key}: no target, a tap anywhere lands on the guide (hit ${hit})`);
           await snap(page, `${String(n).padStart(2, '0')}-${d.id}`);
         } else if (d.rect) {
+          if (d.id === 'reward') {
+            await step(page, 20);
+            const sh = await page.evaluate(() => { const t = __ui.targets().find((q) => q.id === 'tab-stats'); return t ? { at: __ui.hitAt(t.x + t.w / 2, t.y + t.h / 2), home: __ui.hitAt(...(() => { const h = __ui.targets().find((q) => q.id === 'home'); return [h.x + h.w / 2, h.y + h.h / 2]; })()), step: __G.guide.dbg().id } : null; });
+            check(!!sh && sh.step === 'reward' && sh.at === 'tab-stats' && sh.home === 'home', `tutorial result, guide step "reward" up: a tap at the centre of THỐNG KÊ lands on "${sh && sh.at}" (tab-stats) and the one target still on "${sh && sh.home}"`);
+            await snap(page, 'result-reward-step');
+          }
           let r = null;
           for (let k = 0; k < 8; k++) {
             await step(page, 6);
             r = await page.evaluate(() => {
               const dd = __G.guide.dbg(), all = __ui.targets(), t = all.find((q) => q.id === dd.target && !/^(guide|reveal)/.test(q.id));
               if (!t || !dd.rect) return null;
-              const others = all.filter((q) => q.enabled && !/^(guide|reveal)/.test(q.id) && q.id !== dd.target);
+              const others = all.filter((q) => q.enabled && !/^(guide|reveal)/.test(q.id) && q.id !== dd.target && !dd.allow.includes(q.id));
               const wrong = [];
               for (const o of others) {
                 const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
@@ -252,10 +258,10 @@ try {
     const winQ = (page, stage) => page.evaluate((st) => { const M = __G.meta; for (const id of ['spectate', 'speed', 'daily', 'chapter']) M.ftueDone(id); const r = M.finishStage({ stage: st, won: true, wavesCleared: 5, seconds: 30 }); for (const id of M.pendingReveals()) if (id !== 'equip') M.markSeen(id); return { unlocked: r.unlocked, itemGold: r.itemGold, items: r.items.length, gold: r.gold }; }, stage);
     // walk the running guide through real taps; a pause entry is waited out. hooks.at(i, target) runs when an entry shows.
     async function walk(page, prefix, hooks = {}) {
-      const seq = []; const lines = []; let last = ''; let started = false; let idle = 0; const probs = [];
+      const seq = []; const lines = []; let last = ''; let started = false; let idle = 0; const probs = []; const revs = [];
       for (let it = 0; it < 700; it++) {
         const d = await guide(page);
-        if (d.reveal) { await tapId(page, 'reveal-tap'); await step(page, 6); continue; }
+        if (d.reveal) { revs.push({ label: d.reveal.label, guideActive: d.active, entries: seq.length }); await tapId(page, 'reveal-tap'); await step(page, 6); continue; }
         if (!d.active) { if (started) break; if (++idle > 80) break; await step(page, 10); continue; }
         started = true;
         const key = d.idx + ':' + (d.waiting ? 'wait' : d.target);
@@ -290,7 +296,7 @@ try {
         if (!d.rect) { await step(page, 8); continue; }
         await tapId(page, d.target); await step(page, 12);
       }
-      return { seq, lines, probs };
+      return { seq, lines, probs, revs };
     }
 
     const { page: p, ctx, problems } = await fresh(); await step(p, 20);
@@ -324,18 +330,46 @@ try {
     });
     const want = ['tab-equip', 'equip-hero', 'bag-' + gift.uid, 'wear', 'wait', 'slot-weapon', 'upgrade', 'wait'];
     check(JSON.stringify(W.seq) === JSON.stringify(want), `the equipment guide walked its steps in order (${W.seq.join(' ')})`);
+    {
+      const early = W.revs.filter((r) => /NÂNG CẤP/.test(r.label));
+      await step(p, 120); const dr = await guide(p);
+      check(early.length === 0 && !!dr.reveal && /NÂNG CẤP TRANG BỊ/.test(dr.reveal.label) && !dr.active, `the "Nâng cấp trang bị" reveal comes after the guide's closing line, not during it (revealed inside the guide: ${early.length}, after it: ${dr.reveal ? dr.reveal.label : 'none'}; revs ${JSON.stringify(W.revs)}, pending ${JSON.stringify(await p.evaluate(() => __G.meta.pendingReveals()))}, screen ${await p.evaluate(() => __G.screen)})`);
+      await snapE(p, '09-upgrade-reveal-after-guide');
+      for (let k = 0; k < 6 && (await guide(p)).reveal; k++) { await tapId(p, 'reveal-tap'); await step(p, 40); }
+    }
+    check(W.seq.includes('equip-hero') && Object.keys((await accOf(p)).heroes).length >= 2, `a two-hero account has the hero step (${W.seq.join(' ')})`);
     check(W.probs.length === 0, `every step lit its target (spotlight within 2 px) and blocked the rest (${W.probs.slice(0, 3).join(' | ') || 'none'})`);
     check(W.lines.every((l) => l && l.length <= 34), `one short line per step (${W.lines.join(' / ')})`);
     check(info.noMerge === true && info.bagN === 1, `GHÉP and GHÉP NHANH targets do not exist and the bag shows one item (bag ${info.bagN})`);
     const closed = Object.entries(info.slots || {}).filter(([, v]) => v.startsWith('closed')).map(([k]) => k);
     check(closed.length === 5 && !closed.includes('weapon'), `five slots are dimmed (${closed.join()})`);
     check(info.atk1 === info.atk0 + stat1 && info.bonus1 === '+' + stat1, `after MẶC the Công text is the old ${info.atk0} plus ${stat1} (${info.atk1}, bonus "${info.bonus1}")`);
+    {
+      const f = info.fly1 && info.fly1.rect, t = info.fly1 && info.fly1.title;
+      const hit = f && t && f.x < t.x + t.w && f.x + f.w > t.x && f.y < t.y + t.h && f.y + f.h > t.y;
+      check(!!f && !!t && !hit && f.x >= 8 && f.x + f.w <= 352, `the +${stat1} fly-up rectangle (${f && [f.x, f.y, f.w, f.h].map((v) => v.toFixed(0))}) does not meet the TRANG BỊ title (${t && [t.x, t.y, t.w, t.h].map((v) => v.toFixed(0))}) and stays inside the stat strip's width`);
+    }
     check(!!info.fly1 && info.fly1.text === '+' + stat1 && info.fly1.n === stat1 && info.n1 >= 1, `a "+N" fly-up with N = ${stat1} was shown (${JSON.stringify(info.fly1)})`);
     check(info.upLine === 'MIỄN PHÍ', `the upgrade button reads "${info.upLine}"`);
     const aG = await accOf(p); const it2 = aG.bag.find((i) => i.uid === gift.uid);
     check(it2.lv === 2 && aG.gold === info.gold0 && aG.mats.weapon === info.mats0, `the free upgrade cost 0 gold and 0 materials and raised the item to level ${it2.lv}`);
     check(info.fly2 && info.fly2.n === stat2 - stat1 && info.n2 > info.n1 && info.atk2 === info.atk0 + stat2, `the number rose again: +${info.fly2 && info.fly2.n} to ${info.atk2} (want +${stat2 - stat1} to ${info.atk0 + stat2})`);
     check(aG.ftue.done.equip === true, 'the equipment guide is saved as done');
+    {
+      // one hero only: the hero step is left out of the guide's step list
+      const { page: q, ctx: qc } = await fresh(); await step(q, 20);
+      await winIn(q, 1); await q.evaluate(() => __G.meta.ftueSkip());
+      for (let k = 0; k < 12; k++) { const a = await accOf(q); if (a.level >= 5) break; await winQ(q, a.cleared + 1); }
+      await winQ(q, (await accOf(q)).cleared + 1);
+      await q.evaluate(() => { const M = __G.meta; for (const id of Object.keys(M.acc.heroes)) if (id !== 'gio') delete M.acc.heroes[id]; M.acc.team = ['gio']; __G.goto('home', {}); });
+      await step(q, 90);
+      for (let k = 0; k < 8 && (await guide(q)).reveal; k++) { await tapId(q, 'reveal-tap'); await step(q, 40); }
+      await step(q, 40);
+      const d1 = await guide(q);
+      const n1 = await q.evaluate(() => Object.keys(__G.meta.acc.heroes).length);
+      check(n1 === 1 && d1.active && d1.id === 'equip' && d1.path.length === 7 && !d1.path.includes('equip-hero') && d1.path[0] === 'tab-equip', `one-hero account: the equipment guide has ${d1.path.length} entries and no hero step (${d1.path.join(' ')})`);
+      await qc.close();
+    }
     // dimmed slots explain themselves; the screen has little standing text
     await step(p, 60); await tapId(p, 'tab-equip'); await step(p, 30);
     if ((await p.evaluate(() => __G.screen)) !== 'equip') { await p.evaluate(() => __G.goto('equip')); await step(p, 30); }

@@ -50,7 +50,7 @@ export function createGuide(game) {
   const hand = buildHand(THREE); scr.holder.add(hand); hand.visible = false;
 
   // four invisible buttons as blockers around the spotlight; one covers the whole frame when there is no target
-  const bands = [0, 1, 2, 3].map(() => {
+  const bands = [0, 1, 2, 3, 4, 5, 6, 7].map(() => {
     const b = ui.button({ id: 'guide-block', w: 100, h: 100, shadow: false, onTap: () => onBlocked() });
     b.traverse((o) => { if (o.isMesh) o.visible = false; });
     scr.put(b, 0, 0, 10); return b;
@@ -66,9 +66,9 @@ export function createGuide(game) {
 
   // ---- the dim with the hole ----
   let dimKey = '';
-  function drawDim(rect) {
+  function drawDim(rect, extra = []) {
     const H = ui.H, k = 2, cw = 360 * k, ch = Math.ceil(H * k);
-    const key = rect ? [rect.x, rect.y, rect.w, rect.h, ch].map((v) => Math.round(v * 2)).join('|') : 'none|' + ch;
+    const key = rect ? [rect.x, rect.y, rect.w, rect.h, ch, ...extra.flatMap((e) => [e.x, e.y, e.w, e.h])].map((v) => Math.round(v * 2)).join('|') : 'none|' + ch;
     if (key === dimKey) return; dimKey = key;
     if (dimCan.width !== cw || dimCan.height !== ch) { dimCan.width = cw; dimCan.height = ch; dimMesh.geometry.dispose(); dimMesh.geometry = new THREE.PlaneGeometry(360, H); dimMesh.position.set(180, -H / 2, 0); }
     const c = dimCan.getContext('2d'); c.clearRect(0, 0, cw, ch);
@@ -78,20 +78,34 @@ export function createGuide(game) {
     const path = () => { c.beginPath(); c.roundRect(x, y, w, h, r); };
     c.globalCompositeOperation = 'destination-out'; c.shadowColor = '#000'; c.shadowBlur = 16 * k; c.fillStyle = '#000'; path(); c.fill();
     c.shadowBlur = 0; path(); c.fill();
+    for (const e of extra) { c.beginPath(); c.roundRect(e.x * k, e.y * k, e.w * k, e.h * k, Math.min(13, e.h / 2) * k); c.fill(); }
     c.globalCompositeOperation = 'source-over'; c.shadowColor = 'rgba(255,200,40,0.9)'; c.shadowBlur = 12 * k; c.strokeStyle = '#ffc21f'; c.lineWidth = 3.4 * k; path(); c.stroke();
     c.shadowBlur = 0; c.strokeStyle = '#1a1420'; c.lineWidth = 1.2 * k; c.beginPath(); c.roundRect(x - 2.4 * k, y - 2.4 * k, w + 4.8 * k, h + 4.8 * k, r + 2.4 * k); c.stroke();
     dimTex.needsUpdate = true;
   }
 
-  function layoutBands(rect) {
+  // the frame minus the spotlight and any extra holes, as up to eight rectangles
+  function layoutBands(rect, extra = []) {
     const H = ui.H, lip = 11;
     const set = (b, x, y, w, h) => {
       if (w < 0.5 || h < 0.5) { b.setVisible(false); return; }
       b.setVisible(true); b.pos(x, y); b.scale.set(w / 100, h / (100 + lip), 1);
     };
-    if (!rect) { set(bands[0], 0, 0, 360, H); for (let i = 1; i < 4; i++) set(bands[i], 0, 0, 0, 0); return; }
-    const x0 = clamp(rect.x, 0, 360), x1 = clamp(rect.x + rect.w, 0, 360), y0 = clamp(rect.y, 0, H), y1 = clamp(rect.y + rect.h, 0, H);
-    set(bands[0], 0, 0, 360, y0); set(bands[1], 0, y1, 360, H - y1); set(bands[2], 0, y0, x0, y1 - y0); set(bands[3], x1, y0, 360 - x1, y1 - y0);
+    let parts = [{ x: 0, y: 0, w: 360, h: H }];
+    for (const hole of rect ? [rect, ...extra] : []) {
+      const x0 = clamp(hole.x, 0, 360), x1 = clamp(hole.x + hole.w, 0, 360), y0 = clamp(hole.y, 0, H), y1 = clamp(hole.y + hole.h, 0, H);
+      parts = parts.flatMap((q) => {
+        if (x1 <= q.x || x0 >= q.x + q.w || y1 <= q.y || y0 >= q.y + q.h) return [q];
+        const out = [];
+        if (y0 > q.y) out.push({ x: q.x, y: q.y, w: q.w, h: y0 - q.y });
+        if (y1 < q.y + q.h) out.push({ x: q.x, y: y1, w: q.w, h: q.y + q.h - y1 });
+        const ya = Math.max(y0, q.y), yb = Math.min(y1, q.y + q.h);
+        if (x0 > q.x) out.push({ x: q.x, y: ya, w: x0 - q.x, h: yb - ya });
+        if (x1 < q.x + q.w) out.push({ x: x1, y: ya, w: q.x + q.w - x1, h: yb - ya });
+        return out;
+      });
+    }
+    bands.forEach((b, i) => { const q = parts[i]; if (q) set(b, q.x, q.y, q.w, q.h); else b.setVisible(false); });
   }
 
   // ---- the speech panel ----
@@ -109,8 +123,8 @@ export function createGuide(game) {
   // ---- steps ----
   // A path entry is a target id (or a token meta.guideTokens() resolves), or { wait } for a pause with no target.
   // pathOf gives the resolved ids (null for a pause); entryOf the entry with its one line of text.
-  const rawPath = (step) => (step.path || (step.target ? [step.target] : [])).map((e) => (typeof e === 'string' ? { id: e } : e));
   const heroesOwned = () => Object.values(meta.acc.heroes).filter((h) => h.level > 0).length;
+  const rawPath = (step) => (step.path || (step.target ? [step.target] : [])).map((e) => (typeof e === 'string' ? { id: e } : e)).filter((e) => !(e.only === 'multiHero' && heroesOwned() < 2));
   function pathOf(step) { const tk = meta.guideTokens(); return rawPath(step).map((e) => (e.id ? (tk[e.id] !== undefined ? tk[e.id] : e.id) : null)); }
   const entryOf = (step, i) => rawPath(step)[i] || null;
   // a press is a pointer down and up on the target; the kit's own listener on the frame runs first, so its onTap has fired
@@ -140,6 +154,7 @@ export function createGuide(game) {
     game.frozen = false; S.step = null; S.rect = null;
     meta.ftueDone(step.id);
     hand.visible = false; ui.hide('guide', { transition: 'none' });
+    if (step.later && meta.pendingReveals().length) reveal.soon(0.4);
     drain(step.when === 'home' || step.id === 'reward', step.later);
   }
   function skip() { if (S.step) finish(S.step); }
@@ -192,8 +207,7 @@ export function createGuide(game) {
     ui.show('guide', { transition: 'none' });
     S.t += dt;
     skipBtn.setVisible(!!meta.acc.ftue.session);
-    let ent = entryOf(step, S.idx);
-    while (ent && ent.only === 'multiHero' && heroesOwned() < 2) { S.idx++; ent = entryOf(step, S.idx); }
+    const ent = entryOf(step, S.idx);
     if (!S.noTarget && !ent) { finish(step); return; }
     if (ent && ent.wait !== undefined) {
       buildPanel(ent.line || step.text, '');
@@ -218,7 +232,8 @@ export function createGuide(game) {
     }
     S.miss = 0;
     const rect = toDesign(hit); S.rect = { x: hit.x, y: hit.y, w: hit.w, h: hit.h, id: hit.id };
-    drawDim(rect); layoutBands(rect);
+    const extra = (step.allow || []).map((id) => ui.targets().find((t) => t.id === id && t.enabled && !isOwn(t.id))).filter(Boolean).map(toDesign);
+    drawDim(rect, extra); layoutBands(rect, extra);
     placePanel(rect, placeHand(rect, S.t));
   }
 
@@ -226,11 +241,11 @@ export function createGuide(game) {
     name: 'guide', show() {}, hide() {}, update,
     dbg() {
       const s = S.step, e = s ? entryOf(s, S.idx) : null;
-      return { active: !!s, id: s ? s.id : null, text: s ? (e && e.line) || s.text : '', target: s && !S.noTarget ? pathOf(s)[S.idx] : null, idx: S.idx, path: s ? pathOf(s) : [], noTarget: S.noTarget || !!(e && e.wait !== undefined), waiting: !!(e && e.wait !== undefined), rect: S.rect, skipVisible: skipBtn.visible, frozen: !!game.frozen, reveal: reveal ? reveal.dbg() : null };
+      return { active: !!s, id: s ? s.id : null, text: s ? (e && e.line) || s.text : '', target: s && !S.noTarget ? pathOf(s)[S.idx] : null, idx: S.idx, path: s ? pathOf(s) : [], noTarget: S.noTarget || !!(e && e.wait !== undefined), waiting: !!(e && e.wait !== undefined), rect: S.rect, allow: s ? s.allow || [] : [], skipVisible: skipBtn.visible, frozen: !!game.frozen, reveal: reveal ? reveal.dbg() : null };
     },
   };
   game.guide = api;
-  reveal = createReveal(game, { onDone: () => drain(false) });
+  reveal = createReveal(game, { onDone: () => drain(false), blocked: () => !!(S.step && S.step.later && S.idx > 0) });
   return [api, reveal.api];
 }
 
@@ -251,7 +266,7 @@ function buildPadlock(THREE) {
   return g;
 }
 
-function createReveal(game, { onDone }) {
+function createReveal(game, { onDone, blocked }) {
   const ui = game.ui, meta = game.meta, THREE = ui.THREE, frame = document.getElementById('frame');
   const scr = ui.screen('reveal', { modal: true });
   const dim = new THREE.Mesh(new THREE.PlaneGeometry(420, 900), new THREE.MeshBasicMaterial({ color: 0x0a0618, transparent: true, opacity: 0.74, depthWrite: false, toneMapped: false }));
@@ -295,7 +310,7 @@ function createReveal(game, { onDone }) {
 
   function update(dt) {
     if (!R.ids.length) {
-      if (R.wait > 0) { R.wait -= dt; if (R.wait <= 0) { const B = game.B; if (!(B && (B.phase === 'fight' || B.phase === 'pick')) && !game.paused) start(); } }
+      if (R.wait > 0) { R.wait -= dt; if (R.wait <= 0 && blocked()) R.wait = 0.2; else if (R.wait <= 0) { const B = game.B; if (!(B && (B.phase === 'fight' || B.phase === 'pick')) && !game.paused) start(); } }
       return;
     }
     ui.show('reveal', { transition: 'none' });
@@ -322,7 +337,7 @@ function createReveal(game, { onDone }) {
 
   return {
     api: { name: 'reveal', show() {}, hide() {}, update: () => {} },
-    update, active: () => R.ids.length > 0, busy: () => R.ids.length > 0 || R.wait > 0,
+    update, soon: wantSoon, active: () => R.ids.length > 0, busy: () => R.ids.length > 0 || R.wait > 0,
     dbg: () => (R.ids.length ? { id: R.cur, label: R.label, t: R.t, left: R.ids.length } : null),
   };
 }

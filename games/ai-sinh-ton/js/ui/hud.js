@@ -196,13 +196,30 @@ export function createHud(game) {
     if (p) { p.sum += amount; p.n++; p.sx += e.x; p.sz += e.z; p.crit = p.crit || !!e.crit; p.x = e.x; p.z = e.z; }
     else pending.set(key, { sum: amount, n: 1, sx: e.x, sz: e.z, crit: !!e.crit, x: e.x, z: e.z, t0: clock, heal, uid: e.uid, merged: !single });
   }
+  // A number is drawn at y and rises RISE units, so its swept rectangle is what must stay clear of banners and inside the play band.
+  const RISE = 46, BAND_TOP = 84, BAND_BOTTOM_FROM_BOTTOM = 135;
+  function bannerRects() {
+    const out = banners.map((b) => ({ x: b.cx, y: b.spec.y, w: b.w, h: b.h, age: b.t }));
+    if (boss.visible) out.push({ x: 0, y: boss.y, w: 360, h: 40, age: 99 });
+    return out;
+  }
+  const sweep = (n) => ({ x: n.x - n.w / 2, y: n.y - RISE - n.h / 2, w: n.w, h: RISE + n.h });
+  const meets = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   function place(str, x, y, o) {
     if (live.length >= capOf()) return false;
+    const size = o.size ?? 20, w = str.length * size * 0.62 + 10, h = size + 6, bottom = ui.H - BAND_BOTTOM_FROM_BOTTOM - h / 2;
+    const inBand = (ny) => ny - RISE - h / 2 >= BAND_TOP && ny <= bottom;
     const hit = (nx, ny) => live.some((q) => Math.abs(q.x - nx) < 38 && Math.abs(q.y - ny) < 18);
-    let nx = x, ny = y;
-    for (let tries = 0; tries < 5 && hit(nx, ny); tries++) { ny -= 19; nx += tries % 2 ? -9 : 9; }
-    if (hit(nx, ny)) return false;
-    ui.fly(str, nx, ny, o); live.push({ until: clock + NUMBER_LIFE, x: nx, y: ny }); return true;
+    const rects = bannerRects();
+    const fit = (nx, ny) => {
+      ny = clamp(ny, BAND_TOP + RISE + h / 2, bottom);
+      for (const r of rects) if (meets(sweep({ x: nx, y: ny, w, h }), r)) ny = r.y + r.h + RISE + h / 2 + 2;
+      return ny;
+    };
+    let nx = clamp(x, w / 2, 360 - w / 2), ny = fit(nx, y);
+    for (let tries = 0; tries < 5 && inBand(ny) && hit(nx, ny); tries++) { nx = clamp(nx + (tries % 2 ? -9 : 9), w / 2, 360 - w / 2); ny = fit(nx, ny - 19); }
+    if (!inBand(ny) || hit(nx, ny) || rects.some((r) => meets(sweep({ x: nx, y: ny, w, h }), r))) return false;
+    ui.fly(str, nx, ny, o); live.push({ until: clock + NUMBER_LIFE, x: nx, y: ny, w, h, born: clock }); return true;
   }
   function flushNumbers() {
     for (let i = live.length - 1; i >= 0; i--) if (live[i].until <= clock) live.splice(i, 1);
@@ -212,7 +229,7 @@ export function createHud(game) {
       if (clock - p.t0 < (p.merged ? MERGE_GROUP : MERGE)) continue; pending.delete(key);
       const u = B.byUid.get(p.uid), hero = !!(u && u.hero);
       const at = p.merged ? game.project(p.sx / p.n, p.sz / p.n, 1.6) : game.project(p.x, p.z, hero ? 1.9 : (u && u.boss ? 3.2 : 1.6));
-      if (at.behind || at.x < -10 || at.x > 370 || at.y < 60) continue;
+      if (at.behind || at.x < -10 || at.x > 370 || at.y < 40) continue;
       const o = p.heal ? { color: PAL.green, size: 18 } : hero ? { color: 0xff7468, size: 15 } : p.merged ? { color: 0xffffff, size: clamp(17 + 2.2 * Math.log2(p.n), 17, 29) } : p.crit ? { color: PAL.gold, size: 27 } : { color: 0xffffff, size: 17 };
       place((p.heal ? '+' : '') + fmt(p.sum) + (p.merged && p.n >= 3 ? ' x' + p.n : ''), at.x, at.y, o);
     }
@@ -309,7 +326,7 @@ export function createHud(game) {
     update,
     // what the test needs to read without guessing from pixels
     dbg() {
-      return { visible, bossShown: boss.shown, bossName: boss.label, bossY: boss.y, flames: cards.map((c) => c.flame.visible), ready: cards.map((c) => c.ready), banners: banners.map((b) => b.kind), numbers: live.length, cap: capOf(), numberPos: live.map((q) => [q.x, q.y]), specShown: spec.visible };
+      return { visible, bossShown: boss.shown, bossName: boss.label, bossY: boss.y, flames: cards.map((c) => c.flame.visible), ready: cards.map((c) => c.ready), banners: banners.map((b) => b.kind), numbers: live.length, cap: capOf(), numberPos: live.map((q) => [q.x, q.y]), numberRects: live.map((q) => ({ ...sweep(q), age: clock - q.born })), bannerRects: bannerRects(), band: [BAND_TOP, ui.H - BAND_BOTTOM_FROM_BOTTOM], specShown: spec.visible };
     },
   };
   return hud;

@@ -90,13 +90,19 @@ async function numbersTest(br, base) {
   const r = await openPage(br, base, 's22', 'autostart=1&stage=15&autoult=1&autopick=1&noaudio=1&seed=15&q=low');
   const res = await r.page.evaluate(() => {
     const G = window.__G; G.start(15, { seed: 15, auto: { ult: true, pick: 'best' } });
-    const hud = G.screens.hud; let maxN = 0; let cap = 0; let overlap = 0; let samples = 0; let maxPend = 0;
+    const hud = G.screens.hud; let maxN = 0; let cap = 0; let overlap = 0; let samples = 0; let maxPend = 0; let onBanner = 0; let outBand = 0; let bannerSamples = 0; let bandSeen = 0; const kinds = new Set();
     for (let i = 0; i < 700 && G.B.phase !== 'won' && G.B.phase !== 'lost'; i++) {
       window.__sim(0.1); window.__step(6);
       const d = hud.dbg(); samples++; maxN = Math.max(maxN, d.numbers); cap = d.cap;
+      if (d.bannerRects.length) bannerSamples++;
+      for (const n of d.numberRects) {
+        if (n.y < d.band[0] - 0.5 || n.y + n.h > d.band[1] + 0.5) outBand++;
+        for (const r of d.bannerRects) if (n.age <= r.age && n.x < r.x + r.w && n.x + n.w > r.x && n.y < r.y + r.h && n.y + n.h > r.y) onBanner++;
+      }
+      for (const b of d.banners) kinds.add(b);
       const p = d.numberPos; for (let a = 0; a < p.length; a++) for (let b = a + 1; b < p.length; b++) if (Math.abs(p[a][0] - p[b][0]) < 38 && Math.abs(p[a][1] - p[b][1]) < 18) overlap++;
     }
-    return { maxN, cap, overlap, samples, hits: 0 };
+    return { maxN, cap, overlap, samples, hits: 0, onBanner, outBand, bannerSamples, kinds: [...kinds] };
   });
   await r.ctx.close(); return res;
 }
@@ -179,6 +185,7 @@ try {
 
   const nt = await numbersTest(br, srv.base);
   check(nt.maxN <= nt.cap && nt.maxN > 0, `live damage numbers peak ${nt.maxN} (cap ${nt.cap}) over ${nt.samples} samples`);
+  check(nt.samples >= 300 && nt.bannerSamples > 0 && nt.onBanner === 0 && nt.outBand === 0, `damage numbers over ${nt.samples} samples of stage 15 (${nt.bannerSamples} with a banner or boss bar up, kinds ${nt.kinds.join('/')}): ${nt.onBanner} live numbers on a banner rectangle, ${nt.outBand} outside the play band (a number already flying when its banner appears is not counted)`);
   check(nt.overlap === 0, `overlapping number pairs across samples: ${nt.overlap}`);
 
   const kt = await kindsTest(br, srv.base);

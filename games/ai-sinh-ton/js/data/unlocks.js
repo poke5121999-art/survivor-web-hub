@@ -128,7 +128,7 @@ export const FTUE = [
   { id: 'pick', where: 'pick', when: 'tutorial:pick', text: 'Chọn 1 thẻ nâng cấp cho tướng', target: 'card1' },
   { id: 'join', where: 'battle', when: 'tutorial:join', text: 'Y Tá nhập đội!', target: null, wait: 2.5 },
   { id: 'boss', where: 'battle', when: 'tutorial:boss', text: 'Boss tới! Né vùng đỏ, dồn tối thượng', target: null, wait: 3 },
-  { id: 'reward', where: 'result', when: 'tutorial:won', text: 'Nhận thưởng', target: 'home' },
+  { id: 'reward', where: 'result', when: 'tutorial:won', text: 'Nhận thưởng', target: 'home', allow: ['tab-stats'] },
   { id: 'levelup', where: 'heroes', when: 'home', text: 'Dùng mảnh và vàng để lên cấp tướng', path: ['tab-heroes', 'hero-gio', 'levelup', 'back'] },
   { id: 'gacha', where: 'gacha', when: 'home', text: 'Lượt triệu hồi đầu miễn phí!', path: ['tab-gacha', 'pull1', 'done'] },
   { id: 'team', where: 'heroes', when: 'home', text: 'Đưa tướng mới vào ô đội hình vừa mở', path: ['tab-heroes', 'hero-mua', 'team-toggle', 'back'] },
