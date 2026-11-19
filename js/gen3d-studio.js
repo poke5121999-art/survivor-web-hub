@@ -815,7 +815,8 @@ function paintBar() {
       j && j.kind === "rig" && j.status === "done" ? h("a", { class: "g3-tb g3-tb--link", href: animUrl(j.id), html: svg("play") + "<span>Thử anim</span>" }) : null,
       h("span", { class: "g3-sep" }),
       tb("down", "Export GLB", async () => { try { await saveUrl(pubUrl(j.result.files.glb), fileBase(j) + ".glb"); } catch (e) { toast("Không tải được: " + e.message); } }, { primary: true, disabled: !done }),
-      quad ? tb("down", "OBJ", () => viewer.obj(fileBase(j)), { disabled: !done, title: "Xuất OBJ (mesh quad)" }) : null));
+      quad ? tb("down", "OBJ", () => viewer.obj(fileBase(j)), { disabled: !done, title: "Xuất OBJ (mesh quad)" }) : null,
+      canDelete(j) ? [h("span", { class: "g3-sep" }), h("button", { class: "g3-tb g3-tb--danger", type: "button", title: "Xoá model này cùng các phiên bản con", onclick: () => deleteJob(), html: "<span>Xoá</span>" })] : null));
 }
 async function jobAction(a) {
   try {
@@ -826,16 +827,21 @@ async function jobAction(a) {
     refreshJobs();
   } catch { /* banner */ }
 }
-async function deleteJob() {
-  const j = S.job;
-  const kids = S.chain.filter((x) => x.id !== j.id && isDescendant(x, j.id)).length;
-  if (!confirm(`Xoá ${KIND_LABEL[j.kind]} "${j.title}"${kids ? ` và ${kids} phiên bản con` : ""}?`)) return;
+const canDelete = (j) => !!j && !active(j) && (S.me.isAdmin || j.created_by === S.me.id);
+async function deleteJob(j = S.job) {
+  const inChain = S.chain.some((x) => x.id === j.id);
+  const kids = inChain ? S.chain.filter((x) => x.id !== j.id && isDescendant(x, j.id)).length : 0;
+  const tail = kids ? ` và ${kids} phiên bản con` : inChain ? "" : " và mọi phiên bản con (texture, xương) nếu có";
+  if (!confirm(`Xoá ${KIND_LABEL[j.kind]} "${j.title || "Model"}"${tail}? Không khôi phục được.`)) return;
   try {
     await guard(api("delete", { id: j.id }));
     toast("Đã xoá");
-    S.sel = null; S.job = null; S.chain = []; viewer.clear();
-    history.replaceState(null, "", location.pathname + location.search);
-    refreshJobs(); paintView(); paintRight();
+    if (S.sel === j.id || inChain) {
+      S.sel = null; S.job = null; S.chain = []; viewer.clear();
+      history.replaceState(null, "", location.pathname + location.search);
+      paintView(); paintRight();
+    }
+    refreshJobs();
   } catch { /* banner */ }
 }
 function isDescendant(x, id) {
@@ -875,7 +881,8 @@ function paintAssets() {
       h("span", { class: "g3-asset__k" }, kindTag(j.kind)),
       j.status !== "done" ? h("span", { class: "g3-asset__s" }, statusPill(j.status)) : null,
       h("span", { class: "g3-asset__t" }, stage ? h("span", { class: "g3-asset__stage", text: stage }) : null, j.title || "Model"),
-      active(j) ? h("span", { class: "g3-asset__bar", style: "width:" + progressPct(j) + "%" }) : null));
+      active(j) ? h("span", { class: "g3-asset__bar", style: "width:" + progressPct(j) + "%" }) : null,
+      canDelete(j) ? h("button", { class: "g3-asset__x", type: "button", title: "Xoá", "aria-label": "Xoá " + (j.title || "model"), text: "×", onclick: (e) => { e.preventDefault(); e.stopPropagation(); deleteJob(j); } }) : null));
   }
   fill(P.rbody, h("div", { class: "g3-filter" }, filt, h("span", { class: "g3-spacer" }), h("button", { class: "g3-btn", type: "button", text: "↻", title: "Làm mới", "aria-label": "Làm mới", onclick: refreshJobs })), list);
 }
@@ -908,7 +915,7 @@ function paintProperty() {
     h("div", { class: "g3-btns" },
       active(j) ? h("button", { class: "g3-btn g3-btn--danger", type: "button", text: "Huỷ", onclick: () => jobAction("cancel") }) : null,
       j.status === "failed" || j.status === "canceled" ? h("button", { class: "g3-btn", type: "button", text: "Chạy lại", onclick: () => jobAction("retry") }) : null,
-      !active(j) ? h("button", { class: "g3-btn g3-btn--danger", type: "button", text: "Xoá", onclick: deleteJob }) : null),
+      canDelete(j) ? h("button", { class: "g3-btn g3-btn--danger", type: "button", text: "Xoá", onclick: () => deleteJob() }) : null),
     h("div", { class: "g3-sec", text: "Các phiên bản" }), chainTree(),
     h("div", { class: "g3-sec", text: "Nhật ký" }), logEl));
   logEl.scrollTop = logEl.scrollHeight;
