@@ -6,6 +6,7 @@ import { createCamera } from './view/camera.js';
 import { createBattle, step, DT } from './sim/battle.js';
 import { stageDef, expectedLevel } from './data/stages.js';
 import { levelMul } from './data/economy.js';
+import { attachGame } from './game.js';
 
 const DEFAULT_TEAM = ['thep', 'mua', 'yta', 'gio'];
 const MAX_CATCHUP = 8;
@@ -31,10 +32,10 @@ async function boot() {
       actors.clear();
       game.B = createBattle({
         stage, seed: opts.seed || 1, wave: opts.wave || 1, auto: opts.auto || {},
-        team: ids.map((id) => ({ id, mul: opts.mul || levelMul(L), atkFlat: opts.atkFlat ?? 6 * n, hpFlat: opts.hpFlat ?? 40 * n })),
+        team: opts.teamSpec || ids.map((id) => ({ id, mul: opts.mul || levelMul(L), atkFlat: opts.atkFlat ?? 6 * n, hpFlat: opts.hpFlat ?? 40 * n })),
         onEvent: (e) => { actors.onEvent(e); for (const fn of listeners) fn(e); },
       });
-      host.setStage(game.B.stage); game.state = 'battle'; acc = 0;
+      host.setStage(game.B.stage); game.state = 'battle'; game.stageN = n; acc = 0;
       if (opts.spectate !== undefined && game.B.heroes[opts.spectate]) cam.spectate(game.B.heroes[opts.spectate].uid);
       return game.B;
     },
@@ -42,12 +43,13 @@ async function boot() {
   };
   window.__G = game;
   window.__stats = host.stats;
+  const glue = await attachGame(game, { params });
 
   let acc = 0;
-  function present(dt) {
+  function present(dt, realDt = dt) {
     const B = game.B;
     if (B) actors.sync(B, dt);
-    cam.update(B, dt); host.update(dt); host.render();
+    cam.update(B, dt); host.update(dt); glue.update(dt, realDt); host.render(glue.overlay);
   }
   function advance(dt) {
     const B = game.B;
@@ -62,7 +64,7 @@ async function boot() {
   function loop(now) {
     const dt = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
     advance(dt);
-    present(game.paused ? 0.0001 : dt * game.speed);
+    present(game.paused ? 0.0001 : dt * game.speed, dt);
     requestAnimationFrame(loop);
   }
 
@@ -71,7 +73,7 @@ async function boot() {
     const ticks = Math.round(secs / DT);
     for (let i = 0; i < ticks && B.phase === 'fight'; i++) step(B);
     for (let i = 0; i < 24; i++) { actors.sync(B, 1 / 30); cam.update(B, 1 / 30); }
-    host.update(1 / 30); host.render();
+    host.update(1 / 30); glue.update(1 / 30, 1 / 30); host.render(glue.overlay);
   };
   window.__step = (n = 1) => { for (let i = 0; i < n; i++) present(1 / 60); };
 
@@ -83,6 +85,7 @@ async function boot() {
       spectate: params.spectate !== undefined ? +params.spectate : undefined,
     });
   }
+  glue.boot();
   present(1 / 60);
   window.__ready = true;
   requestAnimationFrame(loop);
