@@ -1,6 +1,7 @@
 // Stages: five waves each, the fifth is the stage's boss. A stage is fully determined by its number, so every
 // player meets the same waves. Stages 1-30 are the campaign; past 30 the same rules keep scaling without end.
 import { ENEMY } from './enemies.js';
+import { expectedSlots } from './unlocks.js';
 
 export const CHAPTERS = [
   { name: 'Phố Hoang', floor: 0x8f9aa6, fog: 0xa9b6c4 },
@@ -30,10 +31,14 @@ const UNLOCK = [
 
 // stage-1 multipliers over the tables in enemies.js, then the growth per stage
 export const BASE = { hp: 2.4, atk: 2.2, bossHp: 2.6, ultCost: 2.2 };
-export const HP_GROWTH = 1.07;
-export const ATK_GROWTH = 1.04;
-export const SPIKE_HP = 1.35;
+export const HP_GROWTH = 1.055;
+export const ATK_GROWTH = 1.03;
+export const SPIKE_HP = 1.25;
 export const MAX_ALIVE = 40;
+// early stages are met with fewer team slots open (unlocks.js): wave size and boss health shrink to match
+export const TEAM_K = { 1: 0.3, 2: 0.36, 3: 0.65, 4: 0.92 };
+// fewer heroes also share the same blows between fewer bodies
+export const TEAM_ATK = { 1: 0.45, 2: 0.48, 3: 0.82, 4: 1 };
 
 function rngOf(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
@@ -54,10 +59,11 @@ export function stageDef(n) {
   const totalW = pool.reduce((s, u) => s + u[2], 0);
   const pick = () => { let x = rnd() * totalW; for (const u of pool) { x -= u[2]; if (x < 0) return u[1]; } return pool[0][1]; };
   const boss = bossOf(n);
+  const slots = expectedSlots(n); const teamK = TEAM_K[slots];
   const waves = [];
   for (let w = 1; w <= 5; w++) {
     const isBoss = w === 5;
-    let budget = (isBoss ? 9 : 9 + 4.5 * w) + Math.min(n, 40) * 0.5;
+    const budget = ((isBoss ? 9 : 9 + 4.5 * w) + Math.min(n, 40) * 0.5) * teamK;
     const span = isBoss ? 30 : 13 + w * 2;
     const groups = [];
     const nG = isBoss ? 4 : 3 + w;
@@ -75,8 +81,8 @@ export function stageDef(n) {
   return {
     n, chapter, chapterName: CHAPTERS[chapter].name, name: `${CHAPTERS[chapter].name} ${((n - 1) % 5) + 1}`,
     floor: CHAPTERS[chapter].floor, fog: CHAPTERS[chapter].fog,
-    hpMul: BASE.hp * Math.pow(HP_GROWTH, n - 1), atkMul: BASE.atk * Math.pow(ATK_GROWTH, n - 1),
-    boss, bossName: ENEMY[boss].name, bossTier: bossTierOf(n), bossHp: BASE.bossHp * (isSpike(n) ? SPIKE_HP : 1), spike: isSpike(n), waves,
+    hpMul: BASE.hp * Math.pow(HP_GROWTH, n - 1), atkMul: BASE.atk * Math.pow(ATK_GROWTH, n - 1) * TEAM_ATK[slots],
+    boss, bossName: ENEMY[boss].name, bossTier: bossTierOf(n), bossHp: BASE.bossHp * (isSpike(n) ? SPIKE_HP : 1) * teamK, slots, spike: isSpike(n), waves,
   };
 }
 

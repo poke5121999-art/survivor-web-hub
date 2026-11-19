@@ -34,13 +34,13 @@ function play(opts, until) {
 
 // a full stage: five waves, the boss on wave 5, heroes target and attack on their own
 {
-  const { B, log } = play({ stage: 1, seed: 3, team: team(START), auto: { ult: true, pick: 'best' } });
+  const { B, log } = play({ stage: 8, seed: 3, team: team(START, 1.6), auto: { ult: true, pick: 'best' } });
   const waves = log.filter((e) => e.e === 'wave');
-  check(B.phase === 'won', `stage 1 with the starter team at level 1 is won (${B.phase}, wave ${B.wave})`);
+  check(B.phase === 'won', `stage 8 with the four starters at level 8 is won (${B.phase}, wave ${B.wave})`);
   check(waves.length === 5 && waves.map((w) => w.n).join('') === '12345', 'five waves start in order');
   check(waves[4].boss === true && waves.slice(0, 4).every((w) => !w.boss), 'only wave 5 is the boss wave');
   const bossEv = log.find((e) => e.e === 'boss');
-  check(!!bossEv && bossEv.kind === bossOf(1) && bossEv.t > waves[4].t, `the stage boss (${bossOf(1)}) spawns in wave 5`);
+  check(!!bossEv && bossEv.kind === bossOf(8) && bossEv.t >= waves[4].t, `the stage boss (${bossOf(8)}) spawns in wave 5`);
   check(!log.some((e) => e.e === 'spawn' && e.boss && e.t < waves[4].t), 'no boss before wave 5');
   for (const u of B.heroes) {
     const atk = log.filter((e) => e.e === 'attack' && e.uid === u.uid).length;
@@ -101,7 +101,7 @@ function play(opts, until) {
   for (const h of HEROES) {
     const ids = [h.id, ...['thep', 'yta', 'mua', 'gio'].filter((x) => x !== h.id)].slice(0, 4);
     let out = 0;
-    const { B, log } = play({ stage: 6, seed: 11, team: team(ids, 1.5), auto: { ult: true, pick: 'best' } }, (b) => { for (const u of b.heroes) if (Math.hypot(u.x, u.z) > ARENA_R + 0.01) out++; return false; });
+    const { B, log } = play({ stage: 10, seed: 11, team: team(ids, 1.5), auto: { ult: true, pick: 'best' } }, (b) => { for (const u of b.heroes) if (Math.hypot(u.x, u.z) > ARENA_R + 0.01) out++; return false; });
     const u = B.heroes[0];
     const c = (slot) => log.filter((e) => (e.e === 'cast' || e.e === 'ult') && e.uid === u.uid && e.slot === (slot === 'ult' ? 0 : slot)).length;
     const ults = log.filter((e) => e.e === 'ult' && e.uid === u.uid).length;

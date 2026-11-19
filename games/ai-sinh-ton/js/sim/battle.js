@@ -684,11 +684,25 @@ function endWave(B) {
   B.phase = 'pick';
   B.offers = B.heroes.map((u) => offerCards(u, B.rng));
   B.picked = B.heroes.map(() => -1);
+  const join = B.stage.waves[B.wave - 1].join;
+  if (join && B.joinSpec) joinHero(B, B.joinSpec(join));
   B.emit({ e: 'pick', wave: B.wave });
   if (B.auto.pick) for (let i = 0; i < B.heroes.length; i++) pickCard(B, i, B.auto.pick === 'best' ? bestOffer(B.offers[i]) : Math.floor(B.rng() * 3) % B.offers[i].length);
 }
 
 function bestOffer(offer) { let b = 0; for (let i = 1; i < offer.length; i++) if (CARD[offer[i]].rar > CARD[offer[b]].rar) b = i; return b; }
+
+// a hero who joins mid-stage (the tutorial's second hero): enters at the centre with full health
+export function joinHero(B, spec) {
+  if (B.heroes.length >= 4 || B.heroes.some((u) => u.kind === spec.id)) return null;
+  B.teamSize = B.heroes.length + 1;
+  const u = makeHero(B, B.heroes.length, spec);
+  u.state.invuln = 1.5;
+  B.heroes.push(u); addUnit(B, u);
+  if (B.picked) { B.picked.push(-1); B.offers.push(offerCards(u, B.rng)); }
+  B.emit({ e: 'join', uid: u.uid, slot: u.slot, hero: u.kind, x: u.x, z: u.z });
+  return u;
+}
 
 export function pickCard(B, slot, k) {
   if (B.phase !== 'pick' || B.picked[slot] >= 0) return false;
@@ -769,7 +783,7 @@ export function createBattle(opts) {
     units: [], allies: [], enemies: [], heroes: [], byUid: new Map(), uidSeq: 0,
     projs: [], zones: [], pending: [], queue: [], spawnsLeft: 0, kills: 0, boss: 0, offers: null, picked: null,
     auto: { ult: false, ultDelay: 0.6, pick: false, ...(opts.auto || {}) },
-    emit: () => {}, teamSize: opts.team.length,
+    emit: () => {}, teamSize: opts.team.length, joinSpec: opts.joinSpec || null,
   };
   // every event carries the game time it happened at
   if (opts.onEvent) B.emit = (e) => { e.t = B.t; opts.onEvent(e, B); };
