@@ -14,7 +14,7 @@ const FAR_MS = 26;
 // buffer at 1.0 CSS px per frame px at least: a phone never renders below its layout size.
 const TIERS = {
   low: { name: 'low', maxDpr: 1, shadow: 0, post: false, aa: false, particles: 0.5, far: 70 },
-  medium: { name: 'medium', maxDpr: 1.75, shadow: 1024, post: true, aa: true, particles: 0.8, far: 95 },
+  medium: { name: 'medium', maxDpr: 1.75, shadow: 1024, post: false, aa: true, particles: 0.8, far: 95 },
   high: { name: 'high', maxDpr: 2.5, shadow: 2048, post: true, aa: true, particles: 1, far: 120 },
 };
 
@@ -72,10 +72,10 @@ export async function createHost({ frame, canvas, params }) {
   camera.rotation.order = 'YXZ';
   scene.add(camera);
 
-  // Blockade Z's daylight (sky.js DAY: sky 0xdce8ff, ground 0x6a5e4c, 1.7; sun 0xfff2dc, 2.3) under its rain dim (0.75),
+  // Blockade Z's daylight (sky.js DAY: sky 0xdce8ff, ground 0x6a5e4c, 1.7; sun 0xfff2dc, 2.3), dimmed in rain by setRain;
   // the ground bounce lifted a little so the toy colours keep their undersides
-  const hemi = new THREE.HemisphereLight(0xdce8ff, 0x8a7e6a, 1.7 * 0.85); scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff2dc, 2.3 * 0.75);
+  const hemi = new THREE.HemisphereLight(0xdce8ff, 0x8a7e6a, 1.7); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff2dc, 2.3);
   sun.castShadow = quality.shadow > 0;
   if (sun.castShadow) {
     sun.shadow.mapSize.set(quality.shadow, quality.shadow);
@@ -83,7 +83,7 @@ export async function createHost({ frame, canvas, params }) {
     sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.04;
   }
   scene.add(sun); scene.add(sun.target);
-  G.hemi = hemi; G.sun = sun;
+  G.hemi = hemi; G.sun = sun; const skyBase = new THREE.Color(0xdce8ff);
 
   // ---- the player shim: only a listener position for audio and a focus for the camera ----
   G.player = { pos: new THREE.Vector3(), yaw: 0, vel: new THREE.Vector3(), alive: true, hp: 100, maxHp: 100, shake: BZ.spring(120, 9), slowT: 0, rootT: 0 };
@@ -142,6 +142,9 @@ export async function createHost({ frame, canvas, params }) {
   // ---- bz layers that need the pieces above ----
   G.fx = BZ.makeFx(G);
   softenSprites();
+  // the additive glow billboards stack (a revive column is 14 of them): over the pale floors they burned a white bar into
+  // the frame, so they add a little less
+  scene.traverse((o) => { const m = o.isInstancedMesh && o.material; if (m && m.fragmentShader && m.fragmentShader.includes('vC * t.a * vA, 1.0')) { m.fragmentShader = m.fragmentShader.replace('vC * t.a * vA, 1.0', 'vC * t.a * vA * 0.55, 1.0'); m.needsUpdate = true; } });
   // Blockade Z's fullscreen white flash div is never wanted here
   for (const el of [...document.body.children]) if (el.style && el.style.position === 'fixed' && el.style.zIndex === '5' && !el.id) el.remove();
   G.audio = BZ.makeAudio(G);
@@ -149,10 +152,8 @@ export async function createHost({ frame, canvas, params }) {
   if (G.audio.setMusic) G.audio.setMusic({ music_drone: 0.35, wind: 0.3, rain: 0.5 });
   window.addEventListener('pointerdown', () => { if (G.audio.unlock) G.audio.unlock(); }, { once: true });
   G.zombies = BZ.makeZombies(G);
-  // medium and high: Blockade Z's voxel-layer post (PCSS sun shadows, SAO, bloom, eye adaptation, grade); low: none
-  let voxPost = null;
-  if (quality.post) { try { await import('../bz/vox-post.js?v=20261119b'); voxPost = BZ.vox.makePost; } catch (e) { console.warn('[host] vox post not loaded, plain bloom', e); } }
-  G.post = voxPost ? voxPost(G) : BZ.makePost(G);
+  // the old Blockade Z's post: its 3-level bloom, on high only (on medium the white-hot casts clip under it)
+  G.post = BZ.makePost(G);
   const postCan = !!G.post.on;
   G.post.on = postCan && quality.post; G.post.strength = 0.32;
 
@@ -177,7 +178,7 @@ export async function createHost({ frame, canvas, params }) {
     scene.fog.color.copy(fog); scene.background = fog; renderer.setClearColor(fog, 1);
     wallMat.color.copy(fog);
     floorK.setStage(def);
-    hemi.color.set(0xdce8ff).lerp(fog, 0.25);
+    hemi.color.copy(skyBase).lerp(fog, 0.25);
   };
   H.setStage({ chapter: 0, fog: 0xa9b6c4 });
 
@@ -213,7 +214,18 @@ export async function createHost({ frame, canvas, params }) {
     stats.draws = renderer.info.render.calls; stats.tris = renderer.info.render.triangles; stats.scale = size.scale;
   };
 
-  H.setRain = (on) => { rainOn = !!on; precip.visible = rainOn; floorK.setWet(rainOn ? 1 : 0); };
+  // the old Blockade Z's light per weather (sky.js DAY, rain dims it to 0.75) and its bloom rule (main.js: stronger the
+  // weaker the sun)
+  H.setRain = (on) => {
+    rainOn = !!on; precip.visible = rainOn; floorK.setWet(rainOn ? 1 : 0);
+    // rain cools the light toward the old game's moonlit blue (sky.js NIGHT: sky 0x8aa6e6, sun 0xb4c8ff)
+    const dim = rainOn ? 0.75 : 1; hemi.intensity = 1.7 * dim; sun.intensity = 2.3 * dim;
+    sun.color.set(0xfff2dc).lerp(new THREE.Color(0xb4c8ff), rainOn ? 0.45 : 0); skyBase.set(0xdce8ff).lerp(new THREE.Color(0x8aa6e6), rainOn ? 0.4 : 0);
+    hemi.color.copy(skyBase).lerp(scene.fog.color, 0.25);
+    G.post.strength = BZ.lerp(0.85, 0.3, BZ.clamp((sun.intensity - 1.1) / 1.2, 0, 1)) * 0.6;
+  };
+  H.setRain(true);
+  if (params && params.weather === 'clear') H.setRain(false); // test switch: the floor without rain
   if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => resize()).observe(frame);
   window.addEventListener('resize', resize);
   resize();

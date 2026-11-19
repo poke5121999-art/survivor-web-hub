@@ -47,23 +47,17 @@ function kit(B, rng) {
   return { rect, fill, strip, dashes, blob, decals, lift };
 }
 
+// the old Blockade Z plaza (world.js: concrete to the walls, a 24 m tiled square, 6 m asphalt roads with dashed centre
+// lines), with the road run past the side of the fight and a zebra crossing over it
 function street(K, rng) {
-  K.fill('asphalt', { tint: [1.3, 1.3, 1.33] }); // sun-bleached: the town's fresh asphalt reads as a hole from above
-  const S = 9.5; // corner blocks of pavement past the crossing
-  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-    const x0 = sx < 0 ? -E : S; const x1 = sx < 0 ? -S : E; const z0 = sz < 0 ? -E : S; const z1 = sz < 0 ? -S : E;
-    K.rect(x0, z0, x1, z1, 'concrete', { y: 0.006 });
-    K.rect(sx < 0 ? -S - 0.3 : S, z0, sx < 0 ? -S : S + 0.3, z1, 'concrete_dark', { y: 0.008 });
-    K.rect(x0, sz < 0 ? -S - 0.3 : S, x1, sz < 0 ? -S : S + 0.3, 'concrete_dark', { y: 0.008 });
-  }
-  K.dashes(0, -E, 0, -S - 3, 'road_line'); K.dashes(0, S + 3, 0, E, 'road_line'); K.dashes(-E, 0, -S - 3, 0, 'road_line'); K.dashes(S + 3, 0, E, 0, 'road_line');
-  for (const s of [-1, 1]) for (let k = -3; k <= 3; k++) { // zebra crossings, half worn away
-    if (rng.chance(0.3)) continue;
-    K.rect(k * 1.1 - 0.25, s * (S - 2.6), k * 1.1 + 0.25, s * (S - 0.6), 'road_line', { y: 0.03, vary: 0.2 });
-    if (!rng.chance(0.3)) K.rect(s * (S - 2.6), k * 1.1 - 0.25, s * (S - 0.6), k * 1.1 + 0.25, 'road_line', { y: 0.031, vary: 0.2 });
-  }
-  K.blob(-4, 5, 1.6, 'cobble', { tint: [0.8, 0.8, 0.82] }); K.blob(5, -3, 1.2, 'concrete_dark');
-  K.decals(9, 'scorch', 0.5, 1.4, 13);
+  K.fill('concrete');
+  K.rect(-12, -12, 12, 12, 'tile', { y: 0.006, tint: [0.78, 0.78, 0.8] }); // a touch darker than the town's: additive casts need headroom
+  const x0 = 5; const x1 = 11;
+  K.rect(x0, -E, x1, E, 'asphalt', { y: 0.01 });
+  K.rect(x0 - 0.3, -E, x0, E, 'concrete_dark', { y: 0.011 }); K.rect(x1, -E, x1 + 0.3, E, 'concrete_dark', { y: 0.011 });
+  K.dashes((x0 + x1) / 2, -E, (x0 + x1) / 2, -2, 'road_line'); K.dashes((x0 + x1) / 2, 4, (x0 + x1) / 2, E, 'road_line');
+  for (let k = 0; k < 5; k++) { if (rng.chance(0.25)) continue; K.rect(x0 + 0.4 + k * 1.1, -1.2, x0 + 0.9 + k * 1.1, 2.6, 'road_line', { y: 0.03, vary: 0.2 }); }
+  K.decals(8, 'scorch', 0.5, 1.3, 13);
 }
 function parking(K, rng) {
   K.fill('concrete');
@@ -122,10 +116,10 @@ const GLSL_SURFACE = `
   float n1 = fbm(p * 0.16); float n2 = vn(p * 1.3 + 5.0);
   // grime: broad blotches, streaks along the old traffic direction, and fine mottling
   float streak = vn(vec2(p.x * 0.3, p.y * 2.4) + 9.0);
-  float g = smoothstep(0.42, 0.8, n1) * 0.7 + smoothstep(0.62, 0.92, streak) * 0.45;
-  diffuseColor.rgb *= 1.0 - uGrime * g + 0.12 * (n2 - 0.5);
+  float g = smoothstep(0.5, 0.85, n1) * 0.55 + smoothstep(0.7, 0.95, streak) * 0.3;
+  diffuseColor.rgb *= 1.0 - uGrime * g + 0.05 * (n2 - 0.5);
   float cover = smoothstep(0.5, 0.78, fbm(p * 0.22 + 3.7)) * uCoverK;
-  diffuseColor.rgb = mix(diffuseColor.rgb, uCover * (0.85 + 0.3 * n2), cover * 0.85);
+  diffuseColor.rgb = mix(diffuseColor.rgb, uCover * (0.9 + 0.2 * n2), cover * 0.6);
   // the arena ring, painted into the surface and worn through where feet and wheels went
   float lum = dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15));
   float wear = smoothstep(0.3, 0.62, fbm(p * 1.6 + 21.0)) * (0.7 + 0.3 * n2);

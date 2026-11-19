@@ -1,9 +1,10 @@
-// The arena floor against Blockade Z's own ground, side by side. Captures Blockade Z (its page, rain, day) from our
-// overview pitch and from our spectate chase angle, then every chapter of Ải Sinh Tồn the same way, composes the
-// review sheets in .chk/floor/ and asserts: floor detail vs Blockade Z, no clipped white, a boss warning readable on
+// The arena floor against the old Blockade Z's ground (box town, before the voxel switch), side by side. Captures the old
+// game (its page, clear and rain at its default hour, and clear noon) from our overview pitch and from our spectate chase
+// angle, then every chapter of Ải Sinh Tồn in rain and clear the same way, composes the review sheets in .chk/floor/ and
+// asserts: floor detail vs the old Blockade Z in the same weather, no clipped white, a boss warning readable on
 // every chapter, the hero ring readable, hero height, and the q=low budget against the values recorded before the
 // floor change (.chk/floor/before.json, written once with --before).
-// Usage: PLAYWRIGHT_PATH=... timeout 600 node games/ai-sinh-ton/tools/floor-shots.mjs [--before] [--bz] [--ch=1,3]
+// Usage: PLAYWRIGHT_PATH=... timeout 600 node games/ai-sinh-ton/tools/floor-shots.mjs [--before] [--quick] [--ch=1,3]
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -14,7 +15,7 @@ fs.mkdirSync(OUT, { recursive: true });
 const BEFORE = path.join(OUT, 'before.json');
 const argv = process.argv.slice(2);
 const ONLY_BEFORE = argv.includes('--before');
-const ONLY_BZ = argv.includes('--bz');
+const QUICK = argv.includes('--quick'); // no q=low budget run
 const chArg = (argv.find((a) => a.startsWith('--ch=')) || '').slice(5);
 const CHAPTERS = chArg ? chArg.split(',').map(Number) : [1, 2, 3, 4, 5, 6];
 const { check, done } = checker();
@@ -89,9 +90,13 @@ async function lowStats() {
   return st;
 }
 
-// Blockade Z on its own page: rain, daylight, medium tier; the frame loop is stopped and one frame drawn from our rig
-async function captureBZ(rig) {
-  const { ctx, page, problems } = await openPage(br, srv.base, 's22', 'autostart=1&nolock=1&noaudio=1&seed=3&weather=rain&tod=0.45&q=medium', { path: '/games/blockade-z/index.html', fresh: true });
+// The old Blockade Z (box town, rev 20261114za, extracted read-only under .chk/bz-old): the floor the owner means. Its
+// default is night (tod 0.8) and wave 1 is always clear, so `clear` is the look a player first sees; `rain` is the same
+// hour in rain; `day` is noon, clear, for reference. Medium tier. The frame loop is stopped and one frame drawn from our rig.
+const OLD_PATH = '/.chk/bz-old/games/blockade-z/index.html';
+const OLD_LOOKS = { clear: 'weather=clear', rain: 'weather=rain', day: 'weather=clear&tod=0.45' };
+async function captureOld(rig, look) {
+  const { ctx, page, problems } = await openPage(br, srv.base, 's22', `autostart=1&nolock=1&noaudio=1&seed=3&q=medium&${OLD_LOOKS[look]}`, { path: OLD_PATH, fresh: true });
   await page.waitForFunction(() => window.__G && window.__G.state === 'playing', null, { timeout: 60000 });
   await page.evaluate(() => window.__sim(6));
   const draw = (cam) => page.evaluate(([c, P, Y]) => {
@@ -102,13 +107,15 @@ async function captureBZ(rig) {
     if (c.over) C.position.set(c.fx + Math.sin(Y) * Math.cos(P) * c.d, Math.sin(P) * c.d, c.fz + Math.cos(Y) * Math.cos(P) * c.d);
     else C.position.set(c.px, c.py, c.pz);
     C.lookAt(c.lx, c.ly, c.lz); C.updateMatrixWorld(true); C.updateProjectionMatrix();
-    if (G.weapons && G.weapons.S) G.weapons.S.hidden = true;
+    // its fog is tuned for an eye 1.7 m up (starts 12 m out): from our overview distance it would hide the whole
+    // floor, so the fog moves out by the extra distance and the ground looks as it does to its own player 8 m away
+    const F = G.scene.fog; if (F) { if (F.n0 === undefined) { F.n0 = F.near; F.f0 = F.far; } const k = c.over ? c.d - 8 : 0; F.near = F.n0 + k; F.far = F.f0 + k; }
     for (let i = 0; i < 3; i++) { if (G.post.on) { G.post.begin(); G.renderer.render(G.scene, C); G.post.end(); } else { G.renderer.clear(); G.renderer.render(G.scene, C); } }
   }, [cam, PITCH, YAW]);
   await draw({ over: true, fov: 30, d: rig.dist, fx: 0, fz: 10, lx: 0, ly: 0, lz: 10 });
-  const over = await shot(page, 'bz-overview.png');
+  const over = await shot(page, `old-${look}-overview.png`);
   await draw({ over: false, fov: 58, px: 2, py: 4.6, pz: 16.5, lx: 2, ly: 0.8, lz: 6 });
-  const close = await shot(page, 'bz-close.png');
+  const close = await shot(page, `old-${look}-close.png`);
   await ctx.close();
   return { over, close, problems };
 }
@@ -121,11 +128,13 @@ try {
     fs.writeFileSync(BEFORE, JSON.stringify(st, null, 1));
     console.log('before (q=low s22 stage 3):', JSON.stringify(st));
   } else {
-    // ours first: the rig distance of chapter 1 is what Blockade Z is shot from
-    const ours = {}; let rig = null; const fails = [];
-    for (const ch of CHAPTERS) {
-      const stage = (ch - 1) * 5 + 2;
-      const { ctx, page, problems } = await openPage(br, srv.base, 's22', `autostart=1&stage=${stage}&autoult=1&autopick=1&noaudio=1&seed=3`);
+    // ours first, in rain (the game's weather) and clear (?weather=clear): the rig distance of the first chapter is what
+    // the old Blockade Z is shot from
+    const ours = {}; let rig = null;
+    const rb = (c) => c[0] - c[2]; const dist3 = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+    for (const ch of CHAPTERS) for (const wx of ['rain', 'clear']) {
+      const stage = (ch - 1) * 5 + 2; const tag = `c${ch}-${wx}`;
+      const { ctx, page, problems } = await openPage(br, srv.base, 's22', `autostart=1&stage=${stage}&autoult=1&autopick=1&noaudio=1&seed=3${wx === 'clear' ? '&weather=clear' : ''}`);
       await hidden(page);
       await page.evaluate(() => window.__sim(8)); await page.evaluate(() => window.__step(4));
       await page.evaluate(() => { window.__G.paused = true; });
@@ -134,47 +143,53 @@ try {
         for (const u of G.B.heroes) { if (!u.alive) continue; const n = G.actors.nodeOf(u.uid); a.set(n.position.x, 0, n.position.z).project(H.camera); b.set(n.position.x, 2.7, n.position.z).project(H.camera); hs.push(Math.abs(b.y - a.y) / 2 * H.size.h); }
         const h0 = G.B.heroes.find((u) => u.alive); const n0 = G.actors.nodeOf(h0.uid);
         const pr = (x, z) => { a.set(x, 0, z).project(H.camera); return [(a.x + 1) / 2, (1 - a.y) / 2]; };
-        const ringR = 0.71 * (n0.scale ? 1 : 1);
-        return { hs, dist: G.cam.dist, focus: [G.cam.focus.x, G.cam.focus.z], hero: pr(n0.position.x, n0.position.z), ringPts: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => pr(n0.position.x + Math.cos(k * 0.785) * ringR, n0.position.z + Math.sin(k * 0.785) * ringR)), floorPt: pr(n0.position.x + 2.6, n0.position.z + 1.2), uid: h0.uid, fx: G.cam.focus.x, fz: G.cam.focus.z, chapter: G.B.stage.chapter };
+        const ringR = 0.71;
+        return { hs, dist: G.cam.dist, ringPts: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => pr(n0.position.x + Math.cos(k * 0.785) * ringR, n0.position.z + Math.sin(k * 0.785) * ringR)), floorPt: pr(n0.position.x + 2.6, n0.position.z + 1.2), uid: h0.uid, fx: G.cam.focus.x, fz: G.cam.focus.z };
       });
-      if (ch === CHAPTERS[0]) rig = info;
-      const over = await shot(page, `ours-c${ch}-overview.png`, '#frame');
-      // a boss warning circle injected next to the focus: centre colour before and while it fills
-      const wx = info.fx + 2.2; const wz = info.fz - 1.5;
-      const at = await page.evaluate(([x, z]) => { const H = window.__G.host; const v = new H.THREE.Vector3(x, 0, z).project(H.camera); return [(v.x + 1) / 2, (1 - v.y) / 2]; }, [wx, wz]);
-      const beforeF = await shot(page, `ours-c${ch}-warn0.png`, '#frame');
-      await page.evaluate(([x, z]) => { window.__G.actors.marks.tele({ team: 1, shape: 'circle', x, z, r: 2.2, t: 3 }); window.__step(45); }, [wx, wz]);
-      const duringF = await shot(page, `ours-c${ch}-warn1.png`, '#frame');
-      const c0 = meanAt(beforeF, at[0], at[1], 10); const c1 = meanAt(duringF, at[0], at[1], 10);
-      const rb = (c) => c[0] - c[2]; const dist3 = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
-      check(rb(c1) - rb(c0) > 12 || dist3(c0, c1) > 40, `chapter ${ch}: boss warning visible at its centre (red-blue ${rb(c0).toFixed(0)} -> ${rb(c1).toFixed(0)}, colour shift ${dist3(c0, c1).toFixed(0)})`);
-      // the hero's team ring against the floor next to it
-      // the ring is often half hidden by the hero's own legs or a cast: the best of eight points around it must stand out
-      const fl = meanAt(over, info.floorPt[0], info.floorPt[1], 6);
-      const rd = Math.max(...info.ringPts.map((q) => dist3(meanAt(over, q[0], q[1], 1.6), fl)));
-      check(rd > 40, `chapter ${ch}: hero ring reads on the floor (colour distance ${rd.toFixed(0)} > 40)`);
+      if (!rig) rig = info;
+      const over = await shot(page, `ours-${tag}-overview.png`, '#frame');
       const d = detail(over);
-      check(d.white < 0.01, `chapter ${ch}: clipped white ${(d.white * 100).toFixed(2)}% (< 1%)`);
-      check(Math.min(...info.hs) >= 48, `chapter ${ch}: hero height ${Math.min(...info.hs).toFixed(0)}..${Math.max(...info.hs).toFixed(0)} px (>= 48)`);
+      check(d.white < 0.01, `${tag}: clipped white ${(d.white * 100).toFixed(2)}% (< 1%)`);
+      if (wx === 'rain') {
+        // a boss warning circle injected next to the focus: centre colour before and while it fills
+        const px = info.fx + 2.2; const pz = info.fz - 1.5;
+        const at = await page.evaluate(([x, z]) => { const H = window.__G.host; const v = new H.THREE.Vector3(x, 0, z).project(H.camera); return [(v.x + 1) / 2, (1 - v.y) / 2]; }, [px, pz]);
+        const beforeF = await shot(page, `ours-${tag}-warn0.png`, '#frame');
+        await page.evaluate(([x, z]) => { window.__G.actors.marks.tele({ team: 1, shape: 'circle', x, z, r: 2.2, t: 3 }); window.__step(45); }, [px, pz]);
+        const duringF = await shot(page, `ours-${tag}-warn1.png`, '#frame');
+        const c0 = meanAt(beforeF, at[0], at[1], 10); const c1 = meanAt(duringF, at[0], at[1], 10);
+        check(rb(c1) - rb(c0) > 12, `chapter ${ch}: boss warning visible at its centre (red-blue ${rb(c0).toFixed(0)} -> ${rb(c1).toFixed(0)}, diff > 12)`);
+        // the ring is often half hidden by the hero's own legs or a cast: the best of eight points around it must stand out
+        const fl = meanAt(over, info.floorPt[0], info.floorPt[1], 6);
+        const rd = Math.max(...info.ringPts.map((q) => dist3(meanAt(over, q[0], q[1], 1.6), fl)));
+        check(rd > 40, `chapter ${ch}: hero ring reads on the floor (colour distance ${rd.toFixed(0)} > 40)`);
+        check(Math.min(...info.hs) >= 48, `chapter ${ch}: hero height ${Math.min(...info.hs).toFixed(0)}..${Math.max(...info.hs).toFixed(0)} px (>= 48)`);
+      }
       await page.evaluate(([u]) => { window.__G.paused = false; window.__G.cam.spectate(u); window.__step(80); window.__G.paused = true; }, [info.uid]);
-      const close = await shot(page, `ours-c${ch}-close.png`, '#frame');
+      const close = await shot(page, `ours-${tag}-close.png`, '#frame');
       const bad = problems.filter((x) => !/Failed to load resource|\/js\/ui\//.test(x));
-      check(bad.length === 0, `chapter ${ch}: no console problems ${bad.slice(0, 2).join(' | ')}`);
-      ours[ch] = { over, close, std: d.std, hs: info.hs };
+      check(bad.length === 0, `${tag}: no console problems ${bad.slice(0, 2).join(' | ')}`);
+      ours[tag] = { over, close, std: d.std };
       await ctx.close();
     }
-    const bz = await captureBZ(rig || { dist: 40 });
-    const db = detail(bz.over);
-    console.log(`Blockade Z overview: detail ${db.std.toFixed(2)}, clipped white ${(db.white * 100).toFixed(2)}%  (rig dist ${rig ? rig.dist.toFixed(1) : '?'})`);
-    for (const ch of CHAPTERS) check(ours[ch].std >= db.std * 0.6, `chapter ${ch}: floor detail ${ours[ch].std.toFixed(2)} vs Blockade Z ${db.std.toFixed(2)} (ratio ${(ours[ch].std / db.std).toFixed(2)} >= 0.60)`);
-    {
-      const c1 = CHAPTERS[0];
-      compose([[['Blockade Z (rain, day)', bz.over], [`Ai Sinh Ton chapter ${c1}`, ours[c1].over]]], path.join(OUT, 'side-overview.png'), 540);
-      compose([[['Blockade Z close', bz.close], [`Ai Sinh Ton chapter ${c1} spectate`, ours[c1].close]]], path.join(OUT, 'side-close.png'), 540);
-      compose([CHAPTERS.map((c) => [`chapter ${c}`, ours[c].over]), CHAPTERS.map((c) => [`chapter ${c} close`, ours[c].close])], path.join(OUT, 'chapters.png'), 300);
+    const old = {};
+    for (const look of Object.keys(OLD_LOOKS)) {
+      old[look] = await captureOld(rig || { dist: 45 }, look); old[look].d = detail(old[look].over);
+      console.log(`old Blockade Z ${look}: detail ${old[look].d.std.toFixed(2)}, clipped white ${(old[look].d.white * 100).toFixed(2)}%  (rig dist ${rig ? rig.dist.toFixed(1) : '?'})`);
     }
-    // the q=low budget (skipped by --bz, the quick look)
-    const st = ONLY_BZ ? null : await lowStats();
+    for (const ch of CHAPTERS) for (const wx of ['rain', 'clear']) {
+      const o = ours[`c${ch}-${wx}`].std; const b = old[wx].d.std;
+      check(o >= b * 0.6, `chapter ${ch} ${wx}: floor detail ${o.toFixed(2)} vs old Blockade Z ${b.toFixed(2)} (ratio ${(o / b).toFixed(2)} >= 0.60)`);
+    }
+    const c1 = CHAPTERS[0];
+    for (const wx of ['rain', 'clear']) {
+      compose([[[`old Blockade Z, ${wx}, its default hour`, old[wx].over], [`Ai Sinh Ton chapter ${c1}, ${wx}`, ours[`c${c1}-${wx}`].over]]], path.join(OUT, `side-overview-${wx}.png`), 540);
+      compose([[[`old Blockade Z close, ${wx}`, old[wx].close], [`Ai Sinh Ton chapter ${c1} spectate, ${wx}`, ours[`c${c1}-${wx}`].close]]], path.join(OUT, `side-close-${wx}.png`), 540);
+    }
+    compose([[['old Blockade Z, clear noon', old.day.over], ['old Blockade Z, clear noon, close', old.day.close]]], path.join(OUT, 'old-day.png'), 540);
+    compose(['rain', 'clear'].flatMap((wx) => [CHAPTERS.map((c) => [`chapter ${c} ${wx}`, ours[`c${c}-${wx}`].over]), CHAPTERS.map((c) => [`chapter ${c} ${wx} close`, ours[`c${c}-${wx}`].close])]), path.join(OUT, 'chapters.png'), 300);
+    // the q=low budget (skipped by --quick)
+    const st = QUICK ? null : await lowStats();
     if (st) {
     let before = null; try { before = JSON.parse(fs.readFileSync(BEFORE, 'utf8')); } catch (e) { before = null; }
     check(st.scale >= 1, `q=low render scale ${st.scale.toFixed(2)} >= 1`);
@@ -184,7 +199,6 @@ try {
       check(st.tris <= before.tris * 1.25, `q=low triangles ${st.tris} (before ${before.tris}, limit ${Math.floor(before.tris * 1.25)})`);
     } else check(false, 'q=low before values: .chk/floor/before.json not readable (run --before on the old floor)');
     }
-    void fails;
   }
 } finally {
   await br.close(); srv.close();

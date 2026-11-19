@@ -21,8 +21,10 @@ void main() {
   float rim = (1.0 - smoothstep(0.07, 0.2, edge)) * inside;
   float hatch = step(0.5, fract((m.x + m.y) * 0.9 - uTime * 0.7));
   float pulse = smoothstep(0.82, 1.0, uK) * (0.5 + 0.5 * sin(uTime * 28.0));
-  float a = inside * (0.14 + hatch * 0.1) + fill * (0.3 + pulse * 0.25) + rim * 0.9;
-  vec3 c = mix(uCol, vec3(1.0), rim * 0.4 + pulse * 0.3);
+  // strong enough to read on bright paint and sand as well as dark asphalt: a solid fill, a white rim with a dark seam
+  float seam = (1.0 - smoothstep(0.0, 0.07, edge)) * inside;
+  float a = min(1.0, inside * (0.26 + hatch * 0.12) + fill * (0.5 + pulse * 0.25) + rim * 0.95);
+  vec3 c = mix(uCol, vec3(1.0), rim * 0.45 + pulse * 0.3) * (1.0 - seam * 0.75);
   gl_FragColor = vec4(c, a * uA);
 }`;
 
@@ -72,6 +74,8 @@ const FALL_LOOK = {
   nade: () => new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), new THREE.MeshLambertMaterial({ color: 0x6a8a3a })),
 };
 const FALL_H = 22;
+
+const FLARE_K = 0.65;
 
 export function createMarks(H) {
   const { scene, G } = H;
@@ -160,7 +164,7 @@ export function createMarks(H) {
       const mesh = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, map: BZtex('glow') }));
       flat(mesh, 0, 0, 0.07); mesh.renderOrder = 4; rec = { mesh, on: false }; flares.push(rec);
     }
-    rec.on = true; rec.t = 0; rec.life = life; rec.r = r; rec.a = alpha; rec.mesh.material.color.set(color); rec.mesh.position.set(x, 0.07, z); rec.mesh.visible = true;
+    rec.on = true; rec.t = 0; rec.life = life; rec.r = r; rec.a = alpha * FLARE_K; rec.mesh.material.color.set(color); rec.mesh.position.set(x, 0.07, z); rec.mesh.visible = true;
   }
 
   const strips = [];
@@ -176,15 +180,17 @@ export function createMarks(H) {
     rec.mesh.position.set((x + x2) / 2, 0.09, (z + z2) / 2); rec.mesh.rotation.y = -Math.atan2(dz, dx); rec.mesh.scale.set(len + w, w * 1.6, 1);
   }
   const pillars = [];
+  // additive light on the floor: the pale tiles and sand of the new floors leave less headroom than the old dark tiles,
+  // so pools and beams are added a little softer (a white-hot cast must not clip the frame)
   function pillar(x, z, color, life = 1) {
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 14, 20, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 14, 20, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
     mesh.position.set(x, 7, z); scene.add(mesh); pillars.push({ mesh, t: 0, life });
   }
 
   function update(dt, B) {
     clock += dt;
     for (const r of strips) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; r.mesh.visible = false; continue; } r.mesh.material.opacity = r.a * (1 - k); }
-    for (let i = pillars.length - 1; i >= 0; i--) { const q = pillars[i]; q.t += dt; const k = q.t / q.life; if (k >= 1) { scene.remove(q.mesh); q.mesh.geometry.dispose(); q.mesh.material.dispose(); pillars.splice(i, 1); continue; } q.mesh.material.opacity = 0.3 * (1 - k); q.mesh.scale.set(1 - k * 0.6, 1, 1 - k * 0.6); }
+    for (let i = pillars.length - 1; i >= 0; i--) { const q = pillars[i]; q.t += dt; const k = q.t / q.life; if (k >= 1) { scene.remove(q.mesh); q.mesh.geometry.dispose(); q.mesh.material.dispose(); pillars.splice(i, 1); continue; } q.mesh.material.opacity = 0.24 * (1 - k); q.mesh.scale.set(1 - k * 0.6, 1, 1 - k * 0.6); }
     for (let i = teles.length - 1; i >= 0; i--) {
       const t = teles[i]; t.t += dt; const k = Math.min(1, t.t / t.T);
       t.uni.uK.value = k; t.uni.uTime.value = clock;
