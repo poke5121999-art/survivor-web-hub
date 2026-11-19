@@ -44,7 +44,7 @@ export async function attachGame(game, { params }) {
   game.screens = {}; game.screen = ''; game.lastReward = null; game.stageN = 1;
 
   let ui = null;
-  try { const kit = await import('./ui/kit.js' + V); ui = kit.createUI({ THREE: host.THREE, renderer: host.renderer, frame }); } catch (e) { console.error('ui kit not loaded: ' + (e && e.message)); }
+  try { const kit = await import('./ui/kit.js'); ui = kit.createUI({ THREE: host.THREE, renderer: host.renderer, frame }); } catch (e) { console.error('ui kit not loaded: ' + (e && e.message)); }
   game.ui = ui; window.__ui = ui;
 
   game.setSetting = (key, value) => {

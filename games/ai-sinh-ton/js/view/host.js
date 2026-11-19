@@ -1,12 +1,12 @@
-// The view host: renderer, scene, lights, the flat arena floor with its fog wall, rain, and the small `G` object
+// The view host: renderer, scene, lights, the arena floor (floor.js) with its fog wall, rain, and the small `G` object
 // that Blockade Z's fx, audio, zombie and boss code expects. The sim never touches it; actors.js and camera.js
 // read H and draw the battle on top.
+import { createFloor } from './floor.js';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
 const SETTINGS_KEY = 'aisinhton.settings.v1';
 export const ARENA_VIEW_R = 14;
-const FLOOR_R = 30;
 const WALL_R = 21;
 const FAR_MS = 26;
 
@@ -14,7 +14,7 @@ const FAR_MS = 26;
 // buffer at 1.0 CSS px per frame px at least: a phone never renders below its layout size.
 const TIERS = {
   low: { name: 'low', maxDpr: 1, shadow: 0, post: false, aa: false, particles: 0.5, far: 70 },
-  medium: { name: 'medium', maxDpr: 1.75, shadow: 1024, post: false, aa: true, particles: 0.8, far: 95 },
+  medium: { name: 'medium', maxDpr: 1.75, shadow: 1024, post: true, aa: true, particles: 0.8, far: 95 },
   high: { name: 'high', maxDpr: 2.5, shadow: 2048, post: true, aa: true, particles: 1, far: 120 },
 };
 
@@ -23,66 +23,6 @@ function readTier(params) {
   try { saved = (JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}).quality || ''; } catch (e) { saved = ''; }
   const want = params.q || saved;
   return { ...(TIERS[want] || TIERS.medium) };
-}
-
-// The floor is one big painted canvas (world x,z -> canvas pixels, centre at the origin): light chapter-coloured
-// tiles with a bold dark grid, the arena ring with a hazard band, lane marks and rain puddles. It is redrawn per stage.
-const PX_PER_M = 40;
-const CANVAS = FLOOR_R * 2 * PX_PER_M;
-const TILE_M = 2;
-
-function hsl(h, s, l, a = 1) { return `hsla(${Math.round(h * 360)},${Math.round(s * 100)}%,${Math.round(l * 100)}%,${a})`; }
-
-function paintFloor(cv, floorHex, accentHex) {
-  const c = cv.getContext('2d'); const rng = BZ.rng('floor' + floorHex);
-  const base = new THREE.Color(floorHex); const hs = {}; base.getHSL(hs);
-  const h = hs.h; const sat = Math.min(0.72, hs.s * 2.1 + 0.3); const L = 0.66;
-  const half = CANVAS / 2; const T = TILE_M * PX_PER_M;
-  c.clearRect(0, 0, CANVAS, CANVAS);
-  c.fillStyle = hsl(h, sat, L - 0.2); c.fillRect(0, 0, CANVAS, CANVAS);
-  const n = Math.ceil(CANVAS / T);
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    const x = i * T - (half % T); const y = j * T - (half % T);
-    const v = rng.range(-0.045, 0.045); const hh = h + rng.range(-0.012, 0.012);
-    c.fillStyle = hsl(hh, sat, L + v); c.fillRect(x + 3, y + 3, T - 6, T - 6);
-    const g = c.createLinearGradient(x, y, x + T, y + T);
-    g.addColorStop(0, 'rgba(255,255,255,.22)'); g.addColorStop(0.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,40,.12)');
-    c.fillStyle = g; c.fillRect(x + 3, y + 3, T - 6, T - 6);
-    c.fillStyle = 'rgba(255,255,255,.28)'; c.fillRect(x + 3, y + 3, T - 6, 3); c.fillRect(x + 3, y + 3, 3, T - 6);
-    c.fillStyle = 'rgba(0,0,30,.16)'; c.fillRect(x + 3, y + T - 6, T - 6, 3); c.fillRect(x + T - 6, y + 3, 3, T - 6);
-    for (let k = 0; k < 5; k++) { c.fillStyle = `rgba(${rng.chance(0.5) ? '0,0,30' : '255,255,255'},${rng.range(0.03, 0.07)})`; c.fillRect(x + rng.range(8, T - 20), y + rng.range(8, T - 20), rng.range(4, 18), rng.range(3, 12)); }
-  }
-  const W = (m) => m * PX_PER_M;
-  c.save(); c.translate(half, half);
-  const ring = (r, w, col) => { c.beginPath(); c.arc(0, 0, W(r), 0, Math.PI * 2); c.lineWidth = W(w); c.strokeStyle = col; c.stroke(); };
-  const deep = hsl(h, Math.min(0.85, sat + 0.1), 0.26); const acc = new THREE.Color(accentHex); const ah = {}; acc.getHSL(ah);
-  // lane marks and an emblem in the middle
-  c.setLineDash([W(0.9), W(0.7)]);
-  for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4 + Math.PI / 8; c.beginPath(); c.moveTo(Math.cos(a) * W(4.4), Math.sin(a) * W(4.4)); c.lineTo(Math.cos(a) * W(11.8), Math.sin(a) * W(11.8)); c.lineWidth = W(0.22); c.strokeStyle = 'rgba(255,255,255,.42)'; c.stroke(); }
-  c.setLineDash([]);
-  ring(3.2, 0.26, 'rgba(255,255,255,.5)'); ring(3.9, 0.12, 'rgba(255,255,255,.3)'); ring(7.5, 0.16, 'rgba(255,255,255,.22)');
-  for (let k = 0; k < 8; k++) {
-    const a = k * Math.PI / 4; c.save(); c.rotate(a); c.translate(W(9.6), 0);
-    c.fillStyle = 'rgba(255,255,255,.4)'; c.beginPath(); c.moveTo(W(0.9), 0); c.lineTo(-W(0.6), -W(0.9)); c.lineTo(-W(0.2), 0); c.lineTo(-W(0.6), W(0.9)); c.closePath(); c.fill(); c.restore();
-  }
-  // hazard band hugging the ring: slanted dark and accent blocks
-  const N = 96; const r0 = 12.9; const r1 = 13.55;
-  for (let i = 0; i < N; i++) {
-    const a0 = i / N * Math.PI * 2; const a1 = (i + 1) / N * Math.PI * 2; const sk = (a1 - a0) * 0.9;
-    c.fillStyle = i % 2 ? hsl(ah.h, 0.95, 0.56) : 'rgba(25,28,48,.88)';
-    c.beginPath(); c.moveTo(Math.cos(a0) * W(r0), Math.sin(a0) * W(r0)); c.lineTo(Math.cos(a1) * W(r0), Math.sin(a1) * W(r0));
-    c.lineTo(Math.cos(a1 + sk) * W(r1), Math.sin(a1 + sk) * W(r1)); c.lineTo(Math.cos(a0 + sk) * W(r1), Math.sin(a0 + sk) * W(r1)); c.closePath(); c.fill();
-  }
-  ring(14.05, 0.62, deep); ring(13.78, 0.1, 'rgba(255,255,255,.85)'); ring(14.4, 0.1, 'rgba(255,255,255,.6)'); ring(12.82, 0.08, 'rgba(25,28,48,.6)');
-  // puddles that mirror the sky
-  for (let k = 0; k < 9; k++) {
-    const a = rng.range(0, 6.283); const d = Math.sqrt(rng.next()) * 11.5 + 1; const w = rng.range(0.9, 2.1); const hgt = w * rng.range(0.45, 0.7); const rot = rng.range(0, 3.1);
-    c.save(); c.translate(Math.cos(a) * W(d), Math.sin(a) * W(d)); c.rotate(rot);
-    c.beginPath(); c.ellipse(0, 0, W(w), W(hgt), 0, 0, Math.PI * 2); c.fillStyle = 'rgba(190,225,255,.62)'; c.fill(); c.lineWidth = W(0.1); c.strokeStyle = hsl(h, sat, 0.34, 0.8); c.stroke();
-    c.beginPath(); c.ellipse(-W(w * 0.15), -W(hgt * 0.25), W(w * 0.6), W(hgt * 0.4), 0, Math.PI * 1.05, Math.PI * 1.95); c.lineWidth = W(0.11); c.strokeStyle = 'rgba(255,255,255,.85)'; c.stroke();
-    c.restore();
-  }
-  c.restore();
 }
 
 function gradientAlpha() {
@@ -132,8 +72,10 @@ export async function createHost({ frame, canvas, params }) {
   camera.rotation.order = 'YXZ';
   scene.add(camera);
 
-  const hemi = new THREE.HemisphereLight(0xeef4ff, 0xc4c0b8, 2.3); scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff3dc, 1.5);
+  // Blockade Z's daylight (sky.js DAY: sky 0xdce8ff, ground 0x6a5e4c, 1.7; sun 0xfff2dc, 2.3) under its rain dim (0.75),
+  // the ground bounce lifted a little so the toy colours keep their undersides
+  const hemi = new THREE.HemisphereLight(0xdce8ff, 0x8a7e6a, 1.7 * 0.85); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff2dc, 2.3 * 0.75);
   sun.castShadow = quality.shadow > 0;
   if (sun.castShadow) {
     sun.shadow.mapSize.set(quality.shadow, quality.shadow);
@@ -166,22 +108,9 @@ export async function createHost({ frame, canvas, params }) {
   G.ui = { pop() {}, announce() {}, banner() {}, update() {} };
   G.coop = { guest: true, host: false, on: false, remotes: () => [], reportHit() {}, hurtRemote() {}, me: 'h' };
 
-  // ---- the floor: tiled and tinted per chapter, melting into the fog colour past the fight area ----
-  const fogCol = new THREE.Color(0xa9b6c4);
-  const floorU = { uFogC: { value: fogCol }, uR0: { value: 17 }, uR1: { value: 27 } };
-  const floorCv = document.createElement('canvas'); floorCv.width = floorCv.height = CANVAS;
-  const floorTex = new THREE.CanvasTexture(floorCv);
-  floorTex.colorSpace = THREE.SRGBColorSpace; floorTex.anisotropy = 8; floorTex.generateMipmaps = true; floorTex.minFilter = THREE.LinearMipmapLinearFilter;
-  const floorMat = new THREE.MeshLambertMaterial({ map: floorTex, color: 0xffffff, dithering: true });
-  floorMat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, floorU);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vWP;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP = (modelMatrix * vec4(position, 1.0)).xz;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vWP; uniform vec3 uFogC; uniform float uR0; uniform float uR1;')
-      .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.rgb = mix(gl_FragColor.rgb, uFogC, smoothstep(uR0, uR1, length(vWP)));');
-  };
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(FLOOR_R, 96), floorMat);
-  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  // ---- the floor: Blockade Z's ground technique per chapter, melting into the fog colour past the fight area ----
+  const floorK = createFloor({ scene, quality });
+  const floor = floorK.group;
   const ring = new THREE.Object3D(); ring.visible = false;
 
   // far half of a cylinder only: back faces are the wall seen from inside, the near half is culled by the camera side
@@ -220,7 +149,10 @@ export async function createHost({ frame, canvas, params }) {
   if (G.audio.setMusic) G.audio.setMusic({ music_drone: 0.35, wind: 0.3, rain: 0.5 });
   window.addEventListener('pointerdown', () => { if (G.audio.unlock) G.audio.unlock(); }, { once: true });
   G.zombies = BZ.makeZombies(G);
-  G.post = BZ.makePost(G);
+  // medium and high: Blockade Z's voxel-layer post (PCSS sun shadows, SAO, bloom, eye adaptation, grade); low: none
+  let voxPost = null;
+  if (quality.post) { try { await import('../bz/vox-post.js'); voxPost = BZ.vox.makePost; } catch (e) { console.warn('[host] vox post not loaded, plain bloom', e); } }
+  G.post = voxPost ? voxPost(G) : BZ.makePost(G);
   const postCan = !!G.post.on;
   G.post.on = postCan && quality.post; G.post.strength = 0.32;
 
@@ -238,25 +170,21 @@ export async function createHost({ frame, canvas, params }) {
   }
 
   const stats = { frameMs: 16, draws: 0, tris: 0, scale: 1 };
-  const H = { THREE, renderer, scene, camera, G, quality, size, resize, stats, floor, ring, wall, floorMat };
+  const H = { THREE, renderer, scene, camera, G, quality, size, resize, stats, floor, ring, wall, floorK, get floorMeshes() { return floorK.meshes; } };
 
   H.setStage = (def) => {
     const fog = new THREE.Color(def.fog);
-    fogCol.copy(fog); scene.fog.color.copy(fog); scene.background = fog; renderer.setClearColor(fog, 1);
+    scene.fog.color.copy(fog); scene.background = fog; renderer.setClearColor(fog, 1);
     wallMat.color.copy(fog);
-    const key = def.floor + ':' + def.fog;
-    if (H.stageKey !== key) {
-      H.stageKey = key;
-      paintFloor(floorCv, def.floor, 0xffc83a);
-      floorTex.needsUpdate = true;
-    }
-    hemi.color.set(0xeef4ff).lerp(fog, 0.25);
+    floorK.setStage(def);
+    hemi.color.set(0xdce8ff).lerp(fog, 0.25);
   };
-  H.setStage({ floor: 0x8f9aa6, fog: 0xa9b6c4 });
+  H.setStage({ chapter: 0, fog: 0xa9b6c4 });
 
   H.update = (dt) => {
     G.fx.update(dt); G.audio.update();
     if (rainOn) updateRain(dt);
+    floorK.update(dt);
     const f = G.player.pos;
     sun.position.set(f.x - 12, 32, f.z + 14); sun.target.position.set(f.x, 0, f.z); sun.target.updateMatrixWorld();
   };
@@ -285,7 +213,7 @@ export async function createHost({ frame, canvas, params }) {
     stats.draws = renderer.info.render.calls; stats.tris = renderer.info.render.triangles; stats.scale = size.scale;
   };
 
-  H.setRain = (on) => { rainOn = !!on; precip.visible = rainOn; };
+  H.setRain = (on) => { rainOn = !!on; precip.visible = rainOn; floorK.setWet(rainOn ? 1 : 0); };
   if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => resize()).observe(frame);
   window.addEventListener('resize', resize);
   resize();

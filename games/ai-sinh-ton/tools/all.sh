@@ -18,7 +18,7 @@ if [ -z "$AST_BASE" ]; then
   run meta-test node tools/meta-test.mjs
   run pacing node tools/pacing.mjs 5 60
 fi
-for t in smoke battle-test meta-ui-test ftue-test view-shots ui-shots; do
+for t in smoke battle-test meta-ui-test ftue-test view-shots floor-shots ui-shots; do
   [ -f "tools/$t.mjs" ] && run "$t" node "tools/$t.mjs"
 done
 [ "$bad" = 0 ] && echo "GATE: ALL PASS" || echo "GATE: FAILED"

@@ -63,6 +63,13 @@ export function createActors(H) {
   const bm = new THREE.Matrix4(); const bq = new THREE.Quaternion(); const bs = new THREE.Vector3(); const bp = new THREE.Vector3();
   let nBlob = 0;
   const addBlob = (x, z, size, y = 0) => { if (nBlob >= BLOBS) return; const fade = 1 / (1 + y * 0.35); bs.set(size * fade, 1, size * fade); bp.set(x, 0.045, z); bm.compose(bp, bq, bs); blobs.setMatrixAt(nBlob++, bm); };
+  // ---- team rims on the floor: warm red under every enemy, stronger for elites and bosses (heroes wear their own disc) ----
+  const RIMS = 96;
+  const rims = new THREE.InstancedMesh(new THREE.RingGeometry(0.5, 0.62, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.8, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), RIMS);
+  rims.frustumCulled = false; rims.renderOrder = 2; rims.count = 0; scene.add(rims);
+  const RIM_COL = { base: new THREE.Color(0xd8402a), elite: new THREE.Color(0xff7a2a), boss: new THREE.Color(0xff3020) };
+  let nRim = 0;
+  const addRim = (x, z, size, col) => { if (nRim >= RIMS) return; bs.set(size, 1, size); bp.set(x, 0.05, z); bm.compose(bp, bq, bs); rims.setMatrixAt(nRim, bm); rims.setColorAt(nRim++, col); };
 
   // ---- heroes ----
   function newHeroState(mode) { return { speed: 0, mode, swing: -1, kick: 0, kickL: 0, draw: 1, air: 0, vy: 0, pitch: 0, dead: 0, hurt: 0, hurtDir: 0, pat: 'r2l', cast: 0 }; }
@@ -320,13 +327,19 @@ export function createActors(H) {
       G.zombies.adopt(enemyRows()); G.zombies.update(dt);
       for (const z of pool) if (z.alive && !z.dying) addBlob(z.pos.x, z.pos.z, 1.7 * z.T.scale, z.pos.y);
       blobs.count = nBlob; blobs.instanceMatrix.needsUpdate = true;
+      nRim = 0;
+      for (const e of B.enemies) {
+        if (!e.alive) continue; const idx = slots.get(e.uid); if (idx === undefined) continue; const z = pool[idx]; if (!z || !z.alive || z.dying) continue;
+        const k = e.boss ? 'boss' : e.elite ? 'elite' : 'base'; addRim(z.pos.x, z.pos.z, (e.boss ? 1.6 : e.elite ? 1.25 : 1) * z.T.scale, RIM_COL[k]);
+      }
+      rims.count = nRim; rims.instanceMatrix.needsUpdate = true; if (rims.instanceColor) rims.instanceColor.needsUpdate = true;
       syncEnemyBars(); fx.update(B, dt);
     },
     clear() {
       for (const a of [...heroes.values()]) dropHero(a);
       for (const uid of [...summons.keys()]) dropSummon(uid);
       for (const bar of [...enemyBars.values()]) dropBar(bar);
-      enemyBars.clear(); slots.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; B = null;
+      enemyBars.clear(); slots.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; B = null;
     },
     fx, marks,
     scaleOf(uid) { if (heroes.has(uid)) return HERO_SCALE; const i = slots.get(uid); return i !== undefined ? pool[i].T.scale : 1; },

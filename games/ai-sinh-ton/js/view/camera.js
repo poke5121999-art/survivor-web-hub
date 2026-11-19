@@ -1,6 +1,7 @@
-// Camera director. Overview: a fixed-yaw, 55 degree perspective camera pulled back until every fighter inside the
-// arena fits the portrait frame between the top and bottom HUD bands; the lens is shifted so the fight sits in the
-// middle of the free band. Spectate: a chase camera behind and above one unit, blended in and out.
+// Camera director. Overview: a fixed-yaw, 47 degree perspective camera pulled back until the heroes and the enemies
+// close to them fit the portrait frame between the top and bottom HUD bands, but never so far that a hero drops under
+// HERO_MIN_PX tall; the lens is shifted so the fight sits in the middle of the free band. Spectate: a chase camera
+// behind and above one unit, blended in and out.
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -12,10 +13,12 @@ const FRAME_H = 780;
 const BAND_TOP = 90 / FRAME_H * 2;
 const BAND_BOT = 170 / FRAME_H * 2;
 const X_MARGIN = 0.97;
-const MIN_R = 7.6;
-const MAX_R = 14.6;
+const MIN_R = 4.6;
+const MAX_R = 9;
 const ARENA_R = 14;
-const NEAR_FOES = 10;
+const NEAR_FOES = 7.5;
+const HERO_H = 2.7;
+const HERO_MIN_PX = 56;
 const HERO_WEIGHT = 0.72;
 
 export function createCamera(H) {
@@ -44,6 +47,14 @@ export function createCamera(H) {
     return { x0, x1, y0, y1 };
   }
 
+  // the farthest distance at which a hero standing at the focus is still HERO_MIN_PX tall (height ~ 1 / distance)
+  function maxDist(d) {
+    bbox(d, 0.1);
+    const a = v.set(focus.x, 0, focus.z).project(fit).y; const b = v.set(focus.x, HERO_H, focus.z).project(fit).y;
+    const px = Math.abs(b - a) / 2 * H.size.h / (H.size.u || 1); // in px of the 360-wide design frame
+    return d * px / HERO_MIN_PX;
+  }
+
   function solveOverview() {
     const halfX = X_MARGIN; const halfY = (2 - BAND_TOP - BAND_BOT) / 2;
     let d = dist;
@@ -52,6 +63,7 @@ export function createCamera(H) {
       const rx = (b.x1 - b.x0) / 2 / halfX; const ry = (b.y1 - b.y0) / 2 / halfY;
       d *= Math.max(rx, ry, 0.2);
     }
+    d = Math.min(d, maxDist(d));
     const b = bbox(d, R);
     // bandCentre = bottom edge + half band height; the lens shift moves the bbox centre there
     const bandC = -1 + BAND_BOT + halfY;

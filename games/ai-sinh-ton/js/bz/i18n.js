@@ -8,7 +8,7 @@ BZ.STR = BZ.STR || {};
 BZ.LANGS = [['en', 'English'], ['vi', 'Tiếng Việt']];
 const KEY = 'blockadez.lang'; const known = (l) => BZ.LANGS.some((x) => x[0] === l);
 
-BZ.lang = 'vi'; BZ.vox = { on: false };
+BZ.lang = 'vi'; BZ.vox = { on: false, want: (k) => BZ.params['vox' + k] !== '0' };
 BZ.t = (key, vals) => {
   let s = (BZ.STR[BZ.lang] || {})[key]; if (s === undefined) s = (BZ.STR.vi || {})[key]; if (s === undefined) return key;
   return vals ? s.replace(/\{(\d+)\}/g, (m, i) => (vals[i] === undefined || vals[i] === null ? '' : vals[i])) : s;

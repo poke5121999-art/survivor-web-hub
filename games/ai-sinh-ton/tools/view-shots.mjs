@@ -112,7 +112,7 @@ try {
         for (const u of G.B.heroes) { const n = G.actors.nodeOf(u.uid); a.set(n.position.x, 0, n.position.z).project(H.camera); b.set(n.position.x, 2.7, n.position.z).project(H.camera); out.push(Math.abs(b.y - a.y) / 2 * H.size.h); }
         return { px: out, wave: G.B.wave, R: G.cam.R };
       });
-      check(hs.wave === 2 && Math.min(...hs.px) >= 36, `s22 stage 3 wave ${hs.wave}: hero height min ${Math.min(...hs.px).toFixed(1)} px (>= 36), max ${Math.max(...hs.px).toFixed(1)}`);
+      check(hs.wave === 2 && Math.min(...hs.px) >= 48, `s22 stage 3 wave ${hs.wave}: hero height min ${Math.min(...hs.px).toFixed(1)} px (>= 48), max ${Math.max(...hs.px).toFixed(1)}`);
       const f = await shot(page, 's22-s3-w2.png'); const st = pix(f, FOG[3], null);
       check(st.floor > 0.6, `s22 overview floor share between HUD bands ${(st.floor * 100).toFixed(0)}% (> 60%)`);
       check(st.white < 0.01, `s22 overview clipped white ${(st.white * 100).toFixed(2)}% (< 1%)`);
