@@ -533,7 +533,8 @@ function think(B, u, dt) {
     u.retargetT = 0.4 + B.rng() * 0.2;
     const prev = t && targetable(t) ? t : null;
     let pick;
-    if (u.team === 1) pick = u.fly ? pickFoe(B, u, 'far', 60) || nearestFoe(B, u) : nearestFoe(B, u, 1e9, true);
+    // a flyer dives on the back line and stays on its victim; picking the farthest hero again each time would keep it circling
+    if (u.team === 1) pick = u.fly ? prev || pickFoe(B, u, 'far', 60) || nearestFoe(B, u) : nearestFoe(B, u, 1e9, true);
     else if (u.role === 'ranged' || u.role === 'healer') { const R = u.attack.range; pick = pickFoe(B, u, 'weak', R) || nearestFoe(B, u); }
     else pick = nearestFoe(B, u);
     // stay on a target that is still in reach rather than flip between two equally near ones
@@ -768,8 +769,10 @@ export function createBattle(opts) {
     units: [], allies: [], enemies: [], heroes: [], byUid: new Map(), uidSeq: 0,
     projs: [], zones: [], pending: [], queue: [], spawnsLeft: 0, kills: 0, boss: 0, offers: null, picked: null,
     auto: { ult: false, ultDelay: 0.6, pick: false, ...(opts.auto || {}) },
-    emit: opts.onEvent || (() => {}), teamSize: opts.team.length,
+    emit: () => {}, teamSize: opts.team.length,
   };
+  // every event carries the game time it happened at
+  if (opts.onEvent) B.emit = (e) => { e.t = B.t; opts.onEvent(e, B); };
   opts.team.slice(0, 4).forEach((spec, i) => { const u = makeHero(B, i, spec); B.heroes.push(u); addUnit(B, u); });
   const wave = clamp(opts.wave || 1, 1, stage.waves.length);
   startWave(B, wave);
