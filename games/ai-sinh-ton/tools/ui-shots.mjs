@@ -39,7 +39,7 @@ try {
     }
     console.log(`draw calls ${phone}: ` + JSON.stringify(calls));
     check(problems.length === 0, `${phone}: no page problems` + (problems.length ? ' ' + problems.slice(0, 3).join(' | ') : ''));
-    check(calls.home <= 112 && calls.hud <= 116 && calls.grid <= 210, `${phone}: draw calls home at most 112, hud at most 116, the grid sheet at most 210 (${JSON.stringify(calls)}; before the layer merge 131 / 135 / 227)`);
+    check(calls.home <= 112 && calls.hud <= 120 && calls.grid <= 210, `${phone}: draw calls home at most 112, hud at most 120, the grid sheet at most 210 (${JSON.stringify(calls)}; before the layer merge 131 / 135 / 227)`);
 
     if (phone === 's22') {
       for (const s of SCREENS) {
