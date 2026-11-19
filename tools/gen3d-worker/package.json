@@ -1,0 +1,9 @@
+{
+  "name": "gen3d-worker-tools",
+  "private": true,
+  "type": "module",
+  "description": "Mixamo clip import/seed for Xưởng 3D (docs/gen3d-studio.md). The worker itself is worker.py.",
+  "dependencies": {
+    "three": "0.160.0"
+  }
+}
