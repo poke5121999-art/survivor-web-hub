@@ -13,6 +13,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pipekit as K  # noqa: E402
+import webfix  # noqa: E402
 
 
 def graft_maps(parent_glb, rig_glb):
@@ -102,6 +103,12 @@ def main():
     code = K.run([sys.executable, a.rig, src, glb], a.timeout, on_line)
     if code:
         raise SystemExit("rig.py thoát mã %s" % code)
+    # TripoSG fuses inner thighs (and arm to torso side): cut the faces skinned to both legs, cap the holes per limb
+    try:
+        wf = webfix.fix(glb)
+    except Exception as e:  # keep the rig as rig.py made it rather than fail the job
+        wf = {"error": str(e)[:200]}
+        K.note("webfix lỗi, giữ mesh nguyên: %s" % e)
     K.say("skin", "gắn lại texture của model cha")
     grafted = graft_maps(src, glb)
     K.note("map gắn lại: %s" % (", ".join(grafted) or "không có"))
@@ -111,7 +118,8 @@ def main():
     rep = K.load_job(os.path.splitext(glb)[0] + ".json")
     stats = {"tris": st["tris"], "verts": st["verts"], "bones": 65, "bytes": os.path.getsize(glb), "seconds": round(time.time() - t0, 1),
              "vram_peak_mb": round(rep.get("vram_peak_gb", 0) * 1024) or None, "hip_scale_k": rep.get("hip_scale_k"),
-             "maps": grafted, "gpu_wait_s": rep.get("sec_wait_lock")}
+             "maps": grafted, "gpu_wait_s": rep.get("sec_wait_lock"),
+             "web_cut": {k: wf.get(k) for k in ("leg_leg", "arm_body_below_armpit", "holes", "cap_faces", "error") if k in wf}}
     K.write_result(out, {"glb": "model.glb", "thumb": "thumb.png"}, stats)
     return 0
 

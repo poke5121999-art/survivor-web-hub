@@ -117,7 +117,9 @@ def main():
     vc = os.path.join(out, "views_clean")
     os.makedirs(vc, exist_ok=True)
     clean = {main_view: "views_clean/%s.png" % main_view}
-    shutil.copy(rgba, os.path.join(vc, main_view + ".png"))
+    # texture projects from views_clean: keep the cut-out at the photo's own scale when preprocess saved one (<= 2048)
+    full = os.path.splitext(rgba)[0] + "_full.png"
+    shutil.copy(full if os.path.exists(full) else rgba, os.path.join(vc, main_view + ".png"))
     rest = order[1:]
     if rest:
         K.say("segment", "tách nền %d ảnh còn lại cho texture" % len(rest))
@@ -128,6 +130,9 @@ def main():
             for v in rest:
                 dst = os.path.join(vc, v + ".png")
                 if K.run([sys.executable, pre, views[v], dst], 900, env=env) == 0 and os.path.exists(dst):
+                    vfull = os.path.splitext(dst)[0] + "_full.png"
+                    if os.path.exists(vfull):
+                        os.replace(vfull, dst)
                     clean[v] = "views_clean/%s.png" % v
                 else:
                     print("tách nền ảnh %s lỗi, bỏ ảnh này" % v, flush=True)

@@ -57,6 +57,13 @@ def main():
     argv = [sys.executable, a.tex, job["inputs"]["parent_glb"], "--quality", p.get("quality", "2K"), "--out", glb]
     for v, f in views.items():
         argv += ["--" + v, f]
+    # sample the photos at their own resolution (views_clean keeps up to 2048 px since the fix round), not tex.py's 1024
+    try:
+        from PIL import Image
+        side = max(max(Image.open(f).size) for f in views.values())
+    except Exception:
+        side = 1024
+    argv += ["--view-res", str(int(min(2048, max(1024, side))))]
     if len(views) == 1:
         argv.append("--no-mirror")  # 1 photo: a mirrored front on the back puts a face on the back of the head
     if p.get("ai_complete"):

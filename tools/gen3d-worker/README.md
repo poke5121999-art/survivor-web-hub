@@ -90,9 +90,16 @@ Pipeline trả lời:
   (`GEN3D_SHAPE_COMMIT_GB`), không đủ thì thoát 75 để trả job. Ultra cần ≥ 12 GB (`GEN3D_ULTRA_COMMIT_GB`; cuối bước shape
   còn vọt thêm ~4 GB): chờ 5 phút không đủ thì job **hỏng** với lời báo "Ultra cần ~12 GB RAM trống..." chứ không trả về hàng
   đợi mãi. Giữa chừng commit trống tụt dưới 1,2 GB thì adapter tự giết CLI của mình (Ultra: hỏng, thường: trả job).
+- shape, giảm lưới (`D:/gen3d/gen3d/optimize.py`, ngoài git): bỏ vỏ kín nằm trọn trong vỏ khác (TripoSG hay trả một vỏ mỏng
+  bên trong, trên lính 4 ảnh nó chiếm 85 % ngân sách tam giác), giảm với `preservetopology=True`, xuất kèm `NORMAL` (thiếu thì
+  three.js tô phẳng). `preprocess.py` lưu thêm `<ảnh>_full.png` (cùng khung, theo độ phân giải ảnh gốc, ≤ 2048); `views_clean`
+  dùng bản này nên texture chiếu màu ở độ phân giải ảnh, không bị ép 1024.
 - texture: mesh = glb của job shape cha, `--high` = `raw_glb` của cha (normal map khi bật PBR), ảnh = `views_clean` của job
   gốc. Một ảnh thì thêm `--no-mirror`. Model `source = "upload"` không có ảnh: adapter thoát lỗi "không có ảnh chụp nào để
   chiếu màu", trang cũng khoá nút Gen texture cho model đó.
+- rig: sau `rig.py`, `webfix.py` cắt các mặt có đỉnh thuộc cả chân trái lẫn chân phải (màng giữa hai đùi TripoSG hay dính
+  liền) và các mặt tay↔thân dưới nách, rồi vá lỗ theo từng chi (quạt về một đỉnh giữa mang trọng số của chính chi đó). Lỗi thì
+  giữ mesh nguyên. Số mặt đã cắt ghi ở `stats.web_cut`.
 - rig: vào là glb của cha (texture nếu cha là texture, không thì shape). `rig.py` chỉ giữ base color dạng PNG, nên adapter gắn
   lại đúng ảnh của cha (base color, normal, metallic-roughness) vào glb có xương.
 - Giới hạn bucket 50 MB một file: mọi glb ra được giữ ≤ 48 MB. Quá thì ảnh nhúng chuyển sang JPEG (normal q95, còn lại q92),
