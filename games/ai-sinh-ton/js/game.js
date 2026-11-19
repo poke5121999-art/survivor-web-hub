@@ -6,16 +6,17 @@
 import { createMeta } from './meta.js';
 import { castUlt, pickCard } from './sim/battle.js';
 import { stageDef } from './data/stages.js';
+import { tutorialStage } from './data/unlocks.js';
 
 const SETTINGS_KEY = 'aisinhton.settings.v1';
-const SETTINGS_DEF = { quality: '', sound: true, vibrate: true, reduceFlash: false, autoPick: false };
+const SETTINGS_DEF = { quality: '', sound: true, vibrate: true, reduceFlash: false, autoPick: false, autoUlt: false };
 const RESULT_DELAY = 1.4;
 export const LAST_STAGE = 10;
 
 // [module path, factory name]; a module that is not there yet is skipped so the game still boots
 const SCREENS = [
   ['./ui/home.js', 'createHome'], ['./ui/heroes.js', 'createHeroes'], ['./ui/gacha.js', 'createGacha'], ['./ui/soon.js', 'createSoon'],
-  ['./ui/hud.js', 'createHud'], ['./ui/pick.js', 'createPick'], ['./ui/result.js', 'createResult'],
+  ['./ui/hud.js', 'createHud'], ['./ui/pick.js', 'createPick'], ['./ui/result.js', 'createResult'], ['./ui/guide.js', 'createGuide'],
 ];
 const V = new URL(import.meta.url).search;
 
@@ -36,7 +37,10 @@ export async function attachGame(game, { params }) {
   const frame = document.getElementById('frame');
   game.events = makeEvents();
   game.settings = loadSettings();
-  game.meta = createMeta(); game.meta.load();
+  // the preset only shapes a brand-new account: a save that exists wins
+  let hasSave = false; try { hasSave = !!localStorage.getItem('aisinhton.save.v1'); } catch (e) { hasSave = false; }
+  game.meta = createMeta({ preset: hasSave ? undefined : params.preset }); game.meta.load();
+  if (!hasSave && game.meta.acc.cheatUnlock) game.meta.save();
   game.screens = {}; game.screen = ''; game.lastReward = null; game.stageN = 1;
 
   let ui = null;
@@ -71,12 +75,19 @@ export async function attachGame(game, { params }) {
 
   // ---- battle commands ----
   let endT = -1;
+  // the scripted first stage tells the guide where it is: each moment fires once
+  const tut = { on: false, fired: {}, joinWait: false };
+  const fireTutorial = (k) => { if (tut.on && !tut.fired[k]) { tut.fired[k] = true; game.events.emit('tutorial:' + k, {}); } };
   game.startBattle = (n, opts = {}) => {
-    game.stageN = n; game.lastReward = null; endT = -1;
+    game.stageN = n; game.lastReward = null; endT = -1; game.frozen = false;
     game.setPaused(false);
-    const B = game.start(n, { seed: opts.seed || ((Date.now() % 1e9) | 1), teamSpec: opts.teamSpec || game.meta.teamSpec(), auto: opts.auto || { ult: false, pick: false }, wave: opts.wave });
+    const acc = game.meta.acc;
+    const tutorial = opts.tutorial !== false && !acc.ftue.session && n === 1 && acc.cleared === 0;
+    const B = game.start(tutorial ? tutorialStage(stageDef(1)) : n, { seed: opts.seed || ((Date.now() % 1e9) | 1), teamSpec: opts.teamSpec || game.meta.teamSpec(), auto: opts.auto || { ult: false, pick: false }, wave: opts.wave, joinSpec: (id) => ({ id, mul: 1 }) });
+    tut.on = tutorial; tut.fired = {}; tut.joinWait = false; game.tutorial = tutorial;
     game.events.emit('battle:start', { stage: n });
     if (game.screens.hud) game.goto('hud', { stage: n });
+    if (tutorial) fireTutorial('start');
     return B;
   };
   game.castUlt = (slot) => !!game.B && !game.paused && castUlt(game.B, slot);
@@ -97,7 +108,7 @@ export async function attachGame(game, { params }) {
   };
   game.setSpeed = (n) => { game.speed = n; game.events.emit('speed', { speed: n }); };
   game.setPaused = (b) => { game.paused = !!b; game.events.emit('paused', { paused: game.paused }); };
-  game.leaveBattle = () => { game.stop(); game.watching = 0; game.setPaused(false); game.setSpeed(1); game.events.emit('battle:end', {}); game.goto('home', {}); };
+  game.leaveBattle = () => { game.frozen = false; tut.on = false; game.tutorial = false; game.stop(); game.watching = 0; game.setPaused(false); game.setSpeed(1); game.events.emit('battle:end', {}); game.goto('home', {}); };
   game.retry = () => game.startBattle(game.stageN);
   game.nextStage = () => game.startBattle(Math.min(LAST_STAGE, game.stageN + 1));
   game.openSettings = () => { if (game.screens.result) game.goto('result', { mode: 'settings', over: true }); };
@@ -106,16 +117,28 @@ export async function attachGame(game, { params }) {
   game.on((e) => {
     game.events.emit('sim:' + e.e, e);
     if (e.e === 'won' || e.e === 'lost') endT = RESULT_DELAY;
+    if (tut.on) {
+      if (e.e === 'ult_ready') fireTutorial('ult_ready'); else if (e.e === 'pick') fireTutorial('pick');
+      else if (e.e === 'join') tut.joinWait = true;
+      else if (e.e === 'wave' && tut.joinWait) { tut.joinWait = false; fireTutorial('join'); } else if (e.e === 'boss') fireTutorial('boss');
+    }
   });
 
   function finish() {
     const B = game.B; if (!B) return;
     const won = B.phase === 'won';
+    if (!won && B.stage && B.stage.tutorial) {
+      game.vibrate(60); game.frozen = false;
+      if (ui) ui.toast('Chưa sao! Thử lại nào, mình giúp thêm');
+      game.startBattle(1); return;
+    }
     const r = game.meta.finishStage({ stage: game.stageN, won, wavesCleared: won ? 5 : Math.max(0, B.wave - 1), seconds: B.t });
     game.lastReward = { ...r, won, seconds: B.t, kills: B.kills, stage: game.stageN, heroes: B.heroes.map((u) => ({ id: u.kind, dealt: u.dealt, taken: u.taken, healed: u.healed, kills: u.kills || 0 })) };
     game.vibrate(won ? [30, 60, 30] : 60);
     game.events.emit('battle:result', game.lastReward);
     if (game.screens.result) game.goto('result', { mode: 'result', over: true });
+    if (won) fireTutorial('won');
+    tut.on = false;
   }
 
   if (ui) {
@@ -132,9 +155,17 @@ export async function attachGame(game, { params }) {
     ui.resize();
   }
 
+  // a ready ultimate goes off one second after it is ready when the switch is on and unlocked
+  function autoUlt() {
+    const B = game.B;
+    if (!B || B.phase !== 'fight' || game.paused || game.frozen || !game.settings.autoUlt || !game.meta.unlocked('autoult')) return;
+    for (const u of B.heroes) if (u.alive && u.ult >= 1 && u.ultReady && B.t - u.ultReadyT >= 1) castUlt(B, u.slot);
+  }
+
   const glue = {
     update(dt, real) {
       if (endT > 0) { endT -= real; if (endT <= 0) finish(); }
+      autoUlt();
       if (!ui) return;
       for (const name in game.screens) { const s = game.screens[name]; if (s.update) s.update(real); }
       ui.update(real);

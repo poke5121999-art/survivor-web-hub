@@ -4,6 +4,7 @@
 import { HERO } from '../data/heroes.js';
 import { ENEMY } from '../data/enemies.js';
 import { HERO_RARITY } from '../data/economy.js';
+import { lockButton } from './guide.js';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const easeOut = (t) => 1 - (1 - clamp(t, 0, 1)) ** 3;
@@ -46,8 +47,12 @@ export function createHud(game) {
   const plate = ui.panel({ w: 150, h: 46, r: 14, color: 0x2a2150, depth: 4, bevel: 2.4 }); scr.put(plate, 105, 6);
   top.wave = ui.text('ĐỢT 1/5', { size: 19, align: 'center', valign: 'mid' }); plate.put(top.wave, 75, 17, 1);
   top.stage = ui.text('', { size: 10, align: 'center', valign: 'mid', color: 0xd9ccff, outlineW: 1.2 }); plate.put(top.stage, 75, 36, 1);
-  top.speed = ui.button({ id: 'speed', w: 64, h: 38, r: 11, color: PAL.blue, icon: 'speed', label: 'x1', size: 15, onTap: () => game.setSpeed(game.speed === 1 ? 2 : 1) });
+  top.speed = ui.button({ id: 'speed', w: 64, h: 38, r: 11, color: PAL.blue, icon: 'speed', label: 'x1', size: 15, onTap: () => { if (!game.meta.unlocked('speed')) { ui.toast(game.meta.lockText('speed')); return; } game.setSpeed(game.speed === 1 ? 2 : 1); } });
   scr.put(top.speed, 288, 8);
+  top.speedLock = ui.icon('lock', { size: 22, sway: false }); top.speed.put(top.speedLock, 46, -9, 14);
+  // small chip while the auto-ultimate switch is on
+  top.auto = ui.panel({ w: 46, h: 30, r: 10, color: 0x6a3ad0, depth: 3, bevel: 2, ow: 2.2, shadow: false }); scr.put(top.auto, 58, 12);
+  top.auto.put(ui.icon('bolt', { size: 20, sway: false }), 3, 5, 4); top.auto.put(ui.text('TỰ', { size: 13, valign: 'mid' }), 26, 16, 2); top.auto.setVisible(false);
   top.timerPlate = ui.panel({ w: 66, h: 24, r: 12, color: 0x2a2150, depth: 3, bevel: 2, gloss: false, ow: 2.4 }); scr.put(top.timerPlate, 8, 56);
   top.timer = ui.text('00:00', { size: 14, align: 'center', valign: 'mid' }); top.timerPlate.put(top.timer, 33, 13, 1);
   top.killPlate = ui.panel({ w: 76, h: 24, r: 12, color: 0x2a2150, depth: 3, bevel: 2, gloss: false, ow: 2.4 }); scr.put(top.killPlate, 276, 56);
@@ -92,13 +97,14 @@ export function createHud(game) {
   // ---------- hero cards ----------
   function disposeCards() { for (const c of cards) kill(c.col); cards = []; }
   function buildCards(B) {
+    const had = cards.map((c) => c.kind);
     disposeCards();
     const n = B.heroes.length, x0 = 180 - (n * CARD_W + (n - 1) * CARD_GAP) / 2;
     B.heroes.forEach((u, i) => {
       const col = ui.group({ w: CARD_W, h: 120 }); scr.holder.add(col); col.anchor(x0 + i * (CARD_W + CARD_GAP), 'bottom', -CARD_TOP_FROM_BOTTOM);
       const lift = new THREE.Group(), inner = new THREE.Group(); lift.position.set(CARD_W / 2, -CARD_W / 2, 0); inner.position.set(-CARD_W / 2, CARD_W / 2, 0); col.add(lift); lift.add(inner);
       const add = (node, x, y, z) => { inner.add(node); node.pos(x, y, z); return node; };
-      const card = { i, col, lift, inner, ready: false, readyT: 0, shake: 0, hpShown: 1 };
+      const card = { i, col, lift, inner, ready: false, readyT: 0, shake: 0, hpShown: 1, kind: u.kind, slide: had.length && !had.includes(u.kind) ? 0 : 1 };
       card.halo = add(ui.panel({ w: 90, h: 90, r: 22, color: PAL.gold, depth: 3, bevel: 2, gloss: false, shadow: false, ow: 2.4 }), -5, -5, -3); card.halo.setVisible(false);
       card.portrait = add(ui.portrait(u.kind, { size: CARD_W, color: heroColor(u.kind), id: 'ult' + i, onTap: () => tapUlt(i) }), 0, 0, 0);
       const t = card.portrait.target, press = t.press; t.press = (on) => { press(on); if (on && !t.enabled) card.shake = 0.32; };
@@ -114,6 +120,7 @@ export function createHud(game) {
       card.flame = add(ui.icon('flame', { size: 50 }), -13, -30, 16); card.flame.setVisible(false);
       card.eyeHalo = add(ui.panel({ w: 44, h: 36, r: 13, color: 0x58e0ff, depth: 3, bevel: 2, gloss: false, shadow: false, ow: 2.4 }), 41, -37, -3); card.eyeHalo.setVisible(false);
       card.eye = add(ui.button({ id: 'eye' + i, w: 36, h: 28, r: 11, color: 0x4a4f7a, icon: 'eye', shadow: false, onTap: () => tapEye(i) }), 45, -33, 0);
+      card.eyeLock = add(ui.icon('lock', { size: 20, sway: false }), 58, -41, 6);
       cards.push(card);
     });
   }
@@ -123,6 +130,7 @@ export function createHud(game) {
   }
   function tapEye(i) {
     const B = game.B; if (!B || !B.heroes[i]) return;
+    if (!game.meta.unlocked('spectate')) { ui.toast(game.meta.lockText('spectate')); return; }
     if (game.watching === B.heroes[i].uid) game.spectate(-1); else game.spectate(i);
   }
 
@@ -180,7 +188,7 @@ export function createHud(game) {
     if (p) { p.sum += amount; p.crit = p.crit || !!e.crit; p.x = e.x; p.z = e.z; } else pending.set(key, { sum: amount, crit: !!e.crit, x: e.x, z: e.z, t0: clock, heal, uid: e.uid });
   }
   function flushNumbers() {
-    for (let i = live.length - 1; i >= 0; i--) if (live[i] <= clock) live.splice(i, 1);
+    for (let i = live.length - 1; i >= 0; i--) if (live[i].until <= clock) live.splice(i, 1);
     const B = game.B;
     if (!B || B.phase !== 'fight') { pending.clear(); return; }
     for (const [key, p] of pending) {
@@ -189,7 +197,9 @@ export function createHud(game) {
       const u = B && B.byUid.get(p.uid), hero = !!(u && u.hero), at = game.project(p.x, p.z, hero ? 1.9 : (u && u.boss ? 3.2 : 1.6));
       if (at.behind || at.x < -10 || at.x > 370 || at.y < 60) continue;
       const o = p.heal ? { color: PAL.green, size: 18 } : hero ? { color: 0xff7468, size: 15 } : p.crit ? { color: PAL.gold, size: 27 } : { color: 0xffffff, size: 17 };
-      ui.fly((p.heal ? '+' : '') + fmt(p.sum), at.x, at.y, o); live.push(clock + NUMBER_LIFE);
+      let nx = at.x, ny = at.y;
+      for (let tries = 0; tries < 5 && live.some((q) => Math.abs(q.x - nx) < 38 && Math.abs(q.y - ny) < 18); tries++) { ny -= 19; nx += tries % 2 ? -9 : 9; }
+      ui.fly((p.heal ? '+' : '') + fmt(p.sum), nx, ny, o); live.push({ until: clock + NUMBER_LIFE, x: nx, y: ny });
     }
   }
 
@@ -224,7 +234,9 @@ export function createHud(game) {
       c.eyeHalo.setVisible(watching);
       c.down.visible = !u.alive; c.skull.setVisible(!u.alive); c.name.setColor(u.alive ? 0xffffff : 0xb9b3cc);
       const up = ready ? easeBack(c.readyT / 0.35) : 0, pulse = ready ? 1 + Math.sin(clock * 8.5) * 0.04 : 1;
-      c.lift.position.y = -CARD_W / 2 + up * 9; c.lift.scale.set(pulse, pulse, 1);
+      if (c.slide < 1) { if (B.phase === 'fight') c.slide = Math.min(1, c.slide + dt / 0.5); }
+      const drop = (1 - easeBack(c.slide)) * 150;
+      c.lift.position.y = -CARD_W / 2 + up * 9 - drop; c.lift.scale.set(pulse, pulse, 1);
       if (c.shake > 0) { c.shake -= dt; c.inner.position.x = -CARD_W / 2 + Math.sin(c.shake * 60) * 4 * (c.shake / 0.32); } else c.inner.position.x = -CARD_W / 2;
     }
   }
@@ -259,6 +271,10 @@ export function createHud(game) {
     dt = Math.min(dt, 0.05); clock += dt;
     if (cards.length !== B.heroes.length || teamSig !== B.heroes.map((u) => u.kind).join(',')) { teamSig = B.heroes.map((u) => u.kind).join(','); buildCards(B); }
     updateTop(B); updateCards(B, dt);
+    const locks = { speed: !game.meta.unlocked('speed'), eye: !game.meta.unlocked('spectate') };
+    lockButton(top.speed, locks.speed); top.speedLock.setVisible(locks.speed);
+    for (const c of cards) { lockButton(c.eye, locks.eye); c.eyeLock.setVisible(locks.eye); }
+    top.auto.setVisible(!!game.settings.autoUlt && game.meta.unlocked('autoult'));
     const bossOn = updateBoss(B, dt); updateSpectate(B, bossOn, dt);
     updateBanners(dt); updateBursts(dt); flushNumbers();
   }

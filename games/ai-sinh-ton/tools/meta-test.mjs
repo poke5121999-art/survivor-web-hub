@@ -11,10 +11,12 @@ const eq = (got, want, msg) => check(JSON.stringify(got) === JSON.stringify(want
 const fakeStorage = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), m }; };
 const KEY = 'aisinhton.save.v1';
 let clock = new Date(2026, 10, 19, 9, 0, 0);
-const fresh = (storage = fakeStorage()) => createMeta({ storage, now: () => clock });
+// most checks use the old four-hero account (preset vet); `brandNew` is the real new account
+const fresh = (storage = fakeStorage()) => createMeta({ storage, now: () => clock, preset: 'vet' });
+const brandNew = (storage = fakeStorage()) => createMeta({ storage, now: () => clock });
 const give = (M, slot, item, tier = 0, lv = 1) => { const it = { uid: ++M.acc.uidSeq, item, tier, lv }; M.acc.bag.push(it); return it; };
 
-// new account
+// the old four-hero account (preset vet)
 {
   const M = fresh();
   const a = M.acc;
@@ -22,6 +24,9 @@ const give = (M, slot, item, tier = 0, lv = 1) => { const it = { uid: ++M.acc.ui
   eq(a.team, ['thep', 'mua', 'yta', 'gio'], 'new account: team is the four starters');
   eq(Object.values(a.heroes).map((h) => h.level), [1, 1, 1, 1], 'new account: starters at level 1');
   eq(a.bag, [], 'new account: empty bag');
+  eq([a.level, a.xp, a.cheatUnlock, a.freePull, a.ftue.session], [10, 0, true, false, true], 'vet preset: level 10, every unlock open, no free pull, first session finished');
+  eq([M.slots(), M.unlocked('gacha'), M.unlocked('merge'), M.pendingReveals()], [4, true, true, []], 'vet preset: four slots, every feature open, nothing to reveal');
+  check(M.ftueNext({ screen: 'home', event: 'home' }) === null && M.ftueNext({ screen: 'battle' }) === null, 'vet preset: no guide is pending');
 }
 
 // pulls spend and refuse
@@ -161,17 +166,17 @@ function itemSlot(i) { return i.item.charAt(0); }
   st.setItem(KEY, '{"v":1,"gold":12,');
   let M; let threw = false;
   try { M = fresh(st); } catch (e) { threw = true; }
-  check(!threw && M.acc.gold === 1500 && M.acc.team.length === 4, 'corrupted JSON gives a fresh account without throwing');
+  check(!threw && M.acc.gold === 1500 && M.acc.team.length === 4, 'corrupted JSON gives a fresh account (the preset one) without throwing');
 
   const st2 = fakeStorage();
   st2.setItem(KEY, JSON.stringify({ v: 1, gems: 5 }));
   M = fresh(st2);
-  check(M.acc.gems === 5 && M.acc.gold === 1500 && M.acc.bag.length === 0 && M.acc.team.length === 4 && M.acc.mats.weapon === 0, 'a save missing fields keeps what is there and defaults the rest');
+  check(M.acc.gems === 5 && M.acc.gold === 500 && M.acc.bag.length === 0 && M.acc.team.join() === 'gio' && M.acc.mats.weapon === 0, 'a save missing fields keeps what is there and defaults the rest (new-account values)');
 
   const st3 = fakeStorage();
   st3.setItem(KEY, JSON.stringify({ v: 1, gold: -50, gems: 'many' }));
   M = fresh(st3);
-  check(M.acc.gold === 0 && M.acc.gems === 1000, 'negative gold becomes 0 and a non-number gem count becomes the default');
+  check(M.acc.gold === 0 && M.acc.gems === 300, 'negative gold becomes 0 and a non-number gem count becomes the default');
 
   const st4 = fakeStorage();
   st4.setItem(KEY, JSON.stringify({
@@ -337,6 +342,184 @@ function itemSlot(i) { return i.item.charAt(0); }
   M.on((name, res) => seen.push([name, res.ok]));
   M.setTeam(['thep']); M.pull(99); M.levelUp('mua');
   eq(seen, [['setTeam', true], ['levelUp', true]], 'listeners hear successful commands only');
+}
+
+
+// ---- new account, gating, XP, slots, free pull, gifts, old saves (the real start)
+const win = (M, stage, extra = {}) => M.finishStage({ stage, won: true, wavesCleared: 5, seconds: 60, ...extra });
+{
+  const M = brandNew();
+  const a = M.acc;
+  eq([a.gold, a.gems, a.level, a.xp, a.cleared, a.freePull], [500, 300, 1, 0, 0, true], 'brand-new account: 500 gold, 300 gems, level 1, 0 xp, nothing cleared, free pull waiting');
+  eq([Object.keys(a.heroes), a.team], [['gio'], ['gio']], 'brand-new account: only Gió, in the team');
+  eq([a.ftue, a.cheatUnlock], [{ done: {}, session: false }, undefined], 'brand-new account: first session not started, no cheat');
+  eq([M.slots(), M.unlocked('ult'), M.unlocked('cards'), M.unlocked('gacha')], [1, true, true, false], 'brand-new account: one slot, ult and cards open, gacha locked');
+  eq(M.pendingReveals(), [], 'brand-new account: what is open from the start is not revealed');
+  eq(M.lockText('gacha'), 'Mở khi qua ải 1', 'lockText of a stage unlock');
+  eq(M.lockText('slot3'), 'Mở ở cấp 4', 'lockText of a level unlock');
+}
+
+// every gate refuses before its condition and accepts after
+{
+  const M = brandNew();
+  M.acc.gems = 1e6; M.acc.gold = 1e6;
+  const refused = (r, id) => !r.ok && r.why === M.lockText(id);
+  const before = JSON.stringify(M.acc);
+  check(refused(M.pull(1), 'gacha') && refused(M.levelUp('gio'), 'levelup') && refused(M.claimDaily(), 'daily') && refused(M.claimChapter(0), 'chapter'), 'locked at the start: pull, levelUp, claimDaily, claimChapter refuse with the lock text');
+  check(refused(M.equip('gio', 1), 'equip') && refused(M.upgradeItem(1), 'equip') && refused(M.merge(1, [2, 3]), 'merge') && refused(M.autoMerge(), 'merge'), 'locked at the start: equip, upgradeItem, merge, autoMerge refuse with the lock text');
+  eq(JSON.stringify(M.acc) === before, true, 'refused commands change nothing');
+  win(M, 1);
+  M.acc.heroes.gio.shards = 100;
+  check(M.pull(1).ok, 'pull works after stage 1 (the free pull)');
+  check(M.levelUp('gio').ok, 'levelUp works after stage 1');
+  check(!M.claimDaily().ok && M.claimDaily().why === 'Mở ở cấp 4', 'daily still locked at level 2');
+  win(M, 2); win(M, 3);
+  check(M.acc.level >= 4 && M.claimDaily().ok, 'daily opens at level 4 (reached by clearing stages)');
+  check(refused(M.claimChapter(0), 'chapter'), 'chapter chest locked before stage 5');
+  win(M, 4); win(M, 5);
+  check(M.claimChapter(0).ok, 'chapter chest opens after stage 5');
+  check(refused(M.equip('gio', 1), 'equip') === (M.acc.level < 6), 'equip follows level 6');
+  for (let s = 6; M.acc.level < 6; s++) win(M, s);
+  const w = give(M, 'weapon', 'w_cua');
+  check(M.equip('gio', w.uid).ok && M.upgradeItem(w.uid).ok === (M.canUpgradeItem(w.uid).ok), 'equip and upgrade open at level 6');
+  check(refused(M.autoMerge(), 'merge') === (M.acc.level < 9), 'merge follows level 9');
+  while (M.acc.level < 9) win(M, 10);
+  for (let i = 0; i < 3; i++) give(M, 'weapon', 'w_cua');
+  check(M.autoMerge().ok, 'autoMerge opens at level 9');
+}
+
+// XP and level
+{
+  const M = brandNew();
+  const r = win(M, 1);
+  eq([r.xp, r.levelBefore, r.levelAfter, M.acc.level, M.acc.xp], [140, 1, 2, 2, 60], 'first clear of stage 1: 140 xp, level 1 -> 2 with 60 left');
+  const lose = M.finishStage({ stage: 2, won: false, wavesCleared: 2 });
+  eq([lose.xp, lose.levelAfter, M.acc.xp], [20, 2, 80], 'a lost stage after 2 waves: 20 xp');
+  const rep = win(M, 1);
+  eq(rep.xp, 80, 'a repeat win: 5 waves and the clear, no first-clear bonus (80 xp)');
+  eq([M.acc.level, M.acc.xp], [3, 50], 'xp rolls over: 160 xp is level 3 with 50 left');
+}
+
+// slots follow the table
+{
+  const M = brandNew();
+  eq(M.slots(), 1, 'slots at level 1, stage 0: 1');
+  M.acc.level = 4;
+  eq(M.slots(), 2, 'slots at level 4, stage 0: slot 3 is open and slot 2 is not, the table counts open slots: 2');
+  M.acc.level = 1;
+  win(M, 1);
+  eq([M.acc.level, M.slots()], [2, 2], 'slots at level 2, stage 1: 2');
+  M.acc.level = 4;
+  eq(M.slots(), 3, 'slots at level 4, stage 1: 3');
+  M.acc.level = 7;
+  eq(M.slots(), 4, 'slots at level 7, stage 1: 4');
+}
+
+// setTeam follows the slots, the first clear does not fill the team
+{
+  const M = brandNew();
+  win(M, 1);
+  eq(M.acc.team, ['gio'], 'tutorial won: the team is still just Gió (the guide fills slot 2)');
+  eq(M.setTeam(['gio', 'yta']).ok, true, 'two heroes fit in two slots');
+  M.pull(1);
+  const r = M.setTeam(['gio', 'yta', 'mua']);
+  check(!r.ok && r.why === 'Mở ở cấp 4' && M.acc.team.length === 2, 'three heroes in two slots refused with the lock text');
+}
+
+// free pull and gifts
+{
+  const M = brandNew();
+  win(M, 1);
+  eq([M.acc.heroes.yta && M.acc.heroes.yta.level, M.acc.heroes.mua], [1, undefined], 'gift: Y Tá joins the account after stage 1');
+  check(!M.pull(10).ok, 'pull 10 is refused while the free pull is waiting');
+  const g = M.acc.gems;
+  const p = M.pull(1);
+  check(p.ok && p.free && p.results[0].hero === 'mua' && p.results[0].isNew && M.acc.gems === g && M.acc.heroes.mua.level === 1 && !M.acc.freePull, 'free pull costs nothing, gives Mưa Đạn and uses itself up');
+  const p2 = M.pull(1);
+  check(p2.ok && M.acc.gems === g - 100, 'the next pull costs 100 gems');
+  const r2 = win(M, 2);
+  check(M.acc.heroes.thep.level === 1 && r2.gifts.join() === 'thep', 'gift: Thép joins after stage 2 and the result says so');
+  eq(win(M, 2).gifts, [], 'a repeat clear gifts nothing');
+}
+
+// the unlocked list on the result that crosses a threshold
+{
+  const M = brandNew();
+  const r1 = win(M, 1);
+  eq(r1.unlocked, ['slot2', 'levelup', 'gacha'], 'stage 1 result lists slot 2, level-up and gacha');
+  eq(r1.gifts, ['yta'], 'stage 1 result lists the tutorial gift');
+  eq(M.pendingReveals(), ['slot2', 'levelup', 'gacha'], 'those three wait for their reveal');
+  const r2 = win(M, 2);
+  eq(r2.unlocked.sort(), ['spectate', 'speed'].sort(), 'stage 2 result lists spectate and speed (level 3 is reached too)');
+  M.markSeen('gacha');
+  eq(M.pendingReveals(), ['slot2', 'levelup', 'spectate', 'speed'], 'markSeen removes a reveal');
+  const d0 = M.dots();
+  check(d0.gacha && d0.heroes, 'unlocked but unvisited: red dots on the gacha and heroes tabs');
+  M.visitTab('gacha'); M.visitTab('heroes');
+  M.acc.gems = 0; M.acc.freePull = false; for (const h of Object.values(M.acc.heroes)) h.shards = 0;
+  const d1 = M.dots();
+  check(!d1.gacha && !d1.heroes, 'visiting the tabs clears those dots');
+  M.markVisited('slot2');
+  eq(M.acc.visited.slot2, true, 'markVisited records the feature');
+}
+
+// the first session steps
+{
+  const M = brandNew();
+  eq(M.ftueNext({ screen: 'battle', event: 'tutorial:start' }).id, 'intro', 'ftueNext: the tutorial start gives the intro step');
+  eq(M.ftueNext({ screen: 'battle', event: 'tutorial:ult_ready' }).id, 'ult', 'ftueNext: ult_ready gives the ult step');
+  check(M.ftueNext({ screen: 'home', event: 'home' }) === null, 'ftueNext: at home before stage 1 there is nothing to guide');
+  win(M, 1);
+  eq(M.ftueNext({ screen: 'home', event: 'home' }).id, 'levelup', 'ftueNext: first home step after the tutorial is levelup');
+  M.ftueDone('levelup');
+  eq(M.ftueNext({ screen: 'home', event: 'home' }).id, 'gacha', 'ftueNext: then gacha');
+  check(M.ftueDone('nope').ok === false, 'ftueDone of an unknown step is refused');
+  for (const id of ['intro', 'ult', 'pick', 'join', 'boss', 'reward', 'gacha', 'team']) M.ftueDone(id);
+  check(!M.acc.ftue.session && M.ftueNext({ screen: 'home', event: 'home' }).id === 'start2', 'one step left: the session is not over');
+  M.ftueDone('start2');
+  check(M.acc.ftue.session === true && M.ftueNext({ screen: 'home', event: 'home' }) === null, 'the last step finishes the session');
+  const N = brandNew();
+  N.ftueSkip();
+  check(N.acc.ftue.session && FTUE_IDS_OK(N), 'ftueSkip finishes everything');
+}
+function FTUE_IDS_OK(M) { return ['intro', 'ult', 'pick', 'join', 'boss', 'reward', 'levelup', 'gacha', 'team', 'start2'].every((id) => M.acc.ftue.done[id]); }
+
+// later guides: once, when the unlock opens
+{
+  const M = brandNew();
+  win(M, 1); M.ftueSkip();
+  check(M.ftueNext({ screen: 'battle' }) === null, 'later guide: nothing before spectate opens');
+  win(M, 2);
+  const g = M.ftueNext({ screen: 'battle' });
+  check(g && g.id === 'spectate' && g.target === 'eye0', 'later guide: the eye step appears when stage 2 is cleared');
+  M.ftueDone('spectate');
+  eq(M.ftueNext({ screen: 'battle' }).id, 'speed', 'later guide: then the speed step (level 3)');
+  M.ftueDone('speed');
+  check(M.ftueNext({ screen: 'battle' }) === null, 'later guide: each shows once');
+}
+
+// old saves count as finished
+{
+  const st = fakeStorage();
+  st.setItem(KEY, JSON.stringify({ v: 1, gold: 900, gems: 40, cleared: 3, heroes: { thep: { level: 2, shards: 0 }, mua: { level: 1, shards: 0 }, yta: { level: 1, shards: 0 }, gio: { level: 1, shards: 0 } }, team: ['thep', 'mua', 'yta', 'gio'] }));
+  const M = brandNew(st);
+  eq([M.acc.ftue.session, M.acc.freePull, M.acc.level, M.acc.xp], [true, false, 4, 90], 'old save (cleared 3): session finished, no free pull, level and xp computed from the stages');
+  check(M.ftueNext({ screen: 'home', event: 'home' }) === null && M.ftueNext({ screen: 'battle', event: 'tutorial:start' }) === null && M.ftueNext({ screen: 'battle' }) === null, 'old save: no guide at all');
+  eq(M.pendingReveals(), [], 'old save: nothing to reveal');
+  eq([M.acc.team, M.slots()], [['thep', 'mua', 'yta'], 3], 'old save: the team of four is trimmed to the three slots level 4 opens');
+  check(M.unlocked('gacha') && M.unlocked('daily') && M.dots().rewards === true, 'old save: gacha and the daily chest are open');
+}
+
+// save and reload keep the account level and the guide state
+{
+  const st = fakeStorage();
+  const M = brandNew(st);
+  win(M, 1); M.ftueDone('intro'); M.markSeen('gacha'); M.visitTab('gacha');
+  const M2 = brandNew(st);
+  eq([M2.acc.level, M2.acc.xp, M2.acc.ftue.done.intro, M2.acc.seenUnlock.gacha, M2.acc.visited.gacha, M2.acc.freePull], [2, 60, true, true, true, true], 'save and reload keep level, xp, ftue, seen, visited and the free pull');
+  eq(M2.acc, M.acc, 'save and reload give an identical account');
+  const V = createMeta({ storage: st, now: () => clock, preset: 'vet' });
+  eq(V.acc.cleared, 1, 'a preset is ignored when a save exists');
 }
 
 if (fails.length) { console.log(`\n${fails.length} FAILED`); process.exit(1); }

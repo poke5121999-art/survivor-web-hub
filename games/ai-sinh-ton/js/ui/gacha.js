@@ -77,9 +77,14 @@ export function createGacha(game) {
   const idleNodes = [pity, rBtn, p1, p10];
   let lastKey = '';
   function refreshIdle() {
-    const g = meta.acc.gems, key = g + '|' + meta.acc.pity; if (key === lastKey) return; lastKey = key;
+    const g = meta.acc.gems, free = meta.acc.freePull, key = g + '|' + meta.acc.pity + '|' + free; if (key === lastKey) return; lastKey = key;
+    if (free) {
+      pity.set('Lượt đầu tiên miễn phí, chắc chắn có tướng mới!');
+      p1.setEnabled(true); p1.setLabel('MIỄN PHÍ'); p1.setSub('Lượt đầu tiên'); p10.setEnabled(false); p10.setSub('Dùng lượt miễn phí trước');
+      mui.pullText = { p1: 'MIỄN PHÍ', p10: 'Dùng lượt miễn phí trước' }; return;
+    }
     pity.set(`Còn ${GACHA.pity - meta.acc.pity} lượt chắc chắn ra tướng Huyền Thoại`);
-    p1.setEnabled(g >= GACHA.cost); p1.setSub(g >= GACHA.cost ? GACHA.cost + ' ngọc' : 'Thiếu ngọc');
+    p1.setLabel('1 LƯỢT'); p1.setEnabled(g >= GACHA.cost); p1.setSub(g >= GACHA.cost ? GACHA.cost + ' ngọc' : 'Thiếu ngọc');
     p10.setEnabled(g >= GACHA.cost10); p10.setSub(g >= GACHA.cost10 ? GACHA.cost10 + ' ngọc' : 'Thiếu ngọc');
     mui.pullText = { p1: g >= GACHA.cost ? '' : 'Thiếu ngọc', p10: g >= GACHA.cost10 ? '' : 'Thiếu ngọc' };
   }
@@ -114,7 +119,7 @@ export function createGacha(game) {
   let S = null, card = null, cardT = 0, sumNodes = [];
 
   function startPull(n) {
-    const r = meta.pull(n); if (!r.ok) { ui.toast('Thiếu ngọc'); return; }
+    const r = meta.pull(n); if (!r.ok) { ui.toast(r.why === 'thiếu ngọc' ? 'Thiếu ngọc' : r.why); return; }
     S = { results: r.results, i: 0, phase: 'crank', t: 0, ten: n === 10, first: true };
     for (const nd of idleNodes) nd.setVisible(false); skip.setVisible(true); game.chrome && game.chrome.setNav(false);
     startCap();

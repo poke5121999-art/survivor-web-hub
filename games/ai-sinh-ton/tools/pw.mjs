@@ -81,7 +81,8 @@ export async function open(br, base, phone, query = '', opts = {}) {
   page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error') problems.push('console: ' + m.text().slice(0, 300)); });
   page.on('requestfailed', (r) => problems.push('requestfailed: ' + r.url()));
-  await page.goto(base + (opts.path || GAME) + (query ? '?' + query : ''));
+  const q = opts.fresh || /(^|&)preset=/.test(query) ? query : (query ? query + '&' : '') + 'preset=vet';
+  await page.goto(base + (opts.path || GAME) + (q ? '?' + q : ''));
   if (!opts.noWait) await page.waitForFunction('window.__ready === true', null, { timeout: 90000 });
   return { ctx, page, problems };
 }

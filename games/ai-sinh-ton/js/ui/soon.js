@@ -2,6 +2,7 @@
 // locked); the daily chest on Thưởng already works through meta.claimDaily().
 import { makeBackdrop, makeBurst, fmt, kill } from './home.js';
 import { HERO } from '../data/heroes.js';
+import { lockButton } from './guide.js';
 
 const SLOT_TILES = [['weapon', 'Vũ Khí'], ['necklace', 'Dây Chuyền'], ['gloves', 'Găng Tay'], ['armor', 'Giáp'], ['belt', 'Thắt Lưng'], ['boots', 'Giày']];
 
@@ -51,12 +52,25 @@ export function createSoon(game) {
   const view = ui.viewport(chest, { w: 318, h: 224, r: 17, bg: 0x7a4aa8, fps: 24, camera: ccam, update: (dt) => cu(dt) });
   frameP.put(view, 6, 6, 1);
   const daily = ui.button({ id: 'daily', w: 250, h: 74, color: PAL.green, label: 'NHẬN', sub: ' ', size: 19, pulse: true, onTap: claim }); rewards.put(daily, 55, 352, 6);
+  const dailyLock = ui.icon('lock', { size: 34, sway: false }); daily.put(dailyLock, 214, -10, 14);
   const chipRow = ui.group({ w: 330, h: 44 }); rewards.put(chipRow, 15, 448, 6);
   const card = ui.panel({ w: 330, h: 92, r: 18, color: 0x4a3a86, depth: 4, bevel: 3 }); rewards.put(card, 15, 540, 6);
   card.put(ui.icon('chest', { size: 54 }), 12, 18, 4);
   card.put(ui.text('Rương chương', { size: 16 }), 78, 14);
-  card.put(ui.text('Qua đủ 5 ải để nhận. Sắp có.', { size: 12, color: 0xffe9a8 }), 78, 40);
-  const tag = ui.panel({ w: 66, h: 22, r: 11, color: 0xe0242e, depth: 3, bevel: 1.6, ow: 2, shadow: false }); card.put(tag, 252, 60); tag.put(ui.text('SẮP CÓ', { size: 10, align: 'center', upper: true, valign: 'mid' }), 33, 12);
+  const chapTxt = ui.text('Qua đủ 5 ải để nhận.', { size: 12, color: 0xffe9a8 }); card.put(chapTxt, 78, 40);
+  const chap = ui.button({ id: 'chapter0', w: 84, h: 48, r: 14, color: PAL.green, label: 'NHẬN', size: 16, onTap: claimChapter }); card.put(chap, 238, 22, 6);
+  const chapLock = ui.icon('lock', { size: 26, sway: false }); chap.put(chapLock, 62, -8, 14);
+  function claimChapter() {
+    if (!meta.unlocked('chapter')) { ui.toast(meta.lockText('chapter')); return; }
+    const r = meta.claimChapter(0); if (!r.ok) { ui.toast(r.why.charAt(0).toLocaleUpperCase('vi') + r.why.slice(1)); return; }
+    ui.toast('Rương chương: +' + r.gems + ' ngọc'); burst.spawn(180, 590, 22, 0xffd21f, 190); game.vibrate && game.vibrate(20);
+  }
+  function paintChapter() {
+    const lk = !meta.unlocked('chapter'); chapLock.setVisible(lk);
+    const got = !!meta.acc.chapters[0], ready = meta.canClaimChapter(0);
+    lockButton(chap, lk); if (!lk) { chap.lockedNow = null; chap.setEnabled(ready); chap.target.enabled = true; }
+    chap.setLabel(got ? 'ĐÃ NHẬN' : 'NHẬN'); chapTxt.set(lk ? meta.lockText('chapter') : got ? 'Đã nhận rương chương 1.' : 'Qua đủ 5 ải để nhận.');
+  }
   const burst = makeBurst(ui); rewards.put(burst.node, 0, 0, 40);
 
   let lid = 0, lidT = 0, glowT = 0, t0 = 0;
@@ -67,7 +81,9 @@ export function createSoon(game) {
     U.inner.position.y = Math.sin(t0 * 2) * 0.05; for (const c of U.coins) c.visible = lidT > 0.5;
   };
   function setClaimed(done) {
-    daily.setEnabled(!done); daily.setLabel(done ? 'ĐÃ NHẬN' : 'NHẬN'); daily.setSub(done ? 'Quay lại vào ngày mai' : 'Rương ngày: ngọc, vàng và mảnh');
+    daily.setEnabled(!done); daily.setLabel(done ? 'ĐÃ NHẬN' : 'NHẬN');
+    dailyLock.setVisible(!meta.unlocked('daily'));
+    if (!meta.unlocked('daily')) { daily.setEnabled(false); daily.target.enabled = true; daily.setLabel('KHOÁ'); daily.setSub(meta.lockText('daily')); mui.dailyText = meta.lockText('daily'); return; } daily.setSub(done ? 'Quay lại vào ngày mai' : 'Rương ngày: ngọc, vàng và mảnh');
     mui.dailyText = done ? 'Quay lại vào ngày mai' : 'Rương ngày: ngọc, vàng và mảnh'; lidT = done ? 1 : 0; if (done) lid = 1;
   }
   let chips = [];
@@ -80,6 +96,7 @@ export function createSoon(game) {
     });
   }
   function claim() {
+    if (!meta.unlocked('daily')) { ui.toast(meta.lockText('daily')); return; }
     const r = meta.claimDaily(); if (!r.ok) { ui.toast('Hôm nay đã nhận rồi'); return; }
     setClaimed(true); showReceipt(r); burst.spawn(180, 220, 26, 0xffd21f, 190); game.vibrate && game.vibrate(20);
   }
@@ -87,5 +104,5 @@ export function createSoon(game) {
     name, show() { ui.show(name, { transition: 'none' }); if (onShow) onShow(); }, hide() { ui.hide(name, { transition: 'none' }); },
     update(dt) { if (!ui.isShown(name)) return; bd.tick(ui.t); if (name === 'rewards') burst.update(dt); },
   });
-  return [mk('equip', equip, bdE), mk('rewards', rewards, bdR, () => { const done = !meta.canClaimDaily(); setClaimed(done); if (!done) { for (const c of chips) kill(c); chips = []; } })];
+  return [mk('equip', equip, bdE), mk('rewards', rewards, bdR, () => { paintChapter(); const done = !meta.canClaimDaily(); setClaimed(done); if (!done) { for (const c of chips) kill(c); chips = []; } })];
 }

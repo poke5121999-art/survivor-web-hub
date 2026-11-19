@@ -469,7 +469,7 @@ export function createUI({ THREE, renderer, frame }) {
     if (toast) { toast.g.dispose(); toast = null; }
     const t = ui.text(str, { size: 13, valign: 'mid', align: 'center' }), w = Math.min(330, t.w + 34), h = 34, g = new THREE.Group(), holder = new THREE.Group();
     const p = ui.panel({ w, h, r: 17, color: 0x3a2a70, depth: 4, bevel: 2.4, ow: 2.4 }); holder.add(p); holder.add(t); t.pos(w / 2, h / 2 + 1, 10); holder.position.set(-w / 2, h / 2, 0); g.add(holder);
-    g.position.set(180, -64, 0); g.dispose = () => { p.dispose(); t.dispose(); g.parent && g.parent.remove(g); }; overlay.add(g); toast = { g, t: 0, w };
+    g.position.set(180, -(ui.H - 176), 0); g.dispose = () => { p.dispose(); t.dispose(); g.parent && g.parent.remove(g); }; overlay.add(g); toast = { g, t: 0, w };
     g.scale.setScalar(0.01);
   };
   const flies = [];

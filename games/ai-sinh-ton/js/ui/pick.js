@@ -19,7 +19,8 @@ export function createPick(game) {
   scr.put(ui.panel({ w: 344, h: 820, r: 26, color: 0x33286a, depth: 6, bevel: 3 }), 8, -30, 2);
   const title = ui.text('CHỌN NÂNG CẤP', { size: 27, align: 'center', valign: 'mid' }); scr.put(title, 180, 58, 14);
   const sub = ui.text('', { size: 13, align: 'center', valign: 'mid', color: 0xffe9a6 }); scr.put(sub, 180, 90, 14);
-  const auto = ui.button({ id: 'autopick', w: 200, h: 46, r: 16, color: PAL.teal, label: 'TỰ CHỌN', size: 18, onTap: () => { if (!locked) game.autoPick(); } });
+  const auto = ui.button({ id: 'autopick', w: 200, h: 46, r: 16, color: PAL.teal, label: 'TỰ CHỌN', size: 18, onTap: () => { if (!game.meta.unlocked('autopick')) { ui.toast(game.meta.lockText('autopick')); return; } if (!locked) game.autoPick(); } });
+  const autoLock = ui.icon('lock', { size: 30, sway: false }); auto.put(autoLock, 170, -8, 14);
   scr.put(auto, 80, 664, 14);
 
   function buildProgress(B) {
@@ -78,7 +79,9 @@ export function createPick(game) {
     open = true; leaving = 0; locked = false; anim = null; shown = -1;
     const s = B.heroes.map((u) => u.kind).join(','); if (s !== sig) { sig = s; buildProgress(B); }
     ui.show('pick', { transition: 'pop' });
-    if (game.settings.autoPick) game.autoPick();
+    const lk = !game.meta.unlocked('autopick'); autoLock.setVisible(lk);
+    if (lk) { auto.setEnabled(false); auto.target.enabled = true; autoOn = false; }
+    if (game.settings.autoPick && !lk) game.autoPick();
   }
   function closeIt() {
     open = false; leaving = 0; anim = null; locked = false; shown = -1;
@@ -115,7 +118,7 @@ export function createPick(game) {
     }
     animate(dt);
     progress.forEach((p, i) => { const done = B.picked[i] >= 0; p.check.setVisible(done); p.halo.setVisible(i === cur); p.wait.visible = i > cur && !done; });
-    if (autoOn === locked) { autoOn = !locked; auto.setEnabled(autoOn); }
+    if (!autoLock.visible && autoOn === locked) { autoOn = !locked; auto.setEnabled(autoOn); }
   }
 
   return {

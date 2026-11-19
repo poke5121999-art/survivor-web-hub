@@ -86,6 +86,7 @@ export function createHeroes(game) {
   const shBar = ui.bar({ w: 330, h: 20, color: PAL.purple, r: 10, ghost: true, value: 0 }); page.put(shBar, 15, 598, 6);
   const shT = ui.text('', { size: 11, align: 'center', valign: 'mid', outlineW: 1.6 }); shBar.put(shT, 165, 10.4, 2);
   const lvBtn = ui.button({ id: 'levelup', w: 206, h: 62, r: 16, color: PAL.green, label: 'LÊN CẤP', sub: ' ', size: 22, onTap: doLevel }); page.put(lvBtn, 15, 634, 6);
+  const lvLock = ui.icon('lock', { size: 30, sway: false }); lvBtn.put(lvLock, 172, -8, 14); lvLock.setVisible(false);
   const tgBtn = ui.button({ id: 'team-toggle', w: 116, h: 62, r: 16, color: PAL.blue, label: 'VÀO ĐỘI', size: 17, onTap: doTeam }); page.put(tgBtn, 229, 634, 6);
   const burst = makeBurst(ui); page.put(burst.node, 0, 0, 60);
 
@@ -118,10 +119,13 @@ export function createHeroes(game) {
     if (!own) line = `Còn thiếu ${need - st.shards} mảnh`; else if (c.ok) line = `${fmt(cost.shards)} mảnh · ${fmt(cost.gold)} vàng`;
     else line = c.why === 'thiếu mảnh' ? `Thiếu ${cost.shards - st.shards} mảnh` : `Thiếu ${fmt(cost.gold - acc.gold)} vàng`;
     lvBtn.setEnabled(c.ok); lvBtn.setLabel(own ? 'LÊN CẤP' : 'CHƯA CÓ'); lvBtn.setSub(line); mui.levelupText = line;
+    const lk = !meta.unlocked('levelup'); lvLock.setVisible(lk);
+    if (lk) { lvBtn.setEnabled(false); lvBtn.target.enabled = true; lvBtn.setSub(meta.lockText('levelup')); mui.levelupText = meta.lockText('levelup'); }
     const inTeam = acc.team.includes(id);
     tgBtn.setLabel(inTeam ? 'RỜI ĐỘI' : 'VÀO ĐỘI'); tgBtn.setEnabled(own && !(inTeam && acc.team.length <= 1));
   }
   function doLevel() {
+    if (!meta.unlocked('levelup')) { ui.toast(meta.lockText('levelup')); return; }
     const r = meta.levelUp(id);
     if (!r.ok) { ui.toast(r.why); return; }
     burst.spawn(180, 230, 30, 0xffd21f, 220); ui.fly('LÊN CẤP ' + r.level + '!', 180, 150); game.vibrate && game.vibrate(25);
@@ -129,7 +133,7 @@ export function createHeroes(game) {
   function doTeam() {
     const t = meta.acc.team.slice(), j = t.indexOf(id);
     if (j >= 0) { if (t.length > 1) { t.splice(j, 1); const r = meta.setTeam(t); if (!r.ok) ui.toast(r.why); } return; }
-    if (t.length < 4) { t.push(id); const r = meta.setTeam(t); if (!r.ok) ui.toast(r.why); return; }
+    if (t.length < meta.slots()) { t.push(id); const r = meta.setTeam(t); if (!r.ok) ui.toast(r.why); return; }
     openPick();
   }
 

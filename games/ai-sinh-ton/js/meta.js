@@ -4,11 +4,14 @@
 // Account (version 1):
 //   { v, gold, gems, pity, heroes: {id: {level, shards}}, team: [id x1..4], cleared, best: {stage: seconds},
 //     bag: [{uid, item, tier, lv}], equip: {heroId: {slot: uid|0}}, mats: {slot: n}, uidSeq, seed,
-//     daily: 'YYYY-MM-DD'|'', chapters: {c: true}, stats: {pulls, wins, losses}, seen: {key: true} }
+//     daily: 'YYYY-MM-DD'|'', chapters: {c: true}, stats: {pulls, wins, losses}, seen: {key: true},
+//     level, xp (account level), ftue: {done: {stepId: true}, session}, seenUnlock: {id: true}, visited: {id: true},
+//     freePull, cheatUnlock? (only the 'vet' preset: every unlock treated as open) }
 
 import { GACHA, HERO_RARITY, rollGacha, rollTen, levelCost, levelMul, stageReward, lossReward, DAILY, START } from './data/economy.js';
 import { SLOTS, TIERS, ITEMS, ITEM, itemStat, upgradeCost, mergeProblem, merge as mergeItems, autoMergePlan, equipBonus } from './data/equip.js';
 import { HEROES, HERO } from './data/heroes.js';
+import { UNLOCKS, UNLOCK, isUnlocked, lockText, teamSlots, newUnlocks, addXp, xpForResult, NEW_ACCOUNT, GIFTS, FTUE, LATER_GUIDES } from './data/unlocks.js';
 import { makeRng } from './sim/battle.js';
 
 const VERSION = 1;
@@ -17,6 +20,14 @@ const CHAPTER_STAGES = 5;
 const CHAPTER_GEMS = 300;
 const HIEM = 2;
 const ROSTER = HEROES.map((h) => ({ id: h.id, rarity: h.rarity }));
+const FTUE_IDS = FTUE.map((s) => s.id);
+const GUIDE_IDS = [...FTUE_IDS, ...Object.keys(LATER_GUIDES)];
+// the home tab that shows a red dot while a feature is open and not yet visited
+const UNLOCK_TAB = { gacha: 'gacha', levelup: 'heroes', slot2: 'heroes', slot3: 'heroes', slot4: 'heroes', daily: 'rewards', chapter: 'rewards', equip: 'equip', merge: 'equip' };
+// the screen a later guide is shown on
+const LATER_SCREEN = { spectate: 'battle', speed: 'battle', daily: 'home', chapter: 'home', equip: 'home', merge: 'home' };
+const FIRST_PULL = GIFTS.find((g) => g.at === 'firstPull').hero;
+const TUTORIAL_HERO = GIFTS.find((g) => g.at === 'tutorial').hero;
 const SLOT_IDS = SLOTS.map((s) => s.id);
 const ITEMS_BY_SLOT = Object.fromEntries(SLOT_IDS.map((s) => [s, ITEMS.filter((i) => i.slot === s)]));
 
@@ -28,17 +39,32 @@ const pick = (rng, list) => list[Math.floor(rng() * list.length) % list.length];
 const emptyMats = () => Object.fromEntries(SLOT_IDS.map((s) => [s, 0]));
 const emptySlots = () => Object.fromEntries(SLOT_IDS.map((s) => [s, 0]));
 
-function freshAccount(now) {
-  return {
-    v: VERSION, gold: START.gold, gems: START.gems, pity: 0,
-    heroes: Object.fromEntries(START.heroes.map((id) => [id, { level: 1, shards: 0 }])),
-    team: START.heroes.slice(), cleared: 0, best: {}, bag: [], equip: {}, mats: emptyMats(), uidSeq: 0,
+const allTrue = (ids) => Object.fromEntries(ids.map((id) => [id, true]));
+const openAtStart = () => UNLOCKS.filter((u) => !Object.keys(u.need).length).map((u) => u.id);
+
+function freshAccount(now, preset) {
+  const vet = preset === 'vet';
+  const heroes = vet ? START.heroes : NEW_ACCOUNT.heroes;
+  const acc = {
+    v: VERSION, gold: vet ? START.gold : NEW_ACCOUNT.gold, gems: vet ? START.gems : NEW_ACCOUNT.gems, pity: 0,
+    heroes: Object.fromEntries(heroes.map((id) => [id, { level: 1, shards: 0 }])),
+    team: heroes.slice(), cleared: 0, best: {}, bag: [], equip: {}, mats: emptyMats(), uidSeq: 0,
     seed: (now().getTime() ^ 0x9e3779b9) >>> 0 || 1, daily: '', chapters: {}, stats: { pulls: 0, wins: 0, losses: 0 }, seen: {},
+    level: vet ? 10 : 1, xp: 0, ftue: { done: {}, session: false }, seenUnlock: allTrue(openAtStart()), visited: allTrue(openAtStart()), freePull: !vet,
   };
+  if (vet) {
+    acc.cheatUnlock = true;
+    acc.ftue = { done: allTrue(GUIDE_IDS), session: true };
+    acc.seenUnlock = allTrue(UNLOCKS.map((u) => u.id)); acc.visited = allTrue(UNLOCKS.map((u) => u.id));
+  }
+  return acc;
 }
 
+const slotsFor = (acc) => (acc.cheatUnlock ? TEAM_MAX : teamSlots(acc));
+
 // Field-by-field repair of whatever came out of storage. Never throws; anything unreadable falls back to the new-account value.
-function repair(raw, now) {
+function repair(raw, now, preset) {
+  if (!raw || typeof raw !== 'object') return freshAccount(now, preset);
   const base = freshAccount(now);
   const a = raw && typeof raw === 'object' ? raw : {};
   const acc = { ...base };
@@ -56,12 +82,17 @@ function repair(raw, now) {
     }
   }
   if (!Object.values(acc.heroes).some((h) => h.level > 0)) {
-    for (const id of START.heroes) acc.heroes[id] = { level: 1, shards: acc.heroes[id] ? acc.heroes[id].shards : 0 };
+    for (const id of Object.keys(base.heroes)) acc.heroes[id] = { level: 1, shards: acc.heroes[id] ? acc.heroes[id].shards : 0 };
   }
   const owned = (id) => acc.heroes[id] && acc.heroes[id].level > 0;
+  if (a.cheatUnlock === true || base.cheatUnlock) acc.cheatUnlock = true; else delete acc.cheatUnlock;
+  // level and xp of a save from before accounts had them: as if each cleared stage was won once
+  const fromStages = addXp(1, 0, acc.cleared * xpForResult({ won: true, wavesCleared: 5, first: true }));
+  const lv = Number.isFinite(a.level) ? addXp(Math.max(1, Math.floor(a.level)), num(a.xp, 0), 0) : fromStages;
+  acc.level = lv.level; acc.xp = lv.xp;
   const team = [];
-  for (const id of Array.isArray(a.team) ? a.team : []) if (owned(id) && !team.includes(id) && team.length < TEAM_MAX) team.push(id);
-  if (!team.length) for (const id of Object.keys(acc.heroes)) if (owned(id) && team.length < TEAM_MAX) team.push(id);
+  for (const id of Array.isArray(a.team) ? a.team : []) if (owned(id) && !team.includes(id) && team.length < slotsFor(acc)) team.push(id);
+  if (!team.length) for (const id of Object.keys(acc.heroes)) if (owned(id) && team.length < slotsFor(acc)) team.push(id);
   acc.team = team;
   acc.best = {};
   if (a.best && typeof a.best === 'object') for (const [k, s] of Object.entries(a.best)) if (Number.isFinite(+k) && Number.isFinite(s) && s >= 0) acc.best[k] = s;
@@ -97,14 +128,35 @@ function repair(raw, now) {
   if (a.stats && typeof a.stats === 'object') for (const k of Object.keys(acc.stats)) acc.stats[k] = num(a.stats[k], 0);
   acc.seen = {};
   if (a.seen && typeof a.seen === 'object') for (const [k, v] of Object.entries(a.seen)) if (v) acc.seen[k] = true;
+  const flags = (src, ids) => { const out = {}; if (src && typeof src === 'object') for (const id of ids) if (src[id]) out[id] = true; return out; };
+  const open = UNLOCKS.filter((u) => acc.cheatUnlock || isUnlocked(acc, u.id)).map((u) => u.id);
+  const ids = UNLOCKS.map((u) => u.id);
+  if (a.ftue && typeof a.ftue === 'object') {
+    acc.ftue = { done: flags(a.ftue.done, GUIDE_IDS), session: a.ftue.session === true };
+    acc.seenUnlock = { ...base.seenUnlock, ...flags(a.seenUnlock, ids) }; acc.visited = { ...base.visited, ...flags(a.visited, ids) };
+    acc.freePull = typeof a.freePull === 'boolean' ? a.freePull : acc.cleared < 1;
+  } else if (acc.cleared >= 1) {
+    // a save from before the guided first session counts as a finished one
+    acc.ftue = { done: allTrue(FTUE_IDS), session: true };
+    for (const id of Object.keys(LATER_GUIDES)) if (open.includes(id)) acc.ftue.done[id] = true;
+    acc.seenUnlock = allTrue(open); acc.visited = allTrue(open); acc.freePull = false;
+  } else {
+    acc.seenUnlock = { ...base.seenUnlock, ...flags(a.seenUnlock, ids) }; acc.visited = { ...base.visited, ...flags(a.visited, ids) };
+    acc.freePull = typeof a.freePull === 'boolean' ? a.freePull : true;
+  }
   return acc;
 }
 
-export function createMeta({ storage = globalThis.localStorage, now = () => new Date(), key = 'aisinhton.save.v1' } = {}) {
-  const M = { acc: freshAccount(now), readOnly: false };
+export function createMeta({ storage = globalThis.localStorage, now = () => new Date(), key = 'aisinhton.save.v1', preset } = {}) {
+  const M = { acc: freshAccount(now, preset), readOnly: false };
   const listeners = [];
 
   const owned = (id) => !!(M.acc.heroes[id] && M.acc.heroes[id].level > 0);
+  M.unlocked = (id) => !!M.acc.cheatUnlock || isUnlocked(M.acc, id);
+  M.lockText = (id) => lockText(id);
+  M.slots = () => slotsFor(M.acc);
+  // the refusal of a command whose feature is still locked, or null
+  const locked = (id) => (M.unlocked(id) ? null : fail(lockText(id)));
   const findItem = (uid) => M.acc.bag.find((i) => i.uid === uid);
   const wornUids = () => { const s = new Set(); for (const e of Object.values(M.acc.equip)) for (const u of Object.values(e)) if (u) s.add(u); return s; };
   const slotsOf = (hid) => (M.acc.equip[hid] || (M.acc.equip[hid] = emptySlots()));
@@ -118,11 +170,11 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     M.readOnly = false;
     let raw = null;
     try { const s = storage && storage.getItem(key); raw = s ? JSON.parse(s) : null; } catch (e) { raw = null; }
-    if (raw && typeof raw === 'object' && Number.isFinite(raw.v) && raw.v > VERSION) { M.readOnly = true; M.acc = freshAccount(now); return M.acc; }
-    M.acc = repair(raw, now);
+    if (raw && typeof raw === 'object' && Number.isFinite(raw.v) && raw.v > VERSION) { M.readOnly = true; M.acc = freshAccount(now, preset); return M.acc; }
+    M.acc = repair(raw, now, preset);
     return M.acc;
   };
-  M.reset = () => { M.readOnly = false; M.acc = freshAccount(now); M.save(); return M.acc; };
+  M.reset = () => { M.readOnly = false; M.acc = freshAccount(now, preset); M.save(); return M.acc; };
   M.on = (fn) => { listeners.push(fn); };
 
   // The account's rng: each command draws from the seed and stores the next one.
@@ -146,8 +198,22 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
   }
 
   // ---- gacha
+  function freePull() {
+    const h = HERO[FIRST_PULL];
+    const isNew = !owned(FIRST_PULL);
+    const r = { row: 'hero_free', kind: 'hero', rarity: h.rarity, hero: FIRST_PULL, n: 0, isNew, dupe: !isNew, item: null };
+    if (isNew) M.acc.heroes[FIRST_PULL] = { level: 1, shards: M.acc.heroes[FIRST_PULL] ? M.acc.heroes[FIRST_PULL].shards : 0 };
+    else { r.kind = 'shard'; r.n = HERO_RARITY[h.rarity].dupe; addShards(FIRST_PULL, r.n); }
+    M.acc.freePull = false; M.acc.stats.pulls += 1;
+    return done('pull', { results: [r], free: true });
+  }
   M.pull = (n = 1) => {
+    const lock = locked('gacha'); if (lock) return lock;
     if (n !== 1 && n !== 10) return fail('số lượt không hợp lệ');
+    if (M.acc.freePull) {
+      if (n === 10) return fail('dùng lượt miễn phí đầu tiên trước');
+      return freePull();
+    }
     const cost = n === 10 ? GACHA.cost10 : GACHA.cost;
     if (M.acc.gems < cost) return fail('thiếu ngọc');
     M.acc.gems -= cost;
@@ -187,6 +253,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     return { ok: true, cost, why: '' };
   };
   M.levelUp = (id) => {
+    const lock = locked('levelup'); if (lock) return lock;
     const c = M.canLevelUp(id);
     if (!c.ok) return fail(c.why);
     const h = M.acc.heroes[id];
@@ -197,6 +264,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     if (!Array.isArray(ids) || ids.length < 1 || ids.length > TEAM_MAX) return fail('đội hình cần 1 đến 4 tướng');
     if (new Set(ids).size !== ids.length) return fail('đội hình có tướng trùng');
     if (!ids.every(owned)) return fail('đội hình có tướng chưa sở hữu');
+    if (ids.length > M.slots()) return fail(ids.length > 1 ? lockText(['slot2', 'slot3', 'slot4'][ids.length - 2]) : 'đội hình cần 1 đến 4 tướng');
     M.acc.team = ids.slice();
     return done('setTeam', { team: M.acc.team.slice() });
   };
@@ -206,6 +274,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     if (!Number.isInteger(stage) || stage < 1) return fail('ải không hợp lệ');
     const acc = M.acc;
     const first = !!won && stage > acc.cleared;
+    const before = { level: acc.level, cleared: acc.cleared };
     const r = won ? stageReward(stage, first) : lossReward(stage, wavesCleared);
     const items = [];
     withRng((rng) => {
@@ -219,15 +288,27 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     });
     acc.gold += r.gold; acc.gems += r.gems;
     for (const id of acc.team) addShards(id, r.teamShards);
+    const xp = xpForResult({ won: !!won, wavesCleared: Math.max(0, wavesCleared), first });
+    Object.assign(acc, addXp(acc.level, acc.xp, xp));
+    const gifts = [];
+    const give = (id) => { if (!owned(id)) { acc.heroes[id] = { level: 1, shards: acc.heroes[id] ? acc.heroes[id].shards : 0 }; gifts.push(id); } };
+    if (first) {
+      for (const g of GIFTS) {
+        const crossed = typeof g.at === 'object' && before.cleared < g.at.stage && stage >= g.at.stage;
+        if (crossed || (g.at === 'tutorial' && before.cleared < 1 && stage >= 1)) give(g.hero);
+      }
+    }
     if (won) {
       acc.stats.wins++;
       acc.cleared = Math.max(acc.cleared, stage);
       if (Number.isFinite(seconds) && seconds > 0 && !(acc.best[stage] <= seconds)) acc.best[stage] = seconds;
     } else acc.stats.losses++;
-    return done('finishStage', { won: !!won, first, stage, gold: r.gold, gems: r.gems, teamShards: r.teamShards, mats: r.mats, items });
+    const unlocked = newUnlocks(before, acc);
+    return done('finishStage', { won: !!won, first, stage, gold: r.gold, gems: r.gems, teamShards: r.teamShards, mats: r.mats, items, xp, levelBefore: before.level, levelAfter: acc.level, unlocked, gifts });
   };
   M.canClaimDaily = () => M.acc.daily !== dayOf(now());
   M.claimDaily = () => {
+    const lock = locked('daily'); if (lock) return lock;
     const today = dayOf(now());
     if (M.acc.daily === today) return fail('hôm nay đã nhận rồi');
     M.acc.daily = today; M.acc.gems += DAILY.gems; M.acc.gold += DAILY.gold;
@@ -238,6 +319,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
   };
   M.canClaimChapter = (c) => Number.isInteger(c) && c >= 0 && !M.acc.chapters[c] && M.acc.cleared >= (c + 1) * CHAPTER_STAGES;
   M.claimChapter = (c) => {
+    const lock = locked('chapter'); if (lock) return lock;
     if (!Number.isInteger(c) || c < 0) return fail('chương không hợp lệ');
     if (M.acc.chapters[c]) return fail('chương này đã nhận rồi');
     if (M.acc.cleared < (c + 1) * CHAPTER_STAGES) return fail('chưa qua đủ ải của chương');
@@ -251,6 +333,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
 
   // ---- equipment
   M.equip = (hid, uid) => {
+    const lock = locked('equip'); if (lock) return lock;
     if (!owned(hid)) return fail('chưa có tướng này');
     const it = findItem(uid);
     if (!it) return fail('không tìm thấy món đồ');
@@ -277,6 +360,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     return { ok: true, cost, why: '' };
   };
   M.upgradeItem = (uid) => {
+    const lock = locked('equip'); if (lock) return lock;
     const c = M.canUpgradeItem(uid);
     if (!c.ok) return fail(c.why);
     const it = findItem(uid);
@@ -292,6 +376,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     return r;
   }
   M.merge = (mainUid, fodderUids) => {
+    const lock = locked('merge'); if (lock) return lock;
     const main = findItem(mainUid);
     if (!main) return fail('không tìm thấy món chính');
     const fodder = (Array.isArray(fodderUids) ? fodderUids : []).map(findItem);
@@ -304,6 +389,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     return done('merge', { uid: main.uid, tier: main.tier, refund: r.refund });
   };
   M.autoMerge = () => {
+    const lock = locked('merge'); if (lock) return lock;
     let merges = 0;
     for (;;) {
       const plan = autoMergePlan(M.acc.bag, wornUids());
@@ -328,27 +414,69 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
   M.power = (id) => { const s = M.heroStats(id); return s ? Math.round(s.atk * 4 + s.hp / 2) : 0; };
   M.teamPower = () => M.acc.team.reduce((sum, id) => sum + M.power(id), 0);
 
+  // ---- guided first session and reveals
+  const guideDone = (id) => !!M.acc.ftue.done[id];
+  const ftueOpen = (step) => {
+    // home steps wait for the first clear and run in table order
+    if (step.when !== 'home') return true;
+    return M.acc.cleared >= 1 && FTUE.filter((s) => s.when === 'home' && !guideDone(s.id))[0] === step;
+  };
+  M.ftueDone = (id) => {
+    if (!GUIDE_IDS.includes(id)) return fail('bước hướng dẫn không có');
+    if (guideDone(id)) return { ok: true, already: true };
+    M.acc.ftue.done[id] = true;
+    if (FTUE_IDS.every(guideDone)) M.acc.ftue.session = true;
+    return done('ftueDone', { id });
+  };
+  M.ftueSkip = () => {
+    for (const id of FTUE_IDS) M.acc.ftue.done[id] = true;
+    M.acc.ftue.session = true;
+    return done('ftueSkip', {});
+  };
+  // context: { screen, event }. An event step matches its `when`; home steps match at home.
+  M.ftueNext = (ctx = {}) => {
+    if (!M.acc.ftue.session) {
+      const step = FTUE.find((s) => !guideDone(s.id) && (s.when === ctx.event || (s.when === 'home' && (ctx.event === 'home' || (ctx.event === undefined && ctx.screen === 'home')))) && ftueOpen(s));
+      if (step) return { ...step };
+      return null;
+    }
+    for (const [id, g] of Object.entries(LATER_GUIDES)) {
+      if (!guideDone(id) && !(ctx.skip && ctx.skip.includes(id)) && M.unlocked(id) && LATER_SCREEN[id] === ctx.screen) return { id, ...g, later: true };
+    }
+    return null;
+  };
+  M.markSeen = (id) => { if (!UNLOCK[id] || M.acc.seenUnlock[id]) return { ok: true }; M.acc.seenUnlock[id] = true; return done('markSeen', { id }); };
+  M.markVisited = (id) => { if (!UNLOCK[id] || M.acc.visited[id]) return { ok: true }; M.acc.visited[id] = true; return done('markVisited', { id }); };
+  M.pendingReveals = () => UNLOCKS.filter((u) => M.unlocked(u.id) && !M.acc.seenUnlock[u.id]).map((u) => u.id);
+  // a home tab was opened: clears the dots of the features that live on it
+  M.visitTab = (tab) => { let any = false; for (const [id, t] of Object.entries(UNLOCK_TAB)) if (t === tab && !M.acc.visited[id] && M.unlocked(id)) { M.acc.visited[id] = true; any = true; } if (any) done('visitTab', { tab }); };
+
   // ---- red dots
   M.dots = () => {
     const acc = M.acc;
     const heroIds = {};
     let heroes = false;
-    for (const id of Object.keys(acc.heroes)) if (owned(id) && M.canLevelUp(id).ok) { heroIds[id] = true; heroes = true; }
+    if (M.unlocked('levelup')) for (const id of Object.keys(acc.heroes)) if (owned(id) && M.canLevelUp(id).ok) { heroIds[id] = true; heroes = true; }
     const worn = wornUids();
     const free = acc.bag.filter((i) => !worn.has(i.uid));
-    let equip = autoMergePlan(acc.bag, worn).length > 0;
-    for (const id of acc.team) {
-      const e = acc.equip[id] || {};
-      for (const s of SLOT_IDS) {
-        const cur = findItem(e[s]);
-        const curStat = cur ? itemStat(cur) : 0;
-        if (free.some((i) => ITEM[i.item].slot === s && itemStat(i) > curStat)) { equip = true; heroIds[id] = true; }
-        if (cur && M.canUpgradeItem(cur.uid).ok) equip = true;
+    let equip = false;
+    if (M.unlocked('equip')) {
+      equip = M.unlocked('merge') && autoMergePlan(acc.bag, worn).length > 0;
+      for (const id of acc.team) {
+        const e = acc.equip[id] || {};
+        for (const s of SLOT_IDS) {
+          const cur = findItem(e[s]);
+          const curStat = cur ? itemStat(cur) : 0;
+          if (free.some((i) => ITEM[i.item].slot === s && itemStat(i) > curStat)) { equip = true; heroIds[id] = true; }
+          if (cur && M.canUpgradeItem(cur.uid).ok) equip = true;
+        }
       }
     }
-    let rewards = M.canClaimDaily();
-    for (let c = 0; c * CHAPTER_STAGES < acc.cleared; c++) if (M.canClaimChapter(c)) rewards = true;
-    return { gacha: acc.gems >= GACHA.cost, heroes, equip, rewards, heroIds };
+    let rewards = M.unlocked('daily') && M.canClaimDaily();
+    if (M.unlocked('chapter')) for (let c = 0; c * CHAPTER_STAGES < acc.cleared; c++) if (M.canClaimChapter(c)) rewards = true;
+    const out = { gacha: M.unlocked('gacha') && (acc.freePull || acc.gems >= GACHA.cost), heroes, equip, rewards, heroIds };
+    for (const [id, tab] of Object.entries(UNLOCK_TAB)) if (M.unlocked(id) && !acc.visited[id]) out[tab] = true;
+    return out;
   };
 
   M.load();

@@ -31,7 +31,7 @@ async function boot() {
       const ids = opts.team || DEFAULT_TEAM;
       actors.clear();
       game.B = createBattle({
-        stage, seed: opts.seed || 1, wave: opts.wave || 1, auto: opts.auto || {},
+        stage, seed: opts.seed || 1, wave: opts.wave || 1, auto: opts.auto || {}, joinSpec: opts.joinSpec || null,
         team: opts.teamSpec || ids.map((id) => ({ id, mul: opts.mul || levelMul(L), atkFlat: opts.atkFlat ?? 6 * n, hpFlat: opts.hpFlat ?? 40 * n })),
         onEvent: (e) => { actors.onEvent(e); for (const fn of listeners) fn(e); },
       });
@@ -53,7 +53,7 @@ async function boot() {
   }
   function advance(dt) {
     const B = game.B;
-    if (!B || game.paused || B.phase !== 'fight') return;
+    if (!B || game.paused || game.frozen || B.phase !== 'fight') return;
     acc += dt * game.speed;
     let n = 0;
     while (acc >= DT && n++ < MAX_CATCHUP && B.phase === 'fight') { step(B); acc -= DT; }

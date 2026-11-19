@@ -5,11 +5,16 @@ import { stageDef, expectedLevel } from '../data/stages.js';
 import { HERO } from '../data/heroes.js';
 import { HERO_RARITY, levelMul } from '../data/economy.js';
 import { createDiorama } from './diorama.js';
+import { lockButton } from './guide.js';
+import { xpNeed } from '../data/unlocks.js';
 
 export const MENU = ['home', 'heroes', 'hero', 'gacha', 'equip', 'rewards'];
 const TAB_OF = { home: 'tab-battle', heroes: 'tab-heroes', hero: 'tab-heroes', gacha: 'tab-gacha', equip: 'tab-equip', rewards: 'tab-rewards' };
 const GO = { 'tab-gacha': 'gacha', 'tab-equip': 'equip', 'tab-battle': 'home', 'tab-heroes': 'heroes', 'tab-rewards': 'rewards' };
 const DOT_OF = { 'tab-gacha': 'gacha', 'tab-equip': 'equip', 'tab-heroes': 'heroes', 'tab-rewards': 'rewards' };
+const TAB_LOCK = { 'tab-gacha': 'gacha', 'tab-equip': 'equip' };
+const VISIT = { gacha: 'gacha', heroes: 'heroes', hero: 'heroes', equip: 'equip', rewards: 'rewards' };
+const SLOT_UNLOCK = [null, 'slot2', 'slot3', 'slot4'];
 const LAST_STAGE = 10;
 
 // kit dispose() mutates the tree while it walks it: release the deepest nodes first
@@ -110,7 +115,13 @@ export function createHome(game) {
     const t = ui.text(fmt(shownVal[key]), { size: 16, align: 'right', valign: 'mid' }); p.put(t, w - 12, 17); p.put(ui.icon(icon, { size: 36 }), -8, -3, 4);
     counters[key] = { t, last: fmt(shownVal[key]) }; mui.barText[key] = counters[key].last;
   };
-  pill('gold', 'gold', 14, 124); pill('gems', 'gem', 146, 112);
+  pill('gold', 'gold', 14, 100); pill('gems', 'gem', 118, 92);
+  // account level: "Cấp N" and the bar to the next one
+  const lvPill = ui.panel({ w: 90, h: 32, r: 16, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); chrome.put(lvPill, 214, 10);
+  const lvTxt = ui.text('Cấp 1', { size: 13, align: 'center', valign: 'mid' }); lvPill.put(lvTxt, 45, 10, 2);
+  const lvBar = ui.bar({ w: 70, h: 8, color: PAL.green, r: 4, value: 0 }); lvPill.put(lvBar, 10, 19.5, 1);
+  mui.level = { text: 'Cấp 1' };
+  let lvKey = '';
   const gear = ui.button({ id: 'gear', w: 44, h: 36, r: 12, color: PAL.blue, icon: 'gear', shadow: false, onTap: () => { if (game.openSettings) game.openSettings(); } });
   chrome.put(gear, 306, 8);
 
@@ -123,10 +134,11 @@ export function createHome(game) {
   const TABS = [['tab-gacha', 'Triệu Hồi', null, 60, 0], ['tab-equip', 'Trang Bị', 'armor', 60, 0], ['tab-battle', 'Ra Trận', 'sword', 80, 1], ['tab-heroes', 'Tướng', 'shield', 60, 0], ['tab-rewards', 'Thưởng', 'chest', 60, 0]];
   const tabs = {}; let x = 8;
   for (const [id, label, icon, w, big] of TABS) {
-    const h = big ? 78 : 52, b = ui.button({ id, w, h, r: 14, color: big ? PAL.orange : 0x5b49a8, icon: icon || undefined, label, stack: true, size: 10, onTap: () => game.goto(GO[id]) });
+    const h = big ? 78 : 52, b = ui.button({ id, w, h, r: 14, color: big ? PAL.orange : 0x5b49a8, icon: icon || undefined, label, stack: true, size: 10, onTap: () => { const need = TAB_LOCK[id]; if (need && !meta.unlocked(need)) { ui.toast(meta.lockText(need)); return; } game.goto(GO[id]); } });
     const y0 = big ? -16 : 7; nav.put(b, x, y0, 1.5);
     if (!icon) { const cap = capsule3d(THREE, 0xff8ad0, 0x6ad8ff); cap.scale.setScalar(16); cap.rotation.z = 0.55; cap.rotation.x = 0.25; b.put(cap, w / 2, h * 0.36, 9); }
     tabs[id] = { b, x, y0, cy: y0, cx: x + w / 2, big };
+    if (TAB_LOCK[id]) { tabs[id].lock = ui.icon('lock', { size: 26, sway: false }); b.put(tabs[id].lock, w - 28, -2, 16); }
     x += w + 4;
   }
   let activeTab = 'tab-battle';
@@ -139,6 +151,7 @@ export function createHome(game) {
   game.events.on('screen', ({ name }) => {
     if (!MENU.includes(name)) return;
     activeTab = TAB_OF[name]; game.chrome.raise(); nav.setVisible(name !== 'hero');
+    if (VISIT[name]) meta.visitTab(VISIT[name]);
   });
   meta.on(() => { dotsDirty = true; });
   let dotsDirty = true;
@@ -175,8 +188,13 @@ export function createHome(game) {
   function buildSlots() {
     for (const s of slotNodes) kill(s); slotNodes = [];
     for (let i = 0; i < 4; i++) {
-      const id = meta.acc.team[i], px = 17 + i * 84, py = 450;
-      if (id) {
+      const id = meta.acc.team[i], px = 17 + i * 84, py = 450, need = SLOT_UNLOCK[i];
+      if (need && !meta.unlocked(need)) {
+        const p = ui.tile({ size: 74, color: 0x6b6785, id: 'team-' + i, onTap: () => ui.toast(meta.lockText(need)) });
+        p.put(ui.icon('lock', { size: 38, sway: false }), 18, 6, 14);
+        p.put(ui.text(meta.lockText(need).replace('Mở khi qua ải ', 'Ải '), { size: 10, align: 'center', outlineW: 1.6, maxW: 64 }), 37, 50, 14);
+        home.put(p, px, py, 6); slotNodes.push(p);
+      } else if (id) {
         const p = ui.portrait(id, { size: 74, color: rarityColor(id), id: 'team-' + i, onTap: () => game.goto('heroes', { mode: 'team', slot: i }) });
         p.put(ui.text('Lv.' + meta.acc.heroes[id].level, { size: 11, outlineW: 1.8 }), 7, 56, 14); home.put(p, px, py, 6); slotNodes.push(p);
       } else {
@@ -200,7 +218,7 @@ export function createHome(game) {
     refreshTeam(false); return !same;
   }
   function refreshTeam(force) {
-    const key = meta.acc.team.map((id) => id + meta.acc.heroes[id].level).join(',');
+    const key = meta.acc.team.map((id) => id + meta.acc.heroes[id].level).join(',') + '|' + meta.slots();
     if (force || key !== teamKey) { teamKey = key; buildSlots(); }
     const tp = meta.teamPower(), rp = recPower(meta, sel);
     powTxt.set('Sức mạnh đội: ' + fmt(tp));
@@ -234,6 +252,8 @@ export function createHome(game) {
         const s = fmt(v); if (s !== counters[key].last) { counters[key].last = s; counters[key].t.set(s); mui.barText[key] = s; }
       }
       if (dotsDirty) { dotsDirty = false; refreshDots(); }
+      for (const id in TAB_LOCK) { const lk = !meta.unlocked(TAB_LOCK[id]); lockButton(tabs[id].b, lk); tabs[id].lock.setVisible(lk); }
+      { const L = meta.acc.level, k = L + ':' + meta.acc.xp; if (k !== lvKey) { lvKey = k; lvTxt.set('Cấp ' + L); lvBar.set(meta.acc.xp / xpNeed(L)); mui.level = { text: 'Cấp ' + L, level: L, xp: meta.acc.xp, need: xpNeed(L) }; } }
       for (const id in tabs) {
         const tb = tabs[id], act = id === activeTab, ty = tb.y0 - (act && !tb.big ? 8 : 0);
         tb.cy += (ty - tb.cy) * (1 - Math.exp(-dt * 14)); tb.b.pos(tb.x, tb.cy);
