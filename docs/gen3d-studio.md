@@ -60,6 +60,8 @@ params = {
   polycount: number,              // 500..2_000_000; với quad là số mặt tứ giác
   seed: number,
   texture: null | TextureParams,  // công tắc Texture bật thì worker chạy luôn texture sau shape, ra job con tự động
+  source: "generate" | "upload",  // "upload": model người dùng tự tải lên (action import_model), job done ngay, không qua máy gen,
+                                  //   views rỗng, file_name là tên file gốc; texture trên model này không có ảnh để chiếu
 }
 
 // kind = "texture"
@@ -115,7 +117,19 @@ chọn ảnh rõ nhất làm đầu vào shape khi thiếu ảnh trước.
 
 `gen3d-anim.html?job=<id job rig>`: three.js nạp glb có xương, danh sách anim lấy từ `gen3d/mixamo/index.json` (mỗi anim
 một file glb chỉ chứa track xương mixamorig, xuất từ FBX Mixamo "Without Skin"). Vì cả hai phía cùng tên xương, clip gắn
-thẳng vào `AnimationMixer` của model, không cần retarget. Có tìm theo tên, tốc độ, lặp, in-place.
+vào `AnimationMixer` của model theo tên. Tên giống nhau chưa đủ: trục cục bộ của xương khác nhau giữa FBX Mixamo, glb xuất qua
+Blender (Xbot) và rig của máy gen, nên trang retarget theo không gian thế giới: xương nhận độ xoay của clip so với T-pose của
+clip, đặt lên T-pose của model. Điều kiện là cả hai đứng T-pose. Hips dịch theo tỉ lệ chiều cao Hips. Có tìm theo tên và mô
+tả, GIF Mixamo khi rê chuột, tốc độ, tua, lặp, Tại chỗ, hiện xương.
+
+## Trang
+
+Bố cục kiểu workspace: rail trái (Model, Texture, Rig, Máy gen) mở panel trái của công cụ đó; giữa là viewport three.js
+(Topology/Faces/Vertices, trục toạ độ, đèn, chụp, về góc nhìn, thanh dưới: lit/clay/normal/lưới/UV checker, bật tắt texture,
+lùi góc nhìn, Gen lại với seed mới, Gen texture, Gen xương, Thử anim, Export GLB, OBJ khi Quad); panel phải hai tab Assets
+(ô Upload 3D Model + lưới model, job đang chạy hiện bước và thanh tiến độ) và Property (thông số, máy, giờ, nhật ký, cây
+phiên bản). Panel Geometry & Texture mở cạnh panel trái, cài đặt lưu `localStorage` (`gen3d.cfg.v1`). `?mock=1` chạy với
+API giả `js/gen3d-mock.js`. Kiểm giao diện: `node test/gen3d-studio-pages.js` (mock) và `GEN3D_E2E=1` (thật, cần worker).
 
 `gen3d/mixamo/index.json` là mảng `[{ id, name, file, duration, inplace, description?, thumb?, gif? }]`. `file` là tên file
 glb cạnh index. `inplace = false` nghĩa là clip giữ root motion; trang Thử anim có công tắc **Tại chỗ** xoá X/Z của Hips lúc
@@ -148,7 +162,8 @@ Trả `{ ok: true, ... }` hoặc `{ ok: false, error: { code, message } }`. Art:
 | action | vào | ra |
 |---|---|---|
 | `me` | | `{ user, isAdmin }` |
-| `upload_urls` | `files: [{ name, type, size }]` (1–4 ảnh png/jpeg/webp, ≤ 15 MB) | `files: [{ path, uploadUrl, publicUrl }]` dưới `refs/<user>/` |
+| `upload_urls` | `files: [{ name, type, size }]` (1–4 file: ảnh png/jpeg/webp ≤ 15 MB, hoặc glb ≤ 50 MB) | `files: [{ path, uploadUrl, publicUrl }]` dưới `refs/<user>/` |
+| `import_model` | `glb` (path đã tải lên), `thumb?`, `title?`, `file_name?`, `stats?: { tris, verts, bytes }` | `{ job }`: job shape `done`, `params.source = "upload"`, không worker. Trang đổi OBJ/FBX/STL sang glb bằng loader three.js trước khi tải lên |
 | `submit` | `kind`, `title?`, `params`, `parent_id?` (bắt buộc với texture/rig) | `{ job }`; job con không ghi `title` thì lấy tên job gốc |
 | `list` | `mine?`, `limit?` | `{ jobs }` (không có `log`) |
 | `get` | `id` | `{ job }` (có `log`) |

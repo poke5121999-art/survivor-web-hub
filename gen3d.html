@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Xưởng 3D</title>
+  <meta name="description" content="Gửi 1 tới 4 ảnh, máy trong văn phòng dựng model 3D; xem, gen texture, gen xương, thử anim Mixamo." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/design.css" />
+  <link rel="stylesheet" href="css/gen3d-studio.css?v=20261119a" />
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    } }
+  </script>
+
+  <script src="js/session.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script>
+    (function () {
+      if (/[?&]mock=1\b/.test(location.search)) return;
+      var c = window.SUPABASE_CONFIG || {};
+      if (!(c.url && c.anonKey)) return;
+      var s = window.HubSession && window.HubSession.get();
+      if (!s || s.kind !== "member") location.replace("login.html?next=gen3d.html");
+    })();
+  </script>
+</head>
+<body class="g3-body">
+  <header class="g3-top">
+    <a class="g3-top__hub" href="index.html" title="Về hub">← Hub</a>
+    <b class="g3-top__title">Xưởng 3D</b>
+    <span class="g3-top__sub">ảnh → model → texture → xương → anim</span>
+    <span class="g3-spacer"></span>
+    <span id="g3-me" class="g3-top__me"></span>
+  </header>
+  <div id="g3-banner" class="dz-banner g3-banner" role="alert" hidden></div>
+
+  <div class="g3-app">
+    <nav id="g3-rail" class="g3-rail" aria-label="Công cụ"></nav>
+    <aside id="g3-left" class="g3-left"></aside>
+    <main id="g3-view" class="g3-view"></main>
+    <aside id="g3-right" class="g3-right"></aside>
+  </div>
+
+  <div id="g3-toasts" class="dz-toasts" role="status"></div>
+
+  <script src="js/supabase-auth.js"></script>
+  <script type="module" src="js/gen3d-studio.js?v=20261119a"></script>
+</body>
+</html>
