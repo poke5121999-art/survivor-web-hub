@@ -1,7 +1,7 @@
 // The view host: renderer, scene, lights, the arena floor (floor.js) with its fog wall, rain, and the small `G` object
 // that Blockade Z's fx, audio, zombie and boss code expects. The sim never touches it; actors.js and camera.js
 // read H and draw the battle on top.
-import { createFloor } from './floor.js';
+import { createFloor } from './floor.js?v=20261119b';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -151,7 +151,7 @@ export async function createHost({ frame, canvas, params }) {
   G.zombies = BZ.makeZombies(G);
   // medium and high: Blockade Z's voxel-layer post (PCSS sun shadows, SAO, bloom, eye adaptation, grade); low: none
   let voxPost = null;
-  if (quality.post) { try { await import('../bz/vox-post.js'); voxPost = BZ.vox.makePost; } catch (e) { console.warn('[host] vox post not loaded, plain bloom', e); } }
+  if (quality.post) { try { await import('../bz/vox-post.js?v=20261119b'); voxPost = BZ.vox.makePost; } catch (e) { console.warn('[host] vox post not loaded, plain bloom', e); } }
   G.post = voxPost ? voxPost(G) : BZ.makePost(G);
   const postCan = !!G.post.on;
   G.post.on = postCan && quality.post; G.post.strength = 0.32;

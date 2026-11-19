@@ -1,8 +1,8 @@
 // Trang Bị and Thưởng tabs for drop 1. Equipment is not in yet (a proper "SẮP CÓ" screen with the six slots shown
 // locked); the daily chest on Thưởng already works through meta.claimDaily().
-import { makeBackdrop, makeBurst, fmt, kill } from './home.js';
-import { HERO } from '../data/heroes.js';
-import { lockButton } from './guide.js';
+import { makeBackdrop, makeBurst, fmt, kill } from './home.js?v=20261119b';
+import { HERO } from '../data/heroes.js?v=20261119b';
+import { lockButton } from './guide.js?v=20261119b';
 
 const SLOT_TILES = [['weapon', 'Vũ Khí'], ['necklace', 'Dây Chuyền'], ['gloves', 'Găng Tay'], ['armor', 'Giáp'], ['belt', 'Thắt Lưng'], ['boots', 'Giày']];
 

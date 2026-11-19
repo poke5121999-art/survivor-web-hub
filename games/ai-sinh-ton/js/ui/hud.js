@@ -1,10 +1,10 @@
 // Battle HUD: top band (pause, wave, timer, kills, speed, boss bar), four hero cards (live portrait, hp, ultimate
 // charge, flame, eye) and the transient pieces (damage numbers, banners, ultimate bursts, spectate controls).
 // Everything is drawn by the 3D UI kit; the sim is only ever read here, the player never steers a unit.
-import { HERO } from '../data/heroes.js';
-import { ENEMY } from '../data/enemies.js';
-import { HERO_RARITY } from '../data/economy.js';
-import { lockButton } from './guide.js';
+import { HERO } from '../data/heroes.js?v=20261119b';
+import { ENEMY } from '../data/enemies.js?v=20261119b';
+import { HERO_RARITY } from '../data/economy.js?v=20261119b';
+import { lockButton } from './guide.js?v=20261119b';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const easeOut = (t) => 1 - (1 - clamp(t, 0, 1)) ** 3;

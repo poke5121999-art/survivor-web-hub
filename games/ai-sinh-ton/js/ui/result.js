@@ -1,9 +1,9 @@
 // One modal screen with three modes: 'pause' (resume, settings, retry, home), 'result' (win or loss with the reward
 // list, per-hero damage and the next steps) and 'settings' (the same switches, opened from the home screen).
-import { HERO } from '../data/heroes.js';
-import { ITEM, TIERS } from '../data/equip.js';
-import { fmt, heroColor, kill } from './hud.js';
-import { xpNeed } from '../data/unlocks.js';
+import { HERO } from '../data/heroes.js?v=20261119b';
+import { ITEM, TIERS } from '../data/equip.js?v=20261119b';
+import { fmt, heroColor, kill } from './hud.js?v=20261119b';
+import { xpNeed } from '../data/unlocks.js?v=20261119b';
 
 const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
 const QUALITY = [['Thấp', 'low'], ['Vừa', 'medium'], ['Cao', 'high']];

@@ -4,10 +4,10 @@
 //
 // Flow: phase 'fight' -> (wave cleared) 'pick' -> 'fight' ... -> 'won' | 'lost'.
 // The only commands are castUlt(B, heroIndex) and pickCard(B, heroIndex, cardIndex).
-import { HERO, SUMMONS } from '../data/heroes.js';
-import { ENEMY } from '../data/enemies.js';
-import { stageDef, MAX_ALIVE, BASE } from '../data/stages.js';
-import { CARD, offerCards } from '../data/cards.js';
+import { HERO, SUMMONS } from '../data/heroes.js?v=20261119b';
+import { ENEMY } from '../data/enemies.js?v=20261119b';
+import { stageDef, MAX_ALIVE, BASE } from '../data/stages.js?v=20261119b';
+import { CARD, offerCards } from '../data/cards.js?v=20261119b';
 
 export const DT = 1 / 30;
 export const ARENA_R = 14;
