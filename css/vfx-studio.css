@@ -92,6 +92,20 @@
 .vx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
 .vx-card { display: flex; flex-direction: column; color: inherit; text-decoration: none; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color 0.12s, transform 0.12s; }
 .vx-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.vx-cardwrap { position: relative; display: grid; }
+.vx-card__del { position: absolute; top: 8px; right: 8px; padding: 5px 10px; font: inherit; font-size: 12px; font-weight: 700; color: var(--danger); background: rgba(13, 11, 20, 0.82); border: 1px solid var(--danger); border-radius: 8px; cursor: pointer; opacity: 0.85; }
+.vx-card__del:hover, .vx-card__del:focus-visible { opacity: 1; background: var(--danger-bg, #3a1416); }
+.vx-card__del:disabled { opacity: 0.4; cursor: wait; }
+
+/* chia trang job */
+.vx-pager { display: grid; justify-items: center; gap: 8px; margin: 20px 0 0; }
+.vx-pager__row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
+.vx-pager__b { min-width: 38px; height: 38px; padding: 0 10px; font: inherit; font-size: 14px; font-weight: 600; color: var(--text); background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.vx-pager__b:hover:not(:disabled) { border-color: var(--accent); }
+.vx-pager__b:disabled { opacity: 0.4; cursor: default; }
+.vx-pager__b.is-cur { color: #fff; background: var(--accent-strong); border-color: var(--accent-strong); opacity: 1; }
+.vx-pager__gap { padding: 0 2px; color: var(--text-dim); }
+.vx-pager__info { margin: 0; font-size: 13px; color: var(--text-dim); }
 .vx-card__thumb { aspect-ratio: 16 / 9; display: grid; place-items: center; background: #0d0b14; }
 .vx-card__thumb img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 .vx-card__ph { font-size: 28px; color: #5b5566; }
@@ -211,4 +225,7 @@
   .vx-h2 { font-size: 19px; }
   .vx-submit { width: 100%; }
   .vx-search { max-width: none; }
+  .vx-pager__row { gap: 3px; }
+  .vx-pager__b { min-width: 32px; padding: 0 6px; }
+  .vx-pager__b.is-far, .vx-pager__b.is-end { display: none; }
 }

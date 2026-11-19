@@ -51,11 +51,16 @@ cấu hình mỗi lần poll, không phải khởi động lại.
 ## Kiểm
 
 `node test/vfx-studio-api.js` gọi vào function đã deploy: tải ảnh, gửi job, máy test nhận, nhường ưu tiên, xong, huỷ,
-chạy lại, xoá. Cần `~/.vfx-worker-key` và `~/.rc-bot-password`. Deploy:
+chạy lại, chia trang, xoá (quyền, job đang gen, dọn file Storage). Cần `~/.vfx-worker-key` và `~/.rc-bot-password`
+(dùng cả bot `rc-bot-a` lẫn `rc-bot-b`, cùng mật khẩu). Deploy:
 
 ```
 timeout 400 npx -y supabase@2.120.0 functions deploy vfx-studio --project-ref jvdguaecnllejdmgytia --use-api --no-verify-jwt
 ```
+
+`node test/vfx-studio-jobs-pages.js` mở tab Job của đội trên Pages bằng trình duyệt thật: số trang = ceil(tổng/30), job cũ nhất ở cuối
+trang cuối, trang giữ nguyên khi làm mới hay vào chi tiết rồi quay lại, tạo một job nháp rồi xoá nó bằng nút Xoá, cỡ điện thoại.
+Trang nhớ số trang trong hash `#jobs=<n>`.
 
 ## API
 
@@ -72,11 +77,11 @@ Trả `{ ok: true, ... }` hoặc `{ ok: false, error: { code, message } }`.
 | `me` | | `{ user: { id, email, role }, isAdmin }` |
 | `upload_urls` | `files: [{ name, type, size }]` (≤ 6 file, ≤ 15 MB/file; png, jpeg, webp, gif, mp4, webm) | `files: [{ path, uploadUrl, publicUrl }]`; `PUT uploadUrl` với body là file, header `content-type` |
 | `submit` | `prompt`, `title?`, `refs: [{ path, kind, name }]`, `params`, `base_effect?`, `parent_id?` | `{ job }` |
-| `list` | `mine?`, `limit?` (mặc định 60) | `{ jobs }` (không có `log`) |
-| `get` | `id` | `{ job }` (có `log`) |
+| `list` | `mine?`, `page?` (từ 1, mặc định 1), `page_size?` (mặc định 30, tối đa 100) | `{ jobs, total, page, page_size, pages }` (không có `log`); xếp `created_at desc, id desc`; `page` quá trang cuối bị kéo về trang cuối. Kiểu cũ: chỉ gửi `limit` (≤ 200, không kèm `page`/`page_size`) thì lấy `limit` job mới nhất |
+| `get` | `id` | `{ job, family }`; `job` có `log`, `family: [{ id, title, status, parent_id }]` là các bản cha theo `parent_id` và con trực tiếp (chuỗi phiên bản không phụ thuộc trang đang xem) |
 | `cancel` | `id` (chủ job hoặc admin) | `{ job }` |
 | `retry` | `id` (failed/canceled) | `{ job }` |
-| `delete` | `id` (chủ job hoặc admin, job không đang gen) | `{ deleted }` |
+| `delete` | `id` (chủ job hoặc admin, job không đang gen) | `{ deleted, files_removed, files_error? }`; xoá cả file `out/<job>/` và ảnh tham khảo `refs/...` không job nào khác dùng. Lỗi: 404 không có job, 403 không phải job của bạn, 409 đang gen (huỷ trước). Job con giữ lại, `parent_id` thành null |
 | `workers` | | `{ workers }` |
 | `worker_update` | `id`, `patch: { enabled?, priority?, claim_delay_s?, model?, max_minutes?, label? }` (admin) | `{ worker }` |
 

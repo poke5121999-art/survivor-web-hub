@@ -16,10 +16,10 @@ async function post(body, headers) {
 }
 const asWorker = (b) => post(b, { 'x-vfx-worker-key': WKEY });
 
-async function botToken() {
+async function botToken(name = 'rc-bot-a') {
   const r = await fetch(`${BASE}/auth/v1/token?grant_type=password`, {
     method: 'POST', headers: { apikey: ANON, 'content-type': 'application/json' },
-    body: JSON.stringify({ email: 'rc-bot-a@rc-bot.example.com', password: BOT_PW }),
+    body: JSON.stringify({ email: `${name}@rc-bot.example.com`, password: BOT_PW }),
   });
   const j = await r.json();
   if (!j.access_token) throw new Error(`bot login failed: ${JSON.stringify(j)}`);
@@ -90,13 +90,53 @@ async function botToken() {
   const l = await asArt({ action: 'list', mine: true, limit: 5 });
   ok(l.body.jobs.some((j) => j.id === id) && !('log' in l.body.jobs[0]), 'list có job, không kèm log');
 
-  const sub2 = await asArt({ action: 'submit', prompt: 'test api: huỷ', parent_id: id });
+  const sub2 = await asArt({ action: 'submit', prompt: 'test api: huỷ', parent_id: id, params: { only_worker: W } });
   ok(sub2.body.job?.parent_id === id, 'sửa tiếp: job con mang parent_id');
-  const can = await asArt({ action: 'cancel', id: sub2.body.job.id });
-  ok(can.body.job?.status === 'canceled', 'cancel job đang chờ');
+  const fam = await asArt({ action: 'get', id: sub2.body.job.id });
+  ok(fam.body.family?.some((j) => j.id === id) && (await asArt({ action: 'get', id })).body.family.some((j) => j.id === sub2.body.job.id), 'get trả family: cha thấy con, con thấy cha');
+
+  // ---- chia trang ----
+  const P1 = await asArt({ action: 'list', page: 1, page_size: 5 });
+  const T = P1.body.total, N = Math.ceil(T / 5);
+  ok(P1.status === 200 && T >= 2 && P1.body.page === 1 && P1.body.page_size === 5 && P1.body.pages === N && P1.body.jobs.length === Math.min(5, T), `list trang 1: total ${T}, ${N} trang, ${P1.body.jobs.length} job`);
+  const P2 = await asArt({ action: 'list', page: 2, page_size: 5 });
+  const ids1 = new Set(P1.body.jobs.map((j) => j.id));
+  ok(P2.body.page === Math.min(2, N) && (N < 2 || P2.body.jobs.every((j) => !ids1.has(j.id))), `trang 2 khác trang 1, không trùng job (${P2.body.jobs.length} job)`);
+  ok(N < 2 || P1.body.jobs.at(-1).created_at >= P2.body.jobs[0].created_at, 'trang 2 cũ hơn trang 1 (created_at giảm dần)');
+  const PL = await asArt({ action: 'list', page: N, page_size: 5 });
+  ok(PL.body.page === N && PL.body.jobs.length === T - (N - 1) * 5, `trang cuối ${N} có ${PL.body.jobs.length} job = ${T} - ${(N - 1) * 5}`);
+  const PX = await asArt({ action: 'list', page: N + 50, page_size: 5 });
+  ok(PX.body.page === N && PX.body.jobs.length === PL.body.jobs.length, 'trang quá cuối bị kéo về trang cuối');
+  const all = [];
+  for (let p = 1; p <= Math.ceil(T / 100); p++) all.push(...(await asArt({ action: 'list', page: p, page_size: 100 })).body.jobs);
+  ok(all.length === T && new Set(all.map((j) => j.id)).size === T, `đi hết các trang 100 job gom đủ ${all.length}/${T}, không trùng`);
+  const D = await asArt({ action: 'list' });
+  ok(D.body.page_size === 30 && D.body.jobs.length === Math.min(30, T), `mặc định 30 job/trang (${D.body.jobs.length})`);
+  const LG = await asArt({ action: 'list', limit: 5 });
+  ok(LG.body.jobs.length === Math.min(5, T) && LG.body.jobs.every((j, i) => j.id === P1.body.jobs[i].id), 'kiểu cũ limit=5 vẫn trả 5 job mới nhất');
+  const M = await asArt({ action: 'list', mine: true, page: 1, page_size: 5 });
+  ok(M.body.total <= T && M.body.jobs.every((j) => j.created_by === me.body.user.id), `mine chia trang theo người gửi (total ${M.body.total})`);
+
+  // ---- xoá: quyền và job đang gen ----
+  const tokB = await botToken('rc-bot-b');
+  const asB = (b) => post(b, { Authorization: `Bearer ${tokB}` });
+  const meB = await asB({ action: 'me' });
+  ok(meB.status === 200 && !meB.body.isAdmin, `bot b là art không admin (role ${meB.body.user?.role ?? meB.body.error?.message})`);
+  const delB = await asB({ action: 'delete', id });
+  ok(delB.status === 403 && (await asArt({ action: 'get', id })).status === 200, `người khác (không admin) xoá job → ${delB.status}, job còn nguyên`);
+  const run = await asArt({ action: 'submit', prompt: 'test api: đang gen thì không xoá', params: { only_worker: W } });
+  await asArt({ action: 'cancel', id: sub2.body.job.id });
+  const rc = await asWorker({ action: 'claim', worker_id: W });
+  ok(rc.body.job?.id === run.body.job.id, 'máy test nhận job để thử xoá lúc đang gen');
+  const delRun = await asArt({ action: 'delete', id: run.body.job.id });
+  ok(delRun.status === 409, `xoá job đang gen bị từ chối (${delRun.status})`);
+  await asArt({ action: 'cancel', id: run.body.job.id });
+  ok((await asArt({ action: 'delete', id: run.body.job.id })).body.deleted === run.body.job.id, 'huỷ rồi xoá được');
+  ok((await asArt({ action: 'delete', id: run.body.job.id })).status === 404, 'xoá lần hai → 404');
   const re = await asArt({ action: 'retry', id: sub2.body.job.id });
   ok(re.body.job?.status === 'queued', 'retry đưa về hàng đợi');
-  await asArt({ action: 'cancel', id: sub2.body.job.id });
+  const can = await asArt({ action: 'cancel', id: sub2.body.job.id });
+  ok(can.body.job?.status === 'canceled', 'cancel job đang chờ');
 
   const ws = await asArt({ action: 'workers' });
   ok(ws.body.workers.some((w) => w.id === W && w.status !== 'offline'), 'workers liệt kê máy test, đang online');
@@ -106,6 +146,9 @@ async function botToken() {
   const del = await asArt({ action: 'delete', id });
   await asArt({ action: 'delete', id: sub2.body.job.id });
   ok(del.body.deleted === id && (await asArt({ action: 'get', id })).status === 404, 'xoá job của mình');
+  ok(del.body.files_removed === 3 && !del.body.files_error, `xoá dọn 3 file trên Storage (${del.body.files_removed} ${del.body.files_error ?? ''})`);
+  const gone = await Promise.all([up.body.files[0].publicUrl, ...outs.body.files.map((f) => f.publicUrl)].map(async (u) => (await fetch(u + '?t=' + Date.now())).status));
+  ok(gone.every((st) => st >= 400), `file ref + out/<job>/ không còn đọc được (${gone.join(',')})`);
   await asWorker({ action: 'bye', worker_id: W });
   ok(!(await asArt({ action: 'workers' })).body.workers.some((w) => w.id === W), 'bye gỡ máy test');
   console.log(fails ? `${fails} FAIL` : 'ALL PASS');

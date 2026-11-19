@@ -138,7 +138,7 @@ const S = {
   me: { isAdmin: false },
   banner: null,
   lib: null,
-  jobs: [], jobsLoaded: false, jobsFilter: "all",
+  jobs: [], jobsLoaded: false, jobsFilter: "all", jobsPage: 1, jobsPages: 1, jobsTotal: 0,
   workers: [], workersLoaded: false,
   libView: { cat: "all", q: "", src: "pixelfx", ccat: "all" },
   codex: null,
@@ -564,11 +564,17 @@ function buildNew() {
 
 /* ---------- tab Job của đội ---------- */
 const active = (j) => j.status === "queued" || j.status === "running";
+const PAGE_SIZE = 30;
+let jobsReq = 0;
 async function refreshJobs() {
   last.jobs = Date.now();
+  const n = ++jobsReq;
   try {
-    const r = await guard(api("list", { mine: S.jobsFilter === "mine", limit: 60 }));
+    const r = await guard(api("list", { mine: S.jobsFilter === "mine", page: S.jobsPage, page_size: PAGE_SIZE }));
+    if (n !== jobsReq) return;
     S.jobs = r.jobs; S.jobsLoaded = true;
+    S.jobsTotal = r.total ?? r.jobs.length; S.jobsPages = r.pages ?? 1;
+    if (r.page && r.page !== S.jobsPage) { S.jobsPage = r.page; if (S.tab === "jobs" && !S.detail) history.replaceState(null, "", "#" + jobsHash()); }
     if (S.tab === "jobs" && !S.detail) paintJobs();
     if (S.detail && S.detail.kind === "job") paintChain();
   } catch { /* banner */ }
@@ -578,11 +584,51 @@ function buildJobs() {
   P.jobsGrid = h("div", { class: "vx-grid" });
   pane.replaceChildren(
     h("div", { class: "vx-bar" },
-      segment([["all", "Tất cả"], ["mine", "Của tôi"]], () => S.jobsFilter, (v) => { S.jobsFilter = v; S.jobsLoaded = false; P.jobsGrid.replaceChildren(); refreshJobs(); }),
+      segment([["all", "Tất cả"], ["mine", "Của tôi"]], () => S.jobsFilter, (v) => { S.jobsFilter = v; S.jobsPage = 1; S.jobsLoaded = false; S.jobs = []; P.jobsGrid.replaceChildren(); P.pager.replaceChildren(); if (location.hash !== "#jobs") history.replaceState(null, "", "#jobs"); refreshJobs(); }),
       h("span", { class: "vx-spacer" }),
       h("button", { class: "btn btn--sm", type: "button", text: "Làm mới", onclick: refreshJobs }),
       h("a", { class: "btn btn--primary btn--sm", href: "#new", text: "+ Tạo mới" })),
-    P.jobsGrid);
+    P.jobsGrid, P.pager = h("nav", { class: "vx-pager", "aria-label": "Trang job" }));
+}
+const jobsHash = () => (S.jobsPage > 1 ? "jobs=" + S.jobsPage : "jobs");
+function goJobsPage(p) {
+  p = Math.min(S.jobsPages, Math.max(1, p));
+  if (p === S.jobsPage) return;
+  S.jobsPage = p;
+  location.hash = "#" + jobsHash();
+  scrollTo({ top: 0, behavior: "smooth" });
+}
+/* 1 … 4 5 [6] 7 8 … 20: luôn có trang đầu, trang cuối và hai trang quanh trang đang xem */
+function pageList(cur, n) {
+  const want = [...new Set([1, n, cur - 2, cur - 1, cur, cur + 1, cur + 2])].filter((x) => x >= 1 && x <= n).sort((a, b) => a - b);
+  const out = [];
+  want.forEach((x, i) => { const gap = i ? x - want[i - 1] : 1; if (gap === 2) out.push(x - 1); else if (gap > 2) out.push(0); out.push(x); });
+  return out;
+}
+function paintPager() {
+  const n = S.jobsPages, cur = S.jobsPage;
+  if (!S.jobsLoaded || !S.jobsTotal) { P.pager.replaceChildren(); return; }
+  const btn = (label, p, title, cls = "") => h("button", { type: "button", class: "vx-pager__b" + cls, text: label, title, "aria-label": title, "aria-current": cls.includes("is-cur") ? "page" : null, disabled: p < 1 || p > n || p === cur, onclick: () => goJobsPage(p) });
+  P.pager.replaceChildren(
+    n > 1 ? h("div", { class: "vx-pager__row" },
+      btn("«", 1, "Trang đầu", " is-end"), btn("‹", cur - 1, "Trang trước"),
+      ...pageList(cur, n).map((x) => (x ? btn(String(x), x, "Trang " + x, x === cur ? " is-cur" : x !== 1 && x !== n && Math.abs(x - cur) >= 2 ? " is-num is-far" : " is-num") : h("span", { class: "vx-pager__gap", text: "…" }))),
+      btn("›", cur + 1, "Trang sau"), btn("»", n, "Trang cuối", " is-end")) : null,
+    h("p", { class: "vx-pager__info", text: `Trang ${cur}/${n} · tổng ${S.jobsTotal} job` }));
+}
+const canDelete = (j) => !!S.me.id && (j.created_by === S.me.id || S.me.isAdmin) && !active(j);
+async function deleteJob(j) {
+  if (!confirm("Xoá VFX này? Không khôi phục được.\n\n" + (j.title || j.prompt))) return false;
+  try {
+    const r = await api("delete", { id: j.id });
+    toast(r.files_error ? "Đã xoá VFX (còn sót file trên kho, báo admin)" : "Đã xoá VFX");
+    S.jobs = S.jobs.filter((x) => x.id !== j.id);
+    S.jobsTotal = Math.max(0, S.jobsTotal - 1);
+    return true;
+  } catch (e) {
+    toast("Xoá không được: " + (e.message || e));
+    return false;
+  }
 }
 function jobThumb(j) {
   const f = j.result && j.result.files;
@@ -595,13 +641,16 @@ function paintJobs() {
     g.replaceChildren(h("p", { class: "vx-empty", text: S.jobsLoaded ? "Chưa có job nào. Qua tab Tạo mới để gửi yêu cầu đầu tiên." : "Đang tải…" }));
     return;
   }
-  g.replaceChildren(...S.jobs.map((j) => h("a", { class: "vx-card", href: "#job=" + j.id },
-    jobThumb(j),
-    h("div", { class: "vx-card__body" },
-      h("div", { class: "vx-card__top" }, h("b", { class: "vx-card__title", text: j.title || j.prompt }), statusPill(j.status)),
-      h("p", { class: "vx-card__prompt", text: j.prompt }),
-      h("div", { class: "vx-card__meta" }, h("span", { text: j.author }), j.worker ? h("span", { text: j.worker }) : null, elapsedSpan(j))))));
+  g.replaceChildren(...S.jobs.map((j) => h("div", { class: "vx-cardwrap", "data-job": j.id },
+    h("a", { class: "vx-card", href: "#job=" + j.id },
+      jobThumb(j),
+      h("div", { class: "vx-card__body" },
+        h("div", { class: "vx-card__top" }, h("b", { class: "vx-card__title", text: j.title || j.prompt }), statusPill(j.status)),
+        h("p", { class: "vx-card__prompt", text: j.prompt }),
+        h("div", { class: "vx-card__meta" }, h("span", { text: j.author }), j.worker ? h("span", { text: j.worker }) : null, elapsedSpan(j)))),
+    canDelete(j) ? h("button", { class: "vx-card__del", type: "button", title: "Xoá VFX này", "aria-label": "Xoá VFX " + (j.title || ""), text: "Xoá", onclick: async (ev) => { const b = ev.currentTarget; b.disabled = true; if (await deleteJob(j)) { paintJobs(); refreshJobs(); } else b.disabled = false; } }) : null)));
   tickElapsed();
+  paintPager();
 }
 
 /* ---------- chi tiết job / effect ---------- */
@@ -636,6 +685,7 @@ async function refreshJob(first) {
   const r = await guard(api("get", { id: D.id }));
   if (S.detail !== D) return;
   D.job = r.job;
+  D.family = r.family || D.family || [];
   paintTop(D);
   if (D.job.status === "done" && !D.entry && !D.loading) await loadJobEntry(D);
   if (first) paintChain();
@@ -662,7 +712,7 @@ function buildDetailShell(D) {
   D.playerBox = h("div", { class: "vx-playerbox" });
   D.reviseBox = h("div", { class: "vx-revise vx-card-box", hidden: true });
   pane.replaceChildren(
-    h("a", { class: "vx-back", href: D.kind === "job" ? "#jobs" : "#lib", text: D.kind === "job" ? "← Danh sách job" : "← Thư viện" }),
+    h("a", { class: "vx-back", href: D.kind === "job" ? "#" + jobsHash() : "#lib", text: D.kind === "job" ? "← Danh sách job" : "← Thư viện" }),
     D.el.top, D.playerBox, D.reviseBox, D.el.chain);
   if (D.kind === "job") {
     const log = h("div", { class: "vx-log", role: "log", "aria-live": "polite" });
@@ -721,10 +771,12 @@ function paintTop(D) {
     if (prev.startsWith("data:")) { if (r.live.src !== prev) r.live.src = prev; }
     else { const im = new Image(); im.onload = () => { r.live.src = im.src; }; im.src = prev + "?t=" + Date.now(); }
   }
-  if (D.btnKey !== j.status) r.btns.replaceChildren(
+  const btnKey = j.status + ":" + canDelete(j);
+  if (D.btnKey !== btnKey) r.btns.replaceChildren(
     active(j) ? h("button", { class: "btn btn--danger btn--sm", type: "button", text: "Huỷ job", onclick: () => jobAction("cancel") }) : null,
-    j.status === "failed" || j.status === "canceled" ? h("button", { class: "btn btn--primary btn--sm", type: "button", text: "Thử lại", onclick: () => jobAction("retry") }) : null);
-  D.btnKey = j.status;
+    j.status === "failed" || j.status === "canceled" ? h("button", { class: "btn btn--primary btn--sm", type: "button", text: "Thử lại", onclick: () => jobAction("retry") }) : null,
+    canDelete(j) ? h("button", { class: "btn btn--danger btn--sm", type: "button", text: "Xoá VFX", onclick: async (ev) => { const b = ev.currentTarget; b.disabled = true; if (await deleteJob(j)) location.hash = "#" + jobsHash(); else b.disabled = false; } }) : null);
+  D.btnKey = btnKey;
   if (j.status === "done" && !D.revBuilt) buildRevise(D);
   D.reviseBox.hidden = j.status !== "done";
 }
@@ -759,7 +811,7 @@ function buildRevise(D) {
 function paintChain() {
   const D = S.detail;
   if (!D || D.kind !== "job" || !D.job) return;
-  const byId = new Map(S.jobs.map((j) => [j.id, j]));
+  const byId = new Map([...S.jobs, ...(D.family || [])].map((j) => [j.id, j]));
   byId.set(D.job.id, D.job);
   const anc = [];
   for (let c = D.job, n = 0; c.parent_id && n < 20; n++) {
@@ -767,7 +819,7 @@ function paintChain() {
     if (!p) { anc.unshift({ id: c.parent_id, title: "bản gốc" }); break; }
     anc.unshift(p); c = p;
   }
-  const kids = S.jobs.filter((j) => j.parent_id === D.job.id);
+  const kids = [...byId.values()].filter((j) => j.parent_id === D.job.id);
   D.el.chain.hidden = !anc.length && !kids.length;
   const link = (j, cur) => cur ? h("b", { class: "vx-chain__cur", text: "bản này" }) : h("a", { href: "#job=" + j.id }, j.title || j.id, j.status ? statusPill(j.status) : null);
   D.el.chain.replaceChildren(h("span", { class: "vx-label", text: "Các phiên bản" }),
@@ -1046,7 +1098,10 @@ function route() {
   else if ((m = hs.match(/^fx=(.+)$/))) { S.tab = "lib"; openDetail("fx", m[1]); }
   else {
     closeDetail();
-    const hsTab = hs === "lib=codex" ? "lib" : hs;
+    const pm = hs.match(/^jobs=(\d+)$/);
+    if (pm) S.jobsPage = Math.max(1, +pm[1]);
+    else if (hs === "jobs" && S.jobsPage > 1) history.replaceState(null, "", "#" + jobsHash());
+    const hsTab = hs === "lib=codex" ? "lib" : pm ? "jobs" : hs;
     if (hsTab === "lib") S.libView.src = hs === "lib=codex" ? "codex" : "pixelfx";
     if (TABS.some(([t]) => t === hsTab)) S.tab = hsTab;
     if (S.tab === "jobs") refreshJobs();
@@ -1083,7 +1138,7 @@ function boot() {
   setInterval(heartbeat, 500);
   requestAnimationFrame(loop);
   route();
-  api("me").then((r) => { S.me = { isAdmin: !!r.isAdmin, ...r.user }; if (S.tab === "workers") paintWorkers(); }, (e) => banner(e));
+  api("me").then((r) => { S.me = { isAdmin: !!r.isAdmin, ...r.user }; if (S.tab === "workers") paintWorkers(); if (S.jobsLoaded && !S.detail) paintJobs(); if (S.detail && S.detail.job) paintTop(S.detail); }, (e) => banner(e));
   window.__vfx = S;
 }
 boot();

@@ -126,9 +126,25 @@ export async function call(action, body = {}) {
     case "list": {
       let jobs = state.jobs.slice();
       if (body.mine) jobs = jobs.filter((j) => j.created_by === ME.id);
-      return { ok: true, jobs: jobs.slice(0, body.limit || 60).map(pub) };
+      const legacy = body.page === undefined && body.page_size === undefined && body.limit !== undefined;
+      const size = legacy ? Math.min(200, body.limit) : Math.min(100, body.page_size || 30);
+      const pages = Math.max(1, Math.ceil(jobs.length / size));
+      const page = Math.min(pages, Math.max(1, body.page || 1));
+      return { ok: true, jobs: jobs.slice((page - 1) * size, page * size).map(pub), total: jobs.length, page, page_size: size, pages };
     }
-    case "get": return { ok: true, job: JSON.parse(JSON.stringify(find())) };
+    case "get": {
+      const j = find(), fam = [];
+      for (let c = j, n = 0; c.parent_id && n < 20; n++) { c = state.jobs.find((x) => x.id === c.parent_id); if (!c) break; fam.push(c); }
+      fam.push(...state.jobs.filter((x) => x.parent_id === j.id));
+      return { ok: true, job: JSON.parse(JSON.stringify(j)), family: fam.map(({ id, title, status, parent_id }) => ({ id, title, status, parent_id })) };
+    }
+    case "delete": {
+      const j = find();
+      if (j.status === "running") fail("CONFLICT", "job đang gen, huỷ trước rồi mới xoá");
+      state.jobs = state.jobs.filter((x) => x !== j);
+      state.jobs.forEach((x) => { if (x.parent_id === j.id) x.parent_id = null; });
+      return { ok: true, deleted: j.id, files_removed: 0 };
+    }
     case "cancel": {
       const j = find();
       if (j.status === "queued" || j.status === "running") { j.status = "canceled"; j.finished_at = iso(); j.log.push({ t: iso(), stage: j.stage, msg: "Đã huỷ" }); }

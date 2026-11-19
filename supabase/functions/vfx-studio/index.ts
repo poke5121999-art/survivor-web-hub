@@ -185,6 +185,35 @@ async function signUpload(paths: { path: string; type: string }[]) {
   }));
 }
 
+async function listFiles(prefix: string): Promise<string[]> {
+  const out: string[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const r = await fetch(`${URL_}/storage/v1/object/list/${BUCKET}`, {
+      method: "POST",
+      headers: svcHeaders({ "content-type": "application/json" }),
+      body: JSON.stringify({ prefix, limit: 1000, offset }),
+    });
+    if (!r.ok) throw new Error(`storage list ${prefix} ${r.status}: ${await r.text()}`);
+    const rows = await r.json();
+    for (const f of rows) if (f.id) out.push(prefix + f.name);
+    if (rows.length < 1000) return out;
+  }
+}
+
+async function removeFiles(paths: string[]): Promise<number> {
+  let n = 0;
+  for (let i = 0; i < paths.length; i += 500) {
+    const r = await fetch(`${URL_}/storage/v1/object/${BUCKET}`, {
+      method: "DELETE",
+      headers: svcHeaders({ "content-type": "application/json" }),
+      body: JSON.stringify({ prefixes: paths.slice(i, i + 500) }),
+    });
+    if (!r.ok) throw new Error(`storage remove ${r.status}: ${await r.text()}`);
+    n += (await r.json()).length;
+  }
+  return n;
+}
+
 async function getJob(id: string, withLog = true) {
   const [j] = withLog ? await sql`select ${JOB_SUMMARY}, log from public.vfx_jobs where id = ${id}`
     : await sql`select ${JOB_SUMMARY} from public.vfx_jobs where id = ${id}`;
@@ -254,15 +283,27 @@ const art: Record<string, (b: any, u: User) => Promise<unknown>> = {
   },
 
   async list(b, u) {
-    const limit = num(b.limit, 1, 200) ?? 60;
-    const jobs = b.mine
-      ? await sql`select ${JOB_SUMMARY} from public.vfx_jobs where created_by = ${u.id} order by created_at desc limit ${limit}`
-      : await sql`select ${JOB_SUMMARY} from public.vfx_jobs order by created_at desc limit ${limit}`;
-    return { jobs };
+    // page/page_size: trang đánh số (1 = mới nhất). limit (không kèm page/page_size): kiểu cũ, chỉ `limit` job mới nhất.
+    const legacy = b.page === undefined && b.page_size === undefined && b.limit !== undefined;
+    const size = legacy ? Math.round(num(b.limit, 1, 200) ?? 60) : Math.round(num(b.page_size, 1, 100) ?? 30);
+    const where = b.mine ? sql`where created_by = ${u.id}` : sql``;
+    const [{ n }] = await sql`select count(*)::int as n from public.vfx_jobs ${where}`;
+    const pages = Math.max(1, Math.ceil(n / size));
+    const page = Math.min(pages, Math.max(1, Math.round(num(b.page, 1, 1e6) ?? 1)));
+    const jobs = await sql`select ${JOB_SUMMARY} from public.vfx_jobs ${where}
+      order by created_at desc, id desc limit ${size} offset ${(page - 1) * size}`;
+    return { jobs, total: n, page, page_size: size, pages };
   },
 
   async get(b) {
-    return { job: await getJob(uuid(b.id)) };
+    const id = uuid(b.id);
+    const job = await getJob(id);
+    // các phiên bản: tổ tiên theo parent_id và con trực tiếp, để chuỗi phiên bản không phụ thuộc trang đang xem
+    const family = await sql`with recursive anc as (
+        select id, parent_id, 0 as d from public.vfx_jobs where id = ${job.parent_id ?? null}
+        union all select p.id, p.parent_id, a.d + 1 from public.vfx_jobs p join anc a on p.id = a.parent_id where a.d < 20)
+      select id, title, status, parent_id from public.vfx_jobs where id in (select id from anc) or parent_id = ${id}`;
+    return { job, family };
   },
 
   async cancel(b, u) {
@@ -288,10 +329,25 @@ const art: Record<string, (b: any, u: User) => Promise<unknown>> = {
 
   async delete(b, u) {
     const id = uuid(b.id);
-    const [j] = await sql`delete from public.vfx_jobs
-      where id = ${id} and status <> 'running' and (created_by = ${u.id} or ${u.isAdmin}) returning id`;
-    if (!j) fail(409, "CONFLICT", "job đang gen, hoặc không phải của bạn");
-    return { deleted: id };
+    const [j] = await sql`select status, created_by, refs from public.vfx_jobs where id = ${id}`;
+    if (!j) fail(404, "NOT_FOUND", "không có job này");
+    if (j.created_by !== u.id && !u.isAdmin) fail(403, "FORBIDDEN", "job này không phải của bạn");
+    if (j.status === "running") fail(409, "CONFLICT", "job đang gen, huỷ trước rồi mới xoá");
+    const [d] = await sql`delete from public.vfx_jobs where id = ${id} and status <> 'running' returning id`;
+    if (!d) fail(409, "CONFLICT", "job vừa được máy gen nhận, huỷ trước rồi mới xoá");
+    // hàng đã xoá; dọn file sau. Lỗi Storage không làm hỏng lần xoá, chỉ báo lại.
+    try {
+      const refs = (Array.isArray(j.refs) ? j.refs : []).map((r: any) => r?.path).filter((p: unknown) => typeof p === "string" && p.startsWith("refs/"));
+      const kept = refs.length ? (await sql`select distinct r->>'path' as p from public.vfx_jobs, jsonb_array_elements(refs) r
+        where r->>'path' in ${sql(refs)}`).map((r: any) => r.p) : [];
+      const paths = [...(await listFiles(`out/${id}/`)), ...refs.filter((p: string) => !kept.includes(p))];
+      const removed = await removeFiles(paths);
+      console.log(`vfx delete ${id} by ${u.email}: ${removed}/${paths.length} file`);
+      return { deleted: id, files_removed: removed };
+    } catch (e) {
+      console.error(`vfx delete ${id}: dọn file lỗi`, e);
+      return { deleted: id, files_removed: 0, files_error: String((e as Error).message) };
+    }
   },
 
   async workers() {
