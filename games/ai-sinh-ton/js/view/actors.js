@@ -4,6 +4,7 @@ import { CAST_KEY, SWING_HOLDS, FLY_Y } from './keys.js?v=20261120a';
 import { createMarks } from './marks.js?v=20261120a';
 import { createFxMap } from './fxmap.js?v=20261120a';
 import { createHorde } from './horde.js?v=20261120a';
+import { attachGrip, solveGrip } from './grip.js?v=20261120a';
 
 const THREE = window.THREE;
 const BZ = window.BZ;
@@ -80,7 +81,7 @@ export function createActors(H) {
   function makeHero(u) {
     const bz = BZ.HEROES.find((h) => h.id === u.kind) || BZ.HEROES[3];
     const m = BZ.heroModel(bz.id); const W = BZ.WEAPONS[bz.weapon] || {};
-    const eq = BZ.equipWeapon(m, bz.weapon);
+    const eq = BZ.equipWeapon(m, bz.weapon); const grip = attachGrip(m, eq, bz.weapon);
     const node = new THREE.Group(); node.scale.setScalar(HERO_SCALE); node.add(m.root); scene.add(node);
     if (m.head) m.head.scale.setScalar(HEAD_SCALE);
     const disc = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.8, 28), new THREE.MeshBasicMaterial({ color: bz.color, transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
@@ -88,7 +89,7 @@ export function createActors(H) {
     const bubble = new THREE.Mesh(new THREE.SphereGeometry(1.25, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffd860, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     bubble.visible = false; scene.add(bubble);
     const a = {
-      u, m, eq, W, wid: bz.weapon, node, disc, bubble, bar: makeBar(0x4cd860, 34, 5), skinKey: '', st: newHeroState(BZ.holdOf(W)),
+      u, m, eq, grip, W, wid: bz.weapon, node, disc, bubble, bar: makeBar(0x4cd860, 34, 5), skinKey: '', st: newHeroState(BZ.holdOf(W)),
       pos: new THREE.Vector3(u.x, 0, u.z), yaw: yawOf(u.face), swingT: 0, swingDur: 0.4, combo: 0, side: 0, deadT: 0, fastT: 0, sndT: 0, rib: null, spin: 0,
     };
     a.node.position.copy(a.pos); m.root.rotation.y = a.yaw;
@@ -116,7 +117,7 @@ export function createActors(H) {
     if (!u.alive) {
       addBlob(a.pos.x, a.pos.z, 2.3);
       a.deadT = Math.max(0.001, a.deadT + dt); st.dead = a.deadT; st.speed = 0; st.swing = -1; st.kick = 0; st.kickL = 0;
-      BZ.animHero(m, st, dt); BZ.heroFall(m, a.deadT, 1); a.bar.visible = false; a.bubble.visible = false; return;
+      BZ.animHero(m, st, dt); BZ.heroGun(m, st, a.eq && a.eq.gun); solveGrip(a.grip, m, st, dt, { aim: false }); BZ.heroFall(m, a.deadT, 1); a.bar.visible = false; a.bubble.visible = false; return;
     }
     if (a.deadT) { a.deadT = 0; st.dead = 0; m.root.rotation.x = 0; m.root.position.y = 0; }
     const stunned = u.status && (u.status.stun || u.status.freeze);
@@ -128,6 +129,7 @@ export function createActors(H) {
       if (bar) { a.spin = (a.spin + (u.anim === 'attack' || st.kick > 0 ? 36 * dt : 0)) % (Math.PI * 2); bar.rotation.z = a.spin; }
     }
     BZ.animHero(m, st, dt); BZ.heroGun(m, st, a.eq && a.eq.gun);
+    solveGrip(a.grip, m, st, dt, { aim: u.anim === 'attack' || st.swing >= 0 || st.kick > 0.02 || st.kickL > 0.02 });
     const W = a.W;
     if (W.melee && !W.noTrail && a.eq && a.eq.tip) {
       if (!a.rib) a.rib = G.fx.ribbon();
@@ -179,12 +181,12 @@ export function createActors(H) {
   }
   function buildDecoy(owner) {
     const bz = BZ.HEROES.find((h) => h.id === owner.kind) || BZ.HEROES[3];
-    const m = BZ.heroModel(bz.id); BZ.equipWeapon(m, bz.weapon);
+    const m = BZ.heroModel(bz.id); const grip = attachGrip(m, BZ.equipWeapon(m, bz.weapon), bz.weapon);
     const own = (mat) => { const c = mat.clone(); c.transparent = true; c.opacity = 0.45; c.depthWrite = false; return c; };
     m.root.traverse((o) => { if (o.isMesh && o.material) o.material = Array.isArray(o.material) ? o.material.map(own) : own(o.material); });
     const g = new THREE.Group(); g.scale.setScalar(HERO_SCALE); g.add(m.root);
     const st = newHeroState(BZ.holdOf(BZ.WEAPONS[bz.weapon]));
-    return { root: g, tick(a, dt) { BZ.animHero(m, st, dt); } };
+    return { root: g, tick(a, dt) { BZ.animHero(m, st, dt); solveGrip(grip, m, st, dt, { aim: false }); } };
   }
   const BUILD = { drone: buildDrone, turret: buildTurret, cannon: buildCannon, wolf: buildWolf, decoy: buildDecoy };
 
@@ -354,6 +356,7 @@ export function createActors(H) {
       enemyBars.clear(); slots.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; horde.clear(); B = null;
     },
     fx, marks, horde,
+    gripOf(uid) { const h = heroes.get(uid); return h ? { m: h.m, eq: h.eq, grip: h.grip, st: h.st } : null; },
     scaleOf(uid) { if (heroes.has(uid)) return HERO_SCALE; const i = slots.get(uid); return i !== undefined ? pool[i].T.scale : horde.scaleOf(uid); },
     nodeOf(uid) {
       const h = heroes.get(uid); if (h) return h.node;
