@@ -1,10 +1,10 @@
 // Trang Bị tab: the selected hero with six slot tiles, the shared bag, the item sheet, merge mode (inline: the stage
 // panel turns into the merge preview and the bag grid dims what cannot be fodder) and the Ghép Nhanh preview.
 // All account changes go through meta.*; this screen only reads meta.acc and rebuilds after each command.
-import { SLOTS, TIERS, ITEM, itemStat, upgradeCost, refundOf, autoMergePlan } from '../data/equip.js?v=20261120a';
-import { HERO } from '../data/heroes.js?v=20261120a';
-import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120a';
-import { ITEM_ICON } from './itemicons.js?v=20261120a';
+import { SLOTS, TIERS, ITEM, itemStat, upgradeCost, refundOf, autoMergePlan } from '../data/equip.js?v=20261120b';
+import { HERO } from '../data/heroes.js?v=20261120b';
+import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120b';
+import { ITEM_ICON } from './itemicons.js?v=20261120b';
 
 const SLOT = Object.fromEntries(SLOTS.map((s) => [s.id, s]));
 const LEFT = ['weapon', 'necklace', 'gloves'], RIGHT = ['armor', 'belt', 'boots'];

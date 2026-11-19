@@ -1,7 +1,7 @@
 // Maps every effect key the sim emits (sim `fx`, `attack`, projectile, zone, dash, buff, state keys) to a look, and
 // plays it with Blockade Z's G.fx calls, own ground marks and sounds. A key missing from KEYS plays a generic burst
 // and is logged once. counters[key] counts the effects played per key (the view-shots tool reads it).
-import { arenaNorm } from '../sim/battle.js?v=20261120a';
+import { arenaNorm } from '../sim/battle.js?v=20261120b';
 const THREE = window.THREE;
 const BZ = window.BZ;
 

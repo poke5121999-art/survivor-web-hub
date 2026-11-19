@@ -1,7 +1,7 @@
 // The 18 equipment icons. They are plain entries of the kit's ICONS table (same part format: [commands, colour, layer,
 // holes], drawn in a 100 x 100 box with y down, extruded, bevelled, outlined by the kit), registered as 'it_<item id>'
 // when this module loads. The kit's own path helpers are not exported, so the few builders used here are local.
-import { ICONS } from './icons.js?v=20261120a';
+import { ICONS } from './icons.js?v=20261120b';
 
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const E = (cx, cy, rx, ry = rx, rot = 0) => [['E', cx, cy, rx, ry, rot]];

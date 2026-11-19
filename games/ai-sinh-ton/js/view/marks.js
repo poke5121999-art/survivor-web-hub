@@ -1,7 +1,7 @@
 // Ground layer: warning marks that fill up before an attack lands (with a falling projectile for `fall` marks),
 // lingering zones animated from the live sim zone, expanding rings and flares. Everything is a flat mesh just above
 // the floor, drawn by a few small shaders, so it stays cheap and reads from above.
-import { ARENA } from '../sim/battle.js?v=20261120a';
+import { ARENA } from '../sim/battle.js?v=20261120b';
 const THREE = window.THREE;
 
 const NOISE = `

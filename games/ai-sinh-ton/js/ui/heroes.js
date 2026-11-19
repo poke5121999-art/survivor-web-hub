@@ -1,8 +1,8 @@
 // Tướng tab: the collection grid, the hero page (live model, stats, skills, level-up, team) and the team chooser.
 // Both screens read everything from meta.acc and rebuild after each meta command.
-import { HEROES, HERO } from '../data/heroes.js?v=20261120a';
-import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261120a';
-import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120a';
+import { HEROES, HERO } from '../data/heroes.js?v=20261120b';
+import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261120b';
+import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120b';
 
 const ROLE = { tank: 'Đỡ đòn', ranged: 'Bắn xa', healer: 'Hồi máu', melee: 'Cận chiến' };
 const RANK = { SSR: 0, SR: 1, R: 2 };

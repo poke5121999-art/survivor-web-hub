@@ -1,10 +1,10 @@
 // Thưởng tab: the daily chest (meta.claimDaily) and the list of chapter chests (meta.claimChapter). Trang Bị lives in equip.js.
-import { makeBackdrop, makeBurst, fmt, kill } from './home.js?v=20261120a';
-import { HERO } from '../data/heroes.js?v=20261120a';
-import { lockButton } from './guide.js?v=20261120a';
-import { CHAPTERS } from '../data/stages.js?v=20261120a';
-import { TIERS } from '../data/equip.js?v=20261120a';
-import { ITEM_ICON } from './itemicons.js?v=20261120a';
+import { makeBackdrop, makeBurst, fmt, kill } from './home.js?v=20261120b';
+import { HERO } from '../data/heroes.js?v=20261120b';
+import { lockButton } from './guide.js?v=20261120b';
+import { CHAPTERS } from '../data/stages.js?v=20261120b';
+import { TIERS } from '../data/equip.js?v=20261120b';
+import { ITEM_ICON } from './itemicons.js?v=20261120b';
 
 const CHEST_ROW = 70, LIST = { x: 15, y: 402, w: 330, h: 230 };
 const ROW_COLOR = { locked: 0x453a78, ready: 0xd8892a, claimed: 0x2f7a62 };

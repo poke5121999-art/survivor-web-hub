@@ -1,12 +1,12 @@
 // Shared chrome of the menu screens (top bar with the counters and the gear, the 5-tab bottom bar, the warm backdrop)
 // and the Ra Trận tab. The other menu screens (heroes.js, gacha.js, soon.js) never draw the chrome: they only
 // name themselves in MENU and call game.chrome.* when they need the nav hidden.
-import { stageDef, expectedLevel } from '../data/stages.js?v=20261120a';
-import { HERO } from '../data/heroes.js?v=20261120a';
-import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261120a';
-import { createDiorama } from './diorama.js?v=20261120a';
-import { lockButton } from './guide.js?v=20261120a';
-import { xpNeed } from '../data/unlocks.js?v=20261120a';
+import { stageDef, expectedLevel } from '../data/stages.js?v=20261120b';
+import { HERO } from '../data/heroes.js?v=20261120b';
+import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261120b';
+import { createDiorama } from './diorama.js?v=20261120b';
+import { lockButton } from './guide.js?v=20261120b';
+import { xpNeed } from '../data/unlocks.js?v=20261120b';
 
 export const MENU = ['home', 'heroes', 'hero', 'gacha', 'equip', 'rewards'];
 const TAB_OF = { home: 'tab-battle', heroes: 'tab-heroes', hero: 'tab-heroes', gacha: 'tab-gacha', equip: 'tab-equip', rewards: 'tab-rewards' };
