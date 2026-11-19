@@ -3,11 +3,13 @@
 import { CAST_KEY, SWING_HOLDS, FLY_Y } from './keys.js?v=20261119c';
 import { createMarks } from './marks.js?v=20261119c';
 import { createFxMap } from './fxmap.js?v=20261119c';
+import { createHorde } from './horde.js?v=20261119c';
 
 const THREE = window.THREE;
 const BZ = window.BZ;
 
 const HERO_SCALE = 1.15;
+const SPAWN_T = 0.6;           // the sim's enemy spawnT
 const HEAD_SCALE = 1.18;
 const ELITE_AFFIX = 2;
 const STATUS_BITS = { burn: 16, slow: 32, freeze: 32, poison: 128, root: 4096, bleed: 8192 };
@@ -25,6 +27,8 @@ export function createActors(H) {
   const tmp = new THREE.Vector3(); const tip = new THREE.Vector3(); const dirV = new THREE.Vector3();
   const warned = new Set();
   const marks = createMarks(H);
+  const horde = createHorde(H);
+  const overflow = new Set();
   const fx = createFxMap(H, marks, {
     unit: (uid) => (B ? B.byUid.get(uid) : null), time: () => (B ? B.t : 0),
     colorOf: (uid) => { const u = B && B.byUid.get(uid); const bz = u && BZ.HEROES.find((h) => h.id === u.kind); return bz ? bz.color : 0xffffff; },
@@ -57,14 +61,14 @@ export function createActors(H) {
   const blobCv = document.createElement('canvas'); blobCv.width = blobCv.height = 64;
   { const c = blobCv.getContext('2d'); const g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(10,14,30,.62)'); g.addColorStop(0.55, 'rgba(10,14,30,.38)'); g.addColorStop(1, 'rgba(10,14,30,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); }
   const blobGeo = new THREE.PlaneGeometry(1, 1); blobGeo.rotateX(-Math.PI / 2);
-  const BLOBS = 96;
+  const BLOBS = 256;
   const blobs = new THREE.InstancedMesh(blobGeo, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(blobCv), transparent: true, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), BLOBS);
   blobs.frustumCulled = false; blobs.renderOrder = 2; blobs.count = 0; scene.add(blobs);
   const bm = new THREE.Matrix4(); const bq = new THREE.Quaternion(); const bs = new THREE.Vector3(); const bp = new THREE.Vector3();
   let nBlob = 0;
   const addBlob = (x, z, size, y = 0) => { if (nBlob >= BLOBS) return; const fade = 1 / (1 + y * 0.35); bs.set(size * fade, 1, size * fade); bp.set(x, 0.045, z); bm.compose(bp, bq, bs); blobs.setMatrixAt(nBlob++, bm); };
   // ---- team rims on the floor: warm red under every enemy, stronger for elites and bosses (heroes wear their own disc) ----
-  const RIMS = 96;
+  const RIMS = 256;
   const rims = new THREE.InstancedMesh(new THREE.RingGeometry(0.5, 0.62, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.8, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), RIMS);
   rims.frustumCulled = false; rims.renderOrder = 2; rims.count = 0; scene.add(rims);
   const RIM_COL = { base: new THREE.Color(0xd8402a), elite: new THREE.Color(0xff7a2a), boss: new THREE.Color(0xff3020) };
@@ -223,13 +227,14 @@ export function createActors(H) {
   }
   const rows = [];
   function enemyRows() {
-    rows.length = 0;
+    rows.length = 0; overflow.clear();
     const ids = G.zombies.TYPE_IDS;
     for (const e of B.enemies) {
       if (!e.alive) continue;
       const ti = ids.indexOf(e.kind);
       if (ti < 0) { if (!warned.has(e.kind)) { warned.add(e.kind); console.warn('[actors] no zombie type for enemy kind ' + e.kind); } continue; }
-      const idx = slotOf(e); if (idx < 0) continue;
+      if (e.horde) continue;
+      const idx = slotOf(e); if (idx < 0) { overflow.add(e.uid); continue; }
       const y = e.fly ? (FLY_Y[e.kind] || 3) : 0;
       rows.push([idx, ti, e.x, y, e.z, yawOf(e.face), Math.round(255 * Math.max(0, e.hp) / e.maxHp), flagsOf(e), e.elite ? ELITE_AFFIX : 0]);
     }
@@ -315,7 +320,7 @@ export function createActors(H) {
   function dropHero(a) { scene.remove(a.node); scene.remove(a.disc); scene.remove(a.bubble); dropBar(a.bar); if (a.rib) scene.remove(a.rib.mesh); heroes.delete(a.u.uid); }
 
   const api = {
-    onEvent(e) { const h = ON[e.e]; if (h) h(e); fx.onEvent(e); },
+    onEvent(e) { const h = ON[e.e]; if (h) h(e); fx.onEvent(e); horde.onEvent(e); },
     sync(batl, dt) {
       B = batl; hitBudget = 10; fxBudget = 6; nBlob = 0;
       for (const u of B.heroes) { let a = heroes.get(u.uid); if (!a) a = makeHero(u); syncHero(a, dt); }
@@ -325,9 +330,16 @@ export function createActors(H) {
         let s = summons.get(u.uid); if (!s) s = makeSummon(u); syncSummon(s, dt);
       }
       G.zombies.adopt(enemyRows()); G.zombies.update(dt);
+      // stepping out of the fog: a rim spawn rises and grows over its spawnT (the sim holds it untargetable for the same time)
+      for (const e of B.enemies) {
+        if (!e.alive) continue; const idx = slots.get(e.uid); const z = idx === undefined ? null : pool[idx]; if (!z || !z.alive || z.dying) continue;
+        if (e.spawnT > 0) { const g = 1 - Math.pow(Math.max(0, e.spawnT) / SPAWN_T, 2); z.rising = true; z.body.root.scale.setScalar(z.T.scale * (0.35 + 0.65 * g)); z.body.root.position.y -= (1 - g) * 1.1 * z.T.scale; }
+        else if (z.rising) { z.rising = false; z.body.root.scale.setScalar(z.T.scale); }
+      }
       for (const z of pool) if (z.alive && !z.dying) addBlob(z.pos.x, z.pos.z, 1.7 * z.T.scale, z.pos.y);
-      blobs.count = nBlob; blobs.instanceMatrix.needsUpdate = true;
       nRim = 0;
+      horde.sync(B, dt, overflow, { blob: addBlob, rim: (x, z, size) => addRim(x, z, size, RIM_COL.base) });
+      blobs.count = nBlob; blobs.instanceMatrix.needsUpdate = true;
       for (const e of B.enemies) {
         if (!e.alive) continue; const idx = slots.get(e.uid); if (idx === undefined) continue; const z = pool[idx]; if (!z || !z.alive || z.dying) continue;
         const k = e.boss ? 'boss' : e.elite ? 'elite' : 'base'; addRim(z.pos.x, z.pos.z, (e.boss ? 1.6 : e.elite ? 1.25 : 1) * z.T.scale, RIM_COL[k]);
@@ -339,20 +351,20 @@ export function createActors(H) {
       for (const a of [...heroes.values()]) dropHero(a);
       for (const uid of [...summons.keys()]) dropSummon(uid);
       for (const bar of [...enemyBars.values()]) dropBar(bar);
-      enemyBars.clear(); slots.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; B = null;
+      enemyBars.clear(); slots.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; horde.clear(); B = null;
     },
-    fx, marks,
-    scaleOf(uid) { if (heroes.has(uid)) return HERO_SCALE; const i = slots.get(uid); return i !== undefined ? pool[i].T.scale : 1; },
+    fx, marks, horde,
+    scaleOf(uid) { if (heroes.has(uid)) return HERO_SCALE; const i = slots.get(uid); return i !== undefined ? pool[i].T.scale : horde.scaleOf(uid); },
     nodeOf(uid) {
       const h = heroes.get(uid); if (h) return h.node;
       const s = summons.get(uid); if (s) return s.root;
-      const i = slots.get(uid); return i !== undefined ? pool[i].body.root : null;
+      const i = slots.get(uid); return i !== undefined ? pool[i].body.root : horde.nodeOf(uid);
     },
     headPos(uid, out) {
       const h = heroes.get(uid); if (h) return out.set(h.pos.x, 2.6, h.pos.z);
       const s = summons.get(uid); if (s) return out.set(s.pos.x, 1.6, s.pos.z);
       const i = slots.get(uid); if (i !== undefined) { const z = pool[i]; return out.set(z.pos.x, z.pos.y + 2.1 * z.T.scale, z.pos.z); }
-      return null;
+      return horde.headPos(uid, out);
     },
   };
   void lam;

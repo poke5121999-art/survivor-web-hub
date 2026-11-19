@@ -27,7 +27,7 @@ const mui = (page, key) => page.evaluate((k) => JSON.parse(JSON.stringify(__G.me
 const stageNow = (page) => page.evaluate(() => __G.metaUi.stage());
 async function snap(page, phone, name) { const f = path.join(OUT, `${phone}-${name}.png`); await page.screenshot({ path: f }); shots.push(f); }
 const setCleared = (page, n) => page.evaluate((k) => { while (__G.meta.acc.cleared < k) __G.meta.finishStage({ stage: __G.meta.acc.cleared + 1, won: true, wavesCleared: 5, seconds: 30 }); }, n);
-const realRules = (page) => page.evaluate(() => { const m = __G.meta; m.claimDaily(); for (const id of ['daily', 'chapter', 'equip', 'merge', 'spectate', 'speed']) m.ftueDone(id); m.acc.cheatUnlock = false; });
+const realRules = (page) => page.evaluate(() => { const m = __G.meta; m.claimDaily(); for (const id of ['daily', 'chapter', 'equip', 'merge', 'spectate', 'speed']) m.ftueDone(id); m.acc.cheatUnlock = false; m.acc.stats.upgrades = Math.max(1, m.acc.stats.upgrades); });
 const toHome = async (page) => { await page.evaluate(() => __G.goto('home')); await step(page, 30); };
 
 async function audit(page, label) {

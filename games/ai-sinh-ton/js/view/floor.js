@@ -3,10 +3,12 @@
 // concrete, tile, stone, cobble, dirt, burnt, metal, road_line, hazard, scorch), lit by Lambert with the builder's vertex
 // shade. Blockade Z has no wet ground and no arena paint: this file adds, in the same material, grime and chapter cover
 // (frost, sand, soot), the worn arena ring painted into the surface, and rain wetness with small puddles and ripples.
+import { ARENA } from '../sim/battle.js?v=20261119c';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
-const E = 30;                 // half size of the built square; past the fog radius nothing is seen
+const E = 24;                 // half size of the built square; past the fog rim nothing is seen
+const AX = ARENA.x / ARENA.z; // the arena is an ellipse: random placements are squeezed across the screen by this
 const TOP = ['ny', 'px', 'nx', 'pz', 'nz'];
 
 // One recipe per chapter (stageDef.chapter). cover: what settles on the floor (colour, amount); wet: how much rain shows.
@@ -42,7 +44,7 @@ function kit(B, rng) {
   };
   const decals = (n, key, s0, s1, rmax, o = {}) => {
     const yy = lift();
-    for (let i = 0; i < n; i++) { const a = rng.range(0, 6.283); const d = Math.sqrt(rng.next()) * rmax; const s = rng.range(s0, s1); const x = Math.cos(a) * d; const z = Math.sin(a) * d; rect(x - s, z - s * rng.range(0.6, 1), x + s, z + s * rng.range(0.6, 1), key, { ...o, y: yy, uv: 'fit', vary: 0.1 }); }
+    for (let i = 0; i < n; i++) { const a = rng.range(0, 6.283); const d = Math.sqrt(rng.next()) * rmax; const s = rng.range(s0, s1); const x = Math.cos(a) * d * AX; const z = Math.sin(a) * d; rect(x - s, z - s * rng.range(0.6, 1), x + s, z + s * rng.range(0.6, 1), key, { ...o, y: yy, uv: 'fit', vary: 0.1 }); }
   };
   return { rect, fill, strip, dashes, blob, decals, lift };
 }
@@ -52,57 +54,57 @@ function kit(B, rng) {
 function street(K, rng) {
   K.fill('concrete');
   K.rect(-12, -12, 12, 12, 'tile', { y: 0.006, tint: [0.78, 0.78, 0.8] }); // a touch darker than the town's: additive casts need headroom
-  const x0 = 5; const x1 = 11;
+  const x0 = 1.2; const x1 = 7.2;
   K.rect(x0, -E, x1, E, 'asphalt', { y: 0.01 });
   K.rect(x0 - 0.3, -E, x0, E, 'concrete_dark', { y: 0.011 }); K.rect(x1, -E, x1 + 0.3, E, 'concrete_dark', { y: 0.011 });
   K.dashes((x0 + x1) / 2, -E, (x0 + x1) / 2, -2, 'road_line'); K.dashes((x0 + x1) / 2, 4, (x0 + x1) / 2, E, 'road_line');
   for (let k = 0; k < 5; k++) { if (rng.chance(0.25)) continue; K.rect(x0 + 0.4 + k * 1.1, -1.2, x0 + 0.9 + k * 1.1, 2.6, 'road_line', { y: 0.03, vary: 0.2 }); }
-  K.decals(8, 'scorch', 0.5, 1.3, 13);
+  K.decals(8, 'scorch', 0.5, 1.3, 11);
 }
 function parking(K, rng) {
   K.fill('concrete');
   K.rect(-E, -3.2, E, 3.2, 'asphalt', { y: 0.006 });
   for (let x = -E; x < E; x += 6) K.rect(x, -E, x + 0.08, E, 'concrete_dark', { y: 0.007, vary: 0 });
   const yy = K.lift();
-  for (const z0 of [3.6, -8.6, 13, -18]) for (let x = -24; x <= 24; x += 2.7) { // bay lines, some faded out
+  for (const z0 of [3.6, -8.6, 13, -18]) for (let x = -E; x <= E; x += 2.7) { // bay lines, some faded out
     if (rng.chance(0.15)) continue; K.rect(x - 0.06, z0, x + 0.06, z0 + 5, 'road_line', { y: yy, vary: 0.25 });
   }
   K.dashes(-E, 0, E, 0, 'road_line', 0.15, 2, 2);
-  K.decals(10, 'scorch', 0.25, 0.6, 16); // oil stains
-  K.blob(6, -6, 1.4, 'concrete_dark'); K.blob(-9, 7, 1.1, 'asphalt');
+  K.decals(10, 'scorch', 0.25, 0.6, 11); // oil stains
+  K.blob(3.5, -5, 1.2, 'concrete_dark'); K.blob(-3.5, 6, 1, 'asphalt');
 }
 function factory(K, rng) {
   K.fill('tile', { tint: [0.78, 0.86, 0.95] });
   K.rect(-2, -E, 2, E, 'metal', { y: 0.006, s: 0.5, tint: [0.82, 0.88, 0.95] }); K.rect(-E, -2, E, 2, 'metal', { y: 0.007, s: 0.5, tint: [0.82, 0.88, 0.95] });
   for (const s of [-1, 1]) { K.rect(s * 2 - 0.15, -E, s * 2 + 0.15, E, 'hazard', { y: 0.009, s: 2, vary: 0.1 }); K.rect(-E, s * 2 - 0.15, E, s * 2 + 0.15, 'hazard', { y: 0.0095, s: 2, vary: 0.1 }); }
-  for (let i = 0; i < 6; i++) K.blob(rng.range(-12, 12), rng.range(-12, 12), rng.range(0.8, 1.6), 'concrete_dark', { tint: [0.85, 0.9, 1] });
-  K.decals(6, 'scorch', 0.4, 0.9, 12);
+  for (let i = 0; i < 6; i++) K.blob(rng.range(-6, 6), rng.range(-11, 11), rng.range(0.7, 1.3), 'concrete_dark', { tint: [0.85, 0.9, 1] });
+  K.decals(6, 'scorch', 0.4, 0.9, 10);
 }
 function crypt(K, rng) {
   K.fill('stone', { tint: [1.12, 1.0, 0.82] });
   K.rect(-1.6, -E, 1.6, E, 'cobble', { y: 0.006, tint: [1.05, 0.95, 0.78] });
-  for (let i = 0; i < 4; i++) K.blob(rng.range(-14, 14), rng.range(-14, 14), rng.range(0.8, 1.6), 'dirt', { tint: [1.55, 1.32, 0.98] }); // sand heaps; the drifts are the cover noise
-  K.decals(5, 'scorch', 0.4, 0.9, 12);
+  for (let i = 0; i < 4; i++) K.blob(rng.range(-7, 7), rng.range(-12, 12), rng.range(0.7, 1.3), 'dirt', { tint: [1.55, 1.32, 0.98] }); // sand heaps; the drifts are the cover noise
+  K.decals(5, 'scorch', 0.4, 0.9, 10);
 }
 function landing(K, rng) {
   K.fill('dirt');
-  for (let i = 0; i < 10; i++) K.blob(rng.range(-16, 16), rng.range(-16, 16), rng.range(1.2, 2.4), 'dirt', { tint: [0.7, 1.12, 0.5] }); // grass
-  for (let i = 0; i < 4; i++) K.blob(rng.range(-12, 12), rng.range(-12, 12), rng.range(0.7, 1.4), 'burnt');
-  K.decals(8, 'scorch', 0.5, 1.2, 13);
+  for (let i = 0; i < 10; i++) K.blob(rng.range(-8, 8), rng.range(-13, 13), rng.range(1, 2), 'dirt', { tint: [0.7, 1.12, 0.5] }); // grass
+  for (let i = 0; i < 4; i++) K.blob(rng.range(-6, 6), rng.range(-11, 11), rng.range(0.6, 1.2), 'burnt');
+  K.decals(8, 'scorch', 0.5, 1.2, 11);
 }
 function rim(K, rng) {
   K.fill('stone', { tint: [0.6, 0.56, 0.72] });
-  for (let i = 0; i < 7; i++) K.blob(rng.range(-14, 14), rng.range(-14, 14), rng.range(1, 2.4), 'cobble', { tint: [0.5, 0.46, 0.62] });
+  for (let i = 0; i < 7; i++) K.blob(rng.range(-7, 7), rng.range(-12, 12), rng.range(0.9, 2), 'cobble', { tint: [0.5, 0.46, 0.62] });
   for (let i = 0; i < 14; i++) { // cracks: jagged chains of burnt strips
-    let x = rng.range(-14, 14); let z = rng.range(-14, 14); let a = rng.range(0, 6.283);
+    let x = rng.range(-7, 7); let z = rng.range(-12, 12); let a = rng.range(0, 6.283);
     for (let k = 0; k < 4; k++) { const l = rng.range(0.8, 2); const x2 = x + Math.cos(a) * l; const z2 = z + Math.sin(a) * l; K.strip(x, z, x2, z2, rng.range(0.07, 0.16), 'burnt', { vary: 0.2 }); x = x2; z = z2; a += rng.range(-0.8, 0.8); }
   }
-  K.decals(8, 'scorch', 0.5, 1.3, 13);
+  K.decals(8, 'scorch', 0.5, 1.3, 11);
 }
 
 // ---- the surface shader, patched into each Lambert material ----
 const GLSL_COMMON = `
-varying vec3 vWP; uniform vec3 uFogC; uniform float uR0; uniform float uR1; uniform float uWet; uniform float uTime;
+varying vec3 vWP; uniform vec3 uFogC; uniform float uR0; uniform float uR1; uniform vec2 uArena; uniform float uWet; uniform float uTime;
 uniform vec3 uCover; uniform float uCoverK; uniform float uGrime; uniform vec3 uPaint; uniform vec3 uSky; uniform float uPud;
 float fh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -112,8 +114,7 @@ float fPud = 0.0; float fRip = 0.0; vec2 fRipN = vec2(0.0);
 `;
 const GLSL_SURFACE = `
 {
-  vec2 p = vWP.xz; float r = length(p);
-  float n1 = fbm(p * 0.16); float n2 = vn(p * 1.3 + 5.0);
+  vec2 p = vWP.xz;   float n1 = fbm(p * 0.16); float n2 = vn(p * 1.3 + 5.0);
   // grime: broad blotches, streaks along the old traffic direction, and fine mottling
   float streak = vn(vec2(p.x * 0.3, p.y * 2.4) + 9.0);
   float g = smoothstep(0.5, 0.85, n1) * 0.55 + smoothstep(0.7, 0.95, streak) * 0.3;
@@ -123,10 +124,14 @@ const GLSL_SURFACE = `
   // the arena ring, painted into the surface and worn through where feet and wheels went
   float lum = dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15));
   float wear = smoothstep(0.3, 0.62, fbm(p * 1.6 + 21.0)) * (0.7 + 0.3 * n2);
-  float s = atan(p.y, p.x) * 13.2 + r;
-  float band = step(12.9, r) * step(r, 13.55);
+  // ellipse norm (1 at the rim) and the distance to the rim in metres (negative inside)
+  vec2 q = p / uArena; float an = length(q);
+  float sd = (an - 1.0) / max(length(vec2(p.x / (uArena.x * uArena.x), p.y / (uArena.y * uArena.y))) / max(an, 0.001), 0.001);
+  float th = atan(q.y, q.x); float arc = (uArena.x + uArena.y) * 0.5 * th + (uArena.y - uArena.x) * 0.25 * sin(2.0 * th);
+  float s = arc + sd;
+  float band = step(-0.75, sd) * step(sd, -0.2);
   vec3 stripe = mod(floor(s / 0.55), 2.0) < 0.5 ? uPaint : vec3(0.07, 0.07, 0.08);
-  float line = step(13.72, r) * step(r, 13.84) + step(12.62, r) * step(r, 12.7);
+  float line = step(-0.07, sd) * step(sd, 0.07) + step(-0.88, sd) * step(sd, -0.8);
   vec3 tex = vec3(0.55 + 0.9 * lum);
   diffuseColor.rgb = mix(diffuseColor.rgb, stripe * tex, band * wear * 0.92);
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.9, 0.84) * tex, line * wear * 0.85);
@@ -149,14 +154,14 @@ const GLSL_LIGHT = `
   // a puddle mirrors the overcast sky, darker than the sky itself
   float gloss = uWet * 0.06 + fPud * 0.6;
   outgoingLight = mix(outgoingLight, uSky * 0.62, fres * gloss) + uSky * fRip * 0.08;
-  outgoingLight = mix(outgoingLight, uFogC, smoothstep(uR0, uR1, length(vWP.xz)));
+  outgoingLight = mix(outgoingLight, uFogC, smoothstep(uR0, uR1, length(vWP.xz / uArena)));
 }
 `;
 
 export function createFloor(H) {
   const { scene, quality } = H; const low = quality.name === 'low';
   const U = {
-    uFogC: { value: new THREE.Color(0xa9b6c4) }, uR0: { value: 17 }, uR1: { value: 27 }, uWet: { value: 1 }, uTime: { value: 0 },
+    uFogC: { value: new THREE.Color(0xa9b6c4) }, uR0: { value: 1.0 }, uR1: { value: 1.15 }, uArena: { value: new THREE.Vector2(ARENA.x, ARENA.z) }, uWet: { value: 1 }, uTime: { value: 0 },
     uCover: { value: new THREE.Color() }, uCoverK: { value: 0 }, uGrime: { value: 0.3 }, uPaint: { value: new THREE.Color(0xf2c43a) },
     uSky: { value: new THREE.Color(0xb8c6d6) }, uPud: { value: 1 },
   };

@@ -17,6 +17,15 @@ export const FILES = ['boot.js', 'core.js', 'i18n.js', 'lang-vi.js', 'art.js', '
 const PATCHES = {
   'boot.js': [["'../vendor/three.module.min.js'", "'../../vendor/three.module.min.js'"]],
   // own storage keys: both games live on one origin and must not read or write each other's settings
+  // decals and scorch marks: caps and short lives, aged on the sim clock too (marks.js calls ageDecals during a fast-forward)
+  'fx.js': [
+    ["const MAXS = 90;", "const MAXS = 40;"],
+    ["const SPLAT_LIFE = 16; const SPLAT_DRY = 5;", "const SPLAT_LIFE = 4; const SPLAT_DRY = 2.5;"],
+    ["const MAXSC = 30;", "const MAXSC = 12; const SCORCH_LIFE = 5; const SCORCH_DRY = 3;"],
+    ["scorchAt[scI % MAXSC] = [ground.x, ground.y, ground.z];", "scorchAt[scI % MAXSC] = [ground.x, ground.y, ground.z, 0, e.y, 4.2 * R];"],
+    ["      for (let i = 0; i < pools.length; i++) {\n        const s = pools[i]; if (!s || s.k === 0) continue;", "      // scorch marks dry up like the pools do: a blast leaves its mark for a few seconds, not for the whole battle\n      for (let i = 0; i < scorches.count; i++) {\n        const c = scorchAt[i]; if (!c || c[6] === 0) continue;\n        c[3] += dt; const k = c[3] < SCORCH_LIFE ? 1 : Math.max(0, 1 - (c[3] - SCORCH_LIFE) / SCORCH_DRY);\n        if (k !== c[6]) { c[6] = k; m4.compose(V().set(c[0], c[1] + 0.025 + (i % 5) * 0.003, c[2]), q.setFromEuler(e.set(0, c[4], 0)), sc.set(c[5] * k, 1, c[5] * k)); scorches.setMatrixAt(i, m4); scorches.instanceMatrix.needsUpdate = true; }\n      }\n      for (let i = 0; i < pools.length; i++) {\n        const s = pools[i]; if (!s || s.k === 0) continue;"],
+    ["splat, spurt, puff,", "splat, ageDecals: updateSplats, spurt, puff,"],
+    ["splats: splats.count }) };", "splats: splats.count, liveSplats: pools.filter((p) => p && p.k !== 0).length, liveScorch: scorchAt.slice(0, scorches.count).filter((c) => c && c[6] !== 0).length }) };"]],
   'core.js': [["'blockadez.settings.v1'", "'aisinhton.bz.settings.v1'"], ["'blockadez.best.v1'", "'aisinhton.bz.best.v1'"]],
   // the game is Vietnamese only, and the voxel layer (js/vox, needs games/voxel-lab) is not ported
   'i18n.js': [["BZ.lang = known(BZ.params.lang) ? BZ.params.lang : known(saved) ? saved : 'en';", "BZ.lang = 'vi'; BZ.vox = { on: false };"],

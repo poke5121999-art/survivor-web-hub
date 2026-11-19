@@ -32,7 +32,7 @@ export function roundPlane(THREE, w, h, r, rgba) {
 
 const CARD_W = 80, CARD_GAP = 6, CARD_TOP_FROM_BOTTOM = 126;
 const HP_COLORS = { ok: 0x35d65a, mid: 0xff9a1f, low: 0xff3b52 };
-const MERGE = 0.15, MAX_NUMBERS = 30, NUMBER_LIFE = 0.95;
+const MERGE = 0.15, MERGE_GROUP = 0.3, NUMBER_LIFE = 0.95, BIG_HIT = 3, STREAK_MIN = 8;
 const BANNER = { wave: { color: 0x4a3a86, y: 196, kind: 'pop' }, boss: { color: 0xc4203a, y: 196, kind: 'pop' }, rage: { color: 0xe2641a, y: 196, kind: 'pop' }, ult: { color: 0x8f4dff, y: 262, kind: 'slide' } };
 
 export function createHud(game) {
@@ -176,36 +176,55 @@ export function createHud(game) {
   function clearTransient() {
     for (const b of banners) kill(b.g); banners.length = 0;
     for (const b of bursts) kill(b.f); bursts.length = 0;
-    pending.clear(); live.length = 0;
+    pending.clear(); live.length = 0; deaths.length = 0; avgHit = 0;
   }
 
   // ---------- damage and heal numbers ----------
-  const pending = new Map(), live = [];
+  // Up to ~180 hits a second land on a horde, so a number is shown per hit only for crits, bosses, elites and hits well above
+  // the running average; every other hit on the horde folds into one rolling total per attacker (with a hit count), shown
+  // near the middle of what it hit. Live numbers never exceed the cap of the quality tier and never overlap.
+  const pending = new Map(), live = [], deaths = [];
+  const capOf = () => { const q = game.host && game.host.quality && game.host.quality.name; return q === 'high' ? 24 : q === 'medium' ? 18 : 14; };
+  let avgHit = 0, lastStreak = -9;
   function note(e, heal) {
     if (!visible || !game.B) return;
     const amount = heal ? e.amt : e.dmg; if (!(amount > 0)) return;
-    const key = e.uid * 2 + (heal ? 1 : 0), p = pending.get(key);
-    if (p) { p.sum += amount; p.crit = p.crit || !!e.crit; p.x = e.x; p.z = e.z; } else pending.set(key, { sum: amount, crit: !!e.crit, x: e.x, z: e.z, t0: clock, heal, uid: e.uid });
+    const u = game.B.byUid.get(e.uid);
+    const single = heal || !u || u.hero || e.crit || u.boss || u.elite || (avgHit > 0 && amount > BIG_HIT * avgHit);
+    if (!heal && u && !u.hero && !u.boss && !e.crit) avgHit = avgHit ? avgHit * 0.97 + amount * 0.03 : amount;
+    const key = single ? e.uid * 2 + (heal ? 1 : 0) : 'g' + (e.by || 0), p = pending.get(key);
+    if (p) { p.sum += amount; p.n++; p.sx += e.x; p.sz += e.z; p.crit = p.crit || !!e.crit; p.x = e.x; p.z = e.z; }
+    else pending.set(key, { sum: amount, n: 1, sx: e.x, sz: e.z, crit: !!e.crit, x: e.x, z: e.z, t0: clock, heal, uid: e.uid, merged: !single });
+  }
+  function place(str, x, y, o) {
+    if (live.length >= capOf()) return false;
+    const hit = (nx, ny) => live.some((q) => Math.abs(q.x - nx) < 38 && Math.abs(q.y - ny) < 18);
+    let nx = x, ny = y;
+    for (let tries = 0; tries < 5 && hit(nx, ny); tries++) { ny -= 19; nx += tries % 2 ? -9 : 9; }
+    if (hit(nx, ny)) return false;
+    ui.fly(str, nx, ny, o); live.push({ until: clock + NUMBER_LIFE, x: nx, y: ny }); return true;
   }
   function flushNumbers() {
     for (let i = live.length - 1; i >= 0; i--) if (live[i].until <= clock) live.splice(i, 1);
     const B = game.B;
-    if (!B || B.phase !== 'fight') { pending.clear(); return; }
+    if (!B || B.phase !== 'fight') { pending.clear(); deaths.length = 0; return; }
     for (const [key, p] of pending) {
-      if (clock - p.t0 < MERGE) continue; pending.delete(key);
-      if (live.length >= MAX_NUMBERS && !p.crit) continue;
-      const u = B && B.byUid.get(p.uid), hero = !!(u && u.hero), at = game.project(p.x, p.z, hero ? 1.9 : (u && u.boss ? 3.2 : 1.6));
+      if (clock - p.t0 < (p.merged ? MERGE_GROUP : MERGE)) continue; pending.delete(key);
+      const u = B.byUid.get(p.uid), hero = !!(u && u.hero);
+      const at = p.merged ? game.project(p.sx / p.n, p.sz / p.n, 1.6) : game.project(p.x, p.z, hero ? 1.9 : (u && u.boss ? 3.2 : 1.6));
       if (at.behind || at.x < -10 || at.x > 370 || at.y < 60) continue;
-      const o = p.heal ? { color: PAL.green, size: 18 } : hero ? { color: 0xff7468, size: 15 } : p.crit ? { color: PAL.gold, size: 27 } : { color: 0xffffff, size: 17 };
-      let nx = at.x, ny = at.y;
-      for (let tries = 0; tries < 5 && live.some((q) => Math.abs(q.x - nx) < 38 && Math.abs(q.y - ny) < 18); tries++) { ny -= 19; nx += tries % 2 ? -9 : 9; }
-      ui.fly((p.heal ? '+' : '') + fmt(p.sum), nx, ny, o); live.push({ until: clock + NUMBER_LIFE, x: nx, y: ny });
+      const o = p.heal ? { color: PAL.green, size: 18 } : hero ? { color: 0xff7468, size: 15 } : p.merged ? { color: 0xffffff, size: clamp(17 + 2.2 * Math.log2(p.n), 17, 29) } : p.crit ? { color: PAL.gold, size: 27 } : { color: 0xffffff, size: 17 };
+      place((p.heal ? '+' : '') + fmt(p.sum) + (p.merged && p.n >= 3 ? ' x' + p.n : ''), at.x, at.y, o);
     }
+    // a kill streak: many bodies falling inside half a second
+    while (deaths.length && clock - deaths[0] > 0.5) deaths.shift();
+    if (deaths.length >= STREAK_MIN && clock - lastStreak > 1.1 && place('x' + deaths.length, 180, 300, { color: PAL.gold, size: 32 })) lastStreak = clock;
   }
 
   // ---------- events ----------
   const on = (name, fn) => game.events.on(name, fn);
   on('sim:hit', (e) => note(e, false)); on('sim:heal', (e) => note(e, true));
+  on('sim:die', (e) => { const u = visible && game.B && game.B.byUid.get(e.uid); if (u && u.team === 1 && !u.summon && !u.hero && !e.expire) deaths.push(clock); });
   on('sim:wave', (e) => { if (!visible) return; if (e.boss) banner('boss', 'BOSS: ' + e.name); else banner('wave', 'ĐỢT ' + e.n); });
   on('sim:enrage', () => { if (visible) banner('rage', 'CUỒNG NỘ!'); });
   on('sim:ult', (e) => { if (!visible) return; banner('ult', e.name + '!', HERO[e.hero] ? HERO[e.hero].name : ''); burst(e.slot); });
@@ -290,7 +309,7 @@ export function createHud(game) {
     update,
     // what the test needs to read without guessing from pixels
     dbg() {
-      return { visible, bossShown: boss.shown, bossName: boss.label, bossY: boss.y, flames: cards.map((c) => c.flame.visible), ready: cards.map((c) => c.ready), banners: banners.map((b) => b.kind), numbers: live.length, specShown: spec.visible };
+      return { visible, bossShown: boss.shown, bossName: boss.label, bossY: boss.y, flames: cards.map((c) => c.flame.visible), ready: cards.map((c) => c.ready), banners: banners.map((b) => b.kind), numbers: live.length, cap: capOf(), numberPos: live.map((q) => [q.x, q.y]), specShown: spec.visible };
     },
   };
   return hud;

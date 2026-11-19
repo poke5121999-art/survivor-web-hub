@@ -2,12 +2,13 @@
 // that Blockade Z's fx, audio, zombie and boss code expects. The sim never touches it; actors.js and camera.js
 // read H and draw the battle on top.
 import { createFloor } from './floor.js?v=20261119c';
+import { ARENA } from '../sim/battle.js?v=20261119c';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
 const SETTINGS_KEY = 'aisinhton.settings.v1';
-export const ARENA_VIEW_R = 14;
-const WALL_R = 21;
+const WALL_K = 1.17;           // the fog wall stands just behind the spawn rim (1.04 to 1.07 of the ellipse)
+const RAIN = { x: 20, z: 32, h: 16 }; // rain wraps inside this box around the focus: arena plus its fog rim
 const FAR_MS = 26;
 
 // Tiers differ by the sharpest DPR they may use, shadows, bloom and particle counts. Every tier keeps the drawing
@@ -79,7 +80,7 @@ export async function createHost({ frame, canvas, params }) {
   sun.castShadow = quality.shadow > 0;
   if (sun.castShadow) {
     sun.shadow.mapSize.set(quality.shadow, quality.shadow);
-    const c = sun.shadow.camera; c.left = -22; c.right = 22; c.top = 22; c.bottom = -22; c.near = 5; c.far = 90;
+    const c = sun.shadow.camera; c.left = -15; c.right = 15; c.top = 15; c.bottom = -15; c.near = 5; c.far = 90;
     sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.04;
   }
   scene.add(sun); scene.add(sun.target);
@@ -115,15 +116,15 @@ export async function createHost({ frame, canvas, params }) {
 
   // far half of a cylinder only: back faces are the wall seen from inside, the near half is culled by the camera side
   const wallMat = new THREE.MeshBasicMaterial({ color: 0xa9b6c4, alphaMap: gradientAlpha(), transparent: true, side: THREE.BackSide, depthWrite: false, fog: false });
-  const wall = new THREE.Mesh(new THREE.CylinderGeometry(WALL_R, WALL_R, 9, 64, 1, true), wallMat);
-  wall.position.y = 4.4; wall.renderOrder = 5; wall.visible = false; scene.add(wall);
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 9, 64, 1, true), wallMat);
+  wall.scale.set(ARENA.x * WALL_K, 1, ARENA.z * WALL_K); wall.position.y = 4.4; wall.renderOrder = 5; wall.visible = false; scene.add(wall);
 
   // ---- rain: instanced streaks that wrap around the camera focus, plus a few splashes ----
-  const NP = Math.round(380 * Math.max(0.4, quality.particles));
+  const NP = Math.round(200 * Math.max(0.4, quality.particles));
   const precip = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xe6eef8, transparent: true, opacity: 0.22, depthWrite: false, fog: false }), NP);
   precip.frustumCulled = false; precip.count = NP; precip.renderOrder = 6; scene.add(precip);
   const pr = BZ.rng('precip'); const pts = [];
-  for (let i = 0; i < NP; i++) pts.push(new THREE.Vector3(pr.range(-16, 16), pr.range(0, 18), pr.range(-16, 16)));
+  for (let i = 0; i < NP; i++) pts.push(new THREE.Vector3(pr.range(-RAIN.x / 2, RAIN.x / 2), pr.range(0, RAIN.h), pr.range(-RAIN.z / 2, RAIN.z / 2)));
   const m4 = new THREE.Matrix4(); const q = new THREE.Quaternion(); const sc = new THREE.Vector3(0.045, 0.8, 0.045); const pv = new THREE.Vector3();
   q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(3, -24, 0.9).normalize().negate());
   let rainOn = true;
@@ -131,8 +132,8 @@ export async function createHost({ frame, canvas, params }) {
     const f = G.player.pos;
     for (let i = 0; i < NP; i++) {
       const p = pts[i]; p.y -= 24 * dt; p.x += 3 * dt; p.z += 0.9 * dt;
-      if (p.y < 0) p.y += 18;
-      const x = (((p.x - f.x) % 32) + 48) % 32 - 16 + f.x; const z = (((p.z - f.z) % 32) + 48) % 32 - 16 + f.z;
+      if (p.y < 0) p.y += RAIN.h;
+      const x = (((p.x - f.x) % RAIN.x) + RAIN.x * 1.5) % RAIN.x - RAIN.x / 2 + f.x; const z = (((p.z - f.z) % RAIN.z) + RAIN.z * 1.5) % RAIN.z - RAIN.z / 2 + f.z;
       m4.compose(pv.set(x, p.y, z), q, sc); precip.setMatrixAt(i, m4);
       if (i % 97 === 0 && G.rng.chance(dt * 30)) G.fx.puff(new THREE.Vector3(x, 0.05, z), { s0: 0.08, s1: 0.4, life: 0.25, c0: 0xb8c8e0, a0: 0.5 });
     }

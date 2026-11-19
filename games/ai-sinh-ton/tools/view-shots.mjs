@@ -27,7 +27,7 @@ const HEROES = ['gio', 'thep', 'yta', 'mua', 'bong', 'phao', 'bang', 'hoa', 'sam
 
 const shot = async (page, file) => { await page.locator('#frame').screenshot({ path: path.join(OUT, file) }); return path.join(OUT, file); };
 
-// heroes inside the frame, and visible zombie roots equal to living sim enemies
+// heroes inside the frame, and visible bodies (zombie puppets + horde instances) equal to living sim enemies
 const probe = () => {
   const G = window.__G; const H = G.host; const B = G.B; const out = { heroesIn: 0, heroes: 0, alive: 0, visible: 0, phase: B && B.phase, wave: B && B.wave };
   if (!B) return out;
@@ -39,7 +39,7 @@ const probe = () => {
     if (Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1) out.heroesIn++;
   }
   out.alive = B.enemies.filter((e) => e.alive).length;
-  out.visible = H.G.zombies.list.filter((z) => z.alive && z.body.root.visible).length;
+  out.visible = H.G.zombies.list.filter((z) => z.alive && z.body.root.visible).length + G.actors.horde.stats.units; // puppets + horde instances
   return out;
 };
 

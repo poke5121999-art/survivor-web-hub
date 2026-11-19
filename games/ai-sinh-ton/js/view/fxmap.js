@@ -1,6 +1,7 @@
 // Maps every effect key the sim emits (sim `fx`, `attack`, projectile, zone, dash, buff, state keys) to a look, and
 // plays it with Blockade Z's G.fx calls, own ground marks and sounds. A key missing from KEYS plays a generic burst
 // and is logged once. counters[key] counts the effects played per key (the view-shots tool reads it).
+import { arenaNorm } from '../sim/battle.js?v=20261119c';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -164,6 +165,10 @@ export function createFxMap(H, marks, ctx) {
       const p = pal(k); marks.ring(e.x, e.z, 0.5, e.r, p[1], 0.5, 0.7);
     },
     zone_end(e) { marks.zoneEnd(e.id); },
+    // nothing on the ground outlives the wave: warnings, zones, rings and Blockade Z's decals go when it is cleared or the battle ends
+    wave_clear() { G.fx.clear(); marks.clear(); },
+    won() { G.fx.clear(); marks.clear(); },
+    lost() { G.fx.clear(); marks.clear(); },
     cast(e) {
       const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (!k) return; bump(e.key);
       const p = u.hero ? [0xffffff, ctx.colorOf(e.uid)] : pal(k);
@@ -190,8 +195,30 @@ export function createFxMap(H, marks, ctx) {
       pop(e.x, 0.6, e.z, 1.1, [0xffffff, c]); marks.ring(e.x, e.z, 0.3, 1.8, c, 0.5, 0.8); bump('summon'); snd('pickup', e.x, e.z, 0.3);
     },
     spawn(e) {
-      if (Math.hypot(e.x, e.z) > 12.5) return;
-      const c = e.boss ? 0xff6030 : 0xc8b0ff; pop(e.x, 0.5, e.z, 0.9, [0xffffff, c]); marks.ring(e.x, e.z, 0.3, 1.6, c, 0.4, 0.7);
+      if (arenaNorm(e.x, e.z) < 0.98) { // spawned inside the arena by a skill: the old pop
+        const c = e.boss ? 0xff6030 : 0xc8b0ff; pop(e.x, 0.5, e.z, 0.9, [0xffffff, c]); marks.ring(e.x, e.z, 0.3, 1.6, c, 0.4, 0.7); return;
+      }
+      // stepping out of the fog at the rim: a burst of mist (the fog colour, lifted) and a ripple on the ground, no flash
+      const su = ctx.unit(e.uid);
+      if (su && su.horde) { if (budget.puff > 0 && G.rng.chance(0.3)) { budget.puff--; G.fx.puff(V(e.x, 0.4, e.z), { vel: V(0, 0.9, 0), drag: 1.8, s0: 0.8, s1: 1.8, life: 0.5, c0: scene.fog ? scene.fog.color.getHex() : 0xa9b6c4, c1: scene.fog ? scene.fog.color.getHex() : 0xa9b6c4, a0: 0.55 }); } return; }
+      const fog = scene.fog ? scene.fog.color : new THREE.Color(0xa9b6c4); const mist = fog.getHex(); const pale = fog.clone().lerp(new THREE.Color(0xffffff), 0.35).getHex();
+      if (e.boss) {
+        const dark = fog.clone().multiplyScalar(0.28).getHex(); const mid = fog.clone().multiplyScalar(0.55).getHex();
+        for (let i = 0; i < 9; i++) {
+          const a = G.rng.range(0, 6.283); const d = G.rng.range(0, 1.6);
+          G.fx.puff(V(e.x + Math.cos(a) * d, 0.4 + G.rng.range(0, 0.8), e.z + Math.sin(a) * d), { vel: V(Math.cos(a) * 1.4, G.rng.range(2.2, 4.2), Math.sin(a) * 1.4), drag: 1.4, s0: 1.6, s1: 4.6, life: 1.1 + G.rng.range(0, 0.4), c0: dark, c1: mid, a0: 0.85 });
+        }
+        for (let i = 0; i < 8; i++) { const a = (i / 8) * 6.283; G.fx.puff(V(e.x, 0.3, e.z), { vel: V(Math.cos(a) * 5, 0.5, Math.sin(a) * 5), drag: 2.2, s0: 1.2, s1: 3, life: 0.8, c0: mid, c1: mist, a0: 0.6 }); }
+        marks.ring(e.x, e.z, 0.6, 7, 0x2a2038, 0.8, 0.85); marks.ring(e.x, e.z, 0.4, 4.6, 0x6a5a82, 0.65, 0.5);
+        snd('heavy', e.x, e.z, 0.3);
+        return;
+      }
+      const n = e.elite ? 7 : 4; const big = e.elite ? 1.4 : 1;
+      for (let i = 0; i < n; i++) {
+        const a = G.rng.range(0, 6.283);
+        G.fx.puff(V(e.x, 0.3 + G.rng.range(0, 0.5), e.z), { vel: V(Math.cos(a) * 1.6, G.rng.range(0.6, 1.6), Math.sin(a) * 1.6), drag: 1.8, s0: 0.9 * big, s1: 2.2 * big, life: 0.55 + G.rng.range(0, 0.2), c0: pale, c1: mist, a0: 0.7 });
+      }
+      marks.ring(e.x, e.z, 0.3, e.elite ? 2.2 : 1.5, pale, 0.5, 0.55);
     },
     heal(e) { if (e.amt > 0 && budget.puff > 0) { sparkle(e.x, e.z, [0xd8ffb8, 0x58e070], 2); } },
     revive(e) {
@@ -203,6 +230,7 @@ export function createFxMap(H, marks, ctx) {
       const u = ctx.unit(e.uid); if (!u) return;
       if (u.hero) { pop(e.x, 0.8, e.z, 1.2, [0xffffff, 0xff6070]); marks.ring(e.x, e.z, 0.3, 2.4, 0xff6070, 0.5, 0.8); return; }
       if (e.boss) { boom(e.x, e.z, 5); wave(e.x, e.z, 7, STYLE.fire, 0.8); marks.flare(e.x, e.z, 6, 0xffa040, 0.9, 0.7); return; }
+      if (u.horde) return; // the horde renderer's own cubes
       if (budget.puff-- > 0) G.fx.puff(V(e.x, 0.5, e.z), { s0: 0.6, s1: 1.9, life: 0.55, c0: 0xa8a49c, c1: 0x7a766e, a0: 0.45 });
     },
     hit(e) {

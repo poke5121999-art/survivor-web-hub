@@ -178,7 +178,7 @@
       B.mesh.count = n; B.mesh.instanceMatrix.needsUpdate = true; B.col.needsUpdate = true; B.al.needsUpdate = true;
     }
     // scorch marks under explosions
-    const MAXSC = 30;
+    const MAXSC = 12; const SCORCH_LIFE = 5; const SCORCH_DRY = 3;
     const scorches = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: BZ.tex('scorch'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), MAXSC);
     scorches.count = 0; scorches.frustumCulled = false; scene.add(scorches); let scI = 0; const scorchAt = [];
     // ground shock rings
@@ -221,7 +221,7 @@
         const r = rings[ringI++ % rings.length]; r.m.position.copy(ground).setY(ground.y + 0.06); r.t = 0; r.R = 6.5 * R; r.m.visible = true;
         for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.28 + G.rng.range(0, 0.6); puff(ground.clone().setY(ground.y + 0.3), { vel: V().set(Math.cos(a) * 7, 0.3, Math.sin(a) * 7), drag: 2.5, s0: 0.8, s1: 2.6, life: 1.2, c0: 0x6a5e50, c1: 0x7a7066, a0: 0.55 }); }
         m4.compose(V().set(ground.x, ground.y + 0.025 + (scI % 5) * 0.003, ground.z), q.setFromEuler(e.set(0, G.rng.range(0, 6.3), 0)), sc.set(4.2 * R, 1, 4.2 * R));
-        scorchAt[scI % MAXSC] = [ground.x, ground.y, ground.z];
+        scorchAt[scI % MAXSC] = [ground.x, ground.y, ground.z, 0, e.y, 4.2 * R];
         scorches.setMatrixAt(scI % MAXSC, m4); scI++; scorches.count = Math.min(MAXSC, scI); scorches.instanceMatrix.needsUpdate = true;
       }
       boomLight.position.copy(pos).setY(pos.y + 1); boomLight.intensity = 90 * R; flashT = Math.max(flashT, 0.25);
@@ -393,13 +393,13 @@
       }
     }
     // blood pools: flat alpha splats on whatever floor the point is on
-    const MAXS = 90;
+    const MAXS = 40;
     const splats = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: BZ.tex('blood'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), MAXS);
     splats.count = 0; splats.frustumCulled = false; splats.renderOrder = 1; scene.add(splats);
     let splatI = 0;
     // a pool spreads out in a blink, lies there, then dries up: thirty kills on one spot must not paint the plaza red
     splats.material.color.setHex(0x8a8a8a);
-    const SPLAT_LIFE = 16; const SPLAT_DRY = 5; const pools = [];
+    const SPLAT_LIFE = 4; const SPLAT_DRY = 2.5; const pools = [];
     function splat(pos, size = 1) {
       size = Math.min(2.6, 0.45 + size * 0.62);
       const i = splatI % MAXS;
@@ -415,6 +415,12 @@
         const c = scorchAt[i]; if (!c || c[1] <= 0.06) continue;
         const f = floorY(c[0], c[1] + 0.1, c[2]); if (c[1] - f < 0.2) continue;
         scorches.getMatrixAt(i, m4); m4.elements[13] += f - c[1]; c[1] = f; scorches.setMatrixAt(i, m4); scorches.instanceMatrix.needsUpdate = true;
+      }
+      // scorch marks dry up like the pools do: a blast leaves its mark for a few seconds, not for the whole battle
+      for (let i = 0; i < scorches.count; i++) {
+        const c = scorchAt[i]; if (!c || c[6] === 0) continue;
+        c[3] += dt; const k = c[3] < SCORCH_LIFE ? 1 : Math.max(0, 1 - (c[3] - SCORCH_LIFE) / SCORCH_DRY);
+        if (k !== c[6]) { c[6] = k; m4.compose(V().set(c[0], c[1] + 0.025 + (i % 5) * 0.003, c[2]), q.setFromEuler(e.set(0, c[4], 0)), sc.set(c[5] * k, 1, c[5] * k)); scorches.setMatrixAt(i, m4); scorches.instanceMatrix.needsUpdate = true; }
       }
       for (let i = 0; i < pools.length; i++) {
         const s = pools[i]; if (!s || s.k === 0) continue;
@@ -498,6 +504,6 @@
       for (const p of gibs) { scene.remove(p.g); if (p.own) for (const m of [].concat(p.mesh.material)) m.dispose(); } gibs.length = 0; spurts.length = 0; splats.count = 0; splatI = 0; pools.length = 0; glowB.list.length = 0; smokeB.list.length = 0; scorches.count = 0; scI = 0; scorchAt.length = 0;
     }
 
-    return { dbgTracers: tracers, burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, spurt, puff, impact, bloodMist, trail, arc, bolt, halo, streak, pop, slash, ribbon, jetOut, floorY, floaters, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, big: gibs.filter((g) => g.big).length, restTop: +gibs.reduce((m, g) => (g.rest ? Math.max(m, g.yFloor) : m), 0).toFixed(2), splats: splats.count }) };
+    return { dbgTracers: tracers, burst, hole, tracer, muzzle, update, clear, explosion, jet, gib, chunks, splat, ageDecals: updateSplats, spurt, puff, impact, bloodMist, trail, arc, bolt, halo, streak, pop, slash, ribbon, jetOut, floorY, floaters, debug: () => ({ particles: P.length, made, glow: glowB.list.length, smoke: smokeB.list.length, scorch: scorches.count, gibs: gibs.length, resting: gibs.filter((g) => g.rest).length, big: gibs.filter((g) => g.big).length, restTop: +gibs.reduce((m, g) => (g.rest ? Math.max(m, g.yFloor) : m), 0).toFixed(2), splats: splats.count, liveSplats: pools.filter((p) => p && p.k !== 0).length, liveScorch: scorchAt.slice(0, scorches.count).filter((c) => c && c[6] !== 0).length }) };
   };
 })();
