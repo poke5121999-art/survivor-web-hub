@@ -1,0 +1,6 @@
+{
+  "_comment": "kind -> argv template + timeout. Placeholders: {python} {here} {job_json} {job_dir} {in_dir} {out_dir} {parent_glb} {view_front} {view_back} {view_left} {view_right} {work_dir} {kind}. Real TripoSG/texture/rig pipelines replace these entries; see README.md. Until then every kind points at the fake pipeline.",
+  "shape": { "argv": ["{python}", "{here}/fake_pipeline.py", "{job_json}", "{out_dir}"], "timeout_s": 1800 },
+  "texture": { "argv": ["{python}", "{here}/fake_pipeline.py", "{job_json}", "{out_dir}"], "timeout_s": 1800 },
+  "rig": { "argv": ["{python}", "{here}/fake_pipeline.py", "{job_json}", "{out_dir}"], "timeout_s": 900 }
+}
