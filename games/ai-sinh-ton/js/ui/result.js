@@ -1,10 +1,11 @@
-// One modal screen with three modes: 'pause' (resume, settings, retry, home), 'result' (win or loss with the reward
-// list, per-hero damage and the next steps) and 'settings' (the same switches, opened from the home screen).
+// One modal screen with three modes: 'pause' (resume, settings, retry, home), 'result' (win or loss: a reward tab and a
+// per-hero statistics tab, with the next steps always in view) and 'settings' (the same switches, opened from the home screen).
 import { HERO } from '../data/heroes.js?v=20261119c';
 import { ITEM, TIERS } from '../data/equip.js?v=20261119c';
 import { fmt, heroColor, kill } from './hud.js?v=20261119c';
 import { xpNeed } from '../data/unlocks.js?v=20261119c';
 import { ITEM_ICON } from './itemicons.js?v=20261119c';
+import { createStatsPanel } from './stats.js?v=20261119c';
 
 const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
 const QUALITY = [['Thấp', 'low'], ['Vừa', 'medium'], ['Cao', 'high']];
@@ -56,9 +57,9 @@ export function createResult(game) {
   }
 
   // ---------- result ----------
-  let res = null, xpAnim = null, xpText = '', lvUp = '', gifts = [];
+  let res = null, xpAnim = null, xpText = '', lvUp = '', gifts = [], tab = '', stats = null, tabBtns = null;
   function buildResult(r) {
-    if (res) { kill(res); res = null; }
+    if (res) { kill(res); res = null; stats = null; }
     xpAnim = null; xpText = ''; lvUp = ''; gifts = [];
     const g = ui.group({ w: 360, h: 780 }); scr.put(g, 0, 0, 2); res = g;
     g.put(ui.panel({ w: 340, h: 830, r: 26, color: 0x33286a, depth: 6, bevel: 3 }), 10, -30, 0);
@@ -72,13 +73,15 @@ export function createResult(game) {
       const p = ui.panel({ w: 100, h: 30, r: 15, color: 0x241b4d, depth: 3, bevel: 2, gloss: false, ow: 2.4 });
       p.put(ui.icon(icon, { size: 26, sway: false }), -3, 2, 4); p.put(ui.text(text, { size: 14, align: 'center', valign: 'mid' }), 60, 16, 1); g.put(p, 22 + i * 108, 148, 14);
     });
-    let y = 190;
-    const label = (s) => { g.put(ui.text(s, { size: 12, align: 'left', valign: 'mid', color: 0xffd23f, outlineW: 1.5 }), 24, y + 6, 14); };
+    const rg = ui.group({ w: 360, h: 780 }); g.put(rg, 0, 0, 0);
+    const hasBanner = (r.levelAfter || meta.acc.level) > (r.levelBefore || meta.acc.level);
+    let y = hasBanner ? 262 : 240;
+    const label = (s) => { rg.put(ui.text(s, { size: 12, align: 'left', valign: 'mid', color: 0xffd23f, outlineW: 1.5 }), 24, y + 6, 14); };
     { // account level: the bar fills, a level-up shows its banner, gift heroes come with their name
       const lvB = r.levelBefore || meta.acc.level, lvA = r.levelAfter || meta.acc.level, gain = r.xp || 0;
       const sumTo = (L) => { let t = 0; for (let k = 1; k < L; k++) t += xpNeed(k); return t; };
       const before = Math.max(0, sumTo(lvA) + meta.acc.xp - gain - sumTo(lvB));
-      const row = ui.panel({ w: 316, h: 42, r: 14, color: 0x241b4d, depth: 3, bevel: 2, gloss: false, ow: 2.4 }); g.put(row, 22, y, 12);
+      const row = ui.panel({ w: 316, h: 42, r: 14, color: 0x241b4d, depth: 3, bevel: 2, gloss: false, ow: 2.4 }); rg.put(row, 22, y, 12);
       const lvT = ui.text('Cấp ' + lvB, { size: 15, valign: 'mid', outlineW: 2 }); row.put(lvT, 12, 21, 3);
       const bar = ui.bar({ w: 168, h: 16, color: PAL.green, value: before / xpNeed(lvB) }); row.put(bar, 76, 13, 2); bar.set(before / xpNeed(lvB), true);
       row.put(ui.text('+' + gain + ' XP', { size: 14, align: 'right', valign: 'mid', color: 0x9af3ff, outlineW: 2 }), 304, 21, 3);
@@ -87,13 +90,13 @@ export function createResult(game) {
         for (let L = lvB; L < lvA; L++) xpAnim.steps.push({ to: 1, level: L + 1 });
         const fin = meta.acc.xp / xpNeed(lvA); xpAnim.steps.push({ to: fin, last: true });
         const bn = ui.panel({ w: 150, h: 28, r: 14, color: PAL.orange, depth: 4, bevel: 2.4, ow: 2.6, shadow: false }); bn.put(ui.text('LÊN CẤP ' + lvA + '!', { size: 15, align: 'center', valign: 'mid', upper: true }), 75, 15, 3);
-        g.put(bn, 186, y - 18, 30); bn.setVisible(false); xpAnim.banner = bn; xpAnim.bannerT = 0;
+        rg.put(bn, 186, y - 28, 30); bn.setVisible(false); xpAnim.banner = bn; xpAnim.bannerT = 0;
       } else xpAnim.steps.push({ to: meta.acc.xp / xpNeed(lvA), last: true });
       lvUp = lvA > lvB ? 'LÊN CẤP ' + lvA + '!' : '';
       y += 52;
       xpText = '+' + gain + ' XP';
       for (const gid of r.gifts || []) {
-        const gp = ui.panel({ w: 316, h: 54, r: 16, color: 0x7a2fa8, depth: 4, bevel: 2.6, ow: 2.6 }); g.put(gp, 22, y, 12);
+        const gp = ui.panel({ w: 316, h: 54, r: 16, color: 0x7a2fa8, depth: 4, bevel: 2.6, ow: 2.6 }); rg.put(gp, 22, y, 12);
         gp.put(ui.portrait(gid, { size: 42, color: heroColor(gid), fps: 6, shadow: false }), 8, 6, 3);
         gp.put(ui.text('TƯỚNG MỚI: ' + (HERO[gid] ? HERO[gid].name : gid).toLocaleUpperCase('vi'), { size: 19, valign: 'mid', outlineW: 2.6 }), 62, 28, 3);
         gifts.push(HERO[gid] ? HERO[gid].name : gid); y += 62;
@@ -103,8 +106,8 @@ export function createResult(game) {
     label('PHẦN THƯỞNG'); y += 18;
     const heroes = r.heroes || [], n = 2 + heroes.length, size = Math.min(48, Math.floor((322 - (n - 1) * 7) / n)), x0 = 180 - (n * size + (n - 1) * 7) / 2;
     const reward = (i, node, text, color = 0xffffff) => {
-      g.put(node, x0 + i * (size + 7), y, 14);
-      g.put(ui.text(text, { size: 11, align: 'center', valign: 'mid', color, outlineW: 1.4 }), x0 + i * (size + 7) + size / 2, y + size + 12, 14);
+      rg.put(node, x0 + i * (size + 7), y, 14);
+      rg.put(ui.text(text, { size: 11, align: 'center', valign: 'mid', color, outlineW: 1.4 }), x0 + i * (size + 7) + size / 2, y + size + 12, 14);
     };
     reward(0, ui.tile({ size, color: 'legend', icon: 'gold' }), '+' + fmt(r.gold), 0xffe14a);
     reward(1, ui.tile({ size, color: 'rare', icon: 'gem' }), '+' + fmt(r.gems), 0x9af3ff);
@@ -113,29 +116,33 @@ export function createResult(game) {
     if ((r.items && r.items.length) || r.mats) {
       label('TRANG BỊ RƠI'); y += 18;
       let x = 24;
-      for (const it of r.items || []) { g.put(ui.tile({ size: 46, color: TIERS[it.tier].color, icon: ITEM_ICON(it.item) }), x, y, 14); x += 54; }
-      if (r.mats) { const p = ui.panel({ w: 120, h: 32, r: 16, color: 0x241b4d, depth: 3, bevel: 2, gloss: false, ow: 2.4 }); p.put(ui.icon('gear', { size: 28, sway: false }), -2, 2, 4); p.put(ui.text('+' + r.mats + ' bản rèn', { size: 12, align: 'center', valign: 'mid' }), 72, 17, 1); g.put(p, 336 - 120 + 0, y + 7, 14); }
+      for (const it of r.items || []) { rg.put(ui.tile({ size: 46, color: TIERS[it.tier].color, icon: ITEM_ICON(it.item) }), x, y, 14); x += 54; }
+      if (r.mats) { const p = ui.panel({ w: 120, h: 32, r: 16, color: 0x241b4d, depth: 3, bevel: 2, gloss: false, ow: 2.4 }); p.put(ui.icon('gear', { size: 28, sway: false }), -2, 2, 4); p.put(ui.text('+' + r.mats + ' bản rèn', { size: 12, align: 'center', valign: 'mid' }), 72, 17, 1); rg.put(p, 336 - 120 + 0, y + 7, 14); }
       y += 62;
     }
-    label('SÁT THƯƠNG'); y += 20;
-    const top = Math.max(1, ...heroes.map((h) => h.dealt));
-    heroes.forEach((h, i) => {
-      const ry = y + i * 38;
-      g.put(ui.portrait(h.id, { size: 34, color: heroColor(h.id), fps: 4, shadow: false }), 22, ry, 14);
-      g.put(ui.text(HERO[h.id] ? HERO[h.id].name : h.id, { size: 11, align: 'left', valign: 'mid', outlineW: 1.3 }), 64, ry + 5, 14);
-      const bar = ui.bar({ w: 214, h: 14, color: heroColor(h.id) }); g.put(bar, 64, ry + 14, 14); bar.set(h.dealt / top, true);
-      g.put(ui.text(fmt(h.dealt), { size: 13, align: 'right', valign: 'mid' }), 340, ry + 21, 14);
-    });
-    y += heroes.length * 38 + 14;
-    const mk = (id, text, color, w, h, onTap, icon) => ui.button({ id, w, h, r: 17, color, label: text, icon, size: h > 50 ? 21 : 15, onTap });
+    // tabs and the always-visible next steps
+    stats = createStatsPanel(game); g.put(stats.node, 0, 0, 2); stats.build(r);
+    tabBtns = {
+      reward: ui.button({ id: 'tab-reward', w: 152, h: 38, r: 13, color: PAL.orange, label: 'PHẦN THƯỞNG', size: 14, onTap: () => setTab('reward') }),
+      stats: ui.button({ id: 'tab-stats', w: 152, h: 38, r: 13, color: PAL.orange, label: 'THỐNG KÊ', size: 14, onTap: () => setTab('stats') }),
+    };
+    g.put(tabBtns.reward, 22, 186, 14); g.put(tabBtns.stats, 186, 186, 14);
+    rewardG = rg;
+    setTab(win ? 'reward' : 'stats');
+    const mk = (id, text, color, w, h, onTap, icon) => ui.button({ id, w, h, r: 17, color, label: text, icon, size: h > 46 ? 21 : 15, onTap });
     if (win) {
-      g.put(mk('next', 'ẢI TIẾP', PAL.green, 300, 56, () => game.nextStage(), 'play'), 30, y, 14);
-      g.put(mk('retry', 'CHƠI LẠI', PAL.orange, 144, 46, () => game.retry()), 30, y + 70, 14);
-      g.put(mk('home', 'VỀ NHÀ', PAL.blue, 144, 46, () => game.leaveBattle()), 186, y + 70, 14);
+      g.put(mk('next', 'ẢI TIẾP', PAL.green, 300, 50, () => game.nextStage(), 'play'), 30, 650, 14);
+      g.put(mk('retry', 'CHƠI LẠI', PAL.orange, 144, 42, () => game.retry()), 30, 708, 14);
+      g.put(mk('home', 'VỀ NHÀ', PAL.blue, 144, 42, () => game.leaveBattle()), 186, 708, 14);
     } else {
-      g.put(mk('retry', 'CHƠI LẠI', PAL.orange, 300, 56, () => game.retry()), 30, y, 14);
-      g.put(mk('home', 'VỀ NHÀ', PAL.blue, 300, 46, () => game.leaveBattle()), 30, y + 70, 14);
+      g.put(mk('retry', 'CHƠI LẠI', PAL.orange, 300, 50, () => game.retry()), 30, 650, 14);
+      g.put(mk('home', 'VỀ NHÀ', PAL.blue, 300, 42, () => game.leaveBattle()), 30, 708, 14);
     }
+  }
+  let rewardG = null;
+  function setTab(t) {
+    tab = t; if (rewardG) rewardG.setVisible(t === 'reward'); if (stats) stats.node.setVisible(t === 'stats');
+    for (const k of ['reward', 'stats']) lamp(tabBtns[k], k === t);
   }
 
   function resume() {
@@ -173,5 +180,5 @@ export function createResult(game) {
       if (st.level) { a.lvT.set('Cấp ' + st.level); a.bar.set(0, true); if (a.banner) { a.banner.setVisible(true); a.bannerT = 0; } }
     }
   }
-  return [{ name: 'result', show, hide, update, dbg() { return { mode, open, xpText, lvUp, gifts: gifts.slice(), level: xpAnim ? xpAnim.lvA : 0 }; } }];
+  return [{ name: 'result', show, hide, update, dbg() { return { mode, open, tab, xpText, lvUp, gifts: gifts.slice(), level: xpAnim ? xpAnim.lvA : 0 }; } }];
 }
