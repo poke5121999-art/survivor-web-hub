@@ -1,11 +1,11 @@
 // One modal screen with three modes: 'pause' (resume, settings, retry, home), 'result' (win or loss: a reward tab and a
 // per-hero statistics tab, with the next steps always in view) and 'settings' (the same switches, opened from the home screen).
-import { HERO } from '../data/heroes.js?v=20261120b';
-import { ITEM, TIERS } from '../data/equip.js?v=20261120b';
-import { fmt, heroColor, kill } from './hud.js?v=20261120b';
-import { xpNeed } from '../data/unlocks.js?v=20261120b';
-import { ITEM_ICON } from './itemicons.js?v=20261120b';
-import { createStatsPanel } from './stats.js?v=20261120b';
+import { HERO } from '../data/heroes.js?v=20261120c';
+import { ITEM, TIERS } from '../data/equip.js?v=20261120c';
+import { fmt, heroColor, kill } from './hud.js?v=20261120c';
+import { xpNeed } from '../data/unlocks.js?v=20261120c';
+import { ITEM_ICON } from './itemicons.js?v=20261120c';
+import { createStatsPanel } from './stats.js?v=20261120c';
 
 const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Rung màn hình', 'shake', 'set-shake'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
 const QUALITY = [['Thấp', 'low'], ['Vừa', 'medium'], ['Cao', 'high']];

@@ -2,8 +2,8 @@
 // screen right and world z up the screen, pulled back until the near rim fills the frame width and the far rim still sits
 // between the HUD bands; the lens shift centres the ellipse in the free band. No follow and no zoom, so everything the
 // sim does happens inside the picture. Spectate: a chase camera behind and above one unit, blended in and out.
-import { ARENA } from '../sim/battle.js?v=20261120b';
-import { FLY_Y } from './keys.js?v=20261120b';
+import { ARENA } from '../sim/battle.js?v=20261120c';
+import { FLY_Y } from './keys.js?v=20261120c';
 const THREE = window.THREE;
 const BZ = window.BZ;
 

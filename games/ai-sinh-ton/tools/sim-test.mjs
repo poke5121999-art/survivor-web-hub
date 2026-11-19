@@ -3,7 +3,7 @@
 import { createBattle, step, castUlt, pickCard, arenaNorm, SPAWN_K, battleReport } from '../js/sim/battle.js';
 import { HEROES, HERO } from '../js/data/heroes.js';
 import { ENEMIES, ENEMY } from '../js/data/enemies.js';
-import { stageDef, bossOf, bossTierOf } from '../js/data/stages.js';
+import { stageDef, bossOf, bossTierOf, HORDE } from '../js/data/stages.js';
 import { CARD, CARDS } from '../js/data/cards.js';
 
 const fails = [];
@@ -159,6 +159,34 @@ function play(opts, until) {
       check(R.every((r) => r.end.atk >= r.start.atk && r.end.hp >= r.start.hp), 'end-of-stage stats are at least the starting stats after four cards');
     }
   }
+}
+
+// review defect 4: the report shows permanent stats only, so a slow or a timed buff at the final tick changes nothing
+{
+  const { B } = play({ stage: 8, seed: 21, team: team(START, 1.6), auto: { ult: true, pick: 'best' } });
+  const clean = JSON.stringify(battleReport(B).map((r) => [r.start, r.end]));
+  B.heroes[0].status.slow = { v: 0.6, t: 5 };
+  B.heroes[1].buffs.push({ mods: { atk: 0.8, aspd: 0.5, crit: 0.4 }, t: 3 });
+  const dirty = battleReport(B).map((r) => [r.start, r.end]);
+  check(JSON.stringify(dirty) === clean, `a slowed hero and a hero with a timed attack buff report the same stats as without (${JSON.stringify(dirty[0][1])} vs ${JSON.stringify(JSON.parse(clean)[0][1])})`);
+  check(battleReport(B).every((r) => ['atk', 'hp', 'aspd', 'crit'].every((k) => r.start[k] <= r.end[k] + 1e-9)), 'an untouched permanent stat shows no loss between start and end');
+}
+
+// review defect 5: a horde of frost corpses must not freeze the heroes much longer than the same waves without the horde multiplier
+{
+  const frozenTime = (horde1, seed) => {
+    const keep = { ...HORDE };
+    if (horde1) Object.assign(HORDE, { base: 1, perWave: 0, bossWave: 1 });
+    let last = 0, total = 0, stage;
+    try {
+      stage = stageDef(20);
+    } finally { Object.assign(HORDE, keep); }
+    play({ stage, seed, team: team(START, 3), auto: { ult: true, pick: 'best' } }, (B) => { const dt = B.t - last; last = B.t; if (dt > 0) for (const u of B.heroes) if (u.alive && u.status.freeze) total += dt; return false; });
+    return total;
+  };
+  let h = 0, flat = 0;
+  for (const seed of [3, 4, 5]) { h += frozenTime(false, seed); flat += frozenTime(true, seed); }
+  check(flat > 1 && Math.abs(h - flat) <= 0.25 * flat, `stage 20, three seeds: hero freeze time with the horde ${h.toFixed(1)}s vs ${flat.toFixed(1)}s with the multiplier at 1 (within 25%)`);
 }
 
 // a wiped team loses

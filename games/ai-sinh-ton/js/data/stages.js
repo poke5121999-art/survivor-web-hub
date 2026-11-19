@@ -1,7 +1,7 @@
 // Stages: five waves each, the fifth is the stage's boss. A stage is fully determined by its number, so every
 // player meets the same waves. Stages 1-30 are the campaign; past 30 the same rules keep scaling without end.
-import { ENEMY } from './enemies.js?v=20261120b';
-import { expectedSlots } from './unlocks.js?v=20261120b';
+import { ENEMY } from './enemies.js?v=20261120c';
+import { expectedSlots } from './unlocks.js?v=20261120c';
 
 export const CHAPTERS = [
   { name: 'Phố Hoang', floor: 0x8f9aa6, fog: 0xa9b6c4 },
@@ -41,8 +41,11 @@ export const SPIKE_HP_LATE = 1.36;
 export const MAX_ALIVE = 120;
 // The horde: every group of ordinary enemies arrives several times larger and each body is weaker, so the screen
 // crawls while the total pressure stays where the balance tools put it. Later waves are denser than earlier ones.
+// ccK: each horde body's crowd control (slow, stun, freeze, root) lasts m^-ccPow of its normal time (never below CC_FLOOR seconds, see
+// battle.js addStatus). Bodies freeze the same area at once and their durations overlap rather than add, so 1/m would cut the total
+// control time to a third; the exponent is tuned so a stage 20 run freezes heroes about as long as the same waves without the horde.
 // hordeOf(wave) = how many bodies stand in for one; big kinds (cost above 1.5) multiply less.
-export const HORDE = { base: 3, perWave: 1, bossWave: 5, bigDiv: 2.5, hpPow: 0.62, atkPow: 1.12, span: 0.45 };
+export const HORDE = { base: 3, perWave: 1, bossWave: 5, bigDiv: 2.5, hpPow: 0.62, atkPow: 1.12, ccPow: 0.5, span: 0.45 };
 export function hordeOf(w, cost) { const m = w >= 5 ? HORDE.bossWave : HORDE.base + HORDE.perWave * w; return cost > 1.5 ? Math.max(1, Math.round(m / HORDE.bigDiv)) : m; }
 // early stages are met with fewer team slots open (unlocks.js): wave size and boss health shrink to match
 export const TEAM_K = { 1: 0.3, 2: 0.36, 3: 0.65, 4: 0.92 };
@@ -85,7 +88,7 @@ export function stageDef(n) {
       const cnt = Math.max(1, Math.round(per / c));
       const m = hordeOf(w, c);
       // a pack comes out of the fog along a wide arc of the rim, so packs from several sides close a ring
-      groups.push({ kind, n: cnt * m, at: isBoss ? 6 + g * (span / nG) : (g * span) / nG, ang: rnd() * 6.283, spread: 1.1 + rnd() * 0.9, hpK: Math.pow(m, -HORDE.hpPow), atkK: Math.pow(m, -HORDE.atkPow) });
+      groups.push({ kind, n: cnt * m, at: isBoss ? 6 + g * (span / nG) : (g * span) / nG, ang: rnd() * 6.283, spread: 1.1 + rnd() * 0.9, hpK: Math.pow(m, -HORDE.hpPow), atkK: Math.pow(m, -HORDE.atkPow), ccK: Math.pow(m, -HORDE.ccPow) });
     }
     // elites join from stage 5: the last group of waves 3 and 4 is led by one
     if (!isBoss && n >= 5 && w >= 3) { const kind = pick(); groups.push({ kind, n: 1 + Math.floor((n - 5) / 12), at: span * 0.7, ang: rnd() * 6.283, spread: 0.3, elite: true }); }

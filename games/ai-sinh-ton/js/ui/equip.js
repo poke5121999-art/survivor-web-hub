@@ -1,10 +1,10 @@
 // Trang Bị tab: the selected hero with six slot tiles, the shared bag, the item sheet, merge mode (inline: the stage
 // panel turns into the merge preview and the bag grid dims what cannot be fodder) and the Ghép Nhanh preview.
 // All account changes go through meta.*; this screen only reads meta.acc and rebuilds after each command.
-import { SLOTS, TIERS, ITEM, itemStat, upgradeCost, refundOf, autoMergePlan } from '../data/equip.js?v=20261120b';
-import { HERO } from '../data/heroes.js?v=20261120b';
-import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120b';
-import { ITEM_ICON } from './itemicons.js?v=20261120b';
+import { SLOTS, TIERS, ITEM, itemStat, upgradeCost, refundOf, autoMergePlan } from '../data/equip.js?v=20261120c';
+import { HERO } from '../data/heroes.js?v=20261120c';
+import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120c';
+import { ITEM_ICON } from './itemicons.js?v=20261120c';
 
 const SLOT = Object.fromEntries(SLOTS.map((s) => [s.id, s]));
 const LEFT = ['weapon', 'necklace', 'gloves'], RIGHT = ['armor', 'belt', 'boots'];
@@ -39,6 +39,8 @@ export function createEquip(game) {
   const veilGeo = new THREE.PlaneGeometry(1, 1), veilMat = new THREE.MeshBasicMaterial({ color: 0x120a24, transparent: true, opacity: 0.62, depthWrite: false, toneMapped: false });
   const cap = (s) => s.charAt(0).toLocaleUpperCase('vi') + s.slice(1);
   // every explanation is one short toast, kept in U for the tests
+  // a refused tap sets game.guideRefused so the guide does not count it as a press
+  const refuse = (line) => { game.guideRefused = true; ui.toast(line); };
   const say = (line) => { U.toasts.push(line); if (U.toasts.length > 12) U.toasts.shift(); ui.toast(line); };
   // an invisible tap area (the kit button without its mesh)
   const tapArea = (id, w, h, onTap) => { const b = ui.button({ id, w, h, shadow: false, onTap }); b.traverse((o) => { if (o.isMesh) o.visible = false; }); return b; };
@@ -302,23 +304,23 @@ export function createEquip(game) {
   function doWear() {
     const it = find(S.sheet); if (!it) return;
     const w = wornMap().get(it.uid), slot = slotOf(it);
-    if (w && w.hid === S.hero) { const r = meta.unequip(S.hero, slot); if (!r.ok) { ui.toast(cap(r.why)); return; } ui.toast(`Đã tháo ${ITEM[it.item].name}`); closeSheet(); return; }
+    if (w && w.hid === S.hero) { const r = meta.unequip(S.hero, slot); if (!r.ok) { refuse(cap(r.why)); return; } ui.toast(`Đã tháo ${ITEM[it.item].name}`); closeSheet(); return; }
     const s0 = meta.heroStats(S.hero);
-    const r = meta.equip(S.hero, it.uid); if (!r.ok) { ui.toast(cap(r.why)); return; }
+    const r = meta.equip(S.hero, it.uid); if (!r.ok) { refuse(cap(r.why)); return; }
     ui.toast(`${HERO[S.hero].name} đã mặc ${ITEM[it.item].name}`); closeSheet();
     const left = LEFT.includes(slot); burst.spawn(left ? 42 : 318, 160 + (left ? LEFT : RIGHT).indexOf(slot) * 66, 22, TIERS[it.tier].color, 170); game.vibrate && game.vibrate(15);
     popGain(statDiff(s0, meta.heroStats(S.hero)));
   }
   function wearBest() {
     if (fx) return;
-    const s0 = meta.heroStats(S.hero), r = meta.equipBest(S.hero); if (!r.ok) { ui.toast(cap(r.why)); return; }
+    const s0 = meta.heroStats(S.hero), r = meta.equipBest(S.hero); if (!r.ok) { refuse(cap(r.why)); return; }
     ui.toast(`${HERO[S.hero].name} đã mặc ${r.changes.length} món tốt nhất`); game.vibrate && game.vibrate(20);
     burst.spawn(180, 230, 26, 0xffc21f, 190); popGain(statDiff(s0, meta.heroStats(S.hero)));
   }
   function doUpgrade() {
     const it = find(S.sheet); if (!it) return;
     const free = !meta.unlocked('upgrade'), s0 = meta.heroStats(S.hero);
-    const r = meta.upgradeItem(it.uid); if (!r.ok) { ui.toast(cap(r.why)); return; }
+    const r = meta.upgradeItem(it.uid); if (!r.ok) { refuse(cap(r.why)); return; }
     shBurst.spawn(180, 150, 24, TIERS[it.tier].color, 200); ui.fly('LÊN CẤP ' + r.lv + '!', 180, 150); game.vibrate && game.vibrate(20);
     if (free) { closeSheet(); popGain(statDiff(s0, meta.heroStats(S.hero))); }
   }
@@ -371,8 +373,8 @@ export function createEquip(game) {
     doB.setEnabled(ready); doB.setSub(main ? (ready ? `${TIERS[main.tier].name} → ${TIERS[main.tier + 1].name}` : 'Chọn đủ nguyên liệu') : 'Chọn món chính'); U.ready = ready;
   }
   function enterMerge() {
-    if (!meta.unlocked('merge')) { ui.toast(meta.lockText('merge')); return; }
-    if (!bag().length) { ui.toast('Chưa có trang bị nào để ghép'); return; }
+    if (!meta.unlocked('merge')) { refuse(meta.lockText('merge')); return; }
+    if (!bag().length) { refuse('Chưa có trang bị nào để ghép'); return; }
     S.mode = 'merge'; S.main = 0; S.picks = []; sc.scrollTo(0); dirty = true; layoutMode();
   }
   function leaveMerge() { if (fx) return; S.mode = 'normal'; S.main = 0; S.picks = []; dirty = true; layoutMode(); }
@@ -386,11 +388,11 @@ export function createEquip(game) {
     const it = find(uid); if (!it) return;
     if (S.mode === 'normal') { openSheet(uid); return; }
     const r = roleOf(it, wornMap());
-    if (!S.main) { if (r.role === 'dim') { ui.toast(r.why); return; } S.main = uid; S.picks = []; }
+    if (!S.main) { if (r.role === 'dim') { refuse(r.why); return; } S.main = uid; S.picks = []; }
     else if (r.role === 'main') { S.main = 0; S.picks = []; }
     else if (r.role === 'pick') S.picks = S.picks.filter((p) => p !== uid);
-    else if (r.role === 'dim' || r.role === 'worn') { ui.toast(r.why); return; }
-    else if (S.picks.length >= TIERS[find(S.main).tier].need - 1) { ui.toast('Đã đủ nguyên liệu'); return; }
+    else if (r.role === 'dim' || r.role === 'worn') { refuse(r.why); return; }
+    else if (S.picks.length >= TIERS[find(S.main).tier].need - 1) { refuse('Đã đủ nguyên liệu'); return; }
     else S.picks.push(uid);
     U.main = S.main; U.picks = S.picks.slice(); dirty = true;
   }
@@ -398,7 +400,7 @@ export function createEquip(game) {
     if (fx) return;
     const main = find(S.main); if (!main) return;
     const flyFrom = S.picks.map((uid, i) => ({ it: find(uid), x: PREV.fod[0] + i * PREV.fodPitch + 28, y: PREV.fod[1] + 28 }));
-    const r = meta.merge(S.main, S.picks); if (!r.ok) { ui.toast(cap(r.why)); return; }
+    const r = meta.merge(S.main, S.picks); if (!r.ok) { refuse(cap(r.why)); return; }
     const flies = flyFrom.map((f) => { const n = ui.icon(ITEM_ICON(f.it.item), { size: 50, sway: false }); fxLayer.put(n, f.x - 25, f.y - 25, 2); return { n, x0: f.x, y0: f.y }; });
     const col = TIERS[main.tier].color, gm = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: glowTex, color: col, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
     gm.scale.set(10, 10, 1); fxLayer.put(gm, PREV.main[0] + 36, PREV.main[1] + 36, 1);
@@ -437,8 +439,8 @@ export function createEquip(game) {
     return { merges, rows: [...groups.values()].sort((a, b) => b.to - a.to || b.n - a.n) };
   }
   function openAuto() {
-    if (!meta.unlocked('merge')) { ui.toast(meta.lockText('merge')); return; }
-    const r = simAuto(); if (!r.merges) { ui.toast('Chưa có bộ ba nào giống nhau để ghép'); return; }
+    if (!meta.unlocked('merge')) { refuse(meta.lockText('merge')); return; }
+    const r = simAuto(); if (!r.merges) { refuse('Chưa có bộ ba nào giống nhau để ghép'); return; }
     for (const n of aDyn) kill(n); aDyn = [];
     const put = (n, x, y, z = 4) => { aP.put(n, x, y, z); aDyn.push(n); return n; };
     aCount.set(`Sẽ ghép ${r.merges} lần`);
@@ -455,7 +457,7 @@ export function createEquip(game) {
   }
   function doAuto() {
     const r = meta.autoMerge(); ui.hide('auto', { transition: 'pop' });
-    if (!r.ok) { ui.toast(cap(r.why)); return; }
+    if (!r.ok) { refuse(cap(r.why)); return; }
     ui.toast(`Đã ghép ${r.merges} lần`); game.vibrate && game.vibrate(25); burst.spawn(180, 450, 26, 0xffc21f, 200);
   }
 

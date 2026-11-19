@@ -4,10 +4,10 @@
 //
 // Flow: phase 'fight' -> (wave cleared) 'pick' -> 'fight' ... -> 'won' | 'lost'.
 // The only commands are castUlt(B, heroIndex) and pickCard(B, heroIndex, cardIndex).
-import { HERO, SUMMONS } from '../data/heroes.js?v=20261120b';
-import { ENEMY } from '../data/enemies.js?v=20261120b';
-import { stageDef, MAX_ALIVE, BASE } from '../data/stages.js?v=20261120b';
-import { CARD, offerCards } from '../data/cards.js?v=20261120b';
+import { HERO, SUMMONS } from '../data/heroes.js?v=20261120c';
+import { ENEMY } from '../data/enemies.js?v=20261120c';
+import { stageDef, MAX_ALIVE, BASE } from '../data/stages.js?v=20261120c';
+import { CARD, offerCards } from '../data/cards.js?v=20261120c';
 
 export const DT = 1 / 30;
 // The arena is an ellipse sized to a portrait phone frame: x is across the screen, z is up the screen. The whole
@@ -64,7 +64,7 @@ function makeHero(B, slot, spec) {
   u.maxHp = maxHpOf(u); u.hp = u.maxHp;
   u.dealt = 0; u.over = 0; u.taken = 0; u.healed = 0; u.selfHeal = 0; u.shieldGiven = 0; u.aliveT = 0; u.downT = 0; u.downs = 0;
   u.bySrc = { atk: 0, s1: 0, s2: 0, ult: 0, fx: 0 };
-  u.start = { atk: atkOf(u), hp: u.maxHp, aspd: u.base.aspd, crit: 0.05 + (u.mods.crit || 0) };
+  u.start = permStats(u);
   return u;
 }
 
@@ -75,6 +75,7 @@ function makeEnemy(B, kind, x, z, o = {}) {
   const k = (o.elite ? 2.2 : 1) * (def.boss ? S.bossHp : 1);
   u.def = def; u.r = def.r || 0.45; u.boss = !!def.boss; u.elite = !!o.elite; u.fly = !!def.fly;
   u.base = { hp: def.hp * S.hpMul * k * (o.hpK || 1), atk: def.atk * S.atkMul * (o.elite ? 1.3 : 1) * (o.atkK || 1), aspd: def.aspd, speed: def.speed };
+  u.ccK = o.ccK || 1;
   u.horde = !!o.hpK && o.hpK < 1;
   if (def.dr) u.mods.dr = def.dr;
   if (def.kbRes) u.mods.kbRes = 1;
@@ -107,6 +108,8 @@ const maxHpOf = (u) => u.base.hp * (1 + (u.mods.hp || 0));
 const atkOf = (u) => u.base.atk * (1 + M(u, 'atk'));
 const aspdOf = (u) => u.base.aspd * (1 + M(u, 'aspd')) * (u.status.slow ? 1 - u.status.slow.v * 0.5 : 1);
 const speedOf = (u) => u.base.speed * (1 + M(u, 'speed')) * (u.status.slow ? 1 - u.status.slow.v : 1);
+// what the result screen compares: base, cards and passive mods only, never a status or a timed buff
+const permStats = (u) => ({ atk: u.base.atk * (1 + (u.mods.atk || 0)), hp: maxHpOf(u), aspd: u.base.aspd * (1 + (u.mods.aspd || 0)), crit: Math.min(1, 0.05 + (u.mods.crit || 0)) });
 const stunned = (u) => !!(u.status.stun || u.status.freeze);
 const rooted = (u) => stunned(u) || !!u.status.root;
 const targetable = (u) => u.alive && !u.untargetable && !(u.state.stealth > 0) && !(u.spawnT > 0.3);
@@ -161,11 +164,13 @@ function pickFoe(B, u, how, maxD = 14) {
 }
 
 // ---------- damage, healing, status ----------
+const CC_FLOOR = 0.25;
 function addStatus(B, src, dst, s, power) {
   if (!dst.alive || !s) return;
   const hard = s.k === 'stun' || s.k === 'freeze' || s.k === 'root';
   if (hard && dst.state.invuln > 0) return;
   let dur = s.dur;
+  if ((hard || s.k === 'slow') && src && src.ccK < 1) dur = Math.max(Math.min(dur, CC_FLOOR), dur * src.ccK);
   if (hard || s.k === 'slow') dur *= dst.boss ? 0.35 : 1 - Math.min(0.8, M(dst, 'ccRes'));
   const cur = dst.status[s.k];
   const dps = (s.v || 0) * power;
@@ -683,7 +688,7 @@ function spawnDue(B) {
     for (let i = 0; i < g.n; i++) {
       const a = a0 + (B.rng() - 0.5) * (g.spread !== undefined ? g.spread : 0.9);
       const p = rimPoint(a, SPAWN_K + B.rng() * 0.03);
-      const e = makeEnemy(B, g.kind, p.x, p.z, { elite: g.elite, hpK: g.hpK, atkK: g.atkK });
+      const e = makeEnemy(B, g.kind, p.x, p.z, { elite: g.elite, hpK: g.hpK, atkK: g.atkK, ccK: g.ccK });
       addUnit(B, e); B.spawnsLeft--;
       B.emit({ e: 'spawn', uid: e.uid, kind: e.kind, x: e.x, z: e.z, boss: e.boss, elite: e.elite });
       if (e.boss) { B.boss = e.uid; B.emit({ e: 'boss', uid: e.uid, kind: e.kind, name: e.def.name }); }
@@ -835,7 +840,7 @@ export function battleReport(B) {
     kills: u.kills || 0, ults: u.ults || 0, casts: u.casts || 0, aliveT: u.aliveT, downT: u.downT, downs: u.downs,
     cards: u.cards.slice(),
     start: { ...u.start },
-    end: { atk: atkOf(u), hp: u.maxHp, aspd: aspdOf(u), crit: Math.min(1, 0.05 + M(u, 'crit')) },
+    end: permStats(u),
   }));
 }
 

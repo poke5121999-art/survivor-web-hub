@@ -650,5 +650,59 @@ const opened = () => {
   for (const scr of ['home', 'battle']) { const g = M.ftueNext({ screen: scr }); check(!(g && (g.id === 'equip' || g.id === 'merge')), `old save: no equipment or merge guide on ${scr}`); }
 }
 
+// review defect 1: the merge unlock and the guide count only what the merge screen accepts (worn copies cannot be fodder, a worn main is fine)
+{
+  const M = brandNew(); const a = M.acc;
+  Object.assign(a, { level: 9, cleared: 9, equipAt: 0, mergeOpen: false });
+  for (const id of ['mua', 'yta', 'thep']) a.heroes[id] = { level: 1, shards: 0 };
+  a.team = ['gio', 'mua', 'yta', 'thep'];
+  give(M, 'weapon', 'w_cua'); give(M, 'weapon', 'w_cua');
+  for (const h of a.team) M.equipBest(h);
+  const third = give(M, 'weapon', 'w_cua');
+  check(M.unlocked('merge') === false && !a.mergeOpen, 'worn copies: two of three identical weapons are worn, merge stays locked');
+  eq(M.guideTokens()['bag-main'], undefined, 'worn copies: the guide has no merge target');
+  check(M.ftueNext({ screen: 'home' }) === null || M.ftueNext({ screen: 'home' }).id !== 'merge', 'worn copies: the merge guide is not offered');
+  const wornUid = a.equip.gio.weapon;
+  M.unequip('mua', 'weapon');
+  const tk = M.guideTokens(), copies = a.bag.filter((i) => i.uid !== wornUid);
+  check(M.unlocked('merge') === true, 'one worn and two free copies: merge opens');
+  eq([tk['bag-main'], tk['bag-copy1'], tk['bag-copy2']], ['bag-' + wornUid, 'bag-' + copies[0].uid, 'bag-' + copies[1].uid], 'the guide names the worn piece as main and two free copies');
+  const r = M.merge(wornUid, copies.map((i) => i.uid));
+  check(r.ok && a.equip.gio.weapon === wornUid && a.bag.find((i) => i.uid === wornUid).tier === 1, 'a worn main piece merges and stays worn');
+  void third;
+}
+
+// review defect 2: a new save at level 9 without a triple keeps merge locked across a reload; a true old-format save has it open
+{
+  const st = fakeStorage();
+  const M = brandNew(st); Object.assign(M.acc, { level: 9, cleared: 9, equipAt: 0 }); M.save();
+  const R = brandNew(st); R.load();
+  check(R.unlocked('merge') === false && !R.acc.ftue.done.merge, 'new save at level 9 without a triple: merge stays locked and its guide is not done after a reload');
+  const R2 = brandNew(st); R2.load();
+  check(R2.unlocked('merge') === false, 'and after a second reload');
+  const old = fakeStorage();
+  old.setItem(KEY, JSON.stringify({ v: 1, gold: 9, gems: 0, cleared: 12, level: 9, heroes: { gio: { level: 1, shards: 0 } }, team: ['gio'], bag: [], ftue: { done: {}, session: true }, seenUnlock: {}, visited: {} }));
+  check(brandNew(old).unlocked('merge') === true, 'old-format save at level 9: merge is open');
+}
+
+// review defect 3: an old save below level 6 that already holds items
+{
+  const mk = (bag) => {
+    const st = fakeStorage();
+    st.setItem(KEY, JSON.stringify({ v: 1, gold: 9, gems: 0, cleared: 4, level: 5, xp: 0, heroes: { gio: { level: 1, shards: 0 } }, team: ['gio'], bag, ftue: { done: {}, session: true }, seenUnlock: {}, visited: {} }));
+    return brandNew(st);
+  };
+  const M = mk([{ uid: 1, item: 'a_lop', tier: 0, lv: 1 }, { uid: 2, item: 'w_cua', tier: 0, lv: 1 }, { uid: 3, item: 'w_cua', tier: 0, lv: 1 }, { uid: 4, item: 'w_cua', tier: 0, lv: 1 }]);
+  check(M.unlocked('equip') === false && M.unlocked('merge') === false, 'old level-5 save with three weapons: Trang Bị and merge are both locked');
+  check(!M.merge(2, [3, 4]).ok && !M.autoMerge().ok && M.acc.bag.length === 4, 'old level-5 save: merge and autoMerge are refused');
+  M.acc.xp = 10000; const f = M.finishStage({ stage: 5, won: true, wavesCleared: 5 });
+  check(M.unlocked('equip') && f.gift === null, 'Trang Bị opens with a weapon already in the bag: no gift');
+  const g = M.ftueNext({ screen: 'home', skip: ['daily', 'chapter'] });
+  check(g && g.id === 'equip' && M.guideTokens()['bag-first'] === 'bag-2', 'the equipment guide starts at the weapon, not at the armour piece of a closed slot');
+  const N = mk([{ uid: 1, item: 'a_lop', tier: 0, lv: 1 }]);
+  N.acc.xp = 10000; const f2 = N.finishStage({ stage: 5, won: true, wavesCleared: 5 });
+  check(f2.gift && N.guideTokens()['bag-first'] === 'bag-' + f2.gift.uid, 'armour only: the gift weapon is given and the guide points at it');
+}
+
 if (fails.length) { console.log(`\n${fails.length} FAILED`); process.exit(1); }
 console.log('\nALL PASS');

@@ -967,7 +967,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/ai-sinh-ton.png",
     // three.js r160, không asset: xem games/ai-sinh-ton/README.md. Kiểm: sh games/ai-sinh-ton/tools/all.sh
     path: "games/ai-sinh-ton/index.html",
-    rev: "20261120b",
+    rev: "20261120c",
     status: "available",
     tags: ["Đấu tự động", "Zombie", "Màn dọc"]
   },
@@ -997,7 +997,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/dau-truong-thep.png",
     // three.js r160, không asset: xem games/dau-truong-thep/README.md. Kiểm: node games/dau-truong-thep/tools/sim-test.mjs && node games/dau-truong-thep/tools/play.js
     path: "games/dau-truong-thep/index.html",
-    rev: "20261120b",
+    rev: "20261120c",
     status: "available",
     tags: ["Bắn súng", "Đấu đội 3v3", "Săn trùm"]
   },

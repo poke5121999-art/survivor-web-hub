@@ -25,7 +25,7 @@ export const GRIP = {
   glaive: { scale: 1.4, type: 'pole', ...BLADE, main: [0, -0.25, 0], support: null, stock: null,
     rest: { rh: [0.28, 0.42, 0.1], lh: [-0.02, 0.58, 0.42], twist: 0.2 }, aim: { rh: [0.28, 0.5, 0.1], lh: [-0.02, 0.58, 0.42], twist: 0.2 } },
   javelin: { scale: 1.4, type: 'thrown', ...GUN, main: [0, 0, 0.1], support: null, stock: null, carry: [0.5, 0.2, 0.84] },
-  shuriken: { scale: 2.6, type: 'thrown', ...GUN, main: [0, 0.02, -0.105], support: null, stock: null },
+  shuriken: { scale: 3, type: 'thrown', ...GUN, main: [0, 0.02, -0.105], support: null, stock: null },
   fists: { scale: 2.3, type: 'fists', ...GUN, main: [0, 0, -0.07], support: null, stock: null, both: true },
   claws: { scale: 2.0, type: 'fists', ...GUN, main: [0, 0, -0.07], support: null, stock: null, both: true },
   dualpistol: { scale: 1.9, type: 'dual', ...GUN, main: [0, -0.09, 0], support: null, stock: null,

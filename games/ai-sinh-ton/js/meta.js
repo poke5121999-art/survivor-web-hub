@@ -10,11 +10,11 @@
 //     equipAt (stages cleared when Trang Bị opened), mergeOpen (latched once the bag held 3 identical items) }
 // stats also counts upgrades and merges (manual) for the equipment unlocks.
 
-import { GACHA, HERO_RARITY, rollGacha, rollTen, levelCost, levelMul, stageReward, lossReward, DAILY, START } from './data/economy.js?v=20261120b';
-import { SLOTS, TIERS, ITEMS, ITEM, itemStat, upgradeCost, mergeProblem, merge as mergeItems, autoMergePlan, equipBonus, baseWorth } from './data/equip.js?v=20261120b';
-import { HEROES, HERO } from './data/heroes.js?v=20261120b';
-import { UNLOCKS, UNLOCK, isUnlocked, lockText, teamSlots, newUnlocks, addXp, xpForResult, NEW_ACCOUNT, GIFTS, FTUE, LATER_GUIDES, hasTriple, slotOpen, openSlots, slotLine, EQUIP_GOLD } from './data/unlocks.js?v=20261120b';
-import { makeRng } from './sim/battle.js?v=20261120b';
+import { GACHA, HERO_RARITY, rollGacha, rollTen, levelCost, levelMul, stageReward, lossReward, DAILY, START } from './data/economy.js?v=20261120c';
+import { SLOTS, TIERS, ITEMS, ITEM, itemStat, upgradeCost, mergeProblem, merge as mergeItems, autoMergePlan, equipBonus, baseWorth } from './data/equip.js?v=20261120c';
+import { HEROES, HERO } from './data/heroes.js?v=20261120c';
+import { UNLOCKS, UNLOCK, isUnlocked, lockText, teamSlots, newUnlocks, addXp, xpForResult, NEW_ACCOUNT, GIFTS, FTUE, LATER_GUIDES, mergeTriples, wornOf, slotOpen, openSlots, slotLine, EQUIP_GOLD } from './data/unlocks.js?v=20261120c';
+import { makeRng } from './sim/battle.js?v=20261120c';
 
 const VERSION = 1;
 const TEAM_MAX = 4;
@@ -55,7 +55,7 @@ function freshAccount(now, preset) {
     v: VERSION, gold: vet ? START.gold : NEW_ACCOUNT.gold, gems: vet ? START.gems : NEW_ACCOUNT.gems, pity: 0,
     heroes: Object.fromEntries(heroes.map((id) => [id, { level: 1, shards: 0 }])),
     team: heroes.slice(), cleared: 0, best: {}, bag: [], equip: {}, mats: emptyMats(), uidSeq: 0,
-    seed: (now().getTime() ^ 0x9e3779b9) >>> 0 || 1, daily: '', chapters: {}, stats: { pulls: 0, wins: 0, losses: 0, upgrades: 0, merges: 0 }, seen: {},
+    seed: (now().getTime() ^ 0x9e3779b9) >>> 0 || 1, mergeOpen: false, daily: '', chapters: {}, stats: { pulls: 0, wins: 0, losses: 0, upgrades: 0, merges: 0 }, seen: {},
     level: vet ? 10 : 1, xp: 0, ftue: { done: {}, session: false }, seenUnlock: allTrue(openAtStart()), visited: allTrue(openAtStart()), freePull: !vet,
   };
   if (vet) {
@@ -136,8 +136,10 @@ function repair(raw, now, preset) {
   const legacyEquip = isUnlocked(acc, 'equip') && !Number.isFinite(a.equipAt);
   if (Number.isFinite(a.equipAt)) acc.equipAt = Math.floor(a.equipAt); else if (legacyEquip) acc.equipAt = LEGACY_EQUIP_AT;
   if (legacyEquip && !(a.stats && Number.isFinite(a.stats.upgrades))) acc.stats.upgrades = 1;
-  if (a.mergeOpen === true || (a.mergeOpen === undefined && acc.level >= 9) || hasTriple(acc.bag)) acc.mergeOpen = true;
-  if (acc.mergeOpen && !(a.stats && Number.isFinite(a.stats.merges)) && a.mergeOpen === undefined) acc.stats.merges = 1;
+  // only a save from before equipAt existed leaves mergeOpen unset on purpose: current saves write it (false until the latch fires)
+  const preMerge = a.mergeOpen === undefined && !Number.isFinite(a.equipAt);
+  if (isUnlocked(acc, 'equip') && (a.mergeOpen === true || (preMerge && acc.level >= 9) || mergeTriples(acc.bag, wornOf(acc)).length)) acc.mergeOpen = true;
+  if (acc.mergeOpen && !(a.stats && Number.isFinite(a.stats.merges)) && preMerge) acc.stats.merges = 1;
   acc.seen = {};
   if (a.seen && typeof a.seen === 'object') for (const [k, v] of Object.entries(a.seen)) if (v) acc.seen[k] = true;
   const flags = (src, ids) => { const out = {}; if (src && typeof src === 'object') for (const id of ids) if (src[id]) out[id] = true; return out; };
@@ -204,7 +206,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     return out;
   };
   // merge stays open once the bag has held three identical items, even after they are merged away
-  const latch = () => { if (!M.acc.mergeOpen && hasTriple(M.acc.bag)) M.acc.mergeOpen = true; };
+  const latch = () => { if (!M.acc.mergeOpen && isUnlocked(M.acc, 'equip') && mergeTriples(M.acc.bag, wornUids()).length) M.acc.mergeOpen = true; };
   const done = (name, result) => { latch(); M.save(); const r = { ok: true, ...result }; for (const fn of listeners) fn(name, r); return r; };
 
   const newItem = (item, tier = 0) => { const it = { uid: ++M.acc.uidSeq, item, tier, lv: 1 }; M.acc.bag.push(it); return it; };
@@ -336,7 +338,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     let gift = null;
     if (!before.cheatUnlock && !isUnlocked(before, 'equip') && isUnlocked(acc, 'equip')) {
       acc.equipAt = acc.cleared;
-      if (!acc.bag.length) { gift = newItem(GIFT_ITEM, 0); items.push(gift); }
+      if (!acc.bag.some((i) => ITEM[i.item].slot === 'weapon')) { gift = newItem(GIFT_ITEM, 0); items.push(gift); }
     }
     latch();
     const unlocked = newUnlocks(before, acc);
@@ -501,24 +503,25 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
   // context: { screen, event }. An event step matches its `when`; home steps match at home.
   M.ftueNext = (ctx = {}) => {
     if (!M.acc.ftue.session) {
-      const step = FTUE.find((s) => !guideDone(s.id) && (s.when === ctx.event || (s.when === 'home' && (ctx.event === 'home' || (ctx.event === undefined && ctx.screen === 'home')))) && ftueOpen(s));
+      const step = FTUE.find((s) => !guideDone(s.id) && !(ctx.skip && ctx.skip.includes(s.id)) && (s.when === ctx.event || (s.when === 'home' && (ctx.event === 'home' || (ctx.event === undefined && ctx.screen === 'home')))) && ftueOpen(s));
       if (step) return { ...step };
       return null;
     }
     for (const [id, g] of Object.entries(LATER_GUIDES)) {
       if (id === 'merge' && M.acc.stats.merges > 0) continue;
-      if (id === 'equip' && !M.acc.bag.length) continue;
+      if (id === 'equip' && !firstOpenItem()) continue;
+      if (id === 'merge' && !mergeTriples(M.acc.bag, wornUids()).length) continue;
       if (!guideDone(id) && !(ctx.skip && ctx.skip.includes(id)) && M.unlocked(id) && LATER_SCREEN[id] === ctx.screen) return { id, ...g, later: true };
     }
     return null;
   };
   // bag item ids the later guides point at: the gift, or the first triple (main piece and two copies, lowest uids first)
+  // the first item of an opened slot (the gift on a normal account), lowest uid first
+  const firstOpenItem = () => { const open = M.openSlots(); return M.acc.bag.slice().sort((x, y) => x.uid - y.uid).find((i) => open.includes(ITEM[i.item].slot)); };
   M.guideTokens = () => {
-    const bag = M.acc.bag.slice().sort((a, b) => a.uid - b.uid), out = { 'bag-first': bag[0] ? 'bag-' + bag[0].uid : '' };
-    const groups = new Map();
-    for (const it of bag) if (TIERS[it.tier].exact) { const k = it.item + '|' + it.tier; (groups.get(k) || groups.set(k, []).get(k)).push(it); }
-    const tri = [...groups.values()].find((g) => g.length >= 3);
-    if (tri) { out['bag-main'] = 'bag-' + tri[0].uid; out['bag-copy1'] = 'bag-' + tri[1].uid; out['bag-copy2'] = 'bag-' + tri[2].uid; }
+    const first = firstOpenItem(), out = { 'bag-first': first ? 'bag-' + first.uid : '' };
+    const tri = mergeTriples(M.acc.bag, wornUids())[0];
+    if (tri) { out['bag-main'] = 'bag-' + tri.main.uid; out['bag-copy1'] = 'bag-' + tri.copies[0].uid; out['bag-copy2'] = 'bag-' + tri.copies[1].uid; }
     return out;
   };
   M.markSeen = (id) => { if (!UNLOCK[id] || M.acc.seenUnlock[id]) return { ok: true }; M.acc.seenUnlock[id] = true; return done('markSeen', { id }); };

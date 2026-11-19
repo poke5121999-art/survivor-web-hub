@@ -422,6 +422,26 @@ try {
       check(pr2.length === 0, 'old save equipment screen logged no errors');
       await c2.close();
     }
+    // review defect 1: a worn piece may be the main piece of the guided merge and stays worn; two worn copies leave merge locked
+    for (const wornN of [2, 1]) {
+      const { page: q, ctx: c3, problems: pr3 } = await fresh(); await step(q, 10);
+      await q.evaluate((n) => { const it = (u) => ({ uid: u, item: 'w_cua', tier: 0, lv: 1 }); const eq = (u) => ({ weapon: u, armor: 0, gloves: 0, boots: 0, necklace: 0, belt: 0 });
+        localStorage.setItem('aisinhton.save.v1', JSON.stringify({ v: 1, gold: 900, gems: 40, cleared: 9, level: 9, equipAt: 0, mergeOpen: false, uidSeq: 3, heroes: { gio: { level: 1, shards: 0 }, mua: { level: 1, shards: 0 } }, team: ['gio', 'mua'], bag: [it(1), it(2), it(3)], equip: n === 2 ? { gio: eq(1), mua: eq(2) } : { gio: eq(1) }, ftue: { done: { equip: true, daily: true, chapter: true, speed: true, spectate: true }, session: true }, seenUnlock: { upgrade: true }, visited: {} })); }, wornN);
+      await q.reload(); await q.waitForFunction('window.__ready === true'); await step(q, 200);
+      for (let k = 0; k < 8 && (await guide(q)).reveal; k++) { await tapId(q, 'reveal-tap'); await step(q, 40); }
+      await step(q, 40);
+      const o = await q.evaluate(() => ({ g: __G.guide.dbg(), open: __G.meta.unlocked('merge'), done: !!__G.meta.acc.ftue.done.merge }));
+      if (wornN === 2) check(!o.open && !(o.g.active && o.g.id === 'merge') && !o.done, `two of three copies worn: merge stays locked, no merge guide, not marked done (${JSON.stringify([o.open, o.g.id, o.done])})`);
+      else {
+        check(o.open && o.g.active && o.g.id === 'merge', `one worn copy: merge is open and its guide runs (${JSON.stringify([o.open, o.g.id])})`);
+        for (let k = 0; k < 60 && (await guide(q)).active; k++) { const d = await guide(q); if (d.reveal) { await tapId(q, 'reveal-tap'); await step(q, 40); continue; } if (!d.rect) { await step(q, 8); continue; } await tapId(q, d.target); await step(q, 12); }
+        await step(q, 80);
+        const r = await q.evaluate(() => ({ bag: __G.meta.acc.bag.map((i) => [i.uid, i.tier]), worn: __G.meta.acc.equip.gio.weapon, done: !!__G.meta.acc.ftue.done.merge }));
+        check(r.bag.length === 1 && r.bag[0][1] === 1 && r.worn === r.bag[0][0] && r.done, `the guided merge uses the worn piece as main and it stays worn (${JSON.stringify(r)})`);
+      }
+      check(pr3.length === 0, `worn-copy merge flow logged no errors (${pr3.slice(0, 2).join(' | ') || 'none'})`);
+      await c3.close();
+    }
     sheet(eshots, path.join(OUTE, 'sheet.png'), 6, 300);
   }
 

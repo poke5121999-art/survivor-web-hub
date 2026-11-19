@@ -1,6 +1,6 @@
 // Account level, the unlock table and the first-session guide (FTUE). Pure rules: meta.js stores the state,
 // the screens ask isUnlocked() and show lockText() on a padlock, tools/pacing.mjs reports when each thing opens.
-import { SLOTS, TIERS } from './equip.js?v=20261120b';
+import { SLOTS, TIERS } from './equip.js?v=20261120c';
 
 // ---- account level (separate from hero levels) ----
 export const XP = { wave: 10, clear: 30, first: 60 };
@@ -46,17 +46,28 @@ export const UNLOCKS = [
 ];
 export const UNLOCK = Object.fromEntries(UNLOCKS.map((u) => [u.id, u]));
 
-// three identical items of an exact-merge tier
-export function hasTriple(bag) {
-  const seen = new Map();
+// the groups of identical exact-merge items the merge screen accepts: `need` copies, of which at most one (the main piece) is worn.
+// Returns [{ main, copies }] with the main piece first (a worn one if any) and the free copies by uid.
+export function mergeTriples(bag, wornUids) {
+  const worn = wornUids || new Set(), groups = new Map(), out = [];
   for (const it of Array.isArray(bag) ? bag : []) {
-    if (!TIERS[it.tier] || !TIERS[it.tier].exact) continue;
-    const k = it.item + '|' + it.tier, n = (seen.get(k) || 0) + 1;
-    if (n >= TIERS[it.tier].need) return true;
-    seen.set(k, n);
+    if (!TIERS[it.tier] || !TIERS[it.tier].exact || !TIERS[it.tier].need) continue;
+    const k = it.item + '|' + it.tier;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(it);
   }
-  return false;
+  for (const g of groups.values()) {
+    const need = TIERS[g[0].tier].need;
+    g.sort((a, b) => a.uid - b.uid);
+    const free = g.filter((i) => !worn.has(i.uid)), held = g.filter((i) => worn.has(i.uid));
+    if (g.length < need || free.length < need - 1) continue;
+    const main = held[0] || free[0];
+    out.push({ main, copies: free.filter((i) => i !== main).slice(0, need - 1) });
+  }
+  return out;
 }
+export const wornOf = (acc) => { const s = new Set(); for (const e of Object.values(acc.equip || {})) for (const u of Object.values(e || {})) if (u) s.add(u); return s; };
+export const hasTriple = (bag, wornUids) => mergeTriples(bag, wornUids).length > 0;
 
 // acc needs { level, cleared } and, for the equipment rows, equipAt, mergeOpen, bag and stats.upgrades when it has them
 export function isUnlocked(acc, id) {
@@ -66,7 +77,7 @@ export function isUnlocked(acc, id) {
   if (n.stage !== undefined && !(acc.cleared >= n.stage)) return false;
   if (n.level !== undefined && !(acc.level >= n.level)) return false;
   if (n.after !== undefined && !(isUnlocked(acc, 'equip') && Number.isFinite(acc.equipAt) && acc.cleared >= acc.equipAt + n.after)) return false;
-  if (n.triple && !(acc.mergeOpen || hasTriple(acc.bag))) return false;
+  if (n.triple && !(isUnlocked(acc, 'equip') && (acc.mergeOpen || hasTriple(acc.bag, wornOf(acc))))) return false;
   if (n.upgrades !== undefined && !(acc.stats && acc.stats.upgrades >= n.upgrades)) return false;
   return true;
 }
@@ -167,7 +178,7 @@ export const LATER_GUIDES = {
 export function tutorialStage(base) {
   // ordinary packs arrive three times larger and weaker, like every stage's horde (stages.js HORDE); the giant stays one body
   const H = 3;
-  const g = (kind, n, at, ang) => (kind === 'giant' ? { kind, n, at, ang, spread: 0.7 } : { kind, n: n * H, at: at * 0.6, ang, spread: 1.3, hpK: Math.pow(H, -0.62), atkK: Math.pow(H, -1.12) });
+  const g = (kind, n, at, ang) => (kind === 'giant' ? { kind, n, at, ang, spread: 0.7 } : { kind, n: n * H, at: at * 0.6, ang, spread: 1.3, hpK: Math.pow(H, -0.62), atkK: Math.pow(H, -1.12), ccK: Math.pow(H, -0.5) });
   return {
     ...base, n: 1, tutorial: true, name: 'Phố Hoang 1', hpMul: base.hpMul * 0.6, atkMul: base.atkMul * 0.45, bossHp: base.bossHp * 0.3, bossTier: 1,
     waves: [

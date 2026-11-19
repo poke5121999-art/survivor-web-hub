@@ -4,8 +4,8 @@
 //              (id "guide-block") cover everything outside the spotlight.
 //   'reveal' - the padlock pops open and the new feature flies in; tap to continue.
 // meta.ftueNext() says what to show, game.events says when; pressing the target (a pointer press on it) completes a step.
-import { UNLOCK } from '../data/unlocks.js?v=20261120b';
-import { kill, clamp, easeOut, easeBack } from './hud.js?v=20261120b';
+import { UNLOCK } from '../data/unlocks.js?v=20261120c';
+import { kill, clamp, easeOut, easeBack } from './hud.js?v=20261120c';
 
 const GIVE_UP = 8;
 const HAND_LEN = 84;
@@ -59,7 +59,7 @@ export function createGuide(game) {
   scr.put(skipBtn, 124, 8, 70); skipBtn.setVisible(false);
 
   let panel = null, panelKey = '', panelH = 60;
-  const S = { step: null, idx: 0, wait: 0, miss: 0, t: 0, wrapped: null, rect: null, queue: [], noTarget: false, hold: null };
+  const S = { step: null, idx: 0, wait: 0, miss: 0, t: 0, wrapped: null, rect: null, queue: [], dis: 0, skipped: new Set(), noTarget: false, hold: null };
   let reveal = null;
 
   function toDesign(r) { const fr = frame.getBoundingClientRect(), k = fr.width / 360; return { x: (r.x - fr.left) / k, y: (r.y - fr.top) / k, w: r.w / k, h: r.h / k }; }
@@ -129,15 +129,15 @@ export function createGuide(game) {
   const entryOf = (step, i) => rawPath(step)[i] || null;
   // a press is a pointer down and up on the target; the kit's own listener on the frame runs first, so its onTap has fired
   let downId = null, downOn = false, downXY = [0, 0];
-  frame.addEventListener('pointerdown', (e) => { downId = ui.hitAt(e.clientX, e.clientY); const t = downId && ui.targets().find((q) => q.id === downId); downOn = !!(t && t.enabled); downXY = [e.clientX, e.clientY]; });
+  frame.addEventListener('pointerdown', (e) => { game.guideRefused = false; downId = ui.hitAt(e.clientX, e.clientY); const t = downId && ui.targets().find((q) => q.id === downId); downOn = !!(t && t.enabled); downXY = [e.clientX, e.clientY]; });
   frame.addEventListener('pointerup', (e) => {
     const step = S.step, id = downId; downId = null;
     if (!step || S.noTarget || !id || isOwn(id) || id !== pathOf(step)[S.idx] || Math.hypot(e.clientX - downXY[0], e.clientY - downXY[1]) > 10) return;
-    if (downOn) pressed(step);
+    if (downOn && !game.guideRefused) pressed(step);
   });
   function pressed(step) {
     if (S.step !== step) return;
-    S.idx++; S.miss = 0; S.wait = 0; S.t = 0;
+    S.idx++; S.miss = 0; S.dis = 0; S.wait = 0; S.t = 0;
     if (S.idx >= rawPath(step).length) finish(step);
   }
   function onBlocked() {
@@ -145,7 +145,7 @@ export function createGuide(game) {
     else if (S.step && !(entryOf(S.step, S.idx) || {}).wait) S.t = 0;
   }
   function begin(step) {
-    S.step = step; S.idx = 0; S.wait = 0; S.miss = 0; S.t = 0; S.rect = null; S.noTarget = rawPath(step).length === 0; panelKey = '';
+    S.step = step; S.idx = 0; S.wait = 0; S.miss = 0; S.dis = 0; S.t = 0; S.rect = null; S.noTarget = rawPath(step).length === 0; panelKey = '';
     if (step.freeze) game.frozen = true;
     hand.visible = false; dimKey = '';
   }
@@ -161,7 +161,7 @@ export function createGuide(game) {
 
   function offer(ctx) {
     if ((reveal && reveal.busy()) || S.step) { S.queue.push(ctx); return; }
-    const step = meta.ftueNext(ctx);
+    const step = meta.ftueNext({ ...ctx, skip: [...S.skipped] });
     if (step) begin(step);
   }
   function drain(home, later) {
@@ -225,6 +225,8 @@ export function createGuide(game) {
     const id = path[S.idx];
     const hit = ui.targets().find((t) => t.id === id && !isOwn(t.id));
     if (hit && !hit.enabled && S.idx < path.length - 1) { S.idx++; return; }
+    // the last target stays disabled: give up for this session without marking the guide done, so it can run again later
+    if (hit && !hit.enabled) { S.dis += dt; if (S.dis > GIVE_UP) { S.skipped.add(step.id); game.frozen = false; S.step = null; S.rect = null; hand.visible = false; ui.hide('guide', { transition: 'none' }); drain(false, step.later); return; } } else S.dis = 0;
     if (!hit) {
       S.miss += dt; S.rect = null; drawDim(null); layoutBands(null); hand.visible = false; placePanel(null, null);
       if (S.miss > GIVE_UP) { game.frozen = false; finish(step); }
