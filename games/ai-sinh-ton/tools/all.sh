@@ -19,6 +19,8 @@ if [ -z "$AST_BASE" ]; then
   run pacing node tools/pacing.mjs 5 60
 fi
 for t in smoke battle-test meta-ui-test ftue-test view-shots floor-shots ui-shots; do
+  # floor-shots compares against a local extract of the old Blockade Z, which is not on the deployed site
+  [ -n "$AST_BASE" ] && [ "$t" = floor-shots ] && continue
   [ -f "tools/$t.mjs" ] && run "$t" node "tools/$t.mjs"
 done
 [ "$bad" = 0 ] && echo "GATE: ALL PASS" || echo "GATE: FAILED"

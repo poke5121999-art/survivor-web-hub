@@ -184,15 +184,15 @@ try {
       const { ctx, page, problems } = await open(br, srv.base, 's22', 'noaudio=1&seed=9');
       await page.evaluate(WAIT);
       const miss = await page.evaluate(async () => {
-        const { HEROES } = await import('/games/ai-sinh-ton/js/data/heroes.js'); const { ENEMY } = await import('/games/ai-sinh-ton/js/data/enemies.js');
-        const { KEYS } = await import('/games/ai-sinh-ton/js/view/fxmap.js'); const keys = new Set();
+        const { HEROES } = await import(new URL('js/data/heroes.js' + ((document.querySelector('script[src*="main.js"]').src.match(/\?.*$/) || [''])[0]), location.href).href); const { ENEMY } = await import(new URL('js/data/enemies.js' + ((document.querySelector('script[src*="main.js"]').src.match(/\?.*$/) || [''])[0]), location.href).href);
+        const { KEYS } = await import(new URL('js/view/fxmap.js' + ((document.querySelector('script[src*="main.js"]').src.match(/\?.*$/) || [''])[0]), location.href).href); const keys = new Set();
         const add = (o) => { if (o && o.fx) keys.add(o.fx); };
         for (const h of HEROES) { add(h.attack); add(h.s1); add(h.s2); add(h.ult); }
         for (const e of Object.values(ENEMY)) { add(e.attack); add(e.s1); add(e.s2); add(e.s3); for (const s of e.skills || []) add(s); }
         return [...keys].filter((k) => !KEYS[k]);
       });
       check(miss.length === 0, `fxmap has an entry for every data key (missing: ${miss.join(',') || 'none'})`);
-      const skillKeys = await page.evaluate(async () => { const { HEROES } = await import('/games/ai-sinh-ton/js/data/heroes.js'); return HEROES.map((h) => [h.id, [h.s1, h.s2, h.ult].filter(Boolean).map((s) => s.fx)]); });
+      const skillKeys = await page.evaluate(async () => { const { HEROES } = await import(new URL('js/data/heroes.js' + ((document.querySelector('script[src*="main.js"]').src.match(/\?.*$/) || [''])[0]), location.href).href); return HEROES.map((h) => [h.id, [h.s1, h.s2, h.ult].filter(Boolean).map((s) => s.fx)]); });
       for (const [id, keys] of skillKeys) {
         const left = await page.evaluate(([i, ks]) => {
           const G = window.__G; for (const k of Object.keys(G.actors.fx.counters)) delete G.actors.fx.counters[k];
