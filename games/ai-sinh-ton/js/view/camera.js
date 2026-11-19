@@ -4,17 +4,19 @@
 const THREE = window.THREE;
 const BZ = window.BZ;
 
-const PITCH = 55 * Math.PI / 180;
+const PITCH = 47 * Math.PI / 180;
 const YAW = 0.6;
 const FOV_OVER = 30;
 const FOV_CHASE = 58;
 const FRAME_H = 780;
 const BAND_TOP = 90 / FRAME_H * 2;
 const BAND_BOT = 170 / FRAME_H * 2;
-const X_MARGIN = 0.9;
-const MIN_R = 9;
-const MAX_R = 15;
+const X_MARGIN = 0.97;
+const MIN_R = 7.6;
+const MAX_R = 14.6;
 const ARENA_R = 14;
+const NEAR_FOES = 10;
+const HERO_WEIGHT = 0.72;
 
 export function createCamera(H) {
   const { camera, G } = H;
@@ -23,7 +25,7 @@ export function createCamera(H) {
   const v = new THREE.Vector3(); const look = new THREE.Vector3(); const pos = new THREE.Vector3();
   const ring = []; for (let i = 0; i < 16; i++) ring.push(new THREE.Vector3());
   let R = 11; let dist = 80; let shift = 0.1; let blend = 0; let want = 0; let target = 0; let first = true; let fov = FOV_OVER;
-  const C = { focus, mode: 'overview', spectate(uid) { target = uid || 0; want = target ? 1 : 0; }, update };
+  const C = { focus, get R() { return R; }, get dist() { return dist; }, mode: 'overview', spectate(uid) { target = uid || 0; want = target ? 1 : 0; H.spectateUid = target; }, update };
   Object.defineProperty(C, 'mode', { get: () => (target ? 'spectate' : 'overview') });
 
   // the bounding box, in NDC, of a ring of radius r (ground and head height) seen from distance d
@@ -60,19 +62,29 @@ export function createCamera(H) {
 
   function update(B, dt) {
     const k = Math.min(1, dt * 4);
-    // overview focus and radius from the living fighters
+    // overview focus and radius: the heroes, plus enemies close enough to the heroes to matter
     let n = 0; wantFocus.set(0, 0, 0); let maxD = 0;
     if (B) {
-      for (const u of B.heroes) if (u.alive) { wantFocus.x += u.x; wantFocus.z += u.z; n++; }
-      if (n) { wantFocus.x /= n; wantFocus.z /= n; } else { wantFocus.set(focus.x, 0, focus.z); }
-      for (const u of B.heroes) if (u.alive) maxD = Math.max(maxD, Math.hypot(u.x - wantFocus.x, u.z - wantFocus.z));
-      for (const u of B.enemies) if (u.alive && Math.hypot(u.x, u.z) <= ARENA_R) maxD = Math.max(maxD, Math.hypot(u.x - wantFocus.x, u.z - wantFocus.z));
+      let hx = 0; let hz = 0;
+      for (const u of B.heroes) if (u.alive) { hx += u.x; hz += u.z; n++; }
+      if (n) {
+        hx /= n; hz /= n; let ex = 0; let ez = 0; let ne = 0;
+        for (const u of B.enemies) if (u.alive && Math.hypot(u.x, u.z) <= ARENA_R && Math.hypot(u.x - hx, u.z - hz) <= NEAR_FOES) { ex += u.x; ez += u.z; ne++; }
+        const w = ne ? HERO_WEIGHT : 1;
+        wantFocus.x = hx * w + (ne ? (ex / ne) * (1 - w) : 0); wantFocus.z = hz * w + (ne ? (ez / ne) * (1 - w) : 0);
+        for (const u of B.heroes) if (u.alive) maxD = Math.max(maxD, Math.hypot(u.x - wantFocus.x, u.z - wantFocus.z));
+        for (const u of B.enemies) if (u.alive && Math.hypot(u.x, u.z) <= ARENA_R && Math.hypot(u.x - hx, u.z - hz) <= NEAR_FOES) maxD = Math.max(maxD, Math.hypot(u.x - wantFocus.x, u.z - wantFocus.z));
+      } else wantFocus.set(focus.x, 0, focus.z);
     }
-    const wantR = Math.min(MAX_R, Math.max(MIN_R, maxD + 1));
+    const wantR = Math.min(MAX_R, Math.max(MIN_R, maxD + 1.1));
+    // keep the view from drifting into empty fog: the nearer the edge, the smaller the allowed offset from the centre
+    const lim = Math.max(0, ARENA_R + 1 - wantR); const fd = Math.hypot(wantFocus.x, wantFocus.z);
+    if (fd > lim && fd > 0) { wantFocus.x *= lim / fd; wantFocus.z *= lim / fd; }
     if (first) { focus.copy(wantFocus); R = wantR; }
-    focus.x += (wantFocus.x - focus.x) * Math.min(1, dt * 3); focus.z += (wantFocus.z - focus.z) * Math.min(1, dt * 3);
+    const fk = 1 - Math.exp(-dt * 2.6);
+    focus.x += (wantFocus.x - focus.x) * fk; focus.z += (wantFocus.z - focus.z) * fk;
     // zoom out fast so nobody leaves the frame, in slowly so it does not breathe
-    R += (wantR - R) * Math.min(1, dt * (wantR > R ? 5 : 1.2));
+    R += (wantR - R) * (1 - Math.exp(-dt * (wantR > R ? 4.5 : 0.9)));
     const sol = solveOverview();
     if (first) { dist = sol.d; shift = sol.shift; } else { dist += (sol.d - dist) * k; shift += (sol.shift - shift) * k; }
 
@@ -85,11 +97,12 @@ export function createCamera(H) {
     if (blend > 0 && u) {
       const uy = u.fly ? 3.2 : 0;
       const bx = -Math.cos(u.face); const bz = -Math.sin(u.face);
-      const cx = u.x + bx * 6.5; const cz = u.z + bz * 6.5; const cy = uy + 4.6;
-      const lx = u.x - bx * 4; const lz = u.z - bz * 4;
+      const sc = Math.max(1, H.scaleOf ? H.scaleOf(target) : 1);
+      const cx = u.x + bx * 6.5 * sc; const cz = u.z + bz * 6.5 * sc; const cy = uy + 4.6 * sc;
+      const lx = u.x - bx * 4 * sc; const lz = u.z - bz * 4 * sc;
       const t = BZ.smooth(blend);
       pos.x += (cx - pos.x) * t; pos.y += (cy - pos.y) * t; pos.z += (cz - pos.z) * t;
-      look.x += (lx - look.x) * t; look.y += (uy + 0.8 - look.y) * t; look.z += (lz - look.z) * t;
+      look.x += (lx - look.x) * t; look.y += (uy + 0.8 * sc - look.y) * t; look.z += (lz - look.z) * t;
       fv = FOV_OVER + (FOV_CHASE - FOV_OVER) * t; lens = shift * (1 - t);
       fogBase = dist * (1 - t) + 30 * t;
     } else if (blend === 0 && target && !u) { target = 0; want = 0; }
@@ -99,7 +112,7 @@ export function createCamera(H) {
     camera.projectionMatrix.elements[9] = -lens;
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     // the fog starts where the far rim of the arena is, so the spawn ring dissolves into the mist
-    if (H.scene.fog) { H.scene.fog.near = fogBase + 8; H.scene.fog.far = fogBase + 24; }
+    if (H.scene.fog) { H.scene.fog.near = fogBase + 26; H.scene.fog.far = fogBase + 70; }
     G.player.pos.set(focus.x, 0, focus.z); G.player.yaw = Math.atan2(pos.x - look.x, pos.z - look.z);
     first = false;
   }

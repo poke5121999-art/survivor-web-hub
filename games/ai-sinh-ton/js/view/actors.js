@@ -1,6 +1,8 @@
 // Draws the sim's units: four Blockade Z heroes, the zombie pool in puppet mode, and a few code-built summons.
 // sync(B, dt) is called once per rendered frame after the sim ticks; onEvent(e) is called for every sim event.
 import { CAST_KEY, SWING_HOLDS, FLY_Y } from './keys.js';
+import { createMarks } from './marks.js';
+import { createFxMap } from './fxmap.js';
 
 const THREE = window.THREE;
 const BZ = window.BZ;
@@ -9,8 +11,6 @@ const HERO_SCALE = 1.15;
 const HEAD_SCALE = 1.18;
 const ELITE_AFFIX = 2;
 const STATUS_BITS = { burn: 16, slow: 32, freeze: 32, poison: 128, root: 4096, bleed: 8192 };
-const PROJ_LOOK = { rocket: [0xffa040, 1.1], acid: [0x88ff40, 0.9], void_ball: [0xb860ff, 1.4], plasma: [0x60f0ff, 0.9] };
-const PROJ_DEFAULT = [0xfff0b0, 0.8];
 const SUMMON_LOOK = { drone: 2.1, turret: 0.9, cannon: 0.9, wolf: 0.5 };
 
 const wrap = BZ.wrapAngle;
@@ -24,20 +24,45 @@ export function createActors(H) {
   let B = null; let hitBudget = 0; let fxBudget = 0;
   const tmp = new THREE.Vector3(); const tip = new THREE.Vector3(); const dirV = new THREE.Vector3();
   const warned = new Set();
+  const marks = createMarks(H);
+  const fx = createFxMap(H, marks, {
+    unit: (uid) => (B ? B.byUid.get(uid) : null), time: () => (B ? B.t : 0),
+    colorOf: (uid) => { const u = B && B.byUid.get(uid); const bz = u && BZ.HEROES.find((h) => h.id === u.kind); return bz ? bz.color : 0xffffff; },
+  });
 
-  // ---- shared bar and shield geometry ----
-  const BAR_GEO = new THREE.PlaneGeometry(1, 0.13);
-  function makeBar(color) {
+  // ---- bars: a fixed on-screen size (CSS px at the 360 frame), so they never grow with the camera ----
+  const BAR_GEO = new THREE.PlaneGeometry(1, 1);
+  const camFwd = new THREE.Vector3();
+  function makeBar(color, wpx = 34, hpx = 5) {
     const g = new THREE.Group();
-    const mk = (c) => { const m = new THREE.Mesh(BAR_GEO, new THREE.MeshBasicMaterial({ color: c, depthWrite: false, depthTest: false, fog: false, transparent: true })); m.renderOrder = 8; return m; };
-    const bg = mk(0x10141c); bg.scale.set(1.06, 1.5, 1); const fg = mk(color); fg.renderOrder = 9;
-    g.add(bg); g.add(fg); g.userData = { fg, w: 1 }; g.visible = false; scene.add(g); bars.add(g); return g;
+    const mk = (c, order) => { const m = new THREE.Mesh(BAR_GEO, new THREE.MeshBasicMaterial({ color: c, depthWrite: false, depthTest: false, fog: false, transparent: true })); m.renderOrder = order; return m; };
+    const bg = mk(0x10141c, 8); const fg = mk(color, 9); const sh = mk(0xffffff, 10); sh.visible = false;
+    g.add(bg, fg, sh); g.userData = { bg, fg, sh, wpx, hpx, color }; g.visible = false; scene.add(g); bars.add(g); return g;
   }
-  function setBar(bar, x, y, z, k, w) {
-    bar.visible = true; bar.position.set(x, y, z); bar.quaternion.copy(camera.quaternion);
-    k = Math.max(0.001, Math.min(1, k)); bar.scale.set(w, w, 1); bar.userData.fg.scale.x = k; bar.userData.fg.position.x = -0.5 * (1 - k);
+  function setBar(bar, x, y, z, k, shieldK = 0) {
+    const d = bar.userData; bar.visible = true; bar.position.set(x, y, z); bar.quaternion.copy(camera.quaternion);
+    camera.getWorldDirection(camFwd); const depth = Math.max(1, tmp.set(x, y, z).sub(camera.position).dot(camFwd));
+    const wpp = 2 * depth * Math.tan(camera.fov * Math.PI / 360) / H.size.h * H.size.u;
+    const W = d.wpx * wpp; const Hh = d.hpx * wpp; const bd = 1.2 * wpp;
+    k = Math.max(0, Math.min(1, k)); let ss = Math.max(0, shieldK);
+    if (k + ss > 1) { const t = k + ss; k /= t; ss /= t; }
+    d.bg.scale.set(W + 2 * bd, Hh + 2 * bd, 1);
+    d.fg.visible = k > 0.002; d.fg.scale.set(W * k, Hh, 1); d.fg.position.x = -W / 2 + (W * k) / 2;
+    d.fg.material.color.setHex(d.color === 0x4cd860 ? (k < 0.3 ? 0xf04838 : 0x4cd860) : d.color);
+    d.sh.visible = ss > 0.002; d.sh.scale.set(W * ss, Hh, 1); d.sh.position.x = -W / 2 + W * k + (W * ss) / 2;
   }
   const dropBar = (bar) => { scene.remove(bar); bars.delete(bar); };
+
+  // ---- blob shadows: one instanced quad per unit, so every tier has grounded units ----
+  const blobCv = document.createElement('canvas'); blobCv.width = blobCv.height = 64;
+  { const c = blobCv.getContext('2d'); const g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(10,14,30,.62)'); g.addColorStop(0.55, 'rgba(10,14,30,.38)'); g.addColorStop(1, 'rgba(10,14,30,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); }
+  const blobGeo = new THREE.PlaneGeometry(1, 1); blobGeo.rotateX(-Math.PI / 2);
+  const BLOBS = 96;
+  const blobs = new THREE.InstancedMesh(blobGeo, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(blobCv), transparent: true, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), BLOBS);
+  blobs.frustumCulled = false; blobs.renderOrder = 2; blobs.count = 0; scene.add(blobs);
+  const bm = new THREE.Matrix4(); const bq = new THREE.Quaternion(); const bs = new THREE.Vector3(); const bp = new THREE.Vector3();
+  let nBlob = 0;
+  const addBlob = (x, z, size, y = 0) => { if (nBlob >= BLOBS) return; const fade = 1 / (1 + y * 0.35); bs.set(size * fade, 1, size * fade); bp.set(x, 0.045, z); bm.compose(bp, bq, bs); blobs.setMatrixAt(nBlob++, bm); };
 
   // ---- heroes ----
   function newHeroState(mode) { return { speed: 0, mode, swing: -1, kick: 0, kickL: 0, draw: 1, air: 0, vy: 0, pitch: 0, dead: 0, hurt: 0, hurtDir: 0, pat: 'r2l', cast: 0 }; }
@@ -52,11 +77,19 @@ export function createActors(H) {
     const bubble = new THREE.Mesh(new THREE.SphereGeometry(1.25, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffd860, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     bubble.visible = false; scene.add(bubble);
     const a = {
-      u, m, eq, W, wid: bz.weapon, node, disc, bubble, bar: makeBar(0x4cd860), st: newHeroState(BZ.holdOf(W)),
+      u, m, eq, W, wid: bz.weapon, node, disc, bubble, bar: makeBar(0x4cd860, 34, 5), skinKey: '', st: newHeroState(BZ.holdOf(W)),
       pos: new THREE.Vector3(u.x, 0, u.z), yaw: yawOf(u.face), swingT: 0, swingDur: 0.4, combo: 0, side: 0, deadT: 0, fastT: 0, sndT: 0, rib: null, spin: 0,
     };
     a.node.position.copy(a.pos); m.root.rotation.y = a.yaw;
     heroes.set(u.uid, a); return a;
+  }
+
+  // stealth and frozen look: the model's materials are shared through BZ.mat, so a hero gets its own copies the first time
+  function skin(a, opacity, emissive) {
+    const key = opacity + ':' + emissive; if (a.skinKey === key) return;
+    if (!a.cloned) { a.cloned = true; a.node.traverse((o) => { if (o.isMesh && o.material) o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone(); }); }
+    a.skinKey = key;
+    a.node.traverse((o) => { if (!o.isMesh || !o.material) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.emissive) m.emissive.setHex(emissive); m.transparent = opacity < 1 || m.userData.wasT; if (m.userData.wasT === undefined) m.userData.wasT = m.transparent && opacity >= 1; m.opacity = opacity; m.depthWrite = opacity >= 1; m.needsUpdate = true; } });
   }
 
   function syncHero(a, dt) {
@@ -70,6 +103,7 @@ export function createActors(H) {
     a.node.position.set(a.pos.x, 0, a.pos.z); m.root.rotation.y = a.yaw;
     a.disc.position.x = a.pos.x; a.disc.position.z = a.pos.z; a.disc.visible = u.alive;
     if (!u.alive) {
+      addBlob(a.pos.x, a.pos.z, 2.3);
       a.deadT = Math.max(0.001, a.deadT + dt); st.dead = a.deadT; st.speed = 0; st.swing = -1; st.kick = 0; st.kickL = 0;
       BZ.animHero(m, st, dt); BZ.heroFall(m, a.deadT, 1); a.bar.visible = false; a.bubble.visible = false; return;
     }
@@ -90,8 +124,10 @@ export function createActors(H) {
       a.rib.update(dt, W.trail || 0xffffff, 0.9);
     }
     a.bubble.visible = u.state.invuln > 0 || u.shield > 0;
-    if (a.bubble.visible) { a.bubble.position.set(a.pos.x, 1.2, a.pos.z); a.bubble.scale.setScalar(1 + Math.sin(performance.now() / 160) * 0.03); }
-    setBar(a.bar, a.pos.x, 3.05, a.pos.z, u.hp / u.maxHp, 1.25);
+    if (a.bubble.visible) { a.bubble.material.color.setHex(u.state.invuln > 0 ? 0xffd860 : 0xa8dcff); a.bubble.position.set(a.pos.x, 1.2, a.pos.z); a.bubble.scale.setScalar(1 + Math.sin(performance.now() / 160) * 0.03); }
+    skin(a, u.state.stealth > 0 ? 0.35 : 1, u.status && u.status.freeze ? 0x2a6a9a : 0);
+    if (H.spectateUid === u.uid) a.bar.visible = false; else setBar(a.bar, a.pos.x, 3.05, a.pos.z, u.hp / u.maxHp, u.shield > 0 ? u.shield / u.maxHp : 0);
+    addBlob(a.pos.x, a.pos.z, 2.3);
   }
 
   // ---- summons: small code-built bodies ----
@@ -158,6 +194,7 @@ export function createActors(H) {
     if (a.aim) { a.aim.rotation.y = a.yaw; a.root.rotation.y = 0; } else a.root.rotation.y = a.yaw;
     a.tick(a, dt, performance.now() / 1000);
     if (u.kind === 'drone') a.root.position.y = SUMMON_LOOK.drone;
+    addBlob(a.pos.x, a.pos.z, u.kind === 'drone' ? 1.2 : 1.4, u.kind === 'drone' ? 2 : 0);
   }
 
   // ---- enemies: rows for the zombie pool ----
@@ -198,29 +235,11 @@ export function createActors(H) {
     for (const e of B.enemies) {
       if (!e.alive || !(e.boss || e.elite)) continue;
       const idx = slots.get(e.uid); if (idx === undefined) continue; const z = pool[idx]; if (!z.alive) continue;
-      let bar = enemyBars.get(e.uid); if (!bar) { bar = makeBar(0xe84030); enemyBars.set(e.uid, bar); }
+      let bar = enemyBars.get(e.uid); if (!bar) { bar = makeBar(0xe84030, e.boss ? 72 : 30, e.boss ? 8 : 4); enemyBars.set(e.uid, bar); }
       seen.add(e.uid); const sc = z.T.scale;
-      setBar(bar, z.pos.x, z.pos.y + 2.5 * sc + 0.5, z.pos.z, e.hp / e.maxHp, e.boss ? 1.6 + sc * 0.5 : 1.1);
+      setBar(bar, z.pos.x, z.pos.y + 2.5 * sc + 0.5, z.pos.z, e.hp / e.maxHp);
     }
     for (const [uid, bar] of enemyBars) if (!seen.has(uid)) { dropBar(bar); enemyBars.delete(uid); }
-  }
-
-  // ---- projectiles drawn from B.projs ----
-  const sprites = []; const projPos = new WeakMap();
-  function projSprite(i) {
-    if (!sprites[i]) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZ.tex('glow'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); s.renderOrder = 7; scene.add(s); sprites[i] = s; }
-    return sprites[i];
-  }
-  function syncProjs(dt) {
-    let n = 0;
-    for (const p of B.projs) {
-      const look = PROJ_LOOK[p.key] || PROJ_DEFAULT; let v = projPos.get(p);
-      if (!v) { v = new THREE.Vector3(p.x, 1.1, p.z); projPos.set(p, v); }
-      const k = 1 - Math.exp(-30 * dt); v.x += (p.x - v.x) * k; v.z += (p.z - v.z) * k;
-      const s = projSprite(n++); s.visible = true; s.position.copy(v); s.scale.setScalar(look[1]); s.material.color.setHex(look[0]);
-      if (p.key === 'rocket' && G.fx.trail) G.fx.trail(v);
-    }
-    for (let i = n; i < sprites.length; i++) sprites[i].visible = false;
   }
 
   // ---- events ----
@@ -240,15 +259,12 @@ export function createActors(H) {
           st.pat = W.combo ? W.combo[a.combo++ % W.combo.length] : 'r2l'; a.swingDur = Math.min(0.5, W.swing || W.throwT || 0.4); a.swingT = a.swingDur;
         } else if (st.mode === 'dual') { a.side = 1 - a.side; if (a.side) st.kickL = 6; else st.kick = 6; } else st.kick = 6;
         if (a.sndT <= 0) { a.sndT = 0.14; G.audio.playAt(W.snd || 'pistol', a.pos, { gain: 0.4 }); }
-        if (e.kind === 'shot' || e.kind === 'cone') {
-          const from = muzzleOf(a).clone(); const n = e.kind === 'cone' ? 3 : 1;
-          for (let i = 0; i < n; i++) G.fx.tracer(from, new THREE.Vector3(e.tx + G.rng.range(-0.3, 0.3) * (n > 1 ? 2 : 1), tgtY, e.tz + G.rng.range(-0.3, 0.3)), e.key === 'webbow' ? 0xf0f0ff : undefined);
-          G.fx.muzzle(from);
-        }
+        fx.attack(e, muzzleOf(a).clone(), true);
         return;
       }
       const s = summons.get(e.uid);
-      if (s && (e.kind === 'shot')) { tmp.set(e.x, SUMMON_LOOK[s.u.kind] || 1, e.z); G.fx.tracer(tmp.clone(), new THREE.Vector3(e.tx, tgtY, e.tz)); G.fx.muzzle(tmp); }
+      if (s && (e.kind === 'shot')) { tmp.set(e.x, SUMMON_LOOK[s.u.kind] || 1, e.z); G.fx.tracer(tmp.clone(), new THREE.Vector3(e.tx, tgtY, e.tz)); G.fx.muzzle(tmp); return; }
+      if (!s && fxBudget > 0) { fxBudget--; fx.attack(e, new THREE.Vector3(e.x, 1.4, e.z), false); }
     },
     hit(e) {
       if (e.dot || !e.dmg) return;
@@ -286,20 +302,15 @@ export function createActors(H) {
     ult(e) { ON.cast(e); },
     dash(e) { const a = heroOf(e.uid); if (a) a.fastT = 0.3; },
     revive(e) { const a = heroOf(e.uid); if (a) { a.deadT = 0; a.st.dead = 0; a.m.root.rotation.x = 0; a.m.root.position.y = 0; } },
-    fx(e) {
-      if (e.part !== 'burst' || fxBudget <= 0) return; fxBudget--;
-      const cols = e.team === 0 ? [0xfff0a0, 0xffb040] : [0xb8f060, 0x6ab030];
-      G.fx.pop(tmp.set(e.x, 0.15, e.z).clone(), Math.min(2.4, Math.max(0.5, (e.r || 1) * 0.6)), cols);
-    },
   };
 
   function dropSummon(uid) { const s = summons.get(uid); if (s) { scene.remove(s.root); summons.delete(uid); } }
   function dropHero(a) { scene.remove(a.node); scene.remove(a.disc); scene.remove(a.bubble); dropBar(a.bar); if (a.rib) scene.remove(a.rib.mesh); heroes.delete(a.u.uid); }
 
   const api = {
-    onEvent(e) { const h = ON[e.e]; if (h) h(e); },
+    onEvent(e) { const h = ON[e.e]; if (h) h(e); fx.onEvent(e); },
     sync(batl, dt) {
-      B = batl; hitBudget = 10; fxBudget = 6;
+      B = batl; hitBudget = 10; fxBudget = 6; nBlob = 0;
       for (const u of B.heroes) { let a = heroes.get(u.uid); if (!a) a = makeHero(u); syncHero(a, dt); }
       for (const u of B.units) {
         if (!u.summon) continue;
@@ -307,14 +318,18 @@ export function createActors(H) {
         let s = summons.get(u.uid); if (!s) s = makeSummon(u); syncSummon(s, dt);
       }
       G.zombies.adopt(enemyRows()); G.zombies.update(dt);
-      syncEnemyBars(); syncProjs(dt);
+      for (const z of pool) if (z.alive && !z.dying) addBlob(z.pos.x, z.pos.z, 1.7 * z.T.scale, z.pos.y);
+      blobs.count = nBlob; blobs.instanceMatrix.needsUpdate = true;
+      syncEnemyBars(); fx.update(B, dt);
     },
     clear() {
       for (const a of [...heroes.values()]) dropHero(a);
       for (const uid of [...summons.keys()]) dropSummon(uid);
       for (const bar of [...enemyBars.values()]) dropBar(bar);
-      enemyBars.clear(); slots.clear(); G.zombies.clear(); G.fx.clear(); for (const s of sprites) s.visible = false; B = null;
+      enemyBars.clear(); slots.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; B = null;
     },
+    fx, marks,
+    scaleOf(uid) { if (heroes.has(uid)) return HERO_SCALE; const i = slots.get(uid); return i !== undefined ? pool[i].T.scale : 1; },
     nodeOf(uid) {
       const h = heroes.get(uid); if (h) return h.node;
       const s = summons.get(uid); if (s) return s.root;
@@ -328,5 +343,6 @@ export function createActors(H) {
     },
   };
   void lam;
+  H.scaleOf = api.scaleOf;
   return api;
 }
