@@ -1,9 +1,10 @@
 // One modal screen with three modes: 'pause' (resume, settings, retry, home), 'result' (win or loss with the reward
 // list, per-hero damage and the next steps) and 'settings' (the same switches, opened from the home screen).
-import { HERO } from '../data/heroes.js?v=20261119b';
-import { ITEM, TIERS } from '../data/equip.js?v=20261119b';
-import { fmt, heroColor, kill } from './hud.js?v=20261119b';
-import { xpNeed } from '../data/unlocks.js?v=20261119b';
+import { HERO } from '../data/heroes.js?v=20261119c';
+import { ITEM, TIERS } from '../data/equip.js?v=20261119c';
+import { fmt, heroColor, kill } from './hud.js?v=20261119c';
+import { xpNeed } from '../data/unlocks.js?v=20261119c';
+import { ITEM_ICON } from './itemicons.js?v=20261119c';
 
 const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
 const QUALITY = [['Thấp', 'low'], ['Vừa', 'medium'], ['Cao', 'high']];
@@ -112,7 +113,7 @@ export function createResult(game) {
     if ((r.items && r.items.length) || r.mats) {
       label('TRANG BỊ RƠI'); y += 18;
       let x = 24;
-      for (const it of r.items || []) { g.put(ui.tile({ size: 46, color: TIERS[it.tier].color, icon: ITEM[it.item].slot }), x, y, 14); x += 54; }
+      for (const it of r.items || []) { g.put(ui.tile({ size: 46, color: TIERS[it.tier].color, icon: ITEM_ICON(it.item) }), x, y, 14); x += 54; }
       if (r.mats) { const p = ui.panel({ w: 120, h: 32, r: 16, color: 0x241b4d, depth: 3, bevel: 2, gloss: false, ow: 2.4 }); p.put(ui.icon('gear', { size: 28, sway: false }), -2, 2, 4); p.put(ui.text('+' + r.mats + ' bản rèn', { size: 12, align: 'center', valign: 'mid' }), 72, 17, 1); g.put(p, 336 - 120 + 0, y + 7, 14); }
       y += 62;
     }

@@ -8,11 +8,11 @@
 //     level, xp (account level), ftue: {done: {stepId: true}, session}, seenUnlock: {id: true}, visited: {id: true},
 //     freePull, cheatUnlock? (only the 'vet' preset: every unlock treated as open) }
 
-import { GACHA, HERO_RARITY, rollGacha, rollTen, levelCost, levelMul, stageReward, lossReward, DAILY, START } from './data/economy.js?v=20261119b';
-import { SLOTS, TIERS, ITEMS, ITEM, itemStat, upgradeCost, mergeProblem, merge as mergeItems, autoMergePlan, equipBonus } from './data/equip.js?v=20261119b';
-import { HEROES, HERO } from './data/heroes.js?v=20261119b';
-import { UNLOCKS, UNLOCK, isUnlocked, lockText, teamSlots, newUnlocks, addXp, xpForResult, NEW_ACCOUNT, GIFTS, FTUE, LATER_GUIDES } from './data/unlocks.js?v=20261119b';
-import { makeRng } from './sim/battle.js?v=20261119b';
+import { GACHA, HERO_RARITY, rollGacha, rollTen, levelCost, levelMul, stageReward, lossReward, DAILY, START } from './data/economy.js?v=20261119c';
+import { SLOTS, TIERS, ITEMS, ITEM, itemStat, upgradeCost, mergeProblem, merge as mergeItems, autoMergePlan, equipBonus } from './data/equip.js?v=20261119c';
+import { HEROES, HERO } from './data/heroes.js?v=20261119c';
+import { UNLOCKS, UNLOCK, isUnlocked, lockText, teamSlots, newUnlocks, addXp, xpForResult, NEW_ACCOUNT, GIFTS, FTUE, LATER_GUIDES } from './data/unlocks.js?v=20261119c';
+import { makeRng } from './sim/battle.js?v=20261119c';
 
 const VERSION = 1;
 const TEAM_MAX = 4;

@@ -1,7 +1,7 @@
 // Stages: five waves each, the fifth is the stage's boss. A stage is fully determined by its number, so every
 // player meets the same waves. Stages 1-30 are the campaign; past 30 the same rules keep scaling without end.
-import { ENEMY } from './enemies.js?v=20261119b';
-import { expectedSlots } from './unlocks.js?v=20261119b';
+import { ENEMY } from './enemies.js?v=20261119c';
+import { expectedSlots } from './unlocks.js?v=20261119c';
 
 export const CHAPTERS = [
   { name: 'Phố Hoang', floor: 0x8f9aa6, fog: 0xa9b6c4 },
@@ -32,8 +32,12 @@ const UNLOCK = [
 // stage-1 multipliers over the tables in enemies.js, then the growth per stage
 export const BASE = { hp: 2.4, atk: 2.2, bossHp: 2.6, ultCost: 2.2 };
 export const HP_GROWTH = 1.055;
+// past this stage the climb is gentler: hero levels cost more and more, so the same slope would be a wall
+export const LATE_FROM = 12; export const LATE_HP = 1.04; export const LATE_ATK = 1.022;
 export const ATK_GROWTH = 1.03;
 export const SPIKE_HP = 1.25;
+// chapter ends past the first ten stages hit harder: by then the player has equipment to answer with
+export const SPIKE_HP_LATE = 1.36;
 export const MAX_ALIVE = 40;
 // early stages are met with fewer team slots open (unlocks.js): wave size and boss health shrink to match
 export const TEAM_K = { 1: 0.3, 2: 0.36, 3: 0.65, 4: 0.92 };
@@ -51,6 +55,8 @@ export function bossTierOf(n) {
   for (let s = 1; s <= Math.min(n, 30); s++) if (BOSS_ORDER[s - 1] === id) seen++;
   return n > 30 ? 3 : Math.min(3, seen);
 }
+
+const grow = (early, late, n) => Math.pow(early, Math.min(n, LATE_FROM) - 1) * Math.pow(late, Math.max(0, n - LATE_FROM));
 
 export function stageDef(n) {
   const rnd = rngOf(n * 7919 + 13);
@@ -81,8 +87,8 @@ export function stageDef(n) {
   return {
     n, chapter, chapterName: CHAPTERS[chapter].name, name: `${CHAPTERS[chapter].name} ${((n - 1) % 5) + 1}`,
     floor: CHAPTERS[chapter].floor, fog: CHAPTERS[chapter].fog,
-    hpMul: BASE.hp * Math.pow(HP_GROWTH, n - 1), atkMul: BASE.atk * Math.pow(ATK_GROWTH, n - 1) * TEAM_ATK[slots],
-    boss, bossName: ENEMY[boss].name, bossTier: bossTierOf(n), bossHp: BASE.bossHp * (isSpike(n) ? SPIKE_HP : 1) * teamK, slots, spike: isSpike(n), waves,
+    hpMul: BASE.hp * grow(HP_GROWTH, LATE_HP, n), atkMul: BASE.atk * grow(ATK_GROWTH, LATE_ATK, n) * TEAM_ATK[slots],
+    boss, bossName: ENEMY[boss].name, bossTier: bossTierOf(n), bossHp: BASE.bossHp * (isSpike(n) ? (n > 10 ? SPIKE_HP_LATE : SPIKE_HP) : 1) * teamK, slots, spike: isSpike(n), waves,
   };
 }
 

@@ -4,11 +4,9 @@
 //              (id "guide-block") cover everything outside the spotlight.
 //   'reveal' - the padlock pops open and the new feature flies in; tap to continue.
 // meta.ftueNext() says what to show, game.events says when; pressing the target (a pointer press on it) completes a step.
-import { UNLOCK } from '../data/unlocks.js?v=20261119b';
-import { kill, clamp, easeOut, easeBack } from './hud.js?v=20261119b';
+import { UNLOCK } from '../data/unlocks.js?v=20261119c';
+import { kill, clamp, easeOut, easeBack } from './hud.js?v=20261119c';
 
-// guides whose screens are not in this drop yet stay silent
-const NOT_YET = ['equip', 'merge'];
 const GIVE_UP = 8;
 const HAND_LEN = 84;
 const FEATURE_ICON = { slot2: 'shield', slot3: 'shield', slot4: 'shield', levelup: 'up', gacha: 'capsule', spectate: 'eye', speed: 'speed', daily: 'chest', chapter: 'chest', autopick: 'check', equip: 'armor', autoult: 'ult', merge: 'gear', ult: 'ult', cards: 'star' };
@@ -143,7 +141,7 @@ export function createGuide(game) {
 
   function offer(ctx) {
     if ((reveal && reveal.busy()) || S.step) { S.queue.push(ctx); return; }
-    const step = meta.ftueNext({ ...ctx, skip: NOT_YET });
+    const step = meta.ftueNext(ctx);
     if (step) begin(step);
   }
   function drain(home, later) {

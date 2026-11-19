@@ -1,10 +1,8 @@
-// Trang Bị and Thưởng tabs for drop 1. Equipment is not in yet (a proper "SẮP CÓ" screen with the six slots shown
-// locked); the daily chest on Thưởng already works through meta.claimDaily().
-import { makeBackdrop, makeBurst, fmt, kill } from './home.js?v=20261119b';
-import { HERO } from '../data/heroes.js?v=20261119b';
-import { lockButton } from './guide.js?v=20261119b';
+// Thưởng tab: the daily chest (meta.claimDaily) and the chapter chest (meta.claimChapter). Trang Bị lives in equip.js.
+import { makeBackdrop, makeBurst, fmt, kill } from './home.js?v=20261119c';
+import { HERO } from '../data/heroes.js?v=20261119c';
+import { lockButton } from './guide.js?v=20261119c';
 
-const SLOT_TILES = [['weapon', 'Vũ Khí'], ['necklace', 'Dây Chuyền'], ['gloves', 'Găng Tay'], ['armor', 'Giáp'], ['belt', 'Thắt Lưng'], ['boots', 'Giày']];
 
 function buildChest(THREE) {
   const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
@@ -28,21 +26,8 @@ function buildChest(THREE) {
 
 export function createSoon(game) {
   const ui = game.ui, meta = game.meta, PAL = ui.PAL, mui = game.metaUi;
-  const equip = ui.screen('equip'), rewards = ui.screen('rewards');
-  const bdE = makeBackdrop(ui, 'equip'), bdR = makeBackdrop(ui, 'rewards'); equip.put(bdE, 0, 0, -40); rewards.put(bdR, 0, 0, -40);
-
-  // ---- Trang Bị ----
-  const tE = ui.text('TRANG BỊ', { size: 26, align: 'center', upper: true, outlineW: 3.4 }); equip.put(tE, 180, 62, 6); mui.regTitle('equip', tE);
-  const big = ui.icon('armor', { size: 118 }); equip.put(big, 121, 104, 6);
-  const rib = ui.panel({ w: 220, h: 46, r: 23, color: 0xe0242e, depth: 5, bevel: 3, ow: 3 }); equip.put(rib, 70, 230, 6);
-  const sTxt = ui.text('SẮP CÓ', { size: 28, align: 'center', upper: true, valign: 'mid', outlineW: 3.4 }); rib.put(sTxt, 110, 25, 4); mui.regTitle('equip', sTxt);
-  equip.put(ui.text('Mỗi tướng mặc một bộ riêng sáu món,\nnâng cấp và ghép lên bậc cao hơn.', { size: 14, align: 'center', lineH: 20, color: 0xfff6dc }), 180, 290, 6);
-  SLOT_TILES.forEach(([icon, name], i) => {
-    const c = i % 3, r = Math.floor(i / 3), x = 38 + c * 106, y = 372 + r * 112;
-    const t = ui.tile({ size: 76, color: 0x8d7ad8, icon, sway: false }); equip.put(t, x, y, 6);
-    t.put(ui.icon('lock', { size: 26 }), 76 - 22, 76 - 22, 12);
-    equip.put(ui.text(name, { size: 12, align: 'center' }), x + 38, y + 82, 6);
-  });
+  const rewards = ui.screen('rewards');
+  const bdR = makeBackdrop(ui, 'rewards'); rewards.put(bdR, 0, 0, -40);
 
   // ---- Thưởng ----
   const tR = ui.text('THƯỞNG', { size: 26, align: 'center', upper: true, outlineW: 3.4 }); rewards.put(tR, 180, 62, 6); mui.regTitle('rewards', tR);
@@ -104,5 +89,5 @@ export function createSoon(game) {
     name, show() { ui.show(name, { transition: 'none' }); if (onShow) onShow(); }, hide() { ui.hide(name, { transition: 'none' }); },
     update(dt) { if (!ui.isShown(name)) return; bd.tick(ui.t); if (name === 'rewards') burst.update(dt); },
   });
-  return [mk('equip', equip, bdE), mk('rewards', rewards, bdR, () => { paintChapter(); const done = !meta.canClaimDaily(); setClaimed(done); if (!done) { for (const c of chips) kill(c); chips = []; } })];
+  return [mk('rewards', rewards, bdR, () => { paintChapter(); const done = !meta.canClaimDaily(); setClaimed(done); if (!done) { for (const c of chips) kill(c); chips = []; } })];
 }

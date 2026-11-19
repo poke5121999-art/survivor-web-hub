@@ -1,9 +1,11 @@
 // Triệu Hồi tab: a 3D gacha machine (own design: purple drum, gold trim, glass dome of two-tone pills), the pull
 // animation driven by update(dt), the reveal cards, the ten-pull summary and the rates panel.
 // The account changes at the moment of the pull (meta.pull); everything after that only shows what was paid out.
-import { GACHA, HERO_RARITY } from '../data/economy.js?v=20261119b';
-import { HERO } from '../data/heroes.js?v=20261119b';
-import { makeBackdrop, makeBurst, capsule3d, fmt, kill } from './home.js?v=20261119b';
+import { GACHA, HERO_RARITY } from '../data/economy.js?v=20261119c';
+import { HERO } from '../data/heroes.js?v=20261119c';
+import { ITEM as ITEM_DEF, TIERS } from '../data/equip.js?v=20261119c';
+import { ITEM_ICON } from './itemicons.js?v=20261119c';
+import { makeBackdrop, makeBurst, capsule3d, fmt, kill } from './home.js?v=20261119c';
 
 const GOLD = 0xffc21f, ITEM = 0x98a6c4;
 const PILLS = [[0xff8ad0, 0x6ad8ff], [0xffd21f, 0x8f4dff], [0x8aff9a, 0xff9a5a], [0xb48aff, 0xffe27a], [0x5ad0ff, 0xff6a8a], [0xff9a5a, 0x4af0c8]];
@@ -103,7 +105,7 @@ export function createGacha(game) {
   });
   const sum = GACHA.table.reduce((s, r) => s + r.p, 0);
   rp.put(ui.text('Tổng ' + pct(Math.round(sum * 10) / 10), { size: 12, align: 'right', color: 0xcfd0e0 }), 318, 326);
-  rp.put(ui.text(`Bảo hiểm: ${GACHA.pity - 1} lượt liền không ra tướng Huyền Thoại thì lượt thứ ${GACHA.pity} chắc chắn ra.\nMười lượt: chắc chắn có ít nhất một kết quả Sử Thi trở lên.\nTrùng tướng: đổi thành mảnh. Trang bị mở ở bản sau, tạm đổi thành 300 vàng.`, { size: 11.5, maxW: 300, lineH: 15, color: 0xe4def8 }), 14, 350);
+  rp.put(ui.text(`Bảo hiểm: ${GACHA.pity - 1} lượt liền không ra tướng Huyền Thoại thì lượt thứ ${GACHA.pity} chắc chắn ra.\nMười lượt: chắc chắn có ít nhất một kết quả Sử Thi trở lên.\nTrùng tướng: đổi thành mảnh. Trang bị: cất vào túi đồ ở tab Trang Bị.`, { size: 11.5, maxW: 300, lineH: 15, color: 0xe4def8 }), 14, 350);
   const rClose = ui.button({ id: 'rates-close', w: 150, h: 44, r: 14, color: PAL.red, label: 'ĐÓNG', size: 17, onTap: () => ui.hide('rates', { transition: 'pop' }) }); rp.put(rClose, 90, 440);
   function openRates() { ui.show('rates', { transition: 'pop' }); }
 
@@ -165,9 +167,10 @@ export function createGacha(game) {
       for (let i = 0; i < 3; i++) card.put(ui.icon('gold', { size: 96, sway: i === 2 }), -48 + (i - 1) * 34, -58 - i * 6 + (i === 1 ? 26 : 0));
       card.put(ui.text('+' + fmt(r.n) + ' vàng', { size: 30, align: 'center', color: 0xffe27a, outlineW: 3.6 }), 0, 66);
     } else {
-      card.put(ui.icon('bag', { size: 110 }), -55, -85);
-      card.put(ui.text('Trang bị (mở ở bản sau)', { size: 18, align: 'center', outlineW: 2.6 }), 0, 56);
-      card.put(ui.text('Đã cất vào túi đồ', { size: 12, align: 'center', color: 0xe4def8 }), 0, 84);
+      const it = r.item;
+      card.put(ui.icon(it ? ITEM_ICON(it.item) : 'bag', { size: 120 }), -60, -90);
+      card.put(ui.text(it ? ITEM_DEF[it.item].name : 'Trang bị', { size: 24, align: 'center', outlineW: 3 }), 0, 50);
+      card.put(ui.text(it ? 'Bậc ' + TIERS[it.tier].name + ' · đã cất vào túi đồ' : 'Đã cất vào túi đồ', { size: 12, align: 'center', color: 0xe4def8 }), 0, 84);
     }
     burst.spawn(180, 330, r.hero || r.kind === 'gold' ? 22 : 8, c, 200);
   }
@@ -189,10 +192,10 @@ export function createGacha(game) {
       const x = 10 + (i % 2) * 166, y = 52 + Math.floor(i / 2) * 92, c = colorOf(r);
       const cellN = ui.panel({ w: 160, h: 84, r: 14, color: 0x2a2150, depth: 3, bevel: 2, ow: 2, shadow: false }); sp.put(cellN, x, y, 2);
       if (r.hero) cellN.put(ui.portrait(r.hero, { size: 62, color: c, shadow: false, fps: 8 }), 8, 11, 2);
-      else cellN.put(ui.tile({ size: 62, color: c, icon: r.kind === 'gold' ? 'gold' : 'bag', shadow: false, sway: false }), 8, 11, 2);
+      else cellN.put(ui.tile({ size: 62, color: r.item ? TIERS[r.item.tier].color : c, icon: r.kind === 'gold' ? 'gold' : r.item ? ITEM_ICON(r.item.item) : 'bag', shadow: false, sway: false }), 8, 11, 2);
       const head = r.kind === 'hero' || r.isNew ? 'TƯỚNG MỚI' : r.kind === 'shard' ? '+' + r.n + ' mảnh' : r.kind === 'gold' ? '+' + r.n + ' vàng' : 'Trang bị';
       cellN.put(ui.text(head, { size: 12, color: r.isNew || r.kind === 'hero' ? 0xffe27a : 0xffffff, outlineW: 2 }), 76, 22);
-      cellN.put(ui.text(r.hero ? HERO[r.hero].name : r.kind === 'item' ? 'mở sau' : '', { size: 12, color: lighten(c, 0.3), outlineW: 1.8 }), 76, 44);
+      cellN.put(ui.text(r.hero ? HERO[r.hero].name : r.item ? ITEM_DEF[r.item.item].name : '', { size: 12, color: lighten(c, 0.3), outlineW: 1.8 }), 76, 44);
     });
     sp.tick = 0; ov.userData.sum = sp;
   }
