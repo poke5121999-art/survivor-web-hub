@@ -1,12 +1,12 @@
 // Boot and loop. States: 'home' (empty arena, the UI kit draws on top) and 'battle'. The sim runs at 30 Hz from an
 // accumulator; the view renders every frame. window.__G and the __sim/__step hooks let the Node tools drive it.
-import { createHost } from './view/host.js?v=20261119c';
-import { createActors } from './view/actors.js?v=20261119c';
-import { createCamera } from './view/camera.js?v=20261119c';
-import { createBattle, step, DT } from './sim/battle.js?v=20261119c';
-import { stageDef, expectedLevel } from './data/stages.js?v=20261119c';
-import { levelMul } from './data/economy.js?v=20261119c';
-import { attachGame } from './game.js?v=20261119c';
+import { createHost } from './view/host.js?v=20261120a';
+import { createActors } from './view/actors.js?v=20261120a';
+import { createCamera } from './view/camera.js?v=20261120a';
+import { createBattle, step, DT } from './sim/battle.js?v=20261120a';
+import { stageDef, expectedLevel } from './data/stages.js?v=20261120a';
+import { levelMul } from './data/economy.js?v=20261120a';
+import { attachGame } from './game.js?v=20261120a';
 
 const DEFAULT_TEAM = ['thep', 'mua', 'yta', 'gio'];
 const MAX_CATCHUP = 8;

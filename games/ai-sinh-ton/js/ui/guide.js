@@ -4,8 +4,8 @@
 //              (id "guide-block") cover everything outside the spotlight.
 //   'reveal' - the padlock pops open and the new feature flies in; tap to continue.
 // meta.ftueNext() says what to show, game.events says when; pressing the target (a pointer press on it) completes a step.
-import { UNLOCK } from '../data/unlocks.js?v=20261119c';
-import { kill, clamp, easeOut, easeBack } from './hud.js?v=20261119c';
+import { UNLOCK } from '../data/unlocks.js?v=20261120a';
+import { kill, clamp, easeOut, easeBack } from './hud.js?v=20261120a';
 
 const GIVE_UP = 8;
 const HAND_LEN = 84;

@@ -3,7 +3,7 @@
 // concrete, tile, stone, cobble, dirt, burnt, metal, road_line, hazard, scorch), lit by Lambert with the builder's vertex
 // shade. Blockade Z has no wet ground and no arena paint: this file adds, in the same material, grime and chapter cover
 // (frost, sand, soot), the worn arena ring painted into the surface, and rain wetness with small puddles and ripples.
-import { ARENA } from '../sim/battle.js?v=20261119c';
+import { ARENA } from '../sim/battle.js?v=20261120a';
 const THREE = window.THREE;
 const BZ = window.BZ;
 

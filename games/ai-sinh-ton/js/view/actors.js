@@ -1,9 +1,9 @@
 // Draws the sim's units: four Blockade Z heroes, the zombie pool in puppet mode, and a few code-built summons.
 // sync(B, dt) is called once per rendered frame after the sim ticks; onEvent(e) is called for every sim event.
-import { CAST_KEY, SWING_HOLDS, FLY_Y } from './keys.js?v=20261119c';
-import { createMarks } from './marks.js?v=20261119c';
-import { createFxMap } from './fxmap.js?v=20261119c';
-import { createHorde } from './horde.js?v=20261119c';
+import { CAST_KEY, SWING_HOLDS, FLY_Y } from './keys.js?v=20261120a';
+import { createMarks } from './marks.js?v=20261120a';
+import { createFxMap } from './fxmap.js?v=20261120a';
+import { createHorde } from './horde.js?v=20261120a';
 
 const THREE = window.THREE;
 const BZ = window.BZ;

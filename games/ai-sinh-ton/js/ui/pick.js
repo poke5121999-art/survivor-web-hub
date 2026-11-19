@@ -1,9 +1,9 @@
 // Upgrade pick between waves: a modal over the frozen fight. One hero at a time, three rarity-framed card buttons,
 // a progress row of the four heroes and an auto-pick button. The sim decides what is open (B.phase, B.picked);
 // this screen only mirrors it, so an auto pick from anywhere closes it as well.
-import { HERO } from '../data/heroes.js?v=20261119c';
-import { CARD, CARD_RARITY } from '../data/cards.js?v=20261119c';
-import { clamp, easeOut, heroColor, kill, roundPlane } from './hud.js?v=20261119c';
+import { HERO } from '../data/heroes.js?v=20261120a';
+import { CARD, CARD_RARITY } from '../data/cards.js?v=20261120a';
+import { clamp, easeOut, heroColor, kill, roundPlane } from './hud.js?v=20261120a';
 
 const CARD_W = 316, CARD_H = 106, CARD_PITCH = 136, CARDS_Y = 102, OUT_T = 0.34, IN_T = 0.3;
 const dark = (hex, k) => { const r = ((hex >> 16) & 255) * k, g = ((hex >> 8) & 255) * k, b = (hex & 255) * k; return (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b); };
