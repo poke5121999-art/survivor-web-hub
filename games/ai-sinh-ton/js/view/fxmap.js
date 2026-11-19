@@ -56,12 +56,83 @@ KEYS.charge = K('steel', { trail: true, snd: 'heavy' });
 
 const STATE = { invuln: STYLE.holy, stealth: STYLE.void, taunt: STYLE.steel };
 const PROJ = {
-  rocket: { mesh: 'rocket', c: 0xffa040, size: 1.2, arc: 0.6, trail: true }, acid: { mesh: 'blob', c: 0x9cff3a, size: 1.0, arc: 2.2 },
-  boulder: { mesh: 'rock', c: 0xffd8a0, size: 1.0, arc: 4, spin: 5 }, void_ball: { mesh: 'blob', c: 0xb060ff, size: 1.7, arc: 1.2 },
-  scarab: { mesh: 'scarab', c: 0xffd860, size: 1.0, arc: 1.6, spin: 8 }, plasma: { mesh: 'blob', c: 0x60f0ff, size: 1.0, arc: 0 },
 };
 const ULT_SPAN = 6;
 
+// ---- the vertical layer ----
+// Every key gets layers that rise off the floor so the event reads as a 3D one from the fixed overview. A layer is
+// [builder, ...args]; the builders are in createFxMap. Sets: cast (at the caster), land (where a burst, cone, line, bolt,
+// heal or shield part lands), zone (a zone starts), dash (the end of a dash), ult (extra at the hero, on top of GENERIC_ULT).
+//   pillar h rad life a   light column from the floor        wall k life h a    shock wall growing to k * event radius
+//   flash size y          short local glow (<= 80 ms)        fount n v kind sp  debris and sparks thrown up (v m/s up)
+//   plume h n kind size   rolling smoke / gas / fire column  spikes h rad n     columns along a line event
+const GENERIC_ULT = [['pillar', 12, 1.5, 1.0, 0.42], ['wall', 1, 0.45, 1.3, 0.42], ['fount', 12, 11, 'spark', 3]];
+const RISE = [['pillar', 4.5, 1, 0.9], ['fount', 8, 8, 'spark', 1.5]];
+const SLAM = [['wall', 1, 0.4, 1.2, 0.8], ['fount', 14, 10, 'debris', 3.5], ['plume', 3.6, 5, 'dust', 3.2], ['flash', 3], ['pillar', 4, 1.2, 0.5]];
+const BLAST = [['fount', 9, 9.5, 'debris', 2.5], ['plume', 3.6, 4, 'smoke', 3], ['flash', 2.4], ['pillar', 4.6, 0.8, 0.5]];
+const SPARK = [['fount', 5, 8, 'spark', 1.2], ['pillar', 3, 0.45, 0.4]];
+const DUST_DASH = [['fount', 8, 8.5, 'debris', 3], ['plume', 3.2, 3, 'dust', 2.4], ['wall', 2.5, 0.35, 0.9, 0.5]];
+const VERT = {
+  gold_shield: { cast: [['pillar', 5.5, 1.2, 1.0], ['fount', 8, 8, 'spark', 1.4], ['wall', 2.3, 0.4, 1.5, 0.45]] },
+  charge: { dash: DUST_DASH }, quake: { ult: [['pillar', 7, 1.8, 0.9]], land: [['wall', 1, 0.45, 1.3, 0.6], ['fount', 20, 11, 'debris', 4], ['plume', 4.8, 6, 'dust', 3.4], ['flash', 3.6]] },
+  overdrive: { cast: RISE }, cluster: { land: BLAST }, drones: { ult: [['fount', 14, 11, 'metal', 3]] },
+  heal: { land: [['pillar', 4.2, 0.6, 0.9], ['fount', 6, 7.5, 'spark', 0.8]] }, dart: { land: [['fount', 3, 7.5, 'spark', 0.8], ['plume', 2.8, 2, 'gas', 1.4]] },
+  revive: { ult: [['pillar', 14, 1.4, 1.1], ['fount', 18, 12, 'spark', 3], ['wall', 3.2, 0.5, 1.2, 0.5]] },
+  dash: { dash: [['plume', 3, 3, 'wind', 1.8], ['fount', 6, 8.5, 'spark', 1.2]] }, gust: { land: [['wall', 1, 0.45, 1.4, 0.5], ['fount', 10, 9, 'ice', 3], ['pillar', 3.2, 1.4, 0.5, 0.3]] },
+  blades: { ult: [['wall', 1, 0.5, 1.2, 0.5]], land: [['fount', 5, 8.5, 'metal', 1.5], ['pillar', 3.6, 0.5, 0.35]] },
+  airstrike: { land: BLAST }, mines: { land: [['fount', 6, 8.5, 'debris', 2], ['plume', 3.2, 3, 'dust', 2.4], ['pillar', 3.2, 0.6, 0.4]] },
+  artillery: { ult: [['wall', 1.2, 0.5, 1.2, 0.5]], land: [['fount', 14, 11.5, 'debris', 3.5], ['plume', 5, 6, 'smoke', 3.6], ['pillar', 7, 1.4, 0.6, 0.3], ['wall', 1, 0.4, 1.3, 0.35]] },
+  blink: { dash: [['pillar', 4.6, 0.7, 0.55], ['plume', 3.2, 3, 'ink', 1.8]] }, pierce_star: { land: [['fount', 6, 8.5, 'metal', 1.4], ['pillar', 3.2, 0.5, 0.4]] },
+  vanish: { ult: [['plume', 4.8, 7, 'ink', 2.8]] },
+  ice_wave: { land: [['pillar', 3.6, 0.55, 0.7], ['fount', 10, 9.5, 'ice', 3], ['wall', 0.9, 0.4, 1, 0.4]] }, ice_spike: { land: [['spikes', 3.6, 0.38, 4]] },
+  blizzard: { ult: [['wall', 1, 0.5, 1.4, 0.5]], land: [['fount', 16, 11, 'ice', 4]] },
+  molotov: { zone: [['flash', 2.5], ['fount', 8, 9, 'fire', 2], ['plume', 3.8, 4, 'fire', 2.4], ['pillar', 4, 0.9, 0.6]] },
+  rocket_jump: { dash: [['fount', 10, 10, 'fire', 2.5], ['plume', 3.6, 4, 'smoke', 3], ['flash', 2.6]], land: [['wall', 1, 0.4, 1.2, 0.6], ['pillar', 4, 1, 0.5]] },
+  dragon_breath: { zone: [['plume', 5.2, 6, 'fire', 3.4], ['fount', 16, 11, 'fire', 3.5], ['flash', 3.4]] },
+  poison_cloud: { zone: [['plume', 3.8, 6, 'gas', 2.8], ['pillar', 3.2, 1.6, 0.9, 0.25]] }, drain: { land: [['fount', 4, 7.5, 'blood', 1], ['pillar', 3, 0.4, 0.4]] },
+  plague: { land: [['pillar', 10, 1.6, 1.2], ['wall', 1, 0.6, 1.2, 0.4], ['plume', 4.6, 7, 'gas', 3.4]] },
+  turret: { cast: [['pillar', 4, 0.8, 0.7], ['fount', 8, 8.5, 'metal', 1.6]] }, armor_up: { land: [['pillar', 3.5, 0.9, 0.8], ['fount', 6, 8, 'metal', 1]] },
+  fortress: { ult: [['fount', 16, 11, 'metal', 3.4], ['wall', 4.5, 0.5, 1.2, 0.5]] },
+  ball_lightning: { zone: [['pillar', 7, 1, 0.8], ['flash', 2.4, 1.3]] }, smite: { land: [['pillar', 18, 0.5, 0.35, 0.5], ['flash', 2.4], ['fount', 6, 9, 'spark', 1.4]] },
+  thunder: { ult: [['wall', 1.2, 0.5, 1.2, 0.5]], land: [['pillar', 18, 0.8, 0.45, 0.55], ['flash', 3], ['fount', 8, 10, 'spark', 2], ['wall', 2.6, 0.35, 1, 0.5]] },
+  pounce: { dash: [['fount', 8, 8.5, 'blood', 2.4], ['plume', 3, 3, 'dust', 2.2]] }, howl: { cast: [['pillar', 4.8, 1.4, 0.9], ['wall', 5, 0.5, 1.2, 0.5], ['plume', 3.4, 4, 'dust', 2.8]] },
+  werewolf: { ult: [['wall', 6, 0.5, 1.4, 0.5], ['fount', 14, 11, 'blood', 3]] },
+  swing: { dash: [['fount', 5, 8.5, 'web', 1.4], ['pillar', 3, 0.4, 0.4]] }, web_pull: { land: [['pillar', 3.6, 1.2, 0.8], ['fount', 8, 8.5, 'web', 1]] },
+  web_net: { ult: [['pillar', 4, 2, 1.0]], land: [['wall', 1, 0.5, 1.1, 0.4], ['fount', 14, 11, 'web', 4]] },
+  // enemies and bosses
+  boss_slam: { land: SLAM }, tailspin: { land: SLAM }, roar: { cast: [['wall', 6, 0.5, 1.3, 0.5], ['pillar', 4.6, 1.4, 0.9]] },
+  rockfall: { land: [['fount', 8, 9, 'debris', 2.4], ['plume', 3.4, 4, 'dust', 2.6], ['flash', 2.2], ['pillar', 3.2, 0.8, 0.45]] },
+  phase: { dash: [['pillar', 5, 0.8, 0.6], ['plume', 3.4, 4, 'ink', 2]] }, shards: { land: SPARK }, wail: { land: [['wall', 1, 0.5, 1.2, 0.6], ['pillar', 5, 1.4, 0.9]] },
+  screech: { cast: [['wall', 5, 0.4, 1.1, 0.5], ['pillar', 4, 0.9, 0.7]] }, 
+  dive: { dash: [['plume', 3.4, 4, 'dust', 2.6], ['fount', 10, 10, 'debris', 3], ['wall', 3, 0.35, 1, 0.5]] }, sonic: { land: [['wall', 1, 0.45, 1.1, 0.45], ['pillar', 3.2, 1, 0.6]] },
+  eggs: { cast: [['pillar', 3.6, 1.2, 0.8], ['plume', 3, 3, 'gas', 2.2]] }, web_spit: { land: [['fount', 6, 8.5, 'web', 1.5], ['plume', 3, 3, 'gas', 2]] },
+  acid_sea: { zone: [['plume', 3.8, 6, 'gas', 2.8], ['pillar', 3, 2, 0.9, 0.25]] }, bats: { land: [['fount', 3, 7.5, 'blood', 1]] },
+  blooddash: { dash: [['fount', 8, 9, 'blood', 2.4], ['pillar', 3.6, 0.6, 0.5]] },
+  bloodnova: { land: [['wall', 1, 0.45, 1.2, 0.7], ['pillar', 6, 1.2, 0.8], ['fount', 12, 10.5, 'blood', 3.5]] }, bloodrain: { land: [['fount', 6, 8.5, 'blood', 1.6], ['pillar', 3, 0.5, 0.4]] },
+  plasma_volley: { land: SPARK }, laser: { land: [['spikes', 6.5, 0.5, 4], ['fount', 8, 9, 'spark', 1.6]] }, beam_in: { cast: [['pillar', 14, 1, 1.0], ['flash', 2.6]], land: [['pillar', 14, 1, 1.0]] },
+  acid_mines: { land: [['fount', 6, 8.5, 'gas', 1.8], ['plume', 3.2, 3, 'gas', 2.2], ['pillar', 3, 0.7, 0.5]] },
+  pillars: { land: [['spikes', 4.6, 0.8, 5], ['fount', 6, 8.5, 'sand', 1.4]] }, mummies: { cast: [['plume', 3.4, 5, 'dust', 2.6], ['pillar', 3.6, 1.2, 0.8]] },
+  curse: { land: [['pillar', 3.4, 1.2, 0.8], ['fount', 8, 8.5, 'sand', 2.4]] }, orbring: { land: [['wall', 1, 0.45, 1.1, 0.6], ['pillar', 4.6, 1.2, 0.7]] },
+  bombrun: { land: BLAST }, tractor: { zone: [['pillar', 12, 1.8, 1.4, 0.22]] },
+  emp: { land: [['wall', 1, 0.45, 1.2, 0.6], ['pillar', 7, 1.6, 0.8], ['fount', 12, 10, 'spark', 3]] },
+  charge_boss: { dash: DUST_DASH }, void_breath: { land: [['plume', 4.6, 6, 'ink', 3], ['fount', 10, 9.5, 'void', 3.5], ['pillar', 4, 1.2, 0.7]] },
+  meteor: { land: [['fount', 16, 11.5, 'debris', 4], ['plume', 5, 6, 'smoke', 3.6], ['flash', 3.6], ['pillar', 7, 1.4, 0.6], ['wall', 1, 0.4, 1.3, 0.6]] },
+  boulder_roll: { land: [['spikes', 3.4, 0.7, 4], ['plume', 3, 3, 'dust', 2.2]] }, 
+  
+  
+};
+// debris and spark colours per kind: [palette from the event colours]
+const DEBRIS = {
+  debris: (c) => [0x8a7a68, 0xb0a088, 0x6a5a48, c.a], spark: (c) => [c.b, c.a, 0xffe090], metal: (c) => [0xc0c8d4, 0x7a8aa0, c.a], ice: () => [0xdff4ff, 0x9adcff, 0x7ad0ff],
+  fire: () => [0xffd070, 0xff8a30, 0xff4010], blood: () => [0xd8203a, 0xa01028, 0x6a0a18], gas: (c) => [c.b, c.a, 0x9cff3a], web: () => [0xffffff, 0xc0c8e8, 0x98a0c0],
+  sand: () => [0xffe090, 0xc89a40, 0x8a6a30], void: () => [0xe8b0ff, 0x7a30d8, 0x4a1a90],
+};
+// smoke columns: [start colour, end colour, additive]
+const PLUME = {
+  smoke: [0x3a3632, 0x7a746c, false], dust: [0xb8ae98, 0x8a8070, false], gas: [null, null, false], fire: [0xffd070, 0xff3a10, true], ink: [0x2a2038, 0x6a5a82, false], wind: [0xffffff, 0xbfe4ff, true],
+};
+
+const BOSS_DEATH = [['pillar', 14, 2, 1.2, 0.4], ['fount', 24, 12, 'fire', 5], ['plume', 5.5, 7, 'smoke', 4], ['wall', 1, 0.5, 1.4, 0.6], ['flash', 4]];
 const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 export function createFxMap(H, marks, ctx) {
@@ -73,6 +144,46 @@ export function createFxMap(H, marks, ctx) {
   let budget = { pop: 0, boom: 0, puff: 0 };
   const reduceFlash = () => !!(window.__G && window.__G.settings && window.__G.settings.reduceFlash);
   const snd = (name, x, z, gain = 0.5) => { if (name) G.audio.playAt(name, V(x, 0, z), { gain }); };
+
+
+  // ---- vertical layer builders (see VERT) ----
+  const UP = V(0, 1, 0); let vb = 0;
+  const mixHex = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t).getHex();
+  const qual = () => Math.max(0.5, H.quality.particles);
+  function colorsFor(key, uid) {
+    const u = uid ? ctx.unit(uid) : null;
+    if (u && u.hero) { const a = ctx.colorOf(uid); return { a, b: mixHex(a, 0xffffff, 0.35) }; }
+    const p = pal(KEYS[key]); return { a: p[1], b: mixHex(p[1], p[0], 0.5) };
+  }
+  const BUILD = {
+    pillar(x, z, c, r, e, h, rad, life, a) { marks.pillar(x, z, c.a, { h, r: rad, life, a }); },
+    wall(x, z, c, r, e, k, life, h, a) { const R = r ? Math.min(e && e.part === 'burst' ? 3.6 : 6, Math.max(1.4, r * k)) : k; marks.wall(x, z, R * 0.2, R, c.a, life, h, a); },
+    flash(x, z, c, r, e, size, y = 0.8) { marks.flash(x, y, z, Math.min(size, 2.6), c.b); },
+    fount(x, z, c, r, e, n, v, kind, sp) {
+      const cols = (DEBRIS[kind] || DEBRIS.spark)(c);
+      G.fx.burst(V(x, 0.3, z), n, cols, { dir: UP, push: v, speed: sp, grav: 14, life: (v / 14) * 2 + 0.5, size: 0.26, bounce: 0.15 });
+      const m = Math.max(2, Math.round(n * 0.5 * qual()));
+      for (let i = 0; i < m && budget.puff-- > 0; i++) {
+        const a = G.rng.range(0, 6.283); const d = G.rng.range(0, sp * 0.4);
+        G.fx.puff(V(x, 0.3, z), { glow: true, vel: V(Math.cos(a) * d, v * G.rng.range(0.75, 1.05), Math.sin(a) * d), g: 14, drag: 0.1, s0: 0.3, s1: 0.08, life: G.rng.range(1.0, 1.4), c0: c.a, c1: c.a, a0: 0.6, spin: 0 });
+      }
+    },
+    plume(x, z, c, r, e, h, n, kind, size) {
+      let [c0, c1, add] = PLUME[kind] || PLUME.smoke; if (kind === 'gas') { c0 = c.b; c1 = c.a; }
+      const N = Math.max(2, Math.round(n * qual()));
+      for (let i = 0; i < N; i++) {
+        G.fx.puff(V(x + G.rng.range(-0.3, 0.3) * size * 0.3, 0.3, z + G.rng.range(-0.3, 0.3) * size * 0.3), { glow: add, vel: V(G.rng.range(-0.5, 0.5), (h / 0.95) * G.rng.range(0.8, 1.1), G.rng.range(-0.5, 0.5)), drag: 0.6, s0: size * 0.35, s1: size, life: G.rng.range(1.3, 1.7), delay: i * 0.06, c0, c1, a0: add ? 0.5 : 0.55 });
+      }
+    },
+    spikes(x, z, c, r, e, h, rad, n) {
+      if (e && e.x2 !== undefined) for (let i = 0; i < n; i++) { const t = (i + 1) / n; marks.pillar(e.x + (e.x2 - e.x) * t, e.z + (e.z2 - e.z) * t, c.a, { h: h * (0.75 + 0.25 * ((i * 7) % 3) / 2), r: rad, life: 0.7, a: 0.45, rise: 0.1 + i * 0.03 }); }
+      else marks.pillar(x, z, c.a, { h, r: rad, life: 0.7, a: 0.45 });
+    },
+  };
+  function layers(list, x, z, c, r, e) {
+    if (!list) return;
+    for (const L of list) { if (vb <= 0) return; vb--; BUILD[L[0]](x, z, c, r, e, ...L.slice(1)); }
+  }
 
   function look(key) {
     const k = KEYS[key];
@@ -92,7 +203,7 @@ export function createFxMap(H, marks, ctx) {
   function boom(x, z, r) {
     if (budget.boom-- <= 0) return;
     if (reduceFlash()) { G.fx.pop(V(x, 0.3, z), r * 0.8, [0xffd070, 0xff6020]); return; }
-    G.fx.explosion(V(x, 0.2, z), Math.min(1, Math.max(0.4, r / 4.2)));
+    G.fx.explosion(V(x, 0.2, z), Math.min(0.7, Math.max(0.4, r / 4.2))); // a hero volley lands several at once: capped so they do not burn out together
   }
   function wave(x, z, r, cols, life = 0.55) { marks.ring(x, z, Math.max(0.3, r * 0.2), r, cols[1], life, 0.85); marks.ring(x, z, 0.2, r * 0.8, cols[0], life * 0.8, 0.22); }
 
@@ -100,9 +211,9 @@ export function createFxMap(H, marks, ctx) {
   const PART = {
     burst(e, k, p) {
       const r = e.r || 1; const cols = teamCol(e.team, p); const n = k.n || 1;
-      pop(e.x, 0.3, e.z, Math.min(2, Math.max(0.5, r * 0.4 * Math.min(1.3, n))), cols);
+      pop(e.x, 0.3, e.z, Math.min(r >= 3 ? 1.1 : 2, Math.max(0.5, r * 0.4 * Math.min(1.3, n))), cols);
       wave(e.x, e.z, r, cols, 0.5); marks.flare(e.x, e.z, r * 1.1, cols[1], 0.45, e.team === 0 ? 0.3 : 0.5);
-      if (k.boom && r >= 1.6) boom(e.x, e.z, r);
+      if (k.boom && r >= 1.6) { if (k.ult && e.team === 0) G.fx.pop(V(e.x, 0.3, e.z), 1.2, [0xffd070, 0xff6020]); else boom(e.x, e.z, r); } // a volley ultimate lands many at once: their additive shock rings and screen flashes would stack to white
       if (k.s === 'earth' && budget.puff-- > 0) G.fx.chunks && G.fx.chunks(V(e.x, 0.4, e.z), 4 + Math.round(r), [BZ.mat('stone')], V(0, 1, 0), 0.7);
       snd(k.snd || (k.boom ? 'boom' : (e.team === 0 ? 'impact' : 'hit')), e.x, e.z, k.boom ? 0.5 : 0.3);
     },
@@ -157,6 +268,10 @@ export function createFxMap(H, marks, ctx) {
       const k = look(e.key); if (!k) { PART.burst(e, KEYS.slash, STYLE.steel); return; }
       const p = pal(k); const f = PART[e.part]; if (!f) return;
       f(e, k, p); bump(e.key);
+      const set = VERT[e.key] && VERT[e.key].land; if (!set) return;
+      let x = e.x; let z = e.z;
+      if (e.part === 'cone') { x = e.x + Math.cos(e.ang) * e.r * 0.6; z = e.z + Math.sin(e.ang) * e.r * 0.6; } else if (e.part === 'line') { x = e.x2; z = e.z2; }
+      layers(set, x, z, colorsFor(e.key, e.by || e.uid), e.part === 'bolt' ? 2 : e.r, e);
     },
     tele(e) {
       const k = look(e.key); marks.tele(e, k && k.fall); if (k) bump(e.key);
@@ -165,6 +280,7 @@ export function createFxMap(H, marks, ctx) {
       const k = look(e.key); if (!k || !k.z) { if (k) bump(e.key); return; }
       marks.zoneStart(e, k.z); bump(e.key);
       const p = pal(k); marks.ring(e.x, e.z, 0.5, e.r, p[1], 0.5, 0.7);
+      layers(VERT[e.key] && VERT[e.key].zone, e.x, e.z, { a: p[1], b: mixHex(p[1], p[0], 0.5) }, e.r, e);
     },
     zone_end(e) { marks.zoneEnd(e.id); },
     // nothing on the ground outlives the wave: warnings, zones, rings and Blockade Z's decals go when it is cleared or the battle ends
@@ -176,12 +292,15 @@ export function createFxMap(H, marks, ctx) {
       const p = u.hero ? [0xffffff, ctx.colorOf(e.uid)] : pal(k);
       marks.ring(u.x, u.z, 0.4, 2.4, p[1], 0.5, 0.8); marks.flare(u.x, u.z, 2, p[1], 0.5, 0.3);
       if (k.snd && !u.hero) snd(k.snd, u.x, u.z, 0.5);
+      layers(VERT[e.key] && VERT[e.key].cast, u.x, u.z, colorsFor(e.key, e.uid), undefined, e);
     },
     ult(e) {
       const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (k) bump(e.key);
       const c = ctx.colorOf(e.uid); const col = new THREE.Color(c);
       marks.flare(u.x, u.z, 4.5, c, 0.9, 0.3); marks.ring(u.x, u.z, 0.5, ULT_SPAN, c, 0.7, 0.8); marks.ring(u.x, u.z, 0.3, ULT_SPAN * 0.6, c, 0.55, 0.4);
       pop(u.x, 1, u.z, 1.1, [col.getHex(), col.getHex()]); snd('wave_start', u.x, u.z, 0.4);
+      const cc = { a: c, b: mixHex(c, 0xffffff, 0.35) }; marks.wash(c, 0.8, 0.22);
+      layers(GENERIC_ULT, u.x, u.z, cc, ULT_SPAN, e); layers(VERT[e.key] && VERT[e.key].ult, u.x, u.z, cc, ULT_SPAN, e);
     },
     dash(e) {
       const k = look(e.key); if (k) bump(e.key);
@@ -191,6 +310,7 @@ export function createFxMap(H, marks, ctx) {
       for (let i = 0; i < n && budget.puff-- > 0; i++) { const t = i / n; G.fx.puff(V(e.x + dx * t, 0.6, e.z + dz * t), { glow: true, s0: 0.9, s1: 0.2, life: 0.35, c0: p[0], c1: p[1], a0: 0.8, spin: 0 }); }
       if (e.jump) { marks.ring(e.x2, e.z2, 0.4, 2, p[1], 0.4, 0.8); G.fx.puff(V(e.x2, 0.3, e.z2), { s0: 0.8, s1: 2.4, life: 0.5, c0: 0xb8b0a0, c1: 0x9a9488, a0: 0.5 }); }
       snd('swipe', e.x, e.z, 0.3);
+      const set = VERT[e.key] && VERT[e.key].dash; if (set) { const c = colorsFor(e.key, e.uid); layers(set, e.x2, e.z2, c, undefined, e); if (e.blink || e.key === 'phase') layers(set, e.x, e.z, c, undefined, e); }
     },
     summon(e) {
       const u = ctx.unit(e.owner); const c = u && u.hero ? ctx.colorOf(e.owner) : 0xb0c0ff;
@@ -231,7 +351,7 @@ export function createFxMap(H, marks, ctx) {
       if (e.expire) { marks.ring(e.x, e.z, 0.3, 1.2, 0xc8d0ff, 0.35, 0.6); return; }
       const u = ctx.unit(e.uid); if (!u) return;
       if (u.hero) { pop(e.x, 0.8, e.z, 1.2, [0xffffff, 0xff6070]); marks.ring(e.x, e.z, 0.3, 2.4, 0xff6070, 0.5, 0.8); return; }
-      if (e.boss) { boom(e.x, e.z, 5); wave(e.x, e.z, 7, STYLE.fire, 0.8); marks.flare(e.x, e.z, 6, 0xffa040, 0.9, 0.7); return; }
+      if (e.boss) { boom(e.x, e.z, 5); wave(e.x, e.z, 7, STYLE.fire, 0.8); marks.flare(e.x, e.z, 6, 0xffa040, 0.7, 0.45); layers(BOSS_DEATH, e.x, e.z, { a: 0xffa040, b: 0xffd890 }, 7, e); return; }
       if (u.horde) return; // the horde renderer's own cubes
       if (budget.puff-- > 0) G.fx.puff(V(e.x, 0.5, e.z), { s0: 0.6, s1: 1.9, life: 0.55, c0: 0xa8a49c, c1: 0x7a766e, a0: 0.45 });
     },
@@ -317,7 +437,7 @@ export function createFxMap(H, marks, ctx) {
     KEYS, counters, missing, STYLE, look,
     onEvent(e) { const h = ON[e.e]; if (h) h(e); },
     attack,
-    update(B, dt) { budget = { pop: 8, boom: 2, puff: 40 }; if (B) { syncProjs(B, dt); unitsFx(B, dt); } marks.update(dt, B); },
+    update(B, dt) { budget = { pop: 8, boom: 2, puff: 60 }; vb = 28; if (B) { syncProjs(B, dt); unitsFx(B, dt); } marks.update(dt, B); },
     clear() { for (const r of projs.values()) scene.remove(r.g); projs.clear(); marks.clear(); },
     wrapA,
   };

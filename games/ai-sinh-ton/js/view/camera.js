@@ -15,13 +15,16 @@ const SIDE = 8;
 const FIT_K = 1.08;     // the spawn rim is at 1.04 to 1.07 of the ellipse
 const HEAD = 1.2;       // body height that must still clear the top band at the far rim
 const PTS = 48;
+const PUSH = 0.028;      // push-in on an ultimate: 2.8% scale about the casting hero, clamped so the rim stays in the frame
+const RIM_PAD = 0.012;   // NDC margin kept between the rim and the frame edge while pushing
+const SHAKE_PAD = 0.003;
 
 export function createCamera(H) {
   const { camera, G } = H;
   const fit = new THREE.PerspectiveCamera(FOV_OVER, 360 / 780, 1, 500);
   const focus = new THREE.Vector3();
   const v = new THREE.Vector3(); const look = new THREE.Vector3(); const pos = new THREE.Vector3();
-  let dist = 40; let shift = 0; let key = ''; let blend = 0; let want = 0; let target = 0; let fov = FOV_OVER;
+  let dist = 40; let shift = 0; let rim = { x: 0.95, y0: -0.5, y1: 0.7 }; let key = ''; let blend = 0; let want = 0; let target = 0; let fov = FOV_OVER;
   const C = { focus, get R() { return ARENA.z * FIT_K; }, get dist() { return dist; }, get shift() { return shift; }, mode: 'overview', spectate(uid) { target = uid || 0; want = target ? 1 : 0; H.spectateUid = target; }, update };
   Object.defineProperty(C, 'mode', { get: () => (target ? 'spectate' : 'overview') });
 
@@ -50,9 +53,32 @@ export function createCamera(H) {
     }
     dist = hi; const b = bbox(dist);
     shift = (-1 + bot + freeY / 2) - (b.y0 + b.y1) / 2;
+    rim = { x: b.x1, y0: b.y0 + shift, y1: b.y1 + shift };
   }
 
   function unitOf(B, uid) { return B && B.byUid && B.byUid.get(uid); }
+
+  // push-in about the casting hero and screen shake, applied to the projection after the lens shift: ndc' = s * ndc + t.
+  // The push and pull are clamped so the fit ring of the arena stays inside the frame; a chase view only gets the shake.
+  function juiceView(chase) {
+    const j = H.juice; if (!j) return;
+    const el = camera.projectionMatrix.elements; const { w, h } = H.size;
+    let s = 1; let tx = 0; let ty = 0;
+    if (!chase && j.push > 0) {
+      s = Math.min(1 + PUSH * j.push, (1 - RIM_PAD) / Math.max(rim.x, Math.abs(rim.y0), Math.abs(rim.y1)));
+      let hx = 0; let hy = 0;
+      if (j.pull.k > 0) { v.set(j.pull.x, 0, j.pull.z).project(camera); hx = v.x; hy = v.y; }
+      tx = (1 - s) * hx; ty = (1 - s) * hy;
+      tx = Math.max(-(1 - RIM_PAD) + s * rim.x, Math.min((1 - RIM_PAD) - s * rim.x, tx));
+      ty = Math.max(-(1 - RIM_PAD) - s * rim.y0, Math.min((1 - RIM_PAD) - s * rim.y1, ty));
+    }
+    if (j.shake.px > 0) {
+      tx += j.shake.x * 2 / w; ty += j.shake.y * 2 / h;
+      if (!chase) { tx = Math.max(-(1 - SHAKE_PAD) + s * rim.x, Math.min((1 - SHAKE_PAD) - s * rim.x, tx)); ty = Math.max(-(1 - SHAKE_PAD) - s * rim.y0, Math.min((1 - SHAKE_PAD) - s * rim.y1, ty)); }
+    }
+    if (s === 1 && tx === 0 && ty === 0) return;
+    el[0] *= s; el[5] *= s; el[8] = s * el[8] - tx; el[9] = s * el[9] - ty;
+  }
 
   function update(B, dt) {
     const k = H.size.w + 'x' + H.size.h;
@@ -79,6 +105,7 @@ export function createCamera(H) {
     camera.fov = fov; camera.aspect = aspect; camera.position.copy(pos); camera.lookAt(look); camera.updateMatrixWorld(true);
     camera.updateProjectionMatrix();
     camera.projectionMatrix.elements[9] = -lens;
+    juiceView(blend > 0 && u);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     // the fog starts behind the far rim, so the spawn rim dissolves into the mist
     if (H.scene.fog) { H.scene.fog.near = fogBase + 14; H.scene.fog.far = fogBase + 60; }

@@ -217,7 +217,7 @@ try {
         await page.evaluate((i) => { const B = window.__G.start(2, { seed: 9, team: [i, 'thep', 'yta', 'mua'], auto: { ult: true, pick: 'best' }, hpFlat: 3000 }); B.heroes[0].ult = 1; }, id);
         const e = await page.evaluate(([i]) => window.__wait('ult', `e.hero === '${i}'`, 8, 60000), [id]);
         if (!e) { check(false, `hero ${id}: ultimate never cast`); continue; }
-        await page.waitForTimeout(380);
+        await page.waitForTimeout(420); // 380 ms of play plus the 40 ms hit-stop the ultimate takes at the fast-forward speed
         const f = await shot(page, `ult-${id}.png`); ults.push(f); sheets.ults.push(f);
         const w = pix(f, FOG[3], null).white;
         check(w < 0.01, `ultimate ${id}: clipped white ${(w * 100).toFixed(2)}% (< 1%)`);

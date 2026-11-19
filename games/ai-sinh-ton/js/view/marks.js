@@ -1,6 +1,7 @@
 // Ground layer: warning marks that fill up before an attack lands (with a falling projectile for `fall` marks),
 // lingering zones animated from the live sim zone, expanding rings and flares. Everything is a flat mesh just above
 // the floor, drawn by a few small shaders, so it stays cheap and reads from above.
+import { ARENA } from '../sim/battle.js?v=20261120a';
 const THREE = window.THREE;
 
 const NOISE = `
@@ -74,6 +75,7 @@ const FALL_LOOK = {
   nade: () => new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), new THREE.MeshLambertMaterial({ color: 0x6a8a3a })),
 };
 const FALL_H = 22;
+const FALL_SIDE = 7; // a falling shell starts this far to the side and arcs in, so the throw reads from above
 
 const FLARE_K = 0.65;
 // hard caps on live ground meshes: past them the oldest is recycled
@@ -109,8 +111,8 @@ export function createMarks(H) {
     const rec = { mesh, uni, t: 0, T, x: e.x, z: e.z, bt: lastB ? lastB.t : Infinity };
     teles.push(rec);
     if (e.fall) {
-      const mk = FALL_LOOK[fallKind] || FALL_LOOK.shell; const obj = mk(); obj.position.set(e.x, FALL_H, e.z); scene.add(obj);
-      falls.push({ obj, t: 0, T, x: e.x, z: e.z, kind: fallKind, spin: G.rng.range(-4, 4) });
+      const mk = FALL_LOOK[fallKind] || FALL_LOOK.shell; const obj = mk(); const side = e.team === 1 ? -1 : 1; obj.position.set(e.x + FALL_SIDE * side, FALL_H, e.z); scene.add(obj);
+      falls.push({ obj, t: 0, T, x: e.x, z: e.z, side, kind: fallKind, spin: G.rng.range(-4, 4) });
     }
     return rec;
   }
@@ -147,9 +149,9 @@ export function createMarks(H) {
       let x; let y = 0.2; let zz; const a0 = G.rng.range(0, 6.283); const d = Math.sqrt(G.rng.next()) * z.r;
       if (z.cone) { const a = z.ang + G.rng.range(-0.45, 0.45) * (z.uni ? 1 : 1); const dd = G.rng.range(0.5, 1) * z.r; x = z.x + Math.cos(a) * dd; zz = z.z + Math.sin(a) * dd; } else { x = z.x + Math.cos(a0) * d; zz = z.z + Math.sin(a0) * d; }
       const v = new THREE.Vector3(x, y, zz); const k = z.look[0];
-      if (k === 0) P(v, { glow: true, vel: new THREE.Vector3(0, G.rng.range(1.5, 3.2), 0), drag: 0.4, s0: 0.9, s1: 0.2, life: G.rng.range(0.45, 0.8), c0: 0xffd070, c1: 0xff3a10, a0: 0.8, spin: 0 });
-      else if (k === 1) P(v, { vel: new THREE.Vector3(G.rng.range(-0.3, 0.3), G.rng.range(0.5, 1), G.rng.range(-0.3, 0.3)), drag: 0.8, s0: 0.7, s1: 2.2, life: G.rng.range(1.0, 1.6), c0: z.look[1], c1: z.look[2], a0: 0.4 });
-      else if (k === 2) P(v.setY(G.rng.range(0.5, 3)), { glow: true, vel: new THREE.Vector3(G.rng.range(-3, 3), -1.2, G.rng.range(-3, 3)), drag: 0.2, s0: 0.22, s1: 0.14, life: G.rng.range(0.7, 1.1), c0: 0xffffff, c1: 0xbfe4ff, a0: 0.95, spin: 0 });
+      if (k === 0) { P(v, { glow: true, vel: new THREE.Vector3(0, G.rng.range(3.2, 6.2), 0), drag: 0.25, s0: 1.0, s1: 0.25, life: G.rng.range(0.6, 1.0), c0: 0xffd070, c1: 0xff3a10, a0: 0.8, spin: 0 }); if (G.rng.chance(0.35)) P(v, { vel: new THREE.Vector3(G.rng.range(-0.4, 0.4), G.rng.range(2.4, 3.6), G.rng.range(-0.4, 0.4)), drag: 0.5, s0: 0.8, s1: 2.2, life: 1.3, c0: 0x4a3a34, c1: 0x6a625c, a0: 0.4 }); }
+      else if (k === 1) P(v, { vel: new THREE.Vector3(G.rng.range(-0.3, 0.3), G.rng.range(2.4, 3.8), G.rng.range(-0.3, 0.3)), drag: 0.45, s0: 0.7, s1: 2.4, life: G.rng.range(1.3, 1.9), c0: z.look[1], c1: z.look[2], a0: 0.42 });
+      else if (k === 2) P(v.setY(G.rng.range(2.5, 5)), { glow: true, vel: new THREE.Vector3(G.rng.range(-2, 2), -2.2, G.rng.range(-2, 2)), drag: 0.15, s0: 0.24, s1: 0.14, life: G.rng.range(0.9, 1.3), c0: 0xffffff, c1: 0xbfe4ff, a0: 0.8, spin: 0 });
     }
   }
 
@@ -187,20 +189,76 @@ export function createMarks(H) {
     rec.on = true; rec.t = 0; rec.life = life; rec.a = alpha; rec.mesh.material.color.set(color); rec.mesh.visible = true;
     rec.mesh.position.set((x + x2) / 2, 0.09, (z + z2) / 2); rec.mesh.rotation.y = -Math.atan2(dz, dx); rec.mesh.scale.set(len + w, w * 1.6, 1);
   }
-  const pillars = [];
-  // additive light on the floor: the pale tiles and sand of the new floors leave less headroom than the old dark tiles,
-  // so pools and beams are added a little softer (a white-hot cast must not clip the frame)
-  function pillar(x, z, color, life = 1) {
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 14, 20, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
-    mesh.position.set(x, 7, z); scene.add(mesh); pillars.push({ mesh, t: 0, life });
+  // ---- vertical layer: pooled light pillars, shock walls, local flashes and the arena-edge wash ----
+  // a base-on-the-floor open cylinder with a gradient that fades toward the top, tinted per use
+  const gradTex = (() => {
+    const cv = document.createElement('canvas'); cv.width = 4; cv.height = 64; const c = cv.getContext('2d'); const g = c.createLinearGradient(0, 0, 0, 64);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.55, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,1)');
+    c.fillStyle = g; c.fillRect(0, 0, 4, 64); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 20, 1, true).translate(0, 0.5, 0);
+  const VCAP = { pillar: 10, wall: 8, flash: 10 };
+  const vpool = { pillar: [], wall: [], flash: [] };
+  const reduceFlash = () => !!(window.__G && window.__G.settings && window.__G.settings.reduceFlash);
+  function vslot(kind) {
+    let rec = vpool[kind].find((r) => !r.on);
+    if (rec) return rec;
+    if (vpool[kind].length >= VCAP[kind]) { rec = vpool[kind].reduce((a, b) => (b.t / b.life > a.t / a.life ? b : a)); return rec; }
+    let mesh;
+    if (kind === 'flash') mesh = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZtex('glow'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+    else mesh = new THREE.Mesh(cylGeo, new THREE.MeshBasicMaterial({ map: gradTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
+    mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 6; scene.add(mesh);
+    rec = { kind, mesh, on: false, t: 0, life: 1 }; vpool[kind].push(rec); return rec;
   }
+  // o: { h height, r radius, life, a opacity, rise seconds to full height }
+  function pillar(x, z, color, o = {}) {
+    if (typeof o === 'number') o = { life: o, h: 14, r: 1.1, a: 0.4 };
+    const rec = vslot('pillar'); const m = rec.mesh;
+    Object.assign(rec, { on: true, t: 0, life: o.life || 0.7, h: o.h || 6, r: o.r || 1, a: (o.a ?? 0.55) * (reduceFlash() ? 0.6 : 1), rise: o.rise || 0.12, shrink: o.shrink ?? 0.5 });
+    m.material.color.set(color); m.position.set(x, 0.05, z); m.visible = true; m.scale.set(rec.r, 0.01, rec.r);
+  }
+  // an expanding wall around (x, z): radius r0 to r1 over life, gone (opacity 0) at the end
+  function wall(x, z, r0, r1, color, life = 0.4, h = 0.9, a = 0.5) {
+    const rec = vslot('wall'); const m = rec.mesh;
+    Object.assign(rec, { on: true, t: 0, life, r0, r1, h, a: a * (reduceFlash() ? 0.6 : 1) });
+    m.material.color.set(color); m.position.set(x, 0.05, z); m.visible = true; m.scale.set(r0, h, r0);
+  }
+  // a local additive sprite at the point, at most 80 ms; shorter and dimmer with reduceFlash
+  function flash(x, y, z, r, color, a = 0.42) {
+    const rec = vslot('flash'); const m = rec.mesh; const soft = reduceFlash();
+    Object.assign(rec, { on: true, t: 0, life: soft ? 0.05 : 0.08, r, a: a * (soft ? 0.5 : 1) });
+    m.material.color.set(color); m.position.set(x, y, z); m.visible = true; m.scale.setScalar(r);
+  }
+  const edge = { on: false, t: 0, life: 0.6, a: 0.25, mesh: null };
+  function wash(color, life = 0.6, a = 0.24) {
+    if (!edge.mesh) { edge.mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide })); flat(edge.mesh, 0, 0, 0.04); edge.mesh.renderOrder = 2; edge.mesh.scale.set(ARENA.x * 1.2, ARENA.z * 1.2, 1); }
+    edge.on = true; edge.t = 0; edge.life = life; edge.a = a; edge.mesh.material.color.set(color); edge.mesh.material.opacity = 0; edge.mesh.visible = true;
+  }
+  function updateVertical(dt) {
+    for (const r of vpool.pillar) if (r.on) {
+      r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; r.mesh.visible = false; continue; }
+      const up = 1 - Math.pow(1 - Math.min(1, r.t / r.rise), 3);
+      r.mesh.scale.set(r.r * (1 - k * r.shrink), Math.max(0.01, r.h * up), r.r * (1 - k * r.shrink)); r.mesh.material.opacity = r.a * Math.pow(1 - k, 1.3) * Math.min(1, r.t / 0.04);
+    }
+    for (const r of vpool.wall) if (r.on) {
+      r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; r.mesh.visible = false; continue; }
+      const e = 1 - Math.pow(1 - k, 3); const rad = r.r0 + (r.r1 - r.r0) * e;
+      r.mesh.scale.set(rad, r.h * (1 - 0.5 * k), rad); r.mesh.material.opacity = r.a * (1 - k) * Math.min(1, r.t / 0.03);
+    }
+    for (const r of vpool.flash) if (r.on) {
+      r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; r.mesh.visible = false; continue; }
+      r.mesh.scale.setScalar(r.r * (0.6 + 0.6 * k)); r.mesh.material.opacity = r.a * (1 - k);
+    }
+    if (edge.on) { edge.t += dt; const k = edge.t / edge.life; if (k >= 1) { edge.on = false; edge.mesh.visible = false; } else edge.mesh.material.opacity = edge.a * Math.sin(Math.PI * Math.min(1, k * 1.15)) ; }
+  }
+  const vliveCount = () => ({ pillars: vpool.pillar.filter((r) => r.on).length, walls: vpool.wall.filter((r) => r.on).length, flashes: vpool.flash.filter((r) => r.on).length + (edge.on ? 1 : 0) });
 
   function update(dt, B) {
     clock += dt; lastB = B || lastB;
     // a fast-forward moves the sim far ahead of the view clock: decals dry up on the sim clock as well
     if (B) { const extra = lastSimT >= 0 && B.t >= lastSimT ? B.t - lastSimT - dt : 0; if (extra > 0.05 && G.fx.ageDecals) G.fx.ageDecals(extra); lastSimT = B.t; }
     for (const r of strips) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; r.mesh.visible = false; continue; } r.mesh.material.opacity = r.a * (1 - k); }
-    for (let i = pillars.length - 1; i >= 0; i--) { const q = pillars[i]; q.t += dt; const k = q.t / q.life; if (k >= 1) { scene.remove(q.mesh); q.mesh.geometry.dispose(); q.mesh.material.dispose(); pillars.splice(i, 1); continue; } q.mesh.material.opacity = 0.24 * (1 - k); q.mesh.scale.set(1 - k * 0.6, 1, 1 - k * 0.6); }
+    updateVertical(dt);
     for (let i = teles.length - 1; i >= 0; i--) {
       const t = teles[i]; t.t += dt; const k = Math.min(1, t.t / t.T);
       t.uni.uK.value = k; t.uni.uTime.value = clock;
@@ -210,8 +268,8 @@ export function createMarks(H) {
     }
     for (let i = falls.length - 1; i >= 0; i--) {
       const f = falls[i]; f.t += dt; const k = Math.min(1, f.t / f.T);
-      f.obj.position.y = FALL_H * (1 - k * k) + 0.3; f.obj.rotation.y += f.spin * dt; f.obj.rotation.x += f.spin * 0.5 * dt;
-      if (f.kind === 'meteor' || f.kind === 'shell') G.fx.puff(f.obj.position.clone(), { glow: true, s0: 0.9, s1: 0.2, life: 0.3, c0: 0xffd080, c1: 0xff4010, a0: 0.8, spin: 0 });
+      f.obj.position.set(f.x + FALL_SIDE * f.side * (1 - k) * (1 - k), FALL_H * (1 - k * k) + 0.3, f.z); f.obj.rotation.y += f.spin * dt; f.obj.rotation.x += f.spin * 0.5 * dt;
+      if ((f.kind === 'meteor' || f.kind === 'shell') && f.obj.position.y < 12) G.fx.puff(f.obj.position.clone(), { glow: true, s0: 0.9, s1: 0.2, life: 0.3, c0: 0xffd080, c1: 0xff4010, a0: 0.8, spin: 0 });
       if (k >= 1) { scene.remove(f.obj); falls.splice(i, 1); }
     }
     for (const z of [...zones.values()]) {
@@ -241,8 +299,10 @@ export function createMarks(H) {
     for (const r of rings) { r.on = false; r.mesh.visible = false; }
     for (const f of flares) { f.on = false; f.mesh.visible = false; }
     for (const r of strips) { r.on = false; r.mesh.visible = false; }
-    for (const q of pillars) { scene.remove(q.mesh); q.mesh.geometry.dispose(); q.mesh.material.dispose(); } pillars.length = 0; lastB = null; lastSimT = -1;
+    for (const k of Object.keys(vpool)) for (const r of vpool[k]) { r.on = false; r.mesh.visible = false; }
+    if (edge.mesh) { edge.on = false; edge.mesh.visible = false; }
+    lastB = null; lastSimT = -1;
   }
   void fades;
-  return { tele, zoneStart, zoneEnd, ring, flare, strip, pillar, update, clear, stats: () => ({ teles: teles.length, falls: falls.length, zones: zones.size, rings: rings.filter((r) => r.on).length, flares: flares.filter((r) => r.on).length, strips: strips.filter((r) => r.on).length, pillars: pillars.length }), teleRecs: teles };
+  return { tele, zoneStart, zoneEnd, ring, flare, strip, pillar, wall, flash, wash, update, clear, vertical: vpool, stats: () => ({ teles: teles.length, falls: falls.length, zones: zones.size, rings: rings.filter((r) => r.on).length, flares: flares.filter((r) => r.on).length, strips: strips.filter((r) => r.on).length, ...vliveCount() }), teleRecs: teles };
 }

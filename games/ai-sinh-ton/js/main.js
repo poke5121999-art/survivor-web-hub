@@ -3,6 +3,7 @@
 import { createHost } from './view/host.js?v=20261120a';
 import { createActors } from './view/actors.js?v=20261120a';
 import { createCamera } from './view/camera.js?v=20261120a';
+import { createJuice } from './view/juice.js?v=20261120a';
 import { createBattle, step, DT } from './sim/battle.js?v=20261120a';
 import { stageDef, expectedLevel } from './data/stages.js?v=20261120a';
 import { levelMul } from './data/economy.js?v=20261120a';
@@ -35,12 +36,13 @@ async function boot() {
         team: opts.teamSpec || ids.map((id) => ({ id, mul: opts.mul || levelMul(L), atkFlat: opts.atkFlat ?? 6 * n, hpFlat: opts.hpFlat ?? 40 * n })),
         onEvent: (e) => { actors.onEvent(e); for (const fn of listeners) fn(e); },
       });
-      host.setStage(game.B.stage); game.state = 'battle'; game.stageN = n; acc = 0;
+      host.setStage(game.B.stage); game.state = 'battle'; game.stageN = n; acc = 0; juice.reset();
       if (opts.spectate !== undefined && game.B.heroes[opts.spectate]) cam.spectate(game.B.heroes[opts.spectate].uid);
       return game.B;
     },
-    stop() { actors.clear(); cam.spectate(0); game.B = null; game.state = 'home'; },
+    stop() { actors.clear(); cam.spectate(0); game.B = null; game.state = 'home'; juice.reset(); },
   };
+  const juice = createJuice(game); host.juice = juice.view; game.juice = juice;
   window.__G = game;
   window.__stats = host.stats;
   const glue = await attachGame(game, { params });
@@ -54,7 +56,7 @@ async function boot() {
   function advance(dt) {
     const B = game.B;
     if (!B || game.paused || game.frozen || B.phase !== 'fight') return;
-    acc += dt * game.speed;
+    acc += dt * game.speed * juice.scale;
     let n = 0;
     while (acc >= DT && n++ < MAX_CATCHUP && B.phase === 'fight') { step(B); acc -= DT; }
     if (acc > DT * MAX_CATCHUP) acc = 0;
@@ -63,15 +65,17 @@ async function boot() {
   let last = performance.now();
   function loop(now) {
     const dt = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
+    juice.update(dt);
     advance(dt);
-    present(game.paused ? 0.0001 : dt * game.speed, dt);
+    present(game.paused ? 0.0001 : Math.max(0.0001, dt * game.speed * juice.scale), dt);
     requestAnimationFrame(loop);
   }
 
   window.__sim = (secs) => {
     const B = game.B; if (!B) return;
     const ticks = Math.round(secs / DT);
-    for (let i = 0; i < ticks && B.phase === 'fight'; i++) step(B);
+    juice.silent = true;
+    try { for (let i = 0; i < ticks && B.phase === 'fight'; i++) step(B); } finally { juice.silent = false; }
     for (let i = 0; i < 24; i++) { actors.sync(B, 1 / 30); cam.update(B, 1 / 30); }
     host.update(1 / 30); glue.update(1 / 30, 1 / 30); host.render(glue.overlay);
   };

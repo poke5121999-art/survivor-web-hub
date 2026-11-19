@@ -7,7 +7,7 @@ import { xpNeed } from '../data/unlocks.js?v=20261120a';
 import { ITEM_ICON } from './itemicons.js?v=20261120a';
 import { createStatsPanel } from './stats.js?v=20261120a';
 
-const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
+const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Rung màn hình', 'shake', 'set-shake'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
 const QUALITY = [['Thấp', 'low'], ['Vừa', 'medium'], ['Cao', 'high']];
 const clock = (s) => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 
@@ -21,34 +21,36 @@ export function createResult(game) {
 
   // ---------- pause and settings ----------
   const pause = ui.group({ w: 360, h: 780 }); scr.put(pause, 0, 0, 2);
-  pause.put(ui.panel({ w: 308, h: 556, r: 26, color: 0x33286a, depth: 6, bevel: 3 }), 26, 132, 0);
+  pause.put(ui.panel({ w: 308, h: 604, r: 26, color: 0x33286a, depth: 6, bevel: 3 }), 26, 132, 0);
   pause.titleText = ui.text('TẠM DỪNG', { size: 31, align: 'center', valign: 'mid' }); pause.put(pause.titleText, 180, 176, 14);
   pause.stageText = ui.text('', { size: 12, align: 'center', valign: 'mid', color: 0xd9ccff, outlineW: 1.3 }); pause.put(pause.stageText, 180, 206, 14);
   pause.resume = ui.button({ id: 'resume', w: 244, h: 56, r: 18, color: PAL.green, icon: 'play', label: 'TIẾP TỤC', size: 21, onTap: () => resume() }); pause.put(pause.resume, 58, 226, 14);
   const rows = {};
   const lockMarks = {};
+  // the screen-shake switch is on until the player turns it off
+  const isOn = (key) => (key === 'shake' ? game.settings.shake !== false : !!game.settings[key]);
   SWITCHES.forEach(([label, key, id, need], i) => {
     const y = 306 + i * 48;
     pause.put(ui.text(label, { size: 15, align: 'left', valign: 'mid' }), 50, y + (need ? 15 : 19), 14);
-    const b = ui.button({ id, w: 92, h: 38, r: 13, color: PAL.green, label: 'BẬT', size: 15, onTap: () => { if (need && !meta.unlocked(need)) { ui.toast(meta.lockText(need)); return; } game.setSetting(key, !game.settings[key]); paint(); } });
+    const b = ui.button({ id, w: 92, h: 38, r: 13, color: PAL.green, label: 'BẬT', size: 15, onTap: () => { if (need && !meta.unlocked(need)) { ui.toast(meta.lockText(need)); return; } game.setSetting(key, !isOn(key)); paint(); } });
     pause.put(b, 222, y, 14); rows[key] = b;
     if (need) { lockMarks[key] = { need, icon: ui.icon('lock', { size: 28, sway: false }), text: ui.text(meta.lockText(need), { size: 10, align: 'left', valign: 'mid', color: 0xffd860, outlineW: 1.3 }) }; b.put(lockMarks[key].icon, 66, -9, 14); pause.put(lockMarks[key].text, 50, y + 31, 14); }
   });
-  pause.put(ui.text('Chất lượng hình', { size: 15, align: 'left', valign: 'mid' }), 50, 514, 14);
+  pause.put(ui.text('Chất lượng hình', { size: 15, align: 'left', valign: 'mid' }), 50, 562, 14);
   const quals = {};
   QUALITY.forEach(([label, key], i) => {
     const b = ui.button({ id: 'q-' + key, w: 84, h: 36, r: 12, color: PAL.blue, label, size: 14, onTap: () => { game.setSetting('quality', key); paint(); } });
-    pause.put(b, 46 + i * 90, 530, 14); quals[key] = b;
+    pause.put(b, 46 + i * 90, 578, 14); quals[key] = b;
   });
-  pause.put(ui.text('Áp dụng khi mở lại game', { size: 10, align: 'center', valign: 'mid', color: 0xb9b3cc, outlineW: 1.2 }), 180, 582, 14);
-  pause.retry = ui.button({ id: 'retry', w: 120, h: 46, r: 15, color: PAL.orange, label: 'CHƠI LẠI', size: 14, onTap: () => { game.setPaused(false); open = false; game.retry(); } }); pause.put(pause.retry, 46, 608, 14);
-  pause.home = ui.button({ id: 'home', w: 120, h: 46, r: 15, color: PAL.blue, label: 'VỀ NHÀ', size: 14, onTap: () => { open = false; game.leaveBattle(); } }); pause.put(pause.home, 194, 608, 14);
+  pause.put(ui.text('Áp dụng khi mở lại game', { size: 10, align: 'center', valign: 'mid', color: 0xb9b3cc, outlineW: 1.2 }), 180, 630, 14);
+  pause.retry = ui.button({ id: 'retry', w: 120, h: 46, r: 15, color: PAL.orange, label: 'CHƠI LẠI', size: 14, onTap: () => { game.setPaused(false); open = false; game.retry(); } }); pause.put(pause.retry, 46, 656, 14);
+  pause.home = ui.button({ id: 'home', w: 120, h: 46, r: 15, color: PAL.blue, label: 'VỀ NHÀ', size: 14, onTap: () => { open = false; game.leaveBattle(); } }); pause.put(pause.home, 194, 656, 14);
 
   // a "greyed" button is the off state: the target stays tappable
   const lamp = (b, on, color) => { b.setEnabled(on); if (b.target) b.target.enabled = true; return b; };
   function paint() {
     for (const [, key] of SWITCHES) {
-      const on = !!game.settings[key], lk = lockMarks[key] && !meta.unlocked(lockMarks[key].need);
+      const on = isOn(key), lk = lockMarks[key] && !meta.unlocked(lockMarks[key].need);
       lamp(rows[key], on && !lk); rows[key].setLabel(lk ? 'KHOÁ' : on ? 'BẬT' : 'TẮT');
       if (lockMarks[key]) { lockMarks[key].icon.setVisible(!!lk); lockMarks[key].text.setVisible(!!lk); }
     }
