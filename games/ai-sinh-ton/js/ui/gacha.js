@@ -1,0 +1,228 @@
+// Triệu Hồi tab: a 3D gacha machine (own design: purple drum, gold trim, glass dome of two-tone pills), the pull
+// animation driven by update(dt), the reveal cards, the ten-pull summary and the rates panel.
+// The account changes at the moment of the pull (meta.pull); everything after that only shows what was paid out.
+import { GACHA, HERO_RARITY } from '../data/economy.js';
+import { HERO } from '../data/heroes.js';
+import { makeBackdrop, makeBurst, capsule3d, fmt, kill } from './home.js';
+
+const GOLD = 0xffc21f, ITEM = 0x98a6c4;
+const PILLS = [[0xff8ad0, 0x6ad8ff], [0xffd21f, 0x8f4dff], [0x8aff9a, 0xff9a5a], [0xb48aff, 0xffe27a], [0x5ad0ff, 0xff6a8a], [0xff9a5a, 0x4af0c8]];
+const easeBack = (t) => { t = Math.max(0, Math.min(1, t)); const c = 1.7; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
+const lighten = (c, k) => { const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255; const f = (v) => Math.round(v + (255 - v) * k); return (f(r) << 16) | (f(g) << 8) | f(b); };
+const pct = (p) => String(p).replace('.', ',') + '%';
+
+const colorOf = (r) => (r.kind === 'gold' ? GOLD : r.kind === 'item' ? ITEM : HERO_RARITY[r.rarity].color);
+const rowLabel = (row) => {
+  const rn = row.rarity ? HERO_RARITY[row.rarity].name : '';
+  if (row.kind === 'hero') return `Tướng ${rn}`; if (row.kind === 'shard') return `${row.n} mảnh một tướng ${rn}`;
+  if (row.kind === 'gold') return `${row.n} vàng`; return 'Trang bị bậc Thường';
+};
+
+export function createGacha(game) {
+  const ui = game.ui, meta = game.meta, PAL = ui.PAL, THREE = ui.THREE, mui = game.metaUi;
+  const scr = ui.screen('gacha'), rates = ui.screen('rates', { modal: true });
+  const bd = makeBackdrop(ui, 'gacha'); scr.put(bd, 0, 0, -40);
+  const title = ui.text('TRIỆU HỒI', { size: 26, align: 'center', upper: true, outlineW: 3.4 }); scr.put(title, 180, 58, 6); mui.regTitle('gacha', title);
+
+  // ---------- the machine ----------
+  const root = new THREE.Group(), machine = new THREE.Group(); root.add(machine);
+  const std = (c, r = 0.4, e = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, emissive: e, emissiveIntensity: e ? 0.5 : 0 });
+  const ink = new THREE.MeshBasicMaterial({ color: 0x1a1420, side: THREE.BackSide });
+  const add = (parent, geo, mat, x, y, z, hullK) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (hullK) { const h = new THREE.Mesh(geo, ink); h.scale.setScalar(hullK); m.add(h); } parent.add(m); return m; };
+  add(machine, new THREE.CylinderGeometry(1.95, 2.1, 0.4, 36), std(0x2a1f5a), 0, 0.2, 0, 1.04);
+  add(machine, new THREE.CylinderGeometry(1.6, 1.8, 1.6, 36), std(0x7a45e8, 0.35), 0, 1.2, 0, 1.04);
+  for (const y of [0.55, 2.0]) add(machine, new THREE.TorusGeometry(y > 1 ? 1.62 : 1.78, 0.09, 8, 40), std(GOLD, 0.25), 0, y, 0).rotation.x = Math.PI / 2;
+  add(machine, new THREE.CylinderGeometry(1.5, 1.6, 0.35, 36), std(0xffa31f, 0.3), 0, 2.15, 0, 1.04);
+  // front plate, crank and chute
+  add(machine, new THREE.BoxGeometry(1.5, 0.9, 0.3), std(0xffc21f, 0.3), 0, 1.35, 1.68, 1.05);
+  const crank = new THREE.Group(); crank.position.set(0, 1.35, 1.9); machine.add(crank);
+  add(crank, new THREE.CylinderGeometry(0.34, 0.34, 0.16, 20), std(0xff4a6a, 0.3), 0, 0, 0, 1.08).rotation.x = Math.PI / 2;
+  add(crank, new THREE.BoxGeometry(0.16, 0.8, 0.12), std(0xfff1cf, 0.3), 0, 0.3, 0.12, 1.1);
+  add(crank, new THREE.SphereGeometry(0.2, 12, 10), std(0x35d65a, 0.3), 0, 0.7, 0.16, 1.1);
+  add(machine, new THREE.BoxGeometry(1.1, 0.62, 0.7), std(0x1c1238, 0.6), 0, 0.5, 1.5, 1.05);
+  add(machine, new THREE.BoxGeometry(1.3, 0.12, 0.8), std(GOLD, 0.3), 0, 0.2, 1.62);
+  // dome with a pile of pills
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.55, 32, 20), new THREE.MeshStandardMaterial({ color: 0xcfeaff, roughness: 0.08, transparent: true, opacity: 0.22, depthWrite: false })); dome.position.y = 3.55; dome.renderOrder = 3; machine.add(dome);
+  const pills = []; let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let i = 0; i < 26; i++) {
+    const a = rnd() * 6.283, rr = Math.sqrt(rnd()) * 1.0, y = 2.65 + rnd() * 1.1 - rr * 0.1, [ca, cb] = PILLS[i % PILLS.length];
+    const c = capsule3d(THREE, ca, cb); c.scale.setScalar(0.52); c.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr * 0.9); c.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); machine.add(c); pills.push({ c, bx: c.position.x, by: y, bz: c.position.z, ph: rnd() * 6 });
+  }
+  add(machine, new THREE.TorusGeometry(1.5, 0.12, 8, 40), std(GOLD, 0.25), 0, 2.45, 0).rotation.x = Math.PI / 2;
+  add(machine, new THREE.CylinderGeometry(0.55, 0.8, 0.3, 24), std(GOLD, 0.25), 0, 5.0, 0, 1.06);
+  add(machine, new THREE.SphereGeometry(0.2, 12, 10), std(0xff4a6a, 0.3), 0, 5.28, 0, 1.1);
+  const glowCan = document.createElement('canvas'); glowCan.width = glowCan.height = 64;
+  { const c = glowCan.getContext('2d'), g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.4)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); }
+  const glowM = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowCan), transparent: true, opacity: 0, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), glowM); glow.visible = false; glow.renderOrder = 9; root.add(glow);
+  const cam = new THREE.PerspectiveCamera(32, 330 / 400, 0.1, 60); cam.position.set(0, 3.2, 14.2); cam.lookAt(0, 2.5, 0);
+  let t0 = 0, crankSpeed = 0, shake = 0, cap = null;
+  const frameP = ui.panel({ w: 340, h: 412, r: 24, color: 0x5a2f9a, depth: 5, bevel: 3 }); scr.put(frameP, 10, 96, 6);
+  const view = ui.viewport(root, { w: 328, h: 400, r: 19, camera: cam, fps: 24, bg: 0x6a3aa8, key: 2.2, amb: 1.7, update: (dt) => machineStep(dt) });
+  frameP.put(view, 6, 6, 1);
+  function machineStep(dt) {
+    t0 += dt; crank.rotation.z -= crankSpeed * dt; shake += (0 - shake) * (1 - Math.exp(-dt * 6));
+    const amp = (S && S.phase === 'crank' ? 1 : 0), idle = Math.sin(t0 * 1.2) * 0.1;
+    machine.rotation.y = idle * (1 - amp); machine.position.x = Math.sin(t0 * 55) * 0.06 * amp; machine.position.y = Math.abs(Math.sin(t0 * 38)) * 0.05 * amp;
+    for (const p of pills) { const j = 0.04 + amp * 0.12; p.c.position.set(p.bx + Math.sin(t0 * 2 + p.ph) * j, p.by + Math.abs(Math.sin(t0 * (3 + amp * 12) + p.ph)) * (0.03 + amp * 0.18), p.bz + Math.cos(t0 * 2.2 + p.ph) * j); p.c.rotation.z += dt * (0.4 + amp * 5); }
+    if (!S) crankSpeed = 0.9 + Math.sin(t0) * 0.3;
+    if (cap) capStep(dt);
+  }
+
+  // ---------- idle controls ----------
+  const pity = ui.text('', { size: 12, align: 'center', color: 0xfff0b8 }); scr.put(pity, 180, 520, 6);
+  const rBtn = ui.button({ id: 'rates', w: 78, h: 36, r: 12, color: PAL.blue, label: 'TỈ LỆ', size: 14, shadow: false, onTap: openRates }); scr.put(rBtn, 272, 58, 6);
+  const p1 = ui.button({ id: 'pull1', w: 160, h: 74, r: 18, color: PAL.blue, label: '1 LƯỢT', sub: '100 ngọc', size: 24, onTap: () => startPull(1) }); scr.put(p1, 14, 556, 6);
+  const p10 = ui.button({ id: 'pull10', w: 170, h: 74, r: 18, color: PAL.orange, label: '10 LƯỢT', sub: '900 ngọc', size: 24, pulse: true, onTap: () => startPull(10) }); scr.put(p10, 176, 556, 6);
+  const idleNodes = [pity, rBtn, p1, p10];
+  let lastKey = '';
+  function refreshIdle() {
+    const g = meta.acc.gems, key = g + '|' + meta.acc.pity; if (key === lastKey) return; lastKey = key;
+    pity.set(`Còn ${GACHA.pity - meta.acc.pity} lượt chắc chắn ra tướng Huyền Thoại`);
+    p1.setEnabled(g >= GACHA.cost); p1.setSub(g >= GACHA.cost ? GACHA.cost + ' ngọc' : 'Thiếu ngọc');
+    p10.setEnabled(g >= GACHA.cost10); p10.setSub(g >= GACHA.cost10 ? GACHA.cost10 + ' ngọc' : 'Thiếu ngọc');
+    mui.pullText = { p1: g >= GACHA.cost ? '' : 'Thiếu ngọc', p10: g >= GACHA.cost10 ? '' : 'Thiếu ngọc' };
+  }
+  meta.on(() => { lastKey = ''; });
+
+  // ---------- rates panel ----------
+  { const dimM = new THREE.Mesh(new THREE.PlaneGeometry(360, 900), new THREE.MeshBasicMaterial({ color: 0x120a24, transparent: true, opacity: 0.6, depthWrite: false })); rates.put(dimM, 180, 390, -10); }
+  const rp = ui.panel({ w: 330, h: 500, r: 22, color: 0x4a3a86, depth: 6, bevel: 3 }); rates.put(rp, 15, 120, 6);
+  const rT = ui.text('TỈ LỆ TRIỆU HỒI', { size: 20, align: 'center', upper: true }); rp.put(rT, 165, 12); mui.regTitle('rates', rT);
+  GACHA.table.forEach((row, i) => {
+    const y = 52 + i * 34, col = row.kind === 'gold' ? GOLD : row.kind === 'item' ? ITEM : HERO_RARITY[row.rarity].color;
+    const strip = ui.panel({ w: 306, h: 30, r: 10, color: 0x2a2150, depth: 2, bevel: 1.4, ow: 2, shadow: false, gloss: false }); rp.put(strip, 12, y);
+    strip.put(ui.panel({ w: 6, h: 18, r: 3, color: col, depth: 1, bevel: 0.8, ow: 1, shadow: false, gloss: false }), 8, 6);
+    strip.put(ui.text(rowLabel(row), { size: 12, valign: 'mid', outlineW: 1.8 }), 22, 16); strip.put(ui.text(pct(row.p), { size: 14, align: 'right', valign: 'mid', color: 0xffe27a, outlineW: 2 }), 296, 16);
+    mui.rates.push({ label: rowLabel(row), p: row.p });
+  });
+  const sum = GACHA.table.reduce((s, r) => s + r.p, 0);
+  rp.put(ui.text('Tổng ' + pct(Math.round(sum * 10) / 10), { size: 12, align: 'right', color: 0xcfd0e0 }), 318, 326);
+  rp.put(ui.text(`Bảo hiểm: ${GACHA.pity - 1} lượt liền không ra tướng Huyền Thoại thì lượt thứ ${GACHA.pity} chắc chắn ra.\nMười lượt: chắc chắn có ít nhất một kết quả Sử Thi trở lên.\nTrùng tướng: đổi thành mảnh. Trang bị mở ở bản sau, tạm đổi thành 300 vàng.`, { size: 11.5, maxW: 300, lineH: 15, color: 0xe4def8 }), 14, 350);
+  const rClose = ui.button({ id: 'rates-close', w: 150, h: 44, r: 14, color: PAL.red, label: 'ĐÓNG', size: 17, onTap: () => ui.hide('rates', { transition: 'pop' }) }); rp.put(rClose, 90, 440);
+  function openRates() { ui.show('rates', { transition: 'pop' }); }
+
+  // ---------- pull sequence ----------
+  const ov = ui.group(); scr.put(ov, 0, 0, 30);
+  const scrim = new THREE.Mesh(new THREE.PlaneGeometry(360, 900), new THREE.MeshBasicMaterial({ color: 0x120a24, transparent: true, opacity: 0, depthWrite: false })); ov.add(scrim); scrim.position.set(180, -390, 0);
+  const rayCan = document.createElement('canvas'); rayCan.width = rayCan.height = 256;
+  { const c = rayCan.getContext('2d'); c.translate(128, 128); for (let i = 0; i < 14; i++) { c.rotate(Math.PI / 7); const g = c.createLinearGradient(0, 0, 0, -128); g.addColorStop(0, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(0, 0); c.lineTo(-13, -128); c.lineTo(13, -128); c.fill(); } }
+  const rays = new THREE.Mesh(new THREE.PlaneGeometry(560, 560), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(rayCan), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); ov.add(rays); rays.position.set(180, -330, 1);
+  const skip = ui.button({ id: 'skip', w: 150, h: 48, r: 14, color: PAL.disabled, label: 'BỎ QUA', size: 18, shadow: false, onTap: doSkip }); scr.put(skip, 105, 650, 60); skip.setVisible(false);
+  const done = ui.button({ id: 'done', w: 200, h: 58, r: 16, color: PAL.green, label: 'XONG', size: 26, pulse: true, onTap: doDone }); scr.put(done, 80, 640, 60); done.setVisible(false);
+  const burst = makeBurst(ui); scr.put(burst.node, 0, 0, 55);
+  let S = null, card = null, cardT = 0, sumNodes = [];
+
+  function startPull(n) {
+    const r = meta.pull(n); if (!r.ok) { ui.toast('Thiếu ngọc'); return; }
+    S = { results: r.results, i: 0, phase: 'crank', t: 0, ten: n === 10, first: true };
+    for (const nd of idleNodes) nd.setVisible(false); skip.setVisible(true); game.chrome && game.chrome.setNav(false);
+    startCap();
+  }
+  const dur = (ph) => { const f = game.settings.reduceFlash ? 0.8 : 1, k = S.ten ? 0.5 : 1; return ({ crank: S.first ? 0.9 : 0.35, drop: 0.6 * k + 0.1, crack: 0.55 * k + 0.1, reveal: S.ten ? 0.95 : 1e9 }[ph]) * (ph === 'reveal' ? 1 : f); };
+  function startCap() {
+    clearCap(); const r = S.results[S.i], c = colorOf(r);
+    const cp = capsule3d(THREE, c, lighten(c, 0.62)); cp.scale.setScalar(0); cp.position.set(0, 0.5, 1.7); root.add(cp);
+    cap = { g: cp, color: c, vy: 0, y: 1.0, z: 1.9, bounce: 0 };
+  }
+  function clearCap() { if (cap) { root.remove(cap.g); cap = null; } glow.visible = false; glowM.opacity = 0; }
+  function clearCard() { if (card) { kill(card); card = null; } scrim.material.opacity = 0; rays.material.opacity = 0; }
+  const peak = () => (game.settings.reduceFlash ? 0.26 : 0.55);
+
+  function capStep(dt) {
+    if (!S || !cap) return; const p = S.phase, k = Math.min(1, S.t / dur(p)), u = cap;
+    if (p === 'crank') { u.g.scale.setScalar(0); }
+    else if (p === 'drop') {
+      u.vy -= 14 * dt; u.y += u.vy * dt; u.z += (3.0 - u.z) * Math.min(1, dt * 4);
+      if (u.y < 0.5) { u.y = 0.5; u.vy = Math.abs(u.vy) * 0.38; if (u.vy < 0.8) u.vy = 0; }
+      u.g.scale.setScalar(Math.min(1, k * 7) * 0.85); u.g.position.set(0, u.y, u.z); u.g.rotation.set(0.5, S.t * 3, 0.9 + Math.sin(S.t * 9) * 0.1);
+    } else if (p === 'crack') {
+      const e = easeBack(k * 1.4); u.g.position.set(0, 0.5 + 1.2 * Math.min(1, k * 2), 3.0 + 0.5 * Math.min(1, k * 2));
+      u.g.rotation.set(0.2, S.t * 9 * (1 - k), 0.5 * (1 - k)); u.g.scale.setScalar(0.85 + 0.2 * Math.sin(k * 3.1));
+      const d = Math.max(0, k - 0.45) * 2.2, ud = u.g.userData; ud.top.position.y = d * 1.4; ud.top.rotation.z = -d * 0.8; ud.bot.position.y = -d * 1.4; ud.bot.rotation.z = d * 0.8;
+      if (k > 0.45) { glow.visible = true; glow.position.set(0, u.g.position.y, u.g.position.z + 0.5); glow.scale.setScalar(2.5 + (k - 0.45) * 9); glowM.color.setHex(u.color); glowM.opacity = peak() * (1 - Math.max(0, k - 0.75) * 4) * Math.min(1, (k - 0.45) * 8); }
+      if (k > 0.8) u.g.scale.setScalar(Math.max(0.01, 0.9 * (1 - (k - 0.8) * 5)));
+    } else { u.g.visible = false; glow.visible = false; }
+  }
+
+  function showCard(r) {
+    clearCard(); card = ui.group(); ov.add(card); card.pos(180, 330, 4); cardT = 0;
+    const c = colorOf(r), nm = r.hero ? HERO[r.hero].name : '';
+    const isHero = r.kind === 'hero' || r.isNew;
+    scrim.material.color.setHex(0x120a24); rays.material.color.setHex(c);
+    if (r.hero) {
+      const p = ui.portrait(r.hero, { size: isHero ? 150 : 120, color: c }); card.put(p, isHero ? -75 : -60, isHero ? -105 : -80);
+      card.put(ui.text(nm, { size: 26, align: 'center', upper: true, color: 0xffffff, outlineW: 3 }), 0, isHero ? 62 : 52);
+      const rr = ui.panel({ w: 160, h: 28, r: 14, color: c, depth: 3, bevel: 2, ow: 2.4, shadow: false }); card.put(rr, -80, isHero ? 106 : 98); rr.put(ui.text(HERO_RARITY[HERO[r.hero].rarity].name, { size: 13, align: 'center', valign: 'mid', upper: true }), 80, 15.5);
+      if (isHero) { const rb = ui.panel({ w: 220, h: 40, r: 20, color: 0xe0242e, depth: 4, bevel: 2.6, ow: 3, shadow: false }); card.put(rb, -110, -170); rb.put(ui.text('TƯỚNG MỚI!', { size: 22, align: 'center', valign: 'mid', upper: true }), 110, 21); }
+      else card.put(ui.text('+' + r.n + ' mảnh', { size: 30, align: 'center', color: 0xffe27a, outlineW: 3.6 }), 0, 140 - 0);
+    } else if (r.kind === 'gold') {
+      for (let i = 0; i < 3; i++) card.put(ui.icon('gold', { size: 96, sway: i === 2 }), -48 + (i - 1) * 34, -58 - i * 6 + (i === 1 ? 26 : 0));
+      card.put(ui.text('+' + fmt(r.n) + ' vàng', { size: 30, align: 'center', color: 0xffe27a, outlineW: 3.6 }), 0, 66);
+    } else {
+      card.put(ui.icon('bag', { size: 110 }), -55, -85);
+      card.put(ui.text('Trang bị (mở ở bản sau)', { size: 18, align: 'center', outlineW: 2.6 }), 0, 56);
+      card.put(ui.text('Đã cất vào túi đồ', { size: 12, align: 'center', color: 0xe4def8 }), 0, 84);
+    }
+    burst.spawn(180, 330, r.hero || r.kind === 'gold' ? 22 : 8, c, 200);
+  }
+  function advance() {
+    clearCard(); S.i++; S.first = false;
+    if (S.i >= S.results.length) { if (S.ten) buildSummary(); else finishSingle(); return; }
+    S.phase = 'crank'; S.t = 0; startCap();
+  }
+  function finishSingle() { S.i = 0; S.phase = 'reveal'; showCard(S.results[0]); skip.setVisible(false); done.setVisible(true); S.t = 0; clearCap(); }
+  function doSkip() {
+    if (!S) return;
+    if (S.ten) { clearCard(); buildSummary(); } else { clearCap(); finishSingle(); }
+  }
+  function buildSummary() {
+    clearCap(); clearCard(); S.phase = 'summary'; skip.setVisible(false); done.setVisible(true); scrim.material.opacity = 0.7;
+    const sp = ui.panel({ w: 340, h: 520, r: 22, color: 0x4a3a86, depth: 5, bevel: 3 }); ov.put(sp, 10, 84, 6); sumNodes.push(sp);
+    const t = ui.text('KẾT QUẢ', { size: 22, align: 'center', upper: true }); sp.put(t, 170, 10); mui.regTitle('gacha', t);
+    S.results.forEach((r, i) => {
+      const x = 10 + (i % 2) * 166, y = 52 + Math.floor(i / 2) * 92, c = colorOf(r);
+      const cellN = ui.panel({ w: 160, h: 84, r: 14, color: 0x2a2150, depth: 3, bevel: 2, ow: 2, shadow: false }); sp.put(cellN, x, y, 2);
+      if (r.hero) cellN.put(ui.portrait(r.hero, { size: 62, color: c, shadow: false, fps: 8 }), 8, 11, 2);
+      else cellN.put(ui.tile({ size: 62, color: c, icon: r.kind === 'gold' ? 'gold' : 'bag', shadow: false, sway: false }), 8, 11, 2);
+      const head = r.kind === 'hero' || r.isNew ? 'TƯỚNG MỚI' : r.kind === 'shard' ? '+' + r.n + ' mảnh' : r.kind === 'gold' ? '+' + r.n + ' vàng' : 'Trang bị';
+      cellN.put(ui.text(head, { size: 12, color: r.isNew || r.kind === 'hero' ? 0xffe27a : 0xffffff, outlineW: 2 }), 76, 22);
+      cellN.put(ui.text(r.hero ? HERO[r.hero].name : r.kind === 'item' ? 'mở sau' : '', { size: 12, color: lighten(c, 0.3), outlineW: 1.8 }), 76, 44);
+    });
+    sp.tick = 0; ov.userData.sum = sp;
+  }
+  function doDone() {
+    if (!S) return; clearCard(); clearCap(); for (const n of sumNodes) kill(n); sumNodes = []; scrim.material.opacity = 0;
+    S = null; done.setVisible(false); skip.setVisible(false); for (const n of idleNodes) n.setVisible(true); lastKey = ''; game.chrome && game.chrome.setNav(true);
+  }
+  mui.gachaPhase = () => (S ? S.phase : 'idle');
+
+  // tap anywhere on empty space: finish the current step
+  const fr = document.getElementById('frame');
+  fr.addEventListener('pointerup', (e) => {
+    if (!S || !ui.isShown('gacha') || ui.hitAt(e.clientX, e.clientY)) return;
+    if (S.phase === 'reveal' && S.ten) advance(); else if (S.phase === 'crank' || S.phase === 'drop' || S.phase === 'crack') S.t = dur(S.phase);
+  });
+
+  function updateSeq(dt) {
+    S.t += dt; const p = S.phase, d = dur(p);
+    if (p === 'crank') { crankSpeed = 9; if (S.t >= d) { S.phase = 'drop'; S.t = 0; cap.vy = 0; } }
+    else if (p === 'drop') { if (S.t >= d) { S.phase = 'crack'; S.t = 0; } }
+    else if (p === 'crack') { if (S.t >= d) { S.phase = 'reveal'; S.t = 0; clearCap(); showCard(S.results[S.i]); if (!S.ten) { skip.setVisible(false); done.setVisible(true); } } }
+    else if (p === 'reveal') { if (S.ten && S.t >= d) advance(); }
+    if (card) {
+      cardT += dt; const k = easeBack(cardT / 0.38); card.scale.setScalar(Math.max(0.01, k));
+      scrim.material.opacity = Math.min(0.62, cardT * 3); rays.material.opacity = Math.min(game.settings.reduceFlash ? 0.25 : 0.5, cardT * 2); rays.rotation.z -= dt * 0.35;
+    }
+  }
+
+  return {
+    name: 'gacha',
+    show() { ui.show('gacha', { transition: 'none' }); if (!S) { for (const n of idleNodes) n.setVisible(true); lastKey = ''; } },
+    hide() { ui.hide('gacha', { transition: 'none' }); ui.hide('rates', { transition: 'none' }); if (S) { clearCard(); clearCap(); for (const n of sumNodes) kill(n); sumNodes = []; S = null; done.setVisible(false); skip.setVisible(false); for (const n of idleNodes) n.setVisible(true); } },
+    update(dt) {
+      if (!ui.isShown('gacha')) return;
+      bd.tick(ui.t); burst.update(dt); if (S) updateSeq(dt); else refreshIdle();
+    },
+  };
+}
