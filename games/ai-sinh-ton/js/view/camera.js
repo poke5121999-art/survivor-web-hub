@@ -3,6 +3,7 @@
 // between the HUD bands; the lens shift centres the ellipse in the free band. No follow and no zoom, so everything the
 // sim does happens inside the picture. Spectate: a chase camera behind and above one unit, blended in and out.
 import { ARENA } from '../sim/battle.js?v=20261120b';
+import { FLY_Y } from './keys.js?v=20261120b';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -18,6 +19,9 @@ const PTS = 48;
 const PUSH = 0.028;      // push-in on an ultimate: 2.8% scale about the casting hero, clamped so the rim stays in the frame
 const RIM_PAD = 0.012;   // NDC margin kept between the rim and the frame edge while pushing
 const SHAKE_PAD = 0.003;
+const CHASE_FILL = 0.26; // share of the frame height the followed unit stands tall
+const CHASE_FILL_MIN = 0.15; // never pull back so far that the unit gets small, whatever its width
+const CHASE_PITCH = 22 * Math.PI / 180;
 
 export function createCamera(H) {
   const { camera, G } = H;
@@ -90,14 +94,22 @@ export function createCamera(H) {
     let lens = shift; let fv = FOV_OVER; let fogBase = dist;
     const u = target ? unitOf(B, target) : null;
     if (blend > 0 && u) {
-      const uy = u.fly ? 3.2 : 0;
-      const bx = -Math.cos(u.face); const bz = -Math.sin(u.face);
-      const sc = Math.max(1, H.scaleOf ? H.scaleOf(target) : 1);
-      const cx = u.x + bx * 6.5 * sc; const cz = u.z + bz * 6.5 * sc; const cy = uy + 4.6 * sc;
-      const lx = u.x - bx * 4 * sc; const lz = u.z - bz * 4 * sc;
+      // size the shot by the unit: the distance gives it CHASE_FILL of the frame height, the camera sits behind it on the line
+      // from its target (or along its facing) and a little above, and the look point leans toward the target so it stays in view
+      const h = Math.max(1.2, H.heightOf ? H.heightOf(target) : 2.7);
+      const uy = u.fly ? (FLY_Y[u.kind] || 3.2) : 0;
+      const tg = B.byUid.get(u.target); let dx = Math.cos(u.face); let dz = Math.sin(u.face); let dT = 0;
+      if (tg && tg.alive) { const ax = tg.x - u.x; const az = tg.z - u.z; dT = Math.hypot(ax, az); if (dT > 0.8) { dx = ax / dT; dz = az / dT; } else dT = 0; }
+      // the distance gives the unit CHASE_FILL of the frame height and keeps its widest extent (wings, a saucer) inside the frame width
+      const wide = H.widthOf ? H.widthOf(target) : 0;
+      const perFill = (f) => h / (2 * Math.tan(FOV_CHASE * Math.PI / 360) * f); // distance that gives height fraction f
+      const D = Math.max(5, Math.min(Math.max(perFill(CHASE_FILL), wide * 2.2), perFill(CHASE_FILL_MIN)));
+      const cx = u.x - dx * D * Math.cos(CHASE_PITCH); const cz = u.z - dz * D * Math.cos(CHASE_PITCH); const cy = uy + h * 0.5 + D * Math.sin(CHASE_PITCH);
+      const ahead = Math.min(dT * 0.5, h * 2.5);
+      const lx = u.x + dx * ahead; const lz = u.z + dz * ahead;
       const t = BZ.smooth(blend);
       pos.x += (cx - pos.x) * t; pos.y += (cy - pos.y) * t; pos.z += (cz - pos.z) * t;
-      look.x += (lx - look.x) * t; look.y += (uy + 0.8 * sc - look.y) * t; look.z += (lz - look.z) * t;
+      look.x += (lx - look.x) * t; look.y += (uy + h * 0.45 - look.y) * t; look.z += (lz - look.z) * t;
       fv = FOV_OVER + (FOV_CHASE - FOV_OVER) * t; lens = shift * (1 - t);
       fogBase = dist * (1 - t) + 30 * t;
     } else if (blend === 0 && target && !u) { target = 0; want = 0; }

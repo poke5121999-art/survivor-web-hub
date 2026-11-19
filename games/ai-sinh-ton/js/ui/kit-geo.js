@@ -106,5 +106,25 @@ export function makeGeo(THREE) {
     return out;
   }
 
-  return { rrShape, slab, plate, plateUV, quad, arcTube, shadow, std, basic, shade, mix, merge };
+  // a panel's static layers as one vertex-coloured geometry: the ink outline behind the slab, the slab, and its top gloss
+  // (the gloss is the panel colour lifted toward white, lit like the face it sits on)
+  function panelBody(w, h, r, depth, bevel, color, ow, outline, gloss) {
+    return memo(`pb${k(w)}|${k(h)}|${k(r)}|${depth}|${bevel}|${color}|${ow}|${outline}|${gloss}`, () => {
+      const list = [{ g: slab(w, h, r, depth, bevel), color }];
+      const moved = (g, dx, dy, dz) => { const c = g.index ? g.toNonIndexed() : g.clone(); c.translate(dx, dy, dz); return c; };
+      if (outline != null) list.unshift({ g: moved(plate(w + ow * 2, h + ow * 2, r + ow), -ow, ow, -bevel - 0.6), color: outline });
+      if (gloss) { const ins = bevel + 2.5, gw = w - ins * 2, gh = Math.max(5, (h - ins * 2) * 0.4); list.push({ g: moved(plate(gw, gh, Math.max(2, r - ins)), ins, -ins, depth + bevel + 0.15), color: mix(color, 0xffffff, 0.2) }); }
+      return merge(list);
+    });
+  }
+  // the static underside of a button: its ink outline and its darker base slab
+  function buttonBack(w, h, lip, r, color) {
+    return memo(`bb${k(w)}|${k(h)}|${lip}|${k(r)}|${color}`, () => {
+      const o = plate(w + 6, h + lip + 6, r + 3).clone().toNonIndexed(); o.translate(-3, 3, -4);
+      const b = slab(w, h, r, 3, 2).clone(); b.translate(0, -lip, 0);
+      return merge([{ g: o, color: 0x120a1c }, { g: b, color: shade(color, -0.45) }]);
+    });
+  }
+
+  return { rrShape, slab, plate, plateUV, quad, arcTube, shadow, std, basic, shade, mix, merge, panelBody, buttonBack };
 }

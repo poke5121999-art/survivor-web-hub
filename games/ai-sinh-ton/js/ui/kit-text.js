@@ -94,7 +94,7 @@ export function makeText(THREE, { scale, mkNode }) {
     n.set = (s) => { if (String(s) !== text0) apply(s); return n; };
     n.setColor = (c) => { mat.color.set(c); return n; };       // tint multiplies the baked colour: pass 0xffffff to reset
     n.setOpacity = (a) => { mat.opacity = a; return n; };
-    n.dispose = () => { if (cur) release(cur); cur = null; mat.dispose(); live.delete(rec); n.parent && n.parent.remove(n); };
+    n.dispose = () => { if (cur) release(cur); cur = null; mat.dispose(); mesh.geometry.dispose(); live.delete(rec); n.parent && n.parent.remove(n); };
     n.mesh = mesh; apply(str); live.add(rec);
     return n;
   }

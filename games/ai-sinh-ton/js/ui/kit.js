@@ -51,7 +51,9 @@ export function createUI({ THREE, renderer, frame }) {
       for (const a of [...anims]) if (a.node === g) anims.delete(a);
       for (const t of [...targets]) if (t.node === g) targets.delete(t);
       scrolls.delete(g); anchored.delete(g);
-      g.traverse((o) => { if (o.dispose && o !== g) o.dispose(); });
+      // a kit node removes itself from its parent and disposes its own subtree: walk a copy of the child list and stop at each kit node
+      const sweep = (n) => { for (const c of [...n.children]) { if (c.dispose) c.dispose(); else sweep(c); } };
+      sweep(g);
       g.parent && g.parent.remove(g);
     };
     return g;
@@ -75,30 +77,15 @@ export function createUI({ THREE, renderer, frame }) {
     const pad = tex.userData.pad, mesh = new THREE.Mesh(geo.quad(w + pad * 2, h + pad * 2), m);
     mesh.position.set(w / 2, -h / 2 - offY, -14); g.add(mesh); return mesh;
   }
-  // outline ring (behind the slab) and top gloss (in front of it) share one vertex-coloured transparent mesh
-  const decalCache = new Map(), decalMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, toneMapped: false });
-  function decal(w, h, r, bevel, depth, ow, outline, gloss) {
-    const key = [w, h, r, bevel, depth, ow, outline, gloss].join('|'); let g = decalCache.get(key);
-    if (!g) {
-      const parts = [];
-      if (outline != null) parts.push([geo.plate(w + ow * 2, h + ow * 2, r + ow), -ow, ow, -bevel - 0.6, new THREE.Color(outline), 1]);
-      if (gloss) { const ins = bevel + 2.5, gw = w - ins * 2, gh = Math.max(5, (h - ins * 2) * 0.4); parts.push([geo.plate(gw, gh, Math.max(2, r - ins)), ins, -ins, depth + bevel + 0.15, new THREE.Color(0xffffff), 0.2]); }
-      let n = 0; for (const p of parts) n += p[0].toNonIndexed().attributes.position.count;
-      const pos = new Float32Array(n * 3), col = new Float32Array(n * 4); let o = 0;
-      for (const [pg, dx, dy, dz, c, a] of parts) { const t = pg.toNonIndexed(), p = t.attributes.position; for (let i = 0; i < p.count; i++, o++) { pos.set([p.getX(i) + dx, p.getY(i) + dy, dz], o * 3); col.set([c.r, c.g, c.b, a], o * 4); } }
-      g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 4)); decalCache.set(key, g);
-    }
-    return new THREE.Mesh(g, decalMat);
-  }
   ui.panel = (o = {}) => {
     const w = o.w ?? 100, h = o.h ?? 60, r = o.r ?? 14, depth = o.depth ?? 6, color = o.color ?? PAL.panel;
     const bevel = Math.min(o.bevel ?? 3, Math.max(1, r - 1)), ow = o.ow ?? 3, outline = o.outline === undefined ? PAL.ink : o.outline;
     const g = mkNode(w, h); g.top = depth + bevel + 0.3;
     if (o.shadow !== false) addShadow(g, w, h, r, o.shadowY ?? 5);
-    const body = new THREE.Mesh(geo.slab(w, h, r, depth, bevel), geo.std(color)); g.add(body); g.body = body;
-    const gl = o.gloss !== false && h >= 14;
-    if (outline != null || gl) g.add(decal(w, h, r, bevel, depth, ow, outline, gl));
-    g.setColor = (c) => { body.material = geo.std(c); return g; };
+    const gl = o.gloss !== false && h >= 14, bodyMat = geo.std(0xffffff, { vc: true });
+    const make = (c) => geo.panelBody(w, h, r, depth, bevel, c, ow, outline, gl);
+    const body = new THREE.Mesh(make(color), bodyMat); g.add(body); g.body = body;
+    g.setColor = (c) => { body.geometry = make(c); return g; };
     return g;
   };
 
@@ -223,8 +210,8 @@ export function createUI({ THREE, renderer, frame }) {
     const w = o.w ?? 120, h = o.h ?? 44, color = o.color ?? PAL.orange, lip = Math.max(3, Math.round(h * 0.11)), r = Math.min(o.r ?? h * 0.3, h / 2);
     const { root: g, pivot, holder } = centred(w, h); g.top = 6 + 3 + 0.3;
     if (o.shadow !== false) addShadow(g, w, h + lip, r, 4, 0.5);
-    const out = new THREE.Mesh(geo.plate(w + 6, h + lip + 6, r + 3), geo.basic(PAL.ink)); out.position.set(-3, 3, -4); g.add(out);
-    const base = new THREE.Mesh(geo.slab(w, h, r, 3, 2), geo.std(geo.shade(color, -0.45))); base.position.set(0, -lip, 0); g.add(base);
+    const backMat = geo.std(0xffffff, { vc: true });
+    const base = new THREE.Mesh(geo.buttonBack(w, h, lip, r, color), backMat); g.add(base);
     const body = new THREE.Mesh(geo.slab(w, h, r, 6, 3), geo.std(color)); holder.add(body);
     { const ins = 5.5, gw = w - ins * 2, gh = Math.max(5, (h - ins) * 0.4); const gl = new THREE.Mesh(geo.plate(gw, gh, Math.max(3, r - 4)), geo.basic(0xffffff, 0.24)); gl.position.set(ins, -3.6, 9.4); holder.add(gl); }
     pivot.position.z = 3;
@@ -254,7 +241,7 @@ export function createUI({ THREE, renderer, frame }) {
     g.setBadge = (n) => { if (!badge) badge = makeBadge(holder, w - (o.stack ? 14 : 7), -1, 12); badge.setN(n); return g; };
     g.setEnabled = (b) => {
       enabled = !!b; if (g.target) g.target.enabled = enabled;
-      body.material = geo.std(enabled ? color : PAL.disabled); base.material = geo.std(geo.shade(enabled ? color : PAL.disabled, -0.45));
+      body.material = geo.std(enabled ? color : PAL.disabled); base.geometry = geo.buttonBack(w, h, lip, r, enabled ? color : PAL.disabled);
       label && label.setColor(enabled ? 0xffffff : 0xd4d0e4);
       return g;
     };
@@ -358,7 +345,8 @@ export function createUI({ THREE, renderer, frame }) {
     const g = mkNode(w, h), mesh = new THREE.Mesh(geo.plateUV(w, h, r), new THREE.MeshBasicMaterial({ map: rt.texture, toneMapped: false })); g.add(mesh);
     const v = { node: g, scene: vs, cam, rt, bg: o.bg ?? 0x2a2150, period: 1 / (o.fps ?? 14), acc: 1, onRefresh: o.update || null, dt: 0 };
     viewports.add(v); g.vp = v; g.scene3 = vs; g.camera = cam; g.object = obj;
-    const dis = g.dispose; g.dispose = () => { viewports.delete(v); rt.dispose(); dis(); };
+    // the portrait's own scene goes too: a geometry shared with other models is simply uploaded again when it is next drawn
+    const dis = g.dispose; g.dispose = () => { viewports.delete(v); rt.dispose(); mesh.material.dispose(); vs.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); dis(); };
     return g;
   };
   function refreshViewports(dt) {
@@ -527,6 +515,7 @@ export function createUI({ THREE, renderer, frame }) {
   };
 
   ui.textStats = () => txt.stats();
+  ui.memory = () => ({ geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures });
   ui.resize();
   return ui;
 }

@@ -17,6 +17,69 @@ const STATUS_BITS = { burn: 16, slow: 32, freeze: 32, poison: 128, root: 4096, b
 const SUMMON_LOOK = { drone: 2.1, turret: 0.9, cannon: 0.9, wolf: 0.5 };
 
 const wrap = BZ.wrapAngle;
+
+// ---- skill poses of the five older bosses (plain zombie bodies and the spider rig: the pool's own poser knows no skills) ----
+// Data shape: BOSS_POSE['<enemy kind>:<skill fx>'] names a pose; POSES[name](body, k, w) edits the limbs the pool just posed,
+// k is the progress 0..1 of the cast and w the blend weight (ramps in fast, out slowly). `lean` pitches the whole body.
+const BOSS_POSE = {
+  'giant:boss_slam': 'slam', 'giant:roar': 'roar', 'giant:rockfall': 'stomp',
+  'thrower:rockfall': 'throw', 'thrower:roar': 'roar', 'thrower:boulder_roll': 'throw',
+  'phantom:phase': 'conjure', 'phantom:shards': 'conjure', 'phantom:wail': 'screech',
+  'queen:screech': 'screech', 'queen:dive': 'lunge', 'queen:sonic': 'screech', 'queen:drain': 'conjure',
+  'brood:eggs': 'rear', 'brood:web_spit': 'rear', 'brood:boss_slam': 'rear', 'brood:acid_sea': 'rear',
+};
+// the six kit bosses play their own moves; these moves are mostly a glow or a shot with little body motion, so they get a body lean on top
+const KIT_LEAN = { plasma: 'brace', laser: 'brace', eyebeam: 'brace', breath: 'brace', tractor: 'brace', blooddash: 'surge', charge: 'surge', dive: 'surge', bomb: 'sway', invade: 'sway', emp: 'sway' };
+const mix = (a, b, w) => a + (b - a) * w;
+const seg = (k, a, b) => BZ.smooth(Math.min(1, Math.max(0, (k - a) / (b - a))));
+const POSES = {
+  slam(b, k, w) { // both arms overhead, then down onto the ground in front
+    const up = seg(k, 0, 0.5), dn = seg(k, 0.5, 0.65), a = mix(mix(-1.5, -2.9, up), -0.5, dn);
+    b.armL.rotation.x = mix(b.armL.rotation.x, a, w); b.armR.rotation.x = mix(b.armR.rotation.x, a, w);
+    b.torso.rotation.x = mix(b.torso.rotation.x, mix(-0.3 * up, 0.55, dn), w); b.hips.rotation.x += w * 0.2 * dn;
+  },
+  stomp(b, k, w) { // a knee up, the foot down hard, the arms thrown low
+    const up = seg(k, 0, 0.45), dn = seg(k, 0.45, 0.6);
+    b.legL.rotation.x = mix(b.legL.rotation.x, mix(-1.1 * up, 0.1, dn), w);
+    b.armL.rotation.x = mix(b.armL.rotation.x, -1.6 * up + 0.4 * dn, w); b.armR.rotation.x = mix(b.armR.rotation.x, -1.6 * up + 0.4 * dn, w);
+    b.torso.rotation.x = mix(b.torso.rotation.x, -0.2 * up + 0.35 * dn, w);
+  },
+  roar(b, k, w) { // head back, chest out, arms flung wide and shaking
+    const s = Math.sin(k * 60) * 0.05;
+    b.head.rotation.x = mix(b.head.rotation.x, -0.8, w); b.torso.rotation.x = mix(b.torso.rotation.x, -0.3, w);
+    b.armL.rotation.x = mix(b.armL.rotation.x, -0.5 + s, w); b.armR.rotation.x = mix(b.armR.rotation.x, -0.5 - s, w);
+    b.armL.rotation.z = mix(b.armL.rotation.z, -1.3, w); b.armR.rotation.z = mix(b.armR.rotation.z, 1.3, w);
+  },
+  throw(b, k, w) { // the right arm cocked far back, whipped forward, the body twisting through
+    const back = seg(k, 0, 0.5), fwd = seg(k, 0.5, 0.65);
+    b.armR.rotation.x = mix(b.armR.rotation.x, mix(mix(-1.5, -3.0, back), -0.5, fwd), w); b.armL.rotation.x = mix(b.armL.rotation.x, -1.5, w);
+    b.torso.rotation.y = mix(b.torso.rotation.y, mix(0.6 * back, -0.5, fwd), w); b.torso.rotation.x = mix(b.torso.rotation.x, 0.4 * fwd - 0.2 * back, w);
+  },
+  conjure(b, k, w) { // both arms raised, hands shaking, the head tipped up
+    const sh = Math.sin(k * 50) * 0.08;
+    b.armL.rotation.x = mix(b.armL.rotation.x, -2.5 + sh, w); b.armR.rotation.x = mix(b.armR.rotation.x, -2.5 - sh, w);
+    b.armL.rotation.z = mix(b.armL.rotation.z, -0.4, w); b.armR.rotation.z = mix(b.armR.rotation.z, 0.4, w);
+    b.head.rotation.x = mix(b.head.rotation.x, -0.5, w); b.torso.rotation.x = mix(b.torso.rotation.x, -0.2, w);
+  },
+  screech(b, k, w) { // the head thrown back, the wings of the arms spread, the whole body shuddering
+    const sh = Math.sin(k * 70);
+    b.head.rotation.x = mix(b.head.rotation.x, -0.9, w); b.torso.rotation.x = mix(b.torso.rotation.x, -0.45, w);
+    b.armL.rotation.z = mix(b.armL.rotation.z, -1.5, w); b.armR.rotation.z = mix(b.armR.rotation.z, 1.5, w);
+    b.armL.rotation.x = mix(b.armL.rotation.x, -0.4, w); b.armR.rotation.x = mix(b.armR.rotation.x, -0.4, w); b.torso.rotation.z = mix(b.torso.rotation.z, sh * 0.08, w);
+  },
+  lunge(b, k, w) { // the body pitched down and forward, both arms reaching, the legs trailing
+    const d = seg(k, 0, 0.4);
+    b.root.rotation.x += w * 0.5 * d; b.armL.rotation.x = mix(b.armL.rotation.x, -2.0, w); b.armR.rotation.x = mix(b.armR.rotation.x, -2.0, w);
+    b.legL.rotation.x = mix(b.legL.rotation.x, 0.6, w); b.legR.rotation.x = mix(b.legR.rotation.x, 0.6, w);
+  },
+  brace(b, k, w) { b.root.rotation.x += w * -0.3 * seg(k, 0, 0.5) * (1 - seg(k, 0.6, 1)); }, // a beam charging: the whole body leans back
+  surge(b, k, w) { b.root.rotation.x += w * 0.42 * seg(k, 0, 0.5); }, // a dash: the body pitches into it
+  sway(b, k, w) { const u = seg(k, 0, 0.5); b.root.rotation.z += w * 0.45 * u * Math.sin(k * 9 + 1); b.root.rotation.x += w * 0.3 * u; }, // a hovering craft tilts and rocks
+  rear(b, k, w, z) { // the spider rig rears up on its back legs, then drops with a bounce
+    const g = b.x && b.x.spider; if (!g) return; const up = seg(k, 0, 0.45), dn = seg(k, 0.45, 0.6);
+    g.rotation.x = mix(g.rotation.x, mix(-0.55 * up, 0.18, dn), w); g.position.y += w * (0.35 * up * (1 - dn)); void z;
+  },
+};
 const yawOf = (face) => Math.PI / 2 - face;
 
 export function createActors(H) {
@@ -243,6 +306,8 @@ export function createActors(H) {
     for (const [uid, idx] of slots) { const e = B.byUid.get(uid); if (!e || !e.alive) slots.delete(uid); void idx; }
     return rows;
   }
+  const widthBox = new THREE.Box3(); const widthSize = new THREE.Vector3();
+  const bossActs = new Map(); // enemy uid -> { pose, t, dur }: the cast pose an older boss is in
   const enemyBars = new Map();
   function syncEnemyBars() {
     const seen = new Set();
@@ -310,8 +375,15 @@ export function createActors(H) {
       const a = heroOf(e.uid);
       if (a) { const key = CAST_KEY[e.key]; if (key && BZ.CAST_ANIM[key]) a.st.act = { key, t: 0 }; return; }
       const idx = slots.get(e.uid); const u = unitOf(e.uid); if (idx === undefined || !u) return;
-      const sk = u.skills.find((s) => s.slot === e.slot); const move = sk && sk.def.move;
-      if (move && u.boss) G.zombies.kinds.remote({ t: 'bm', i: idx, m: move, d: sk.def.lock || 1 });
+      if (!u.boss) return;
+      const sk = u.skills.find((s) => s.slot === e.slot); if (!sk) return;
+      const z = pool[idx]; const lock = sk.def.lock || 1;
+      if (z.T.kind === 'boss2') {
+        if (sk.def.move) G.zombies.kinds.remote({ t: 'bm', i: idx, m: sk.def.move, d: lock });
+        const lean = KIT_LEAN[sk.def.move]; if (lean) bossActs.set(e.uid, { pose: lean, t: 0, dur: lock + 0.3 });
+        return;
+      }
+      bossActs.set(e.uid, { pose: BOSS_POSE[u.kind + ':' + sk.def.fx] || 'conjure', t: 0, dur: lock + 0.3 });
     },
     ult(e) { ON.cast(e); },
     dash(e) { const a = heroOf(e.uid); if (a) a.fastT = 0.3; },
@@ -332,6 +404,11 @@ export function createActors(H) {
         let s = summons.get(u.uid); if (!s) s = makeSummon(u); syncSummon(s, dt);
       }
       G.zombies.adopt(enemyRows()); G.zombies.update(dt);
+      for (const [uid, a] of bossActs) {
+        const i = slots.get(uid); const z = i === undefined ? null : pool[i];
+        a.t += dt; if (!z || !z.alive || z.dying || a.t > a.dur) { bossActs.delete(uid); continue; }
+        POSES[a.pose](z.body, a.t / 0.7, Math.min(1, a.t / 0.12) * (1 - seg(a.t / a.dur, 0.85, 1)), z);
+      }
       // stepping out of the fog: a rim spawn rises and grows over its spawnT (the sim holds it untargetable for the same time)
       for (const e of B.enemies) {
         if (!e.alive) continue; const idx = slots.get(e.uid); const z = idx === undefined ? null : pool[idx]; if (!z || !z.alive || z.dying) continue;
@@ -353,15 +430,25 @@ export function createActors(H) {
       for (const a of [...heroes.values()]) dropHero(a);
       for (const uid of [...summons.keys()]) dropSummon(uid);
       for (const bar of [...enemyBars.values()]) dropBar(bar);
-      enemyBars.clear(); slots.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; horde.clear(); B = null;
+      enemyBars.clear(); bossActs.clear(); slots.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; horde.clear(); B = null;
     },
-    fx, marks, horde,
+    fx, marks, horde, bossActs,
     gripOf(uid) { const h = heroes.get(uid); return h ? { m: h.m, eq: h.eq, grip: h.grip, st: h.st } : null; },
     scaleOf(uid) { if (heroes.has(uid)) return HERO_SCALE; const i = slots.get(uid); return i !== undefined ? pool[i].T.scale : horde.scaleOf(uid); },
     nodeOf(uid) {
       const h = heroes.get(uid); if (h) return h.node;
       const s = summons.get(uid); if (s) return s.root;
       const i = slots.get(uid); return i !== undefined ? pool[i].body.root : horde.nodeOf(uid);
+    },
+    // how tall the unit stands in metres: the camera sizes its chase distance from it
+    heightOf(uid) {
+      if (heroes.has(uid)) return 2.7; if (summons.has(uid)) return 1.6;
+      const i = slots.get(uid); return 2.2 * (i !== undefined ? pool[i].T.scale : horde.scaleOf(uid) || 1);
+    },
+    // sideways extent of the unit's meshes in metres (wings, a saucer): the camera keeps it inside the frame width
+    widthOf(uid) {
+      const n = api.nodeOf(uid); if (!n) return 0;
+      n.updateMatrixWorld(true); widthBox.setFromObject(n); widthBox.getSize(widthSize); return Math.max(widthSize.x, widthSize.z);
     },
     headPos(uid, out) {
       const h = heroes.get(uid); if (h) return out.set(h.pos.x, 2.6, h.pos.z);
@@ -371,6 +458,6 @@ export function createActors(H) {
     },
   };
   void lam;
-  H.scaleOf = api.scaleOf;
+  H.scaleOf = api.scaleOf; H.heightOf = api.heightOf; H.widthOf = api.widthOf;
   return api;
 }

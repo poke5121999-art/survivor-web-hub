@@ -23,6 +23,7 @@ const bad = (list) => list.filter((x) => !/Failed to load resource|\/js\/ui\//.t
 
 const ENEMIES = ['walker', 'runner', 'spider', 'flyer', 'hound', 'spitter', 'bloater', 'shielder', 'brute', 'shrieker', 'armored', 'burner', 'frost',
   'giant', 'thrower', 'phantom', 'queen', 'brood', 'vampire', 'alien', 'pharaoh', 'ufo', 'guardian', 'dragon'];
+const BOSSES = ['giant', 'thrower', 'phantom', 'queen', 'brood', 'vampire', 'alien', 'pharaoh', 'ufo', 'guardian', 'dragon'];
 const HEROES = ['gio', 'thep', 'yta', 'mua', 'bong', 'phao', 'bang', 'hoa', 'sam', 'doc', 'ky', 'soi', 'nhen'];
 
 const shot = async (page, file) => { await page.locator('#frame').screenshot({ path: path.join(OUT, file) }); return path.join(OUT, file); };
@@ -248,6 +249,72 @@ try {
       }
       await ctx.close();
       check(bad(problems).length === 0, `warnings: no console problems ${problems.slice(0, 2).join(' | ')}`);
+    }
+
+    // every skill of every boss at tier 3 changes the boss's pose within 0.3 s, and a strip per boss to look at
+    {
+      const { ctx, page, problems } = await open(br, srv.base, 's22', 'noaudio=1&seed=5');
+      for (const kind of BOSSES) {
+        const names = await page.evaluate((k) => {
+          const G = window.__G; const def = { ...G.stageDef(1), hpMul: 1e6, atkMul: 0.0001, bossHp: 1, bossTier: 3, boss: k, waves: [{ groups: [{ kind: k, n: 1, at: 0, ang: 1.6, spread: 0.1 }], boss: null }] };
+          const B = G.start({ custom: def }, { seed: 5, team: ['thep', 'mua', 'yta', 'gio'] });
+          window.__sim(2); G.paused = true;
+          const u = B.enemies.find((x) => x.alive && x.kind === k); G.cam.spectate(u.uid); window.__step(100);
+          const n = G.actors.nodeOf(u.uid);
+          // rotations of every joint of the boss body (the root's own heading excluded)
+          window.__bp = { G, B, u, snap: () => { const a = []; n.traverse((o) => { a.push(o.rotation.x, o.rotation.y, o.rotation.z); }); return a; },
+            dev: (a, b) => { let t = 0; for (let i = 0; i < a.length; i++) if (i % 3 !== 1 || i < 3) t += Math.abs(a[i] - b[i]); return t; },
+            zb: () => G.host.G.zombies.list.find((z) => z.alive && z.T.boss) };
+          return u.skills.filter((sk) => sk.def.name).map((sk) => [sk.slot, sk.def.name]);
+        }, kind);
+        const files = [await shot(page, `boss-${kind}-idle.png`)]; const devs = [];
+        for (const [slot, name] of names) {
+          await page.evaluate((sl) => {
+            const { G, u } = window.__bp; window.__step(90); const sk = u.skills.find((x) => x.slot === sl);
+            G.actors.onEvent({ e: 'cast', uid: u.uid, slot: sl, key: sk.def.fx, name: sk.def.name, x: u.x, z: u.z, boss: true }); window.__step(18);
+          }, slot);
+          files.push(await shot(page, `boss-${kind}-${slot}.png`));
+          // the same frame again without the cast: only the cast can account for the difference
+          const d = await page.evaluate(() => {
+            const { G, snap, dev, zb } = window.__bp; const z = zb(); const pc = snap(); const bob = z.bob; const ph = z.phase;
+            G.actors.bossActs.clear(); if (z.bs) z.bs.cur = null; z.bob = bob - 1 / 60; z.phase = ph; window.__step(1);
+            return dev(pc, snap());
+          });
+          devs.push([name, d]);
+        }
+        check(devs.every((x) => x[1] > 0.35), `boss ${kind}: every skill changes the pose within 0.3 s (${devs.map((x) => x[0] + ' ' + x[1].toFixed(2)).join(', ')}; > 0.35 rad summed)`);
+        sheet(files, path.join(OUT, `boss-${kind}.png`), files.length, 240);
+        await page.evaluate(() => { window.__G.paused = false; window.__G.cam.spectate(0); });
+      }
+      await ctx.close();
+      check(bad(problems).length === 0, `boss poses: no console problems ${problems.slice(0, 2).join(' | ')}`);
+    }
+
+    // watching through an enemy's or a boss's eyes: the unit between 12% and 45% of the frame height, its target on screen
+    {
+      const { ctx, page, problems } = await open(br, srv.base, 's22', 'noaudio=1&seed=5');
+      const files = [];
+      for (const kind of ['walker', 'brute', 'flyer', 'giant', 'dragon', 'ufo']) {
+        const r = await page.evaluate((k) => {
+          const G = window.__G; const H = G.host;
+          const def = { ...G.stageDef(1), hpMul: 1e6, atkMul: 0.0001, bossHp: 1, bossTier: 3, boss: k, waves: [{ groups: [{ kind: k, n: 3, at: 0, ang: 1.6, spread: 0.5 }], boss: null }] };
+          const B = G.start({ custom: def }, { seed: 5, team: ['thep', 'mua', 'yta', 'gio'] });
+          window.__sim(7); G.paused = true;
+          const u = B.enemies.find((x) => x.alive && x.kind === k); if (!u) return null;
+          G.cam.spectate(u.uid); window.__step(120);
+          const n = G.actors.nodeOf(u.uid); const v = new H.THREE.Vector3(); const w = new H.THREE.Vector3();
+          v.set(n.position.x, n.position.y, n.position.z).project(H.camera); w.set(n.position.x, n.position.y + G.actors.heightOf(u.uid), n.position.z).project(H.camera);
+          const frac = Math.abs(w.y - v.y) / 2; const tg = B.byUid.get(u.target); let tOn = false;
+          if (tg) { const t = new H.THREE.Vector3(tg.x, 1, tg.z).project(H.camera); tOn = Math.abs(t.x) <= 1 && Math.abs(t.y) <= 1 && t.z < 1; }
+          return { frac, hasTarget: !!tg, tOn, unitIn: Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1 };
+        }, kind);
+        files.push(await shot(page, `spec-${kind}.png`));
+        check(!!r && r.frac >= 0.12 && r.frac <= 0.45 && r.hasTarget && r.tOn && r.unitIn, `spectate ${kind}: unit ${r ? (r.frac * 100).toFixed(0) : '-'}% of the frame height (12..45), target ${r && r.hasTarget ? (r.tOn ? 'on screen' : 'OFF screen') : 'missing'}, unit on screen ${r && r.unitIn}`);
+        await page.evaluate(() => { window.__G.paused = false; window.__G.cam.spectate(0); });
+      }
+      sheet(files, path.join(OUT, 'sheet-spectate.png'), 6, 300);
+      await ctx.close();
+      check(bad(problems).length === 0, `spectate: no console problems ${problems.slice(0, 2).join(' | ')}`);
     }
 
     // quality tiers and the desktop frame

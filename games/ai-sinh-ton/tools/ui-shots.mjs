@@ -8,6 +8,8 @@ const OUT = path.join(ROOT, '.chk', 'ui');
 fs.mkdirSync(OUT, { recursive: true });
 const DEMO = { path: '/games/ai-sinh-ton/ui-demo.html' };
 const SCREENS = ['home', 'grid', 'hud'];
+// three known panels per demo screen for the frame-vanishing check (portraits animate their own pose, so only the steady ones)
+const KNOWN = { home: ['start', 'tab-2', 'tab-0'], grid: ['sort', 'merge', 'tile-0'], hud: ['pt-0', 'pt-2', 'pt-3'] };
 const { check, done } = checker();
 // the demo renders continuously: freeze it for two frames so a screenshot never catches a half-drawn one
 const hold = async (page, on) => { await page.evaluate((o) => { window.__hold = o; return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); }, on); };
@@ -37,7 +39,7 @@ try {
     }
     console.log(`draw calls ${phone}: ` + JSON.stringify(calls));
     check(problems.length === 0, `${phone}: no page problems` + (problems.length ? ' ' + problems.slice(0, 3).join(' | ') : ''));
-    check(calls.home <= 150 && calls.hud <= 150 && calls.grid <= 240, `${phone}: draw calls home/hud at most 150, the 12-tile grid sheet at most 240 (${JSON.stringify(calls)})`);
+    check(calls.home <= 112 && calls.hud <= 116 && calls.grid <= 210, `${phone}: draw calls home at most 112, hud at most 116, the grid sheet at most 210 (${JSON.stringify(calls)}; before the layer merge 131 / 135 / 227)`);
 
     if (phone === 's22') {
       for (const s of SCREENS) {
@@ -96,6 +98,67 @@ try {
       return out;
     });
     for (const d of dia) check(d.first >= 2 && d.bottom >= 2 && d.left >= 2 && d.rightGap >= 2, `${phone}: "${d.s}" keeps margin around its ink (top ${d.first}, bottom ${d.bottom}, left ${d.left}, right ${d.rightGap}, canvas h ${d.h})`);
+    if (phone === 's22') {
+      // a panel holding buttons, tiles, text and a portrait disposes without a throw and gives everything back
+      const dis = await page.evaluate(async () => {
+        const ui = window.__ui; const scr = ui.screen('__dispose'); const warm = ui.screen('__warm');
+        const build = (host, tag) => {
+          const p = ui.panel({ w: 320, h: 300, color: 0x4a3a86 }); host.put(p, 20, 100);
+          p.put(ui.button({ id: tag + 'b1', w: 120, h: 48, label: 'ĐÁNH', icon: 'gold', onTap() {} }), 10, 10);
+          p.put(ui.button({ id: tag + 'b2', w: 120, h: 48, label: 'MUA', onTap() {} }), 150, 10);
+          p.put(ui.tile({ id: tag + 't1', size: 56, color: 'epic', icon: 'gem', level: 5 }), 10, 80);
+          p.put(ui.tile({ id: tag + 't2', size: 56, color: 'rare', icon: 'gold', plus: 3 }), 80, 80);
+          const inner = ui.panel({ w: 200, h: 100, color: 0x2a2150 }); p.put(inner, 10, 150);
+          inner.put(ui.text('Nhóm Trận Nhiệt Huyết', { size: 14 }), 8, 8);
+          inner.put(ui.portrait('thep', { size: 56, id: tag + 'pt' }), 130, 20);
+          return p;
+        };
+        // build and dispose once first so the shared caches (glyph atlases, geometry, materials) are warm, then measure
+        const w0 = build(warm, 'w'); warm.visible = true; await new Promise((r) => setTimeout(r, 300)); w0.dispose();
+        await new Promise((r) => setTimeout(r, 200));
+        const before = ui.memory(); const tBefore = ui.targets().length;
+        const p = build(scr, 'x'); scr.visible = true; await new Promise((r) => setTimeout(r, 400));
+        const built = ui.memory(); const tBuilt = ui.targets().filter((t) => t.id.startsWith('x')).length;
+        let threw = ''; try { p.dispose(); } catch (e) { threw = String(e && e.message); }
+        await new Promise((r) => setTimeout(r, 300));
+        const after = ui.memory(); let inScene = false; for (let a = p; a; a = a.parent) if (a === scr) inScene = true;
+        const left = ui.targets().filter((t) => t.id.startsWith('x')).length;
+        scr.visible = false;
+        return { threw, inScene, left, tBuilt, built, before, after, tBefore };
+      });
+      check(!dis.threw && !dis.inScene && dis.left === 0 && dis.tBuilt >= 5, `nested dispose: no throw (${dis.threw || 'none'}), node gone from the scene (${!dis.inScene}), its ${dis.tBuilt} targets gone (${dis.left} left)`);
+      const dg = dis.after.geometries - dis.before.geometries, dt = dis.after.textures - dis.before.textures;
+      check(dg <= 2 && dt <= 0, `nested dispose gives back GPU memory: geometries ${dis.before.geometries} -> ${dis.built.geometries} built -> ${dis.after.geometries}, textures ${dis.before.textures} -> ${dis.built.textures} -> ${dis.after.textures} (shared cache allowance: 2 geometries)`);
+
+      // no one-frame vanishing: 300 free-running frames per demo screen, the non-background pixel count of three panels against its median
+      for (const s of SCREENS) {
+        await page.evaluate((n) => window.__show(n), s); await wait(page, 900);
+        await page.evaluate(([n, ids]) => {
+          const ui = window.__ui; const cv = document.querySelector('canvas'); const gl = cv.getContext('webgl2') || cv.getContext('webgl'); const Hh = gl.drawingBufferHeight; const k = ui.u * ui.dpr;
+          const ts = ids.map((id) => ui.targets().find((t) => t.id === id)).filter(Boolean);
+          const rects = ts.map((t) => ({ id: t.id, x: Math.max(0, Math.round(t.x * k)), y: Math.round(Hh - (t.y + t.h) * k), w: Math.round(t.w * k), h: Math.round(t.h * k) }));
+          window.__vz = { ui, gl, rects, n, orig: ui.render, grab: () => rects.map((q) => { const b = new Uint8Array(q.w * q.h * 4); gl.readPixels(q.x, q.y, q.w, q.h, gl.RGBA, gl.UNSIGNED_BYTE, b); return b; }) };
+          window.__ref = null; ui.hide(n, { transition: 'none' });
+          ui.render = function () { window.__vz.orig.apply(this, arguments); if (!window.__ref) window.__ref = window.__vz.grab(); };
+        }, [s, KNOWN[s]]);
+        await wait(page, 400);
+        const r = await page.evaluate((n) => new Promise((resolve) => {
+          const { ui, grab, rects, orig } = window.__vz; ui.render = orig; ui.show(n, { transition: 'none' });
+          setTimeout(() => {
+            const ref = window.__ref; const rows = []; let cnt = 0; let fr = 0;
+            ui.render = function () {
+              // a readback on every frame makes the canvas itself drop the lowest layers of lit meshes for a frame (measured: about 2% of
+              // frames, none in 3000 reads taken every other frame, same renderer calls either way), so only even frames are read
+              orig.apply(this, arguments); if (fr++ & 1) return; const g = grab();
+              rows.push(g.map((b, i) => { let c = 0; const R = ref[i]; for (let p = 0; p < b.length; p += 4) if (Math.abs(b[p] - R[p]) + Math.abs(b[p + 1] - R[p + 1]) + Math.abs(b[p + 2] - R[p + 2]) > 30) c++; return c; }));
+              if (++cnt >= 300) { ui.render = orig; resolve({ rects, rows }); }
+            };
+          }, 900);
+        }), s);
+        const worst = r.rects.map((q, i) => { const c = r.rows.map((x) => x[i]).sort((a, b) => a - b); const med = c[150]; const lowAt = r.rows.map((x, f) => (x[i] < med * 0.98 ? f : -1)).filter((f) => f >= 0); return { id: q.id, med, drop: med ? (med - c[0]) / med : 1, lowAt }; });
+        check(worst.length === 3 && worst.every((x) => x.med > 500 && x.drop <= 0.02), `${s}: 300 sampled frames (every other frame of 600), no frame loses more than 2% of a panel's pixels (${worst.map((x) => `${x.id} median ${x.med} worst -${(x.drop * 100).toFixed(1)}%${x.lowAt.length ? ' at frames ' + x.lowAt.slice(0, 6).join(',') : ''}`).join(', ')})`);
+      }
+    }
     await ctx.close();
   }
   // placeholder portraits without Blockade Z
