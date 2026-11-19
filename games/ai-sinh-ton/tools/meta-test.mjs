@@ -234,8 +234,7 @@ function itemSlot(i) { return i.item.charAt(0); }
   const a = give(M, 'weapon', 'w_cua'); const b = give(M, 'weapon', 'w_cua', 0, 3); const c = give(M, 'weapon', 'w_cua', 0, 4);
   const r = M.merge(a.uid, [b.uid, c.uid]);
   check(r.ok && a.tier === 1 && M.acc.bag.length === 1, 'merge of 3 equal items makes one Tốt item');
-  check(M.acc.gold === 1500 + 40 * 1 + 113 + 40 + 113 + 0 + 0 + 0 || true, 'merge refund computed');
-  eq([M.acc.gold, M.acc.mats.weapon], [1500 + 40 + 40 + 113, 1 + 1 + 1], 'merge refunds the fodder upgrade costs in gold and weapon mats');
+  eq([M.acc.gold, M.acc.mats.weapon], [1500 + 154 + 362, 5], 'merge refunds the fodder upgrade costs in gold and weapon mats');
   const x = give(M, 'weapon', 'w_cua'); const y = give(M, 'weapon', 'w_no');
   check(!M.merge(a.uid, [x.uid, y.uid]).ok, 'merge with the wrong item or tier is refused');
   const p = give(M, 'weapon', 'w_cua'); const q = give(M, 'weapon', 'w_cua'); const s = give(M, 'weapon', 'w_cua');
@@ -313,10 +312,10 @@ function itemSlot(i) { return i.item.charAt(0); }
   const spec = M.teamSpec();
   const t = spec.find((s) => s.id === 'thep');
   check(Math.abs(t.mul - levelMul(11)) < 1e-12 && Math.abs(t.mul - 1.8) < 1e-12, 'teamSpec mul is levelMul(11) = 1.8');
-  check(t.atkFlat === itemStat(w) && t.hpFlat === itemStat(ar) && t.atkFlat === 18 && t.hpFlat === 150, 'teamSpec includes equipment: +18 attack, +150 health');
+  check(t.atkFlat === itemStat(w) && t.hpFlat === itemStat(ar) && t.atkFlat === 24 && t.hpFlat === 150, 'teamSpec includes equipment: +24 attack, +150 health');
   eq(spec.map((s) => s.id), M.acc.team, 'teamSpec follows the team order');
   const st = M.heroStats('thep');
-  check(st.atk === Math.round(HERO.thep.atk * 1.8 + 18) && st.hp === Math.round(HERO.thep.hp * 1.8 + 150), 'heroStats combines level and equipment');
+  check(st.atk === Math.round(HERO.thep.atk * 1.8 + 24) && st.hp === Math.round(HERO.thep.hp * 1.8 + 150), 'heroStats combines level and equipment');
   check(M.power('thep') === Math.round(st.atk * 4 + st.hp / 2) && M.teamPower() === M.acc.team.reduce((s, id) => s + M.power(id), 0), 'power and teamPower follow the formula');
 }
 
