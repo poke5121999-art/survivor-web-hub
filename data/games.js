@@ -1136,5 +1136,20 @@ window.HUB_GAMES = [
     rev: "20261117e",
     status: "available",
     tags: ["Hành động", "Trộm đồ", "Màn ngang"]
+  },
+  {
+    id: "repo3d",
+    title: "Ca Trực Đêm 3D",
+    tagline: "Lẻn vào nhà tối, bắn tia kéo loot về bệ trước khi zombie robot tóm được.",
+    desc: "Bản 3D góc nhìn thứ nhất của Ca Trực Đêm: Biệt Đội, viết toàn bằng code. Đội robot thợ đi qua 5 nhà nhiều tầng, dùng tia kéo hoặc xe đẩy mang loot về bệ cho đủ chỉ tiêu, va đập là mất giá. Zombie robot mắt đỏ mỗi loài một chiêu, boss từ nhà 3. Có đấm, nhảy, đồ trạm, 14 nhân vật và bot đồng đội.",
+    genre: "kinh-di",
+    accent: "#ff3a2a",
+    en: { title: "Night Shift 3D", tagline: "Sneak into dark houses and beam the loot to the pad before the zombie robots grab you.", desc: "A first-person 3D take on Night Shift: Squad, built entirely in code. A crew of worker robots clears 5 multi-storey houses, hauling loot to the pad with a grab beam or a cart to meet the quota; knocks cost value. Red-eyed zombie robots each have their own moves, with bosses from house 3. Punching, jumping, station gear, 14 characters and bot mates." },
+    thumbnail: "assets/thumbnails/repo3d.png",
+    // Nguồn làm việc: repo private poke5121999-art/repo3d (Windows D:/repo3d, linux ~/repo3d). Bản thử để chủ dự án xem, còn đang làm tiếp (docs/parity.md).
+    path: "games/repo3d/index.html",
+    rev: "20261119d",
+    status: "available",
+    tags: ["Dựng thử", "Kinh dị", "Góc nhìn thứ nhất"]
   }
 ];

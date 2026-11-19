@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Robot Viewer</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0c10; overflow: hidden; font-family: system-ui, sans-serif; }
+  #view { display: block; width: 100vw; height: 100vh; }
+  #labels { position: fixed; inset: 0; pointer-events: none; }
+  .lb { position: absolute; transform: translate(-50%, 0); color: #e8eef8; font: 600 13px/1.2 system-ui; text-shadow: 0 1px 2px #000; white-space: nowrap; text-align: center; }
+  .lb small { display: block; font-weight: 400; color: #9aa6b8; font-size: 11px; }
+  #cap { position: fixed; left: 12px; top: 10px; color: #cfd8e8; font: 600 14px system-ui; text-shadow: 0 1px 2px #000; }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="labels"></div>
+<div id="cap"></div>
+<script type="module">
+import * as THREE from './vendor/three.module.min.js';
+import { buildRobot as build0, ROBOT_IDS, robotStats, robotsFrame } from './js/robots.js';
+// every robot built here is disposed by clear(); robotsFrame uploads the crowd before each render
+const built = []; window.__built = built;
+const buildRobot = (spec) => { const r = build0(spec); built.push(r); return r; };
+
+const errors = [];
+window.__errors = errors;
+addEventListener('error', (e) => errors.push(String(e.message)));
+const canvas = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(innerWidth, innerHeight, false);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x101218);
+
+// environment: a dim room with a few bright panels, prefiltered (no image files)
+{
+  const env = new THREE.Scene();
+  const room = new THREE.Mesh(new THREE.BoxGeometry(20, 10, 20), new THREE.MeshBasicMaterial({ color: 0x1a1d24, side: THREE.BackSide }));
+  env.add(room);
+  const panel = (w, h, c, p, r) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide })); m.position.set(...p); m.rotation.set(...r); env.add(m); };
+  panel(8, 2, 0xffffff, [0, 4.9, 0], [Math.PI / 2, 0, 0]);
+  panel(4, 3, 0xffe6c8, [-9.9, 2, 3], [0, Math.PI / 2, 0]);
+  panel(4, 3, 0x9fc0ff, [9.9, 2, -4], [0, -Math.PI / 2, 0]);
+  panel(20, 1, 0x3a3328, [0, -4.9, 0], [Math.PI / 2, 0, 0]);
+  const pm = new THREE.PMREMGenerator(renderer);
+  scene.environment = pm.fromScene(env, 0.02).texture;
+  scene.environmentIntensity = 0.75;
+}
+scene.add(new THREE.HemisphereLight(0xbfd0ff, 0x2a241e, 0.35));
+const key = new THREE.DirectionalLight(0xfff0dc, 2.6);
+key.position.set(-4, 7, 6); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+Object.assign(key.shadow.camera, { left: -14, right: 14, top: 10, bottom: -6, near: 0.5, far: 40 });
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x9fc4ff, 1.6); rim.position.set(5, 4, -7); scene.add(rim);
+const fill = new THREE.DirectionalLight(0xffd8b0, 0.45); fill.position.set(6, 2, 4); scene.add(fill);
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0x34363b, roughness: 0.82, metalness: 0.05 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+const grid = new THREE.GridHelper(80, 80, 0x4a4e56, 0x2a2d33); grid.position.y = 0.002; scene.add(grid);
+
+const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.05, 200);
+const stage = new THREE.Group(); scene.add(stage);
+const labels = document.getElementById('labels');
+const cap = document.getElementById('cap');
+
+// dark mode: every light off except a torch at the viewer's eye 3.3 m away (how players meet foes)
+const lights = [];
+scene.traverse((o) => { if (o.isLight) lights.push(o); });
+const torch = new THREE.SpotLight(0xfff1dc, 26, 16, 0.42, 0.55, 2);
+torch.castShadow = true; torch.shadow.mapSize.set(1024, 1024); torch.shadow.bias = -0.0005;
+const torchTgt = new THREE.Object3D(); torch.target = torchTgt; scene.add(torch, torchTgt); torch.visible = false;
+const fill0 = new THREE.AmbientLight(0x30384a, 0.12); scene.add(fill0); fill0.visible = false;
+let dark = false;
+function setDark(on) {
+  if (dark === on) return; dark = on;
+  for (const l of lights) l.visible = !on;
+  torch.visible = fill0.visible = on;
+  scene.environmentIntensity = on ? 0.04 : 0.75;
+  scene.background.set(on ? 0x020203 : 0x101218);
+  scene.fog = on ? new THREE.FogExp2(0x020203, 0.09) : null;
+  grid.visible = !on;
+}
+window.__dark = (id, state = {}, dist = 3.3) => {
+  clear(); setDark(true);
+  const r = buildRobot({ kind: kindOf(id), id });
+  stage.add(r.root); settle(r, state, 120);
+  const eye = 1.2, h = r.height;   // the player's eye (config.js)
+  camera.fov = 62; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  camera.position.set(0.25, eye, dist); camera.lookAt(0, Math.min(eye, h * 0.6), 0);
+  torch.position.set(0.45, eye - 0.25, dist - 0.1); torchTgt.position.set(0, Math.min(1.1, h * 0.55), 0);
+  draw(); camera.fov = 30;
+  cap.textContent = id + ' at ' + dist + ' m, torch only';
+  return robotStats[kindOf(id) + ':' + id];
+};
+
+const kindOf = (id) => (ROBOT_IDS.crew.includes(id) ? 'crew' : ROBOT_IDS.foe.includes(id) ? 'foe' : 'boss');
+function clear() { setDark(false); stage.clear(); for (const r of built.splice(0)) r.dispose(); labels.innerHTML = ''; cap.textContent = ''; renderer.setSize(innerWidth, innerHeight, false); }
+function settle(r, state, frames = 90, dt = 1 / 60) { for (let i = 0; i < frames; i++) r.animate(dt, state); }
+function frameCam(cx, cy, cz, h, w, yawDeg = 25, pitch = 0.18, aspect = innerWidth / innerHeight) {
+  const fov = THREE.MathUtils.degToRad(camera.fov);
+  const dist = Math.max(h / (2 * Math.tan(fov / 2)), w / (2 * Math.tan(fov / 2) * aspect)) * (window.__pad || 1.08) + 0.2;
+  const a = THREE.MathUtils.degToRad(yawDeg);
+  camera.aspect = aspect; camera.updateProjectionMatrix();
+  camera.position.set(cx + Math.sin(a) * dist * Math.cos(pitch), cy + Math.sin(pitch) * dist, cz + Math.cos(a) * dist * Math.cos(pitch));
+  camera.lookAt(cx, cy, cz);
+}
+function label(text, sub, p) {
+  const v = p.clone().project(camera);
+  const d = document.createElement('div'); d.className = 'lb';
+  d.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; d.style.top = ((1 - v.y) / 2 * innerHeight) + 'px';
+  d.innerHTML = text + (sub ? '<small>' + sub + '</small>' : '');
+  labels.appendChild(d);
+}
+function readPx() { const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, a = new Uint8Array(w * h * 4); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, a); return { a, w, h }; }
+function bodySeen(r) {
+  draw(); const A = readPx();
+  r.root.visible = false; draw(); const Bp = readPx(); r.root.visible = true;
+  const pts = r.points(); let n = 0, hit = 0;
+  for (const p of pts) {
+    const v = p.clone().project(camera); if (v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+    const x = Math.round((v.x + 1) / 2 * (A.w - 1)), y = Math.round((v.y + 1) / 2 * (A.h - 1)), i = (y * A.w + x) * 4;
+    n++; if (Math.abs(A.a[i] - Bp.a[i]) + Math.abs(A.a[i + 1] - Bp.a[i + 1]) + Math.abs(A.a[i + 2] - Bp.a[i + 2]) > 18) hit++;
+  }
+  return n ? hit / n : 0;
+}
+window.__bodySeen = bodySeen;
+function draw() { renderer.setViewport(0, 0, innerWidth, innerHeight); renderer.setScissorTest(false); (robotsFrame(scene, camera, 0), renderer.render(scene, camera)); }
+
+window.__show = (id, state = {}, yaw = 0.5) => {
+  clear();
+  const r = buildRobot({ kind: kindOf(id), id });
+  r.root.rotation.y = yaw; stage.add(r.root); settle(r, state);
+  frameCam(0, r.height * 0.5, 0, r.height, r.height * 0.8, 0, 0.12);
+  draw(); return robotStats[kindOf(id) + ':' + id];
+};
+
+window.__lineup = (group) => {
+  clear();
+  const ids = ROBOT_IDS[group];
+  const perRow = group === 'crew' ? 7 : group === 'foe' ? 8 : 5;
+  const rows = Math.ceil(ids.length / perRow);
+  const gap = group === 'boss' ? 2.2 : 1.35, rowGap = group === 'boss' ? 3 : 2.6;
+  let maxH = 0;
+  const placed = [];
+  ids.forEach((id, i) => {
+    const r = buildRobot({ kind: kindOf(id), id });
+    const row = Math.floor(i / perRow), col = i % perRow, n = Math.min(perRow, ids.length - row * perRow);
+    r.root.position.set((col - (n - 1) / 2) * gap, 0, -row * rowGap);
+    r.root.rotation.y = 0.35;
+    stage.add(r.root); settle(r, {}, 30);
+    maxH = Math.max(maxH, r.height); placed.push([id, r]);
+  });
+  const W = perRow * gap, D = (rows - 1) * rowGap;
+  window.__pad = 1.02; frameCam(0, maxH * 0.45, -D / 2, maxH + D * 0.5, W + gap * 0.6, 0, 0.3); window.__pad = 0;
+  draw();
+  for (const [id, r] of placed) { const s = robotStats[r.kind + ':' + id]; label(id, (s.tris / 1000).toFixed(1) + 'k tris', r.root.position.clone().add(new THREE.Vector3(0, 0, 0.42))); }
+  cap.textContent = group + ' (' + ids.length + ')';
+  return ids.length;
+};
+
+// a foe beside a crew robot (bao), side-ish view, red bar at 1.3x the crew height: the owner's size rule
+window.__pair = (id, state = { stalk: 1 }) => {
+  clear();
+  const c = buildRobot({ kind: 'crew', id: 'bao' }), f = buildRobot({ kind: kindOf(id), id });
+  c.root.position.set(-0.75, 0, 0); f.root.position.set(0.85, 0, 0); c.root.rotation.y = 0.5; f.root.rotation.y = -0.45;
+  stage.add(c.root, f.root); settle(c, {}, 60); settle(f, state, 90);
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.015, 0.015), new THREE.MeshBasicMaterial({ color: 0xff3030 }));
+  bar.position.set(0.05, 0, -0.3); stage.add(bar);
+  const ct = c.top(), ft = f.top();   // posed tops, what the eye sees
+  bar.position.y = ct * 1.3;
+  const H = Math.max(ct, ft);
+  frameCam(0.05, H * 0.5, 0, H * 1.08, 3.2, 8, 0.12);
+  // body check: the share of the foe's skinned vertices whose pixel changes when the foe is hidden (a foe drawn
+  // only into the shadow map, or culled, scores near 0); redrawn up to twice when it fails, the tries are reported
+  let seen = 0, tries = 0;
+  while (tries < 3) { tries++; seen = bodySeen(f); if (seen >= 0.5) break; }
+  draw();
+  label('bao ' + ct.toFixed(2) + ' m', '', c.root.position.clone().add(new THREE.Vector3(0, 0, 0.5)));
+  label(id + ' ' + ft.toFixed(2) + ' m', 'x' + (ft / ct).toFixed(2), f.root.position.clone().add(new THREE.Vector3(0, 0, 0.5)));
+  cap.textContent = id + ' beside a crew robot (posed tops); red bar = 1.3x crew';
+  return { crew: +ct.toFixed(3), foe: +ft.toFixed(3), ratio: +(ft / ct).toFixed(3), seen: +seen.toFixed(3), tries };
+};
+
+// three views side by side: front 3/4, side, back 3/4
+window.__sheet = (id, state = {}) => {
+  clear();
+  const r = buildRobot({ kind: kindOf(id), id });
+  stage.add(r.root); settle(r, state);
+  const W = innerWidth, H = innerHeight, w = Math.floor(W / 3);
+  renderer.setScissorTest(true);
+  const yaws = [0.6, Math.PI / 2, Math.PI + 0.6];
+  r.root.updateMatrixWorld(true);
+  const bs = new THREE.Box3().setFromObject(r.root).getSize(new THREE.Vector3());
+  const horiz = Math.hypot(bs.x, bs.z) * 1.05;
+  yaws.forEach((y, i) => {
+    r.root.rotation.y = y; r.root.updateMatrixWorld(true);
+    window.__pad = 1.14; frameCam(0, r.height * 0.5, 0, r.height, Math.max(r.height * 0.7, horiz), 0, 0.1, w / H); window.__pad = 0;
+    renderer.setViewport(i * w, 0, w, H); renderer.setScissor(i * w, 0, w, H);
+    (robotsFrame(scene, camera, 0), renderer.render(scene, camera));
+  });
+  renderer.setScissorTest(false);
+  const s = robotStats[r.kind + ':' + id];
+  cap.textContent = `${r.kind}/${id}  ${s.tris} tris  ${s.meshes} meshes  build ${s.buildMs} ms  h ${s.height} m`;
+  return s;
+};
+
+// one viewport per frame, each instance alone at the origin: frames = [{ state, t, pre, label }]
+window.__strip = (id, frames, yaw = Math.PI / 2 - 0.25) => {
+  clear();
+  const kind = kindOf(id);
+  const W = innerWidth, Hh = innerHeight, n = frames.length, w = Math.floor(W / n);
+  const inst = frames.map((f) => {
+    const r = buildRobot({ kind, id });
+    r.root.rotation.y = yaw;
+    settle(r, f.pre || f.state, 60);
+    const steps = Math.round((f.t || 0) * 60);
+    for (let k = 0; k < steps; k++) r.animate(1 / 60, f.state);
+    return r;
+  });
+  const h = inst[0].height;
+  inst[0].root.updateMatrixWorld(true);
+  const bs = new THREE.Box3().setFromObject(inst[0].root).getSize(new THREE.Vector3());
+  const horiz = Math.max(h * 0.75, Math.hypot(bs.x, bs.z));
+  renderer.setScissorTest(true);
+  inst.forEach((r, i) => {
+    stage.clear(); stage.add(r.root); r.root.updateMatrixWorld(true);
+    window.__pad = 1.12; frameCam(0, h * 0.5, 0, h, horiz, 0, 0.12, w / Hh); window.__pad = 0;
+    renderer.setViewport(i * w, 0, w, Hh); renderer.setScissor(i * w, 0, w, Hh);
+    (robotsFrame(scene, camera, 0), renderer.render(scene, camera));
+    const d = document.createElement('div'); d.className = 'lb'; d.style.left = (i * w + w / 2) + 'px'; d.style.top = (Hh - 26) + 'px'; d.textContent = frames[i].label || ''; labels.appendChild(d);
+  });
+  renderer.setScissorTest(false);
+  cap.textContent = id;
+  return n;
+};
+
+// cold build ms is recorded on first build; warm = instancing from the cache
+window.__stats = () => {
+  const out = {};
+  for (const g of ['crew', 'foe', 'boss']) for (const id of ROBOT_IDS[g]) {
+    buildRobot({ kind: g, id }).dispose();
+    const t0 = performance.now(); const r = buildRobot({ kind: g, id }); const warm = performance.now() - t0; r.dispose();
+    out[id] = { group: g, ...robotStats[g + ':' + id], warmMs: +warm.toFixed(2) };
+  }
+  return out;
+};
+window.__ids = ROBOT_IDS;
+window.__ready = true;
+</script>
+</body>
+</html>

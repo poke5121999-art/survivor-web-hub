@@ -156,7 +156,7 @@
     "Sinh tồn": "Survival", "Nông trại": "Farming", "Bắt quái": "Monster catching", "Khám phá": "Exploration",
     "Mô phỏng": "Simulation", "Chiến thuật": "Strategy", "Hành động": "Action", "Dây chuyền": "Production line",
     "Dựng thử": "Prototype", "Màn dọc": "Portrait", "Một tay": "One-handed", "Ghép ô": "Merge", "Theo lượt": "Turn-based",
-    "Nhìn từ trên xuống": "Top-down", "Màn ngang": "Landscape", "Viễn Tây": "Wild West", "Đào hầm": "Digging",
+    "Nhìn từ trên xuống": "Top-down", "Góc nhìn thứ nhất": "First-person", "Màn ngang": "Landscape", "Viễn Tây": "Wild West", "Đào hầm": "Digging",
     "Triệu hồi": "Summoning", "Quản lý": "Management", "Nuôi quân": "Team building", "Bảng xếp hạng": "Leaderboard",
     "Thư giãn": "Chill", "Lái thuyền": "Boating", "Câu cá": "Fishing", "Ngày đêm": "Day & night", "Lặn biển": "Diving",
     "Bắt cá": "Fish catching", "Súng xiên": "Harpoon", "Lái cano": "Speedboat", "Quán sushi": "Sushi bar",

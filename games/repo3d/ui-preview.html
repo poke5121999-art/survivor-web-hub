@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>UI preview</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #05060a; overflow: hidden; }
+  #view { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block;
+    background: radial-gradient(ellipse at 50% 55%, #2a2f3a 0%, #14171e 55%, #07080b 100%); }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<script type="module">
+  import { UI } from './ui/ui.js';
+  // nền tối giả cho canvas 3D; lỗi nạp cũng phải thấy được trong console của trang chụp
+  const c = document.getElementById('view');
+  UI.mount(document.body);
+  window.__screen = (name) => UI.screen(name);
+  UI.ready().then(() => {
+    const q = new URLSearchParams(location.search).get('s') || 'home';
+    UI.screen(q);
+    // đợi ảnh nền của lớp đang hiện nạp xong
+    const imgs = [...document.images].filter(i => !i.complete);
+    return Promise.all(imgs.map(i => new Promise(r => { i.onload = i.onerror = r; })));
+  }).then(() => { window.__ready = true; });
+</script>
+</body>
+</html>

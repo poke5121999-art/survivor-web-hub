@@ -1,0 +1,106 @@
+/* ============================================================================
+   BỘ UI PIXEL TÍM cho phần còn là DOM: popup trong ca (#modal .mcard: bỏ ca, cài đặt,
+   về hub, rời ca co-op). Cùng bộ hình với giao diện uGUI
+   (Resources/UI/Art), chép sang art/ui/kit bằng Tools/UiKitSkin/web_kit.py; số lát
+   trong border-image là số tool đó in ra, bề dày viền = lát / 4 (PPU 400 của uGUI).
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- POPUP TRONG CA */
+.modal{ background: rgba(0, 0, 0, .72); }
+.mcard{
+  background: none;
+  border: 7px solid transparent;
+  border-image: url(art/ui/kit/popup.png) 27 28 26 28 fill stretch;
+  border-radius: 0;
+  box-shadow: none;
+  image-rendering: pixelated;
+}
+/* Tiêu đề trắng viền đen ở giữa thẻ. Lề trái bằng nút ✕ + khe để chữ đứng giữa cả thẻ chứ không giữa phần còn lại. */
+.pop-t, .mcard h3{
+  font-family: var(--body);
+  font-weight: 700;
+  color: #f8f8f8;
+  text-align: center;
+  text-shadow: -1px 0 #08060c, 1px 0 #08060c, 0 -1px #08060c, 0 1px #08060c;
+}
+.pop-h .pop-t{ padding-left: 34px; }
+.pop-h .b.chev{
+  width: 26px; height: 26px;
+  border: 0; border-radius: 0; box-shadow: none;
+  background: url(art/ui/kit/button_close.png) center / contain no-repeat;
+  color: transparent; text-shadow: none;
+}
+.mline{ color: #c9c2e4; }
+.mline b{ color: #f8f8f8; }
+
+/* Nút chính vàng, nút phụ xám xanh, nút nguy hiểm đỏ: mặt nút là hình kit, chữ không còn gờ sáng của nút gradient cũ.
+   Viền kit (3 trên, 5 dưới) lấy chỗ của padding: mỗi padding dọc dưới đây = padding của trang trừ viền, nên nút cao
+   đúng như cũ và popup Cài đặt trong ca vẫn vừa 360px. Nút thường cao như .b.ghost cũ (viền 1px): 33, trên ngưỡng
+   32 của RunSettingsCapture. */
+.mcard .b{
+  border-style: solid; border-color: transparent; border-width: 3px 4px 5px 4px;
+  padding: 7px 14px 5px;
+  border-image: url(art/ui/kit/button_yellow.png) 17 20 27 20 fill stretch;
+  background: none; border-radius: 0; box-shadow: none;
+  color: #f8f8f8; text-shadow: -1px 0 #08060c, 1px 0 #08060c, 0 -1px #08060c, 0 1px #08060c;
+  image-rendering: pixelated;
+}
+.mcard .b:active{ box-shadow: none; }
+.mcard .b.big{ padding: 10px 18px 8px; }
+.mcard .b.am-o, .mcard .b.am-l{ padding: 3px 2px 1px; }
+@media (max-height:400px){
+  .mcard .b.big{ padding: 6px 14px 4px; }
+  .mcard .b.am-o, .mcard .b.am-l{ padding: 1px 2px 0; }
+}
+.mcard .b.ghost, .mcard .b.am-o, .mcard .b.am-l{
+  border-image: url(art/ui/kit/button_grey.png) 16 19 26 20 fill stretch;
+  color: #f2eefc;
+}
+.mcard .b.ghost.danger{
+  border-image: url(art/ui/kit/button_red.png) 15 19 26 20 fill stretch;
+  color: #fff4f2;
+}
+.mcard .b.am-o.on, .mcard .b.am-l.on{
+  border-image: url(art/ui/kit/button_yellow.png) 17 20 27 20 fill stretch;
+  background: none; color: #f8f8f8;
+}
+
+/* ---------------------------------------------------------------- KẾT CA CO-OP
+   Trang #coop dùng chung cho sảnh, phòng và kết ca; chỉ đổi phần riêng của kết ca (ô số .co-sum, dòng tổ .co-prow,
+   hai nút theo id). coop.css gắn lúc chạy (SqCoopUi.ensureLoaded) nên đứng sau tệp này: luật ở đây cần id để thắng. */
+#coop .co-sum .sb, #coop .co-prow{
+  background: none;
+  border-style: solid; border-color: transparent; border-width: 7px 4px 4px 4px;
+  border-image: url(art/ui/kit/frame_purple.png) 30 16 16 17 fill stretch;
+  border-radius: 0;
+  image-rendering: pixelated;
+}
+#coop .co-rw span{ background: #372f4b; border-color: #2a2340; }
+#coopEndHome, #coopEndAgain{
+  border-style: solid; border-color: transparent; border-width: 3px 4px 5px 4px;
+  background: none; border-radius: 0; box-shadow: none; text-shadow: none;
+  image-rendering: pixelated;
+}
+#coopEndHome{ border-image: url(art/ui/kit/button_grey.png) 16 19 26 20 fill stretch; color: #f2eefc; }
+#coopEndAgain{ border-image: url(art/ui/kit/button_green.png) 15 20 26 20 fill stretch; color: #f8f8f8; text-shadow: -1px 0 #08060c, 1px 0 #08060c, 0 -1px #08060c, 0 1px #08060c; }
+
+/* ---------------------------------------------------------------- KẾT QUẢ ĐẤU ĐỘI
+   Khung trong bảng là style nội dòng của G22_PvpHud.pvpShowResult; ở đây chỉ hai nút của tấm màn. Lớp pvp / pvp-mm gắn sau
+   showVeil (nó gỡ cả hai). Một nút (Chơi lại) thì xanh lá; trận tìm được: VỀ SẢNH xám, TÌM TRẬN TIẾP xanh lá như kết ca co-op. */
+.veil.pvp .btn{
+  border-style: solid; border-color: transparent; border-width: 4px 5px 7px 5px;
+  border-image: url(art/ui/kit/button_green.png) 15 20 26 20 fill stretch;
+  background: none; border-radius: 0; box-shadow: none;
+  padding: 8px 19px 5px;
+  color: #f8f8f8; text-shadow: -1px 0 #08060c, 1px 0 #08060c, 0 -1px #08060c, 0 1px #08060c;
+  image-rendering: pixelated;
+}
+.veil.pvp.pvp-mm #veilBtn{
+  border-image: url(art/ui/kit/button_grey.png) 16 19 26 20 fill stretch;
+  color: #f2eefc;
+}
+
+/* ---------------------------------------------------------------- CHỮ
+   Luật của bộ: không chữ tối, chữ trên nút là trắng viền đen (chủ dự án 2026-10-16). Nút vàng .b và nút xanh .b.cta của
+   trang (sảnh/phòng co-op, trong ca) để chữ gần đen trên mặt gradient; luật có lớp riêng hơn (.b.ghost...) vẫn thắng. */
+.b, .b.cta{ color: #f8f8f8; text-shadow: -1px 0 #08060c, 1px 0 #08060c, 0 -1px #08060c, 0 1px #08060c; }
