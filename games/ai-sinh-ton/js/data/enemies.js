@@ -87,11 +87,11 @@ export const ENEMIES = [
       { name: 'Đội Xâm Lăng', move: 'invade', tier: 2, cd: 15, first: 8, ops: [{ op: 'spawn', kind: 'runner', n: 5, near: true }], fx: 'beam_in', lock: 0.6 },
       { name: 'Sóng Xung Điện', move: 'emp', tier: 3, cd: 13, first: 10, ops: [{ op: 'aoe', at: 'self', r: 9, dmg: 1.5, delay: 1.3, status: st('stun', 1.2) }], fx: 'emp', lock: 1.3 },
     ] },
-  { id: 'guardian', name: 'Hộ Vệ Cổ Đại', boss: true, hp: 11000, atk: 58, aspd: 0.5, speed: 2.1, r: 1.5, dr: 0.1, attack: { ...melee(3, 'smash'), cleave: 4, deg: 130 },
+  { id: 'guardian', name: 'Hộ Vệ Cổ Đại', boss: true, hp: 10000, atk: 54, aspd: 0.5, speed: 2.1, r: 1.5, dr: 0.1, attack: { ...melee(3, 'smash'), cleave: 4, deg: 130 },
     skills: [
       { name: 'Đập Đôi', move: 'slam', cd: 8, first: 3, when: { targetWithin: 8 }, ops: [{ op: 'aoe', at: 'self', r: 5, dmg: 1.6, delay: 0.9, status: st('stun', 0.8) }, { op: 'aoe', at: 'self', r: 7, dmg: 1.2, delay: 1.7, kb: 2 }], fx: 'boss_slam', lock: 1.8 },
       { name: 'Tia Mắt Cổ', move: 'eyebeam', cd: 10, first: 6, when: { targetWithin: 18 }, ops: [{ op: 'line', len: 18, w: 2.2, dmg: 2.2, delay: 1.1 }], fx: 'laser', lock: 1.3 },
-      { name: 'Mưa Đá', move: 'rockrain', tier: 2, cd: 12, first: 8, ops: [{ op: 'rain', at: 'cluster', r: 8, n: 8, over: 2, hitR: 2.4, dmg: 1.3, delay: 0.5, seek: true }], fx: 'rockfall', lock: 0.9 },
+      { name: 'Mưa Đá', move: 'rockrain', tier: 2, cd: 12, first: 8, ops: [{ op: 'rain', at: 'cluster', r: 8, n: 6, over: 2, hitR: 2.4, dmg: 1.2, delay: 0.6, seek: true }], fx: 'rockfall', lock: 0.9 },
       { name: 'Xung Kích', move: 'charge', tier: 3, cd: 11, first: 10, when: { targetWithin: 16 }, ops: [{ op: 'line', len: 14, w: 3, dmg: 2.4, delay: 1, status: st('stun', 1) }, { op: 'dash', to: 'through', delay: 1 }], fx: 'charge', lock: 1.2 },
     ] },
   { id: 'dragon', name: 'Rồng Hư Không', boss: true, fly: true, hp: 9600, atk: 40, aspd: 0.7, speed: 4, r: 1.6, ranged: true, attack: { kind: 'proj', range: 12, aoe: 2, speed: 14, fx: 'void_ball' },

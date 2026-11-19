@@ -17,7 +17,7 @@ if [ -z "$AST_BASE" ]; then
   run sim-test node tools/sim-test.mjs
   run meta-test node tools/meta-test.mjs
   run pacing node tools/pacing.mjs 5 60
-  run journey node tools/journey.mjs 3 30 260
+  run journey node tools/journey.mjs 5 30 260
 fi
 for t in smoke battle-test meta-ui-test equip-test ftue-test view-shots floor-shots ui-shots; do
   # floor-shots compares against a local extract of the old Blockade Z, which is not on the deployed site

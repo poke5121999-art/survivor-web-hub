@@ -237,11 +237,14 @@ try {
         const cx = e.shape === 'line' ? (e.x + e.x2) / 2 : e.shape === 'cone' ? e.x + Math.cos(e.ang) * e.r * 0.5 : e.x;
         const cz = e.shape === 'line' ? (e.z + e.z2) / 2 : e.shape === 'cone' ? e.z + Math.sin(e.ang) * e.r * 0.5 : e.z;
         await page.waitForTimeout(Math.max(100, e.t * 600));
+        // same frozen frame with and without the warning meshes: nothing else (camera, fire left behind) can differ
+        await page.evaluate(() => { window.__G.paused = true; window.__step(1); });
         const at = await projFrac(page, cx, cz); const during = await shot(page, `tele-s${stage}-${shape}.png`); sheets.tele.push(during);
-        await page.waitForTimeout(Math.round(e.t * 1000) + 1500); await page.evaluate(() => { window.__G.paused = true; });
-        const after = await shot(page, `tele-s${stage}-${shape}-after.png`); await page.evaluate(() => { window.__G.paused = false; });
+        const live = await page.evaluate(() => { const recs = window.__G.actors.marks.teleRecs; for (const r of recs) r.mesh.visible = false; window.__step(1); return recs.length; });
+        const after = await shot(page, `tele-s${stage}-${shape}-after.png`);
+        await page.evaluate(() => { for (const r of window.__G.actors.marks.teleRecs) r.mesh.visible = true; window.__G.paused = false; });
         const a = pix(during, FOG[3], at).rb; const b = pix(after, FOG[3], at).rb;
-        check(a - b > 12, `boss stage ${stage} ${shape} warning visible at its centre: red-blue ${a.toFixed(0)} during vs ${b.toFixed(0)} after (diff > 12)`);
+        check(live > 0 && a - b > 12, `boss stage ${stage} ${shape} warning visible at its centre: red-blue ${a.toFixed(0)} with the mark vs ${b.toFixed(0)} without it in the same frame, ${live} marks live (diff > 12)`);
       }
       await ctx.close();
       check(bad(problems).length === 0, `warnings: no console problems ${problems.slice(0, 2).join(' | ')}`);
