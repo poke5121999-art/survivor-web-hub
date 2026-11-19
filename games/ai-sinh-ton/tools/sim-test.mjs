@@ -1,6 +1,6 @@
 // Behaviour of the battle sim, in Node: what the player is promised, checked on real runs.
 // Usage: node games/ai-sinh-ton/tools/sim-test.mjs
-import { createBattle, step, castUlt, pickCard, ARENA_R } from '../js/sim/battle.js';
+import { createBattle, step, castUlt, pickCard, arenaNorm, SPAWN_K, battleReport } from '../js/sim/battle.js';
 import { HEROES, HERO } from '../js/data/heroes.js';
 import { ENEMIES, ENEMY } from '../js/data/enemies.js';
 import { stageDef, bossOf, bossTierOf } from '../js/data/stages.js';
@@ -101,11 +101,11 @@ function play(opts, until) {
   for (const h of HEROES) {
     const ids = [h.id, ...['thep', 'yta', 'mua', 'gio'].filter((x) => x !== h.id)].slice(0, 4);
     let out = 0;
-    const { B, log } = play({ stage: 10, seed: 11, team: team(ids, 1.5), auto: { ult: true, pick: 'best' } }, (b) => { for (const u of b.heroes) if (Math.hypot(u.x, u.z) > ARENA_R + 0.01) out++; return false; });
+    const { B, log } = play({ stage: 10, seed: 11, team: team(ids, 1.5), auto: { ult: true, pick: 'best' } }, (b) => { for (const u of b.heroes) if (arenaNorm(u.x, u.z) > 0.9 + 1e-6) out++; for (const e of b.enemies) if (arenaNorm(e.x, e.z) > SPAWN_K + 0.1) out++; return false; });
     const u = B.heroes[0];
     const c = (slot) => log.filter((e) => (e.e === 'cast' || e.e === 'ult') && e.uid === u.uid && e.slot === (slot === 'ult' ? 0 : slot)).length;
     const ults = log.filter((e) => e.e === 'ult' && e.uid === u.uid).length;
-    check(c('s1') > 0 && c('s2') > 0 && ults > 0 && u.dealt > 0 && out === 0, `${h.name}: ${h.s1.name} x${c('s1')}, ${h.s2.name} x${c('s2')}, ${h.ult.name} x${ults}, dealt ${Math.round(u.dealt)}, stayed in the arena`);
+    check(c('s1') > 0 && c('s2') > 0 && ults > 0 && u.dealt > 0 && out === 0, `${h.name}: ${h.s1.name} x${c('s1')}, ${h.s2.name} x${c('s2')}, ${h.ult.name} x${ults}, dealt ${Math.round(u.dealt)}, every unit stayed inside the arena ellipse`);
   }
 }
 
@@ -137,6 +137,28 @@ function play(opts, until) {
   check(JSON.stringify(stageDef(7)) === JSON.stringify(stageDef(7)), 'a stage is the same every time it is built');
   check(CARDS.length === 62 && new Set(CARDS.map((c) => c.id)).size === 62, `62 cards with unique ids (${CARDS.length})`);
   check(HEROES.length === 13 && HEROES.every((h) => HERO[h.id] && h.s1.ops.length && h.s2.ops.length && h.ult.ops.length), '13 heroes, each with two skills and an ultimate');
+}
+
+// the end-of-stage report is counted by the sim: hero damage adds up to the health the enemies really lost
+{
+  for (const [stage, ids, mul] of [[8, START, 1.6], [15, ['hoa', 'doc', 'sam', 'yta'], 2.2], [30, START, 1]]) {
+    const { B } = play({ stage, seed: 21, team: team(ids, mul), auto: { ult: true, pick: 'best' } });
+    const R = battleReport(B);
+    const heroDealt = R.reduce((s, r) => s + r.dealt, 0);
+    const left = B.enemies.reduce((s, e) => s + (e.alive ? Math.max(0, e.hp) : 0), 0);
+    const lost = B.book.enemyIn - left;
+    check(Math.abs(B.book.enemyLost - lost) < 1e-6 * lost + 1e-3, `stage ${stage} (${B.phase}): health enemies came with (${Math.round(B.book.enemyIn)}) minus what is left (${Math.round(left)}) equals the health booked as lost (${Math.round(B.book.enemyLost)})`);
+    check(Math.abs(heroDealt + B.book.other - B.book.enemyLost) < 1e-6 * lost + 1e-3, `stage ${stage}: hero damage ${Math.round(heroDealt)} + other causes ${Math.round(B.book.other)} = enemy health lost ${Math.round(B.book.enemyLost)}`);
+    check(R.every((r) => Math.abs(r.bySrc.atk + r.bySrc.s1 + r.bySrc.s2 + r.bySrc.ult + r.bySrc.fx - r.dealt) < 1e-6 * r.dealt + 1e-3), `stage ${stage}: for every hero the five sources add up to its damage`);
+    check(Math.abs(R.reduce((s, r) => s + r.share, 0) - 1) < 1e-9 && R.filter((r) => r.mvp).length === 1, `stage ${stage}: shares add to 100% and one hero is marked as carrying (${R.find((r) => r.mvp).id}, ${Math.round(R.find((r) => r.mvp).share * 100)}%)`);
+    check(R.every((r) => Math.abs(r.aliveT + r.downT - B.t) < 0.05 && r.over >= 0 && r.cards.length === B.heroes[r.slot].cards.length), `stage ${stage}: time alive + time down = stage time (${B.t.toFixed(1)}s) for every hero`);
+    if (stage === 8) {
+      const mua = R.find((r) => r.id === 'mua'); const yta = R.find((r) => r.id === 'yta');
+      check(mua.bySrc.atk > 0 && mua.bySrc.s2 > 0 && mua.bySrc.ult > 0, `Mưa Đạn: attacks ${Math.round(mua.bySrc.atk)}, Lựu Đạn Chùm ${Math.round(mua.bySrc.s2)}, Mưa Thép (drones) ${Math.round(mua.bySrc.ult)} are booked under their own source`);
+      check(yta.healed > 0 && yta.bySrc.fx > 0, `Y Tá: healed allies ${Math.round(yta.healed)}, poison booked as effect damage ${Math.round(yta.bySrc.fx)}`);
+      check(R.every((r) => r.end.atk >= r.start.atk && r.end.hp >= r.start.hp), 'end-of-stage stats are at least the starting stats after four cards');
+    }
+  }
 }
 
 // a wiped team loses

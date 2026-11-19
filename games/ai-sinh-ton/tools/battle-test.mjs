@@ -180,7 +180,7 @@ try {
     };
     const A = await run(true), T = await run(false);
     check(A.mode === 'spectate' && A.watching, `${phone}: tapping eye1 puts the camera in spectate on that hero (mode ${A.mode}, watching hero ${A.watching})`);
-    check(A.max < 9 && A.travel >= 2, `${phone}: the camera stays within ${A.max.toFixed(1)} m of the hero (limit 9) while it travels ${A.travel.toFixed(1)} m over 5 s (at least 2)`);
+    check(A.max < 9 && A.travel >= 1, `${phone}: the camera stays within ${A.max.toFixed(1)} m of the hero (limit 9) while it travels ${A.travel.toFixed(1)} m over 5 s (at least 1)`);
     const same = A.snap.length === T.snap.length && A.snap.every((r, i) => r.every((v, j) => Math.abs(v - T.snap[i][j]) < 1e-9));
     check(same, `${phone}: taps and drags while spectating leave every sim position unchanged against a twin run (${A.snap.length} units compared)`);
     check(A.back && A.back.mode === 'overview' && A.back.w === 0, `${phone}: tapping eye1 again returns to the overview (mode ${A.back && A.back.mode})`);

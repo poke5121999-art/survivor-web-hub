@@ -4,7 +4,7 @@
 // It builds its nodes once inside game.ui.screen(name). Screens never touch each other: they call game.goto(),
 // the commands below, and listen on game.events.
 import { createMeta } from './meta.js?v=20261119c';
-import { castUlt, pickCard } from './sim/battle.js?v=20261119c';
+import { castUlt, pickCard, battleReport } from './sim/battle.js?v=20261119c';
 import { stageDef } from './data/stages.js?v=20261119c';
 import { tutorialStage } from './data/unlocks.js?v=20261119c';
 
@@ -132,7 +132,7 @@ export async function attachGame(game, { params }) {
       game.startBattle(1); return;
     }
     const r = game.meta.finishStage({ stage: game.stageN, won, wavesCleared: won ? 5 : Math.max(0, B.wave - 1), seconds: B.t });
-    game.lastReward = { ...r, won, seconds: B.t, kills: B.kills, stage: game.stageN, heroes: B.heroes.map((u) => ({ id: u.kind, dealt: u.dealt, taken: u.taken, healed: u.healed, kills: u.kills || 0 })) };
+    game.lastReward = { ...r, won, seconds: B.t, kills: B.kills, stage: game.stageN, heroes: B.heroes.map((u) => ({ id: u.kind, dealt: u.dealt, taken: u.taken, healed: u.healed, kills: u.kills || 0 })), report: battleReport(B) };
     game.vibrate(won ? [30, 60, 30] : 60);
     game.events.emit('battle:result', game.lastReward);
     if (game.screens.result) game.goto('result', { mode: 'result', over: true });

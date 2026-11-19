@@ -10,9 +10,13 @@ import { stageDef, MAX_ALIVE, BASE } from '../data/stages.js?v=20261119c';
 import { CARD, offerCards } from '../data/cards.js?v=20261119c';
 
 export const DT = 1 / 30;
-export const ARENA_R = 14;
-export const SPAWN_R = 18.5;
-const HERO_R = ARENA_R - 1;
+// The arena is an ellipse sized to a portrait phone frame: x is across the screen, z is up the screen. The whole
+// of it is on screen at once, so nothing can spawn, fight or die where the player cannot see it.
+export const ARENA = { x: 4.8, z: 9.4 };
+// fractions of the ellipse: heroes stay inside HERO_K, enemies step out of the fog at SPAWN_K (the rim the eye sees)
+const HERO_K = 0.9;
+export const SPAWN_K = 1.04;
+export const arenaNorm = (x, z) => Math.hypot(x / ARENA.x, z / ARENA.z);
 const DOT_EVERY = 0.5;
 const ENRAGE_AT = 75;
 const WAVE_LIMIT = 200;
@@ -58,7 +62,9 @@ function makeHero(B, slot, spec) {
   u.skills = [{ def: def.s1, slot: 's1', cd: def.s1.cd * 0.4 }, { def: def.s2, slot: 's2', cd: def.s2.cd * 0.6 }];
   u.ult = u.mods.ultStart || 0; u.ultReady = false; u.cards = []; u.cheatLeft = u.mods.cheat ? 1 : 0;
   u.maxHp = maxHpOf(u); u.hp = u.maxHp;
-  u.dealt = 0; u.taken = 0; u.healed = 0;
+  u.dealt = 0; u.over = 0; u.taken = 0; u.healed = 0; u.selfHeal = 0; u.shieldGiven = 0; u.aliveT = 0; u.downT = 0; u.downs = 0;
+  u.bySrc = { atk: 0, s1: 0, s2: 0, ult: 0, fx: 0 };
+  u.start = { atk: atkOf(u), hp: u.maxHp, aspd: u.base.aspd, crit: 0.05 + (u.mods.crit || 0) };
   return u;
 }
 
@@ -68,7 +74,8 @@ function makeEnemy(B, kind, x, z, o = {}) {
   const S = B.stage;
   const k = (o.elite ? 2.2 : 1) * (def.boss ? S.bossHp : 1);
   u.def = def; u.r = def.r || 0.45; u.boss = !!def.boss; u.elite = !!o.elite; u.fly = !!def.fly;
-  u.base = { hp: def.hp * S.hpMul * k, atk: def.atk * S.atkMul * (o.elite ? 1.3 : 1), aspd: def.aspd, speed: def.speed };
+  u.base = { hp: def.hp * S.hpMul * k * (o.hpK || 1), atk: def.atk * S.atkMul * (o.elite ? 1.3 : 1) * (o.atkK || 1), aspd: def.aspd, speed: def.speed };
+  u.horde = !!o.hpK && o.hpK < 1;
   if (def.dr) u.mods.dr = def.dr;
   if (def.kbRes) u.mods.kbRes = 1;
   if (def.lifesteal) u.mods.lifesteal = def.lifesteal;
@@ -86,7 +93,7 @@ function makeSummon(B, owner, kind, dur, x, z) {
   u.untargetable = !!def.untargetable; u.still = !!def.still; u.followOwner = !!def.follow; u.taunt = def.taunt || 0;
   u.base = { hp: Math.max(1, owner.maxHp * def.hp), atk: atkOf(owner) * def.atk, aspd: def.aspd || 1, speed: def.speed || 5 };
   u.attack = def.kind === 'none' ? null : { kind: def.kind, range: def.range, aoe: def.aoe, speed: def.speed, deg: 100, cleave: 1, fx: def.fx };
-  u.maxHp = u.base.hp; u.hp = u.maxHp; u.credit = owner.uid;
+  u.maxHp = u.base.hp; u.hp = u.maxHp; u.credit = owner.uid; u.tag = B.tag;
   return u;
 }
 
@@ -186,30 +193,36 @@ function hurt(B, src, dst, amount, o = {}) {
   dmg *= 1 - Math.min(0.85, dr);
   if (dst.amp > 0) dmg *= 1 + dst.amp;
   if (dst.shield > 0) { const s = Math.min(dst.shield, dmg); dst.shield -= s; dmg -= s; if (dmg <= 0) { B.emit({ e: 'hit', uid: dst.uid, by: src ? src.uid : 0, dmg: Math.round(s), shield: true, x: dst.x, z: dst.z }); return s; } }
+  const real = Math.min(dmg, Math.max(0, dst.hp));
   dst.hp -= dmg;
-  if (dst.hero) { dst.taken += dmg; chargeUlt(B, dst, (dmg / dst.maxHp) * 0.5); }
+  if (dst.team === 1 && !dst.summon) { B.book.enemyLost += real; if (!(who && who.hero)) B.book.other += real; }
+  if (dst.hero) { dst.taken += real; chargeUlt(B, dst, (dmg / dst.maxHp) * 0.5); }
   if (who && who.hero) {
-    who.dealt += dmg;
+    who.dealt += real; who.over += dmg - real;
+    const tag = B.tag in who.bySrc ? B.tag : 'fx';
+    who.bySrc[tag] += real;
     chargeUlt(B, who, dmg / (who.def.ult.cost * BASE.ultCost * who.atkScale));
     const ls = M(who, 'lifesteal');
     if (ls > 0 && !o.dot) heal(B, who, who, dmg * ls, true);
   }
   B.emit({ e: 'hit', uid: dst.uid, by: src ? src.uid : 0, dmg: Math.round(dmg), crit, dot: !!o.dot, x: dst.x, z: dst.z });
-  if (o.melee && !o.dot && src && src.alive) { const th = M(dst, 'thorns'); if (th > 0) hurt(B, dst, src, dmg * th, { dot: true }); }
+  if (o.melee && !o.dot && src && src.alive) { const th = M(dst, 'thorns'); if (th > 0) withTag(B, 'fx', () => hurt(B, dst, src, dmg * th, { dot: true })); }
   if (dst.hp <= 0) kill(B, dst, who);
   return dmg;
 }
 
 function kill(B, u, by) {
+  if (u.team === 1 && !u.summon && u.hp > 0) { B.book.enemyLost += u.hp; B.book.other += u.hp; }
   if (u.hero && u.cheatLeft > 0) { u.cheatLeft--; u.hp = u.maxHp * 0.3; u.state.invuln = 1.5; B.emit({ e: 'cheat', uid: u.uid }); return; }
   u.alive = false; u.hp = 0; u.anim = 'dead'; u.animT = 0; u.status = {}; u.buffs.length = 0;
+  if (u.hero) u.downs++;
   B.emit({ e: 'die', uid: u.uid, by: by ? by.uid : 0, x: u.x, z: u.z, boss: u.boss });
   if (u.team === 1 && !u.summon) {
     B.kills++;
     if (by && by.hero) {
       by.kills = (by.kills || 0) + 1;
       const ex = M(by, 'explodeKill');
-      if (ex > 0) { B.emit({ e: 'fx', key: 'kill_blast', x: u.x, z: u.z, r: 2.5 }); for (const f of inRadius(B, 1, u.x, u.z, 2.5)) hurt(B, by, f, atkOf(by) * ex, { dot: true }); }
+      if (ex > 0) { B.emit({ e: 'fx', key: 'kill_blast', x: u.x, z: u.z, r: 2.5 }); for (const f of inRadius(B, 1, u.x, u.z, 2.5)) withTag(B, 'fx', () => hurt(B, by, f, atkOf(by) * ex, { dot: true })); }
     }
     if (u.def.onDeath) runOps(B, u, { ops: u.def.onDeath, fx: u.def.deathFx }, { dead: true });
     if (u.plague && by) for (const f of inRadius(B, 1, u.x, u.z, 3)) addStatus(B, by, f, { k: 'poison', dur: 5, v: 0.4 }, atkOf(by));
@@ -221,7 +234,8 @@ function heal(B, src, dst, amount, quiet) {
   const a = Math.min(dst.maxHp - dst.hp, amount * (1 + M(dst, 'healIn')));
   if (a <= 0) return 0;
   dst.hp += a;
-  if (src && src.hero && src !== dst) { src.healed += a; chargeUlt(B, src, (a / dst.maxHp) * 0.6); }
+  if (dst.team === 1 && !dst.summon) B.book.enemyIn += a;
+  if (src && src.hero && src !== dst) { src.healed += a; chargeUlt(B, src, (a / dst.maxHp) * 0.6); } else if (src && src.hero) src.selfHeal += a;
   if (!quiet || a > dst.maxHp * 0.03) B.emit({ e: 'heal', uid: dst.uid, amt: Math.round(a), x: dst.x, z: dst.z });
   return a;
 }
@@ -243,7 +257,10 @@ function resolvePoint(B, u, at, r) {
   return n ? { x: n.x, z: n.z, unit: n } : { x: u.x, z: u.z };
 }
 
-function later(B, t, run) { B.pending.push({ t: B.t + t, run }); }
+// Damage is booked under the source that was current when the work was scheduled: 'atk', 's1', 's2', 'ult' or 'fx'
+// (burn, poison, bleed, thorns, chain and kill effects). The tag rides along with delayed hits.
+function later(B, t, run) { const tag = B.tag; B.pending.push({ t: B.t + t, run: () => { const prev = B.tag; B.tag = tag; run(); B.tag = prev; } }); }
+function withTag(B, tag, fn) { const prev = B.tag; B.tag = tag; const r = fn(); B.tag = prev; return r; }
 
 const OPS = {
   aoe(B, u, op, C) {
@@ -287,18 +304,15 @@ const OPS = {
       const n = nearestFoe(B, u);
       const a = n ? Math.atan2(u.z - n.z, u.x - n.x) : B.rng() * 6.283;
       tx = u.x + Math.cos(a) * op.dist; tz = u.z + Math.sin(a) * op.dist;
-      const d = Math.hypot(tx, tz);
       // against the fog wall, slide along it instead of stopping in the crowd
-      if (d > HERO_R) { const side = (Math.cos(a) * -u.z + Math.sin(a) * u.x) > 0 ? 1 : -1; const b = Math.atan2(u.z, u.x) + side * (op.dist / HERO_R); tx = Math.cos(b) * HERO_R * 0.9; tz = Math.sin(b) * HERO_R * 0.9; }
+      if (arenaNorm(tx, tz) > HERO_K) { const side = (Math.cos(a) * -u.z + Math.sin(a) * u.x) > 0 ? 1 : -1; const b = Math.atan2(u.z / ARENA.z, u.x / ARENA.x) + side * (op.dist / ARENA.z); tx = Math.cos(b) * ARENA.x * HERO_K * 0.9; tz = Math.sin(b) * ARENA.z * HERO_K * 0.9; }
     } else {
       const p = resolvePoint(B, u, op.to === 'through' ? 'target' : op.to, 3.5);
       const d = Math.hypot(p.x - u.x, p.z - u.z) || 1;
       const stop = op.to === 'through' ? d + 2.5 : op.to === 'cluster' ? d : Math.max(0, d - 1.4);
       tx = u.x + ((p.x - u.x) / d) * stop; tz = u.z + ((p.z - u.z) / d) * stop;
     }
-    const d = Math.hypot(tx, tz);
-    const lim = u.team === 0 ? HERO_R : ARENA_R;
-    if (d > lim) { tx *= lim / d; tz *= lim / d; }
+    ({ x: tx, z: tz } = clampR(tx, tz, u.team === 0 ? HERO_K : 1));
     u.x = tx; u.z = tz; u.face = Math.atan2(tz - z1, tx - x1);
     B.emit({ e: 'dash', uid: u.uid, x: x1, z: z1, x2: tx, z2: tz, jump: !!op.jump, key: C.fx });
     if (op.dmg) for (const f of onSegment(B, 1 - u.team, x1, z1, tx, tz, (op.w || 1.4) / 2)) { hurt(B, u, f, C.power * op.dmg, { canCrit: true, melee: true }); addStatus(B, u, f, op.status, C.atk); }
@@ -310,7 +324,7 @@ const OPS = {
   },
   shield(B, u, op, C) {
     const who = op.who === 'self' ? [u] : friends(B, u).filter((f) => f.alive && !f.summon);
-    for (const f of who) { f.shield = Math.max(f.shield, f.maxHp * op.amt * (1 + (C.bonus || 0))); f.shieldT = op.dur; B.emit({ e: 'fx', key: C.fx, part: 'shield', x: f.x, z: f.z, uid: f.uid, dur: op.dur }); }
+    for (const f of who) { const sh = f.maxHp * op.amt * (1 + (C.bonus || 0)); if (u.hero && f !== u) u.shieldGiven += Math.max(0, sh - f.shield); f.shield = Math.max(f.shield, sh); f.shieldT = op.dur; B.emit({ e: 'fx', key: C.fx, part: 'shield', x: f.x, z: f.z, uid: f.uid, dur: op.dur }); }
   },
   buff(B, u, op, C) {
     const who = op.who === 'self' ? [u] : friends(B, u).filter((f) => f.alive && !f.summon);
@@ -325,7 +339,7 @@ const OPS = {
     const t = B.byUid.get(u.target);
     const ang = t ? Math.atan2(t.z - u.z, t.x - u.x) : u.face;
     const z = { x: p.x, z: p.z, r: op.r * (1 + M(u, 'aoe')), t: op.dur, every: op.every, tick: op.delay || 0, dmg: op.dmg, status: op.status, src: u.uid, team: u.team, power: C.power, atk: C.atk,
-      follow: op.follow ? u.uid : 0, cone: op.cone || 0, ang, vx: op.drift ? Math.cos(ang) * op.drift : 0, vz: op.drift ? Math.sin(ang) * op.drift : 0, key: C.fx, id: ++B.uidSeq };
+      tag: B.tag, follow: op.follow ? u.uid : 0, cone: op.cone || 0, ang, vx: op.drift ? Math.cos(ang) * op.drift : 0, vz: op.drift ? Math.sin(ang) * op.drift : 0, key: C.fx, id: ++B.uidSeq };
     B.zones.push(z);
     B.emit({ e: 'zone', id: z.id, key: C.fx, x: z.x, z: z.z, r: z.r, dur: op.dur, follow: z.follow, cone: z.cone, ang, team: u.team, delay: op.delay || 0 });
   },
@@ -352,7 +366,7 @@ const OPS = {
         if (!u.alive && !C.dead) return;
         const f = pickFoe(B, u, op.pick, op.blink ? 30 : 16);
         if (!f) return;
-        if (op.blink) { const a = B.rng() * 6.283; const x1 = u.x; const z1 = u.z; u.x = clampR(f.x + Math.cos(a) * 1.3, f.z + Math.sin(a) * 1.3, HERO_R).x; u.z = clampR(f.x + Math.cos(a) * 1.3, f.z + Math.sin(a) * 1.3, HERO_R).z; u.face = Math.atan2(f.z - u.z, f.x - u.x); B.emit({ e: 'dash', uid: u.uid, x: x1, z: z1, x2: u.x, z2: u.z, key: C.fx, blink: true }); }
+        if (op.blink) { const a = B.rng() * 6.283; const x1 = u.x; const z1 = u.z; u.x = clampR(f.x + Math.cos(a) * 1.3, f.z + Math.sin(a) * 1.3, HERO_K).x; u.z = clampR(f.x + Math.cos(a) * 1.3, f.z + Math.sin(a) * 1.3, HERO_K).z; u.face = Math.atan2(f.z - u.z, f.x - u.x); B.emit({ e: 'dash', uid: u.uid, x: x1, z: z1, x2: u.x, z2: u.z, key: C.fx, blink: true }); }
         B.emit({ e: 'fx', key: C.fx, part: 'bolt', x: f.x, z: f.z, fromX: u.x, fromZ: u.z, team: u.team, by: u.uid, to: f.uid });
         const d = op.dmg ? hurt(B, u, f, C.power * op.dmg, { canCrit: true, ranged: !op.blink }) : 0;
         addStatus(B, u, f, op.status, C.atk);
@@ -365,7 +379,7 @@ const OPS = {
     for (let i = 0; i < op.n; i++) {
       const a = u.face + (i - (op.n - 1) / 2) * 1.2 + (op.kind === 'decoy' ? 3.14 : 0);
       const d = op.kind === 'decoy' ? 0 : 1.5;
-      const p = clampR(u.x + Math.cos(a) * d, u.z + Math.sin(a) * d, HERO_R);
+      const p = clampR(u.x + Math.cos(a) * d, u.z + Math.sin(a) * d, HERO_K);
       const s = makeSummon(B, u, op.kind, op.dur * (1 + (C.bonus || 0)), p.x, p.z);
       s.side = i;
       addUnit(B, s);
@@ -391,16 +405,18 @@ const OPS = {
   die(B, u) { if (u.alive) kill(B, u, null); },
   spawn(B, u, op) {
     for (let i = 0; i < op.n; i++) {
-      const a = B.rng() * 6.283; const d = op.near ? 2 + B.rng() * 2 : SPAWN_R;
-      const p = op.near ? clampR(u.x + Math.cos(a) * d, u.z + Math.sin(a) * d, ARENA_R) : { x: Math.cos(a) * d, z: Math.sin(a) * d };
+      const a = B.rng() * 6.283; const d = 2 + B.rng() * 2;
+      const p = op.near ? clampR(u.x + Math.cos(a) * d, u.z + Math.sin(a) * d, 1) : rimPoint(a, SPAWN_K);
       const e = makeEnemy(B, op.kind, p.x, p.z); addUnit(B, e);
       B.emit({ e: 'spawn', uid: e.uid, kind: e.kind, x: e.x, z: e.z });
     }
   },
 };
 
-function clampR(x, z, R) { const d = Math.hypot(x, z); return d > R ? { x: (x * R) / d, z: (z * R) / d } : { x, z }; }
-function push(f, x, z, k) { const d = Math.hypot(f.x - x, f.z - z) || 1; const p = clampR(f.x + ((f.x - x) / d) * k, f.z + ((f.z - z) / d) * k, ARENA_R); f.x = p.x; f.z = p.z; }
+// pull a point back inside the fraction k of the arena ellipse
+function clampR(x, z, k) { const n = arenaNorm(x, z); return n > k ? { x: (x * k) / n, z: (z * k) / n } : { x, z }; }
+function rimPoint(a, k) { return { x: Math.cos(a) * ARENA.x * k, z: Math.sin(a) * ARENA.z * k }; }
+function push(f, x, z, k) { const d = Math.hypot(f.x - x, f.z - z) || 1; const p = clampR(f.x + ((f.x - x) / d) * k, f.z + ((f.z - z) / d) * k, 1); f.x = p.x; f.z = p.z; }
 
 function inCone(B, u, ang, r, deg) {
   const out = []; const half = (deg * Math.PI) / 360;
@@ -443,10 +459,12 @@ function runOps(B, u, skill, o = {}) {
   const slot = o.slot || '';
   const bonus = slot ? M(u, slot + 'Dmg') : 0;
   const C = { fx: skill.fx, atk: atkOf(u), power: atkOf(u) * (1 + bonus), bonus, ult: slot === 'ult', dead: !!o.dead };
+  const prevTag = B.tag; B.tag = o.dead ? 'fx' : slot || 'atk';
   for (const op of skill.ops) {
     if (op.delay && !SELF_TIMED.has(op.op)) later(B, op.delay, () => { if (u.alive || C.dead) OPS[op.op](B, u, op, C); });
     else OPS[op.op](B, u, op, C);
   }
+  B.tag = prevTag;
 }
 
 // ---------- AI ----------
@@ -486,6 +504,7 @@ export function castUlt(B, slot) {
 }
 
 function doAttack(B, u, t) {
+  const prevTag = B.tag; B.tag = u.summon ? u.tag || 'atk' : 'atk';
   const A = u.attack; const atk = atkOf(u);
   u.face = Math.atan2(t.z - u.z, t.x - u.x);
   u.anim = 'attack'; u.animT = 0;
@@ -499,8 +518,8 @@ function doAttack(B, u, t) {
     if (M(u, 'poisonHit')) addStatus(B, u, f, { k: 'poison', dur: 4, v: M(u, 'poisonHit') }, atk);
     if (M(u, 'slowHit')) addStatus(B, u, f, { k: 'slow', dur: 1.5, v: M(u, 'slowHit') }, atk);
     if (M(u, 'stunHit') && B.rng() < M(u, 'stunHit')) addStatus(B, u, f, { k: 'stun', dur: 1 }, atk);
-    if (M(u, 'chain') && B.rng() < M(u, 'chain')) chain(B, u, f, 2, atk * 0.5, 'chain');
-    if (f.alive && !f.boss && M(u, 'execute') && f.hp / f.maxHp < M(u, 'execute')) hurt(B, u, f, f.hp + f.shield + 1, { dot: true });
+    if (M(u, 'chain') && B.rng() < M(u, 'chain')) withTag(B, 'fx', () => chain(B, u, f, 2, atk * 0.5, 'chain'));
+    if (f.alive && !f.boss && M(u, 'execute') && f.hp / f.maxHp < M(u, 'execute')) withTag(B, 'fx', () => hurt(B, u, f, f.hp + f.shield + 1, { dot: true }));
   };
   if (A.kind === 'melee') {
     const list = inCone(B, u, u.face, A.range + 0.3, A.deg).sort((a, b) => dist(u, a) - dist(u, b)).slice(0, (A.cleave || 1) + M(u, 'cleave'));
@@ -518,8 +537,9 @@ function doAttack(B, u, t) {
     list.forEach((f, i) => onHit(f, i === 0 ? 1 : 0.6, { ranged: true }));
   } else if (A.kind === 'proj') {
     const d = dist(u, t);
-    B.projs.push({ id: ++B.uidSeq, x: u.x, z: u.z, tx: t.x, tz: t.z, speed: A.speed || 18, src: u.uid, team: u.team, dmg: atk, aoe: (A.aoe || 0) * (1 + M(u, 'aoe')), to: t.uid, key: A.fx, status: A.status, life: d / (A.speed || 18) + 0.05 });
+    B.projs.push({ id: ++B.uidSeq, x: u.x, z: u.z, tx: t.x, tz: t.z, speed: A.speed || 18, src: u.uid, team: u.team, dmg: atk, aoe: (A.aoe || 0) * (1 + M(u, 'aoe')), to: t.uid, key: A.fx, status: A.status, life: d / (A.speed || 18) + 0.05, tag: B.tag });
   }
+  B.tag = prevTag;
 }
 
 function think(B, u, dt) {
@@ -564,8 +584,8 @@ function think(B, u, dt) {
       if (n) {
         // back off from what is in my face, bending along the fog wall and toward the middle
         const nd = dist(u, n) || 1; let ax = (u.x - n.x) / nd; let az = (u.z - n.z) / nd;
-        const rr = Math.hypot(u.x, u.z);
-        if (rr > HERO_R - 2.5) { const tx = -u.z / rr; const tz = u.x / rr; const s = ax * tx + az * tz >= 0 ? 1 : -1; ax = tx * s - (u.x / rr) * 0.5; az = tz * s - (u.z / rr) * 0.5; }
+        const rr = Math.hypot(u.x, u.z) || 1;
+        if (arenaNorm(u.x, u.z) > HERO_K - 0.25) { const tx = -u.z / rr; const tz = u.x / rr; const s = ax * tx + az * tz >= 0 ? 1 : -1; ax = tx * s - (u.x / rr) * 0.5; az = tz * s - (u.z / rr) * 0.5; }
         const l = Math.hypot(ax, az) || 1; mx = (ax / l) * 0.85; mz = (az / l) * 0.85;
       } else if (u.role === 'healer') {
         let cx = 0; let cz = 0; let n2 = 0;
@@ -609,14 +629,14 @@ function separate(B) {
   }
   for (const u of L) {
     if (!u.alive) continue;
-    const lim = u.team === 0 ? HERO_R : u.spawnT > 0 || Math.hypot(u.x, u.z) > ARENA_R + 0.5 ? SPAWN_R + 1 : ARENA_R;
-    const d = Math.hypot(u.x, u.z);
-    if (d > lim) { u.x *= lim / d; u.z *= lim / d; }
+    const p = clampR(u.x, u.z, u.team === 0 ? HERO_K : u.spawnT > 0 ? SPAWN_K + 0.05 : 1);
+    u.x = p.x; u.z = p.z;
   }
 }
 
 function tickUnit(B, u, dt) {
   u.animT += dt;
+  if (u.hero) { if (u.alive) u.aliveT += dt; else u.downT += dt; }
   if (!u.alive) return;
   for (const k in u.status) { const s = u.status[k]; s.t -= dt; if (s.t <= 0) delete u.status[k]; }
   for (const k in u.state) if (u.state[k] > 0) u.state[k] -= dt;
@@ -629,7 +649,7 @@ function tickUnit(B, u, dt) {
   u.dotT -= dt;
   if (u.dotT <= 0) {
     u.dotT += DOT_EVERY;
-    for (const k of ['burn', 'poison', 'bleed']) { const s = u.status[k]; if (s && s.dps > 0) hurt(B, B.byUid.get(s.src) || null, u, s.dps * DOT_EVERY, { dot: true }); if (!u.alive) return; }
+    for (const k of ['burn', 'poison', 'bleed']) { const s = u.status[k]; if (s && s.dps > 0) withTag(B, 'fx', () => hurt(B, B.byUid.get(s.src) || null, u, s.dps * DOT_EVERY, { dot: true })); if (!u.alive) return; }
     const rg = M(u, 'regen'); if (rg > 0 && u.hp < u.maxHp) heal(B, null, u, u.maxHp * rg * DOT_EVERY, true);
   }
   if (u.hero) chargeUlt(B, u, 0.008 * dt);
@@ -638,6 +658,7 @@ function tickUnit(B, u, dt) {
 
 function addUnit(B, u) {
   B.units.push(u); B.byUid.set(u.uid, u);
+  if (u.team === 1 && !u.summon) B.book.enemyIn += u.maxHp;
   (u.team === 0 ? B.allies : B.enemies).push(u);
 }
 
@@ -661,8 +682,8 @@ function spawnDue(B) {
     const a0 = g.ang !== undefined ? g.ang : B.rng() * 6.283;
     for (let i = 0; i < g.n; i++) {
       const a = a0 + (B.rng() - 0.5) * (g.spread !== undefined ? g.spread : 0.9);
-      const d = SPAWN_R + B.rng() * 1.5;
-      const e = makeEnemy(B, g.kind, Math.cos(a) * d, Math.sin(a) * d, { elite: g.elite });
+      const p = rimPoint(a, SPAWN_K + B.rng() * 0.03);
+      const e = makeEnemy(B, g.kind, p.x, p.z, { elite: g.elite, hpK: g.hpK, atkK: g.atkK });
       addUnit(B, e); B.spawnsLeft--;
       B.emit({ e: 'spawn', uid: e.uid, kind: e.kind, x: e.x, z: e.z, boss: e.boss, elite: e.elite });
       if (e.boss) { B.boss = e.uid; B.emit({ e: 'boss', uid: e.uid, kind: e.kind, name: e.def.name }); }
@@ -744,7 +765,7 @@ export function step(B) {
       const src = B.byUid.get(p.src) || { uid: p.src, team: p.team, mods: {}, buffs: [], alive: false };
       B.emit({ e: 'fx', key: p.key, part: 'burst', x: p.tx, z: p.tz, r: p.aoe || 0.8, team: p.team, by: p.src });
       const list = p.aoe ? inRadius(B, 1 - p.team, p.tx, p.tz, p.aoe) : [B.byUid.get(p.to)].filter((f) => f && f.alive && Math.hypot(f.x - p.tx, f.z - p.tz) < 1.6);
-      for (const f of list) { hurt(B, src, f, p.dmg, { canCrit: true, ranged: true }); addStatus(B, src, f, p.status, p.dmg); }
+      withTag(B, p.tag, () => { for (const f of list) { hurt(B, src, f, p.dmg, { canCrit: true, ranged: true }); addStatus(B, src, f, p.status, p.dmg); } });
     } else { p.x += ((p.tx - p.x) / d) * s; p.z += ((p.tz - p.z) / d) * s; }
   }
 
@@ -758,7 +779,7 @@ export function step(B) {
       z.tick += z.every;
       const by = src || { uid: z.src, team: z.team, mods: {}, buffs: [], alive: false };
       const list = z.cone ? inCone(B, { x: z.x, z: z.z, team: z.team }, z.ang, z.r, z.cone) : inRadius(B, 1 - z.team, z.x, z.z, z.r);
-      for (const f of list) { hurt(B, by, f, z.power * z.dmg, { dot: !z.cone && z.dmg < 0.5 }); addStatus(B, by, f, z.status, z.atk); }
+      withTag(B, z.tag, () => { for (const f of list) { hurt(B, by, f, z.power * z.dmg, { dot: !z.cone && z.dmg < 0.5 }); addStatus(B, by, f, z.status, z.atk); } });
     }
     if (z.t <= 0) { B.zones.splice(i, 1); B.emit({ e: 'zone_end', id: z.id }); }
   }
@@ -781,7 +802,7 @@ export function createBattle(opts) {
   const B = {
     t: 0, tick: 0, phase: 'fight', wave: 0, waveT: 0, enrage: 0, stage, seed: opts.seed || 1, rng: makeRng(opts.seed || 1),
     units: [], allies: [], enemies: [], heroes: [], byUid: new Map(), uidSeq: 0,
-    projs: [], zones: [], pending: [], queue: [], spawnsLeft: 0, kills: 0, boss: 0, offers: null, picked: null,
+    projs: [], zones: [], pending: [], queue: [], tag: 'atk', book: { enemyIn: 0, enemyLost: 0, other: 0 }, spawnsLeft: 0, kills: 0, boss: 0, offers: null, picked: null,
     auto: { ult: false, ultDelay: 0.6, pick: false, ...(opts.auto || {}) },
     emit: () => {}, teamSize: opts.team.length, joinSpec: opts.joinSpec || null,
   };
@@ -800,6 +821,22 @@ export function runToEnd(B, maxTicks = 30 * 60 * 20) {
     if (B.phase === 'pick') { for (let i = 0; i < B.heroes.length; i++) if (B.picked[i] < 0) pickCard(B, i, 0); } else step(B);
   }
   return B;
+}
+
+// What each hero did this stage, for the result screen. Numbers are counted by the sim as they happen:
+// `dealt` is health actually removed from enemies (the excess of a killing blow is in `over`), split by source.
+export function battleReport(B) {
+  const total = B.heroes.reduce((s, u) => s + u.dealt, 0) || 1;
+  const top = B.heroes.reduce((a, b) => (b.dealt > a.dealt ? b : a), B.heroes[0]);
+  return B.heroes.map((u) => ({
+    id: u.kind, slot: u.slot, alive: u.alive, mvp: u === top && u.dealt > 0,
+    dealt: u.dealt, share: u.dealt / total, dps: u.dealt / Math.max(1, B.t), over: u.over, bySrc: { ...u.bySrc },
+    taken: u.taken, healed: u.healed, selfHeal: u.selfHeal, shieldGiven: u.shieldGiven,
+    kills: u.kills || 0, ults: u.ults || 0, casts: u.casts || 0, aliveT: u.aliveT, downT: u.downT, downs: u.downs,
+    cards: u.cards.slice(),
+    start: { ...u.start },
+    end: { atk: atkOf(u), hp: u.maxHp, aspd: aspdOf(u), crit: Math.min(1, 0.05 + M(u, 'crit')) },
+  }));
 }
 
 export const _test = { M, atkOf, maxHpOf, hurt, heal, chargeUlt };
