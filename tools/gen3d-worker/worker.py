@@ -281,7 +281,9 @@ class Job:
                 parent_glb = download(j["parent"]["result"]["files"]["glb"], os.path.join(in_dir, "parent.glb"))
             job_json = os.path.join(job_dir, "job.json")
             with open(job_json, "w", encoding="utf-8") as f:
+                brief = lambda x: x and {k: x.get(k) for k in ("id", "kind", "parent_id", "params", "result")}  # noqa: E731
                 json.dump({"id": self.id, "kind": kind, "params": j["params"], "root_params": root.get("params"),
+                           "parent": brief(j.get("parent")), "root": brief(root), "pub_base": PUB,
                            "inputs": {"views": views, "parent_glb": parent_glb}, "work_dir": WORK_DIR, "out_dir": out_dir}, f, ensure_ascii=False)
             ctx = {"python": sys.executable, "here": HERE, "job_dir": job_dir, "job_json": job_json, "in_dir": in_dir, "out_dir": out_dir,
                    "parent_glb": parent_glb, "work_dir": WORK_DIR, "kind": kind}

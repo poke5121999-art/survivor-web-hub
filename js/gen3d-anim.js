@@ -94,6 +94,8 @@ const norm = (n) => String(n).toLowerCase().replace(/^mixamorig\d*[:_]?/, "").re
 async function loadModel(url) {
   const g = await new GLTFLoader().loadAsync(url);
   const m = g.scene;
+  const gen = (g.parser && g.parser.json.asset && g.parser.json.asset.generator) || "";
+  A.genRig = gen === "gen3d-rig";
   m.traverse((o) => { if (o.isMesh) o.frustumCulled = false; if (o.isBone) A.bones.set(norm(o.name), o); });
   if (!A.bones.size) throw new Error("model không có xương; mở từ một job Gen xương đã xong");
   const hips = A.bones.get("hips");
@@ -191,6 +193,45 @@ function retarget({ clip, root, nodes }) {
   setRest(A.model);
   return new T.AnimationClip(clip.name, clip.duration, tracks);
 }
+// Rig của máy gen (asset.generator "gen3d-rig", D:/gen3d-spike/rig/build_rig.py) dựng xương theo đúng khung trục FBX Mixamo
+// và scale nút gốc theo chiều dài chân, nên clip Mixamo gắn thẳng theo tên: lấy track quaternion của mọi xương, chỉ giữ track
+// position của Hips (các track position khác mang độ dài xương người mẫu, áp vào làm người bẹp), bỏ track scale.
+// Chỉ dùng khi clip cùng khung trục đó: đo bằng góc giữa độ xoay nghỉ của Hips bên clip và bên model. Clip tách từ Soldier.glb
+// (seed-Soldier-*) lệch ~10°: gắn thẳng đúng như tác giả làm, còn retarget thế giới làm tay giơ lên. Clip import-mixamo.mjs
+// (FBXLoader) có Hips nghỉ gần đơn vị, lệch ~175°: gắn thẳng thì người gập lộn, nên đi retarget thế giới.
+// Model khác (Xbot, model tự tải lên) luôn đi retarget thế giới.
+function sameFrame({ nodes }) {
+  const s = nodes.get("hips"), t = A.bones.get("hips");
+  if (!s || !t) return false;
+  const a = s.userData.rest[1], b = t.userData.rest[1];
+  return 2 * Math.acos(Math.min(1, Math.abs(a.dot(b)))) < Math.PI / 3;
+}
+function direct({ clip }) {
+  const hips = A.bones.get("hips");
+  const parentM = hips.parent ? hips.parent.matrixWorld.clone() : new T.Matrix4();
+  const parentInv = parentM.clone().invert();
+  const restW = hips.userData.rest[0].clone().applyMatrix4(parentM);
+  const tracks = [];
+  for (const t of clip.tracks) {
+    const dot = t.name.lastIndexOf(".");
+    const bone = A.bones.get(norm(t.name.slice(0, dot))), prop = t.name.slice(dot + 1);
+    if (!bone) continue;
+    if (prop === "quaternion") tracks.push(new T.QuaternionKeyframeTrack(bone.name + ".quaternion", t.times, t.values));
+    else if (prop === "position" && bone === hips) {
+      const v = Float32Array.from(t.values);
+      if (A.inplace) {
+        const w = new T.Vector3();
+        for (let i = 0; i < v.length; i += 3) {
+          w.fromArray(v, i).applyMatrix4(parentM);
+          w.x = restW.x; w.z = restW.z;
+          w.applyMatrix4(parentInv).toArray(v, i);
+        }
+      }
+      tracks.push(new T.VectorKeyframeTrack(bone.name + ".position", t.times, v));
+    }
+  }
+  return new T.AnimationClip(clip.name, clip.duration, tracks);
+}
 let playToken = 0;
 async function play(entry, keepTime) {
   const token = ++playToken;
@@ -202,13 +243,15 @@ async function play(entry, keepTime) {
     const t0 = keepTime && A.action ? A.action.time : 0;
     A.mixer.stopAllAction();
     if (A.action) A.mixer.uncacheClip(A.action.getClip());
-    const clip = retarget(data);
+    setRest(A.model);
+    const mode = Q.get("retarget") || (A.genRig && sameFrame(data) ? "direct" : "world");
+    const clip = mode === "direct" ? direct(data) : retarget(data);
     A.action = A.mixer.clipAction(clip);
     A.action.setLoop(A.loop ? T.LoopRepeat : T.LoopOnce, Infinity);
     A.action.clampWhenFinished = true;
     A.action.play();
     A.action.time = t0;
-    window.__anim = { clip: entry.id, tracks: clip.tracks.length, duration: clip.duration };
+    window.__anim = { clip: entry.id, tracks: clip.tracks.length, duration: clip.duration, mode };
   } catch (e) {
     banner("Không nạp được anim " + entry.name + ": " + e.message);
   }

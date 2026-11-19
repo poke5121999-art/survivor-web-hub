@@ -18,9 +18,10 @@ const WSTATUS = { idle: ["Rảnh", "ok"], busy: ["Đang làm", "run"], paused: [
 const KIND_LABEL = { shape: "Model", texture: "Texture", rig: "Xương" };
 const VIEWS = [["front", "Trước"], ["left", "Trái"], ["right", "Phải"], ["back", "Sau"]];
 const ACCEPT = /^image\/(png|jpeg|webp)$/;
+const ULTRA_REQ = "Ultra cần ~12 GB RAM trống trên máy gen, có thể chờ lâu.";
 const DEFAULT_CFG = { ultra: false, ai_complete: true, texture: true, quality: "4K", remove_lighting: true, pbr: false, topology: "triangle", polycount: 100000 };
 const TIPS = {
-  ultra: "Lưới marching cubes dày hơn và nhiều bước khử nhiễu hơn: mesh mịn, nhiều chi tiết hơn nhưng gen lâu hơn và tốn VRAM hơn.",
+  ultra: "Lưới marching cubes dày hơn và nhiều bước khử nhiễu hơn: mesh mịn, nhiều chi tiết hơn nhưng gen lâu hơn và tốn VRAM hơn. Máy gen cần ~12 GB RAM trống mới chạy, có thể chờ lâu; chờ 5 phút không đủ thì job báo lỗi.",
   ai_complete: "Vùng không ảnh nào nhìn thấy: tắt thì tô bằng màu lân cận, bật thì model diffusion vẽ bù. Chỉ có tác dụng khi gen texture.",
   texture: "Bật thì máy gen texture luôn ngay sau khi dựng hình, ra một phiên bản texture riêng. Tắt thì chỉ ra mesh trắng, gen texture sau cũng được.",
   quality: "Cạnh atlas texture: 2K = 2048, 4K = 4096, 8K = 8192 px. Càng lớn càng nét, file càng nặng.",
@@ -241,7 +242,7 @@ function openConfig() {
       h("div", { class: "g3-cfg__head" },
         h("div", {}, h("b", { text: "Geometry & Texture" }), h("p", { text: "Cài đặt tự lưu cho lần sau" })),
         h("button", { class: "g3-cfg__x", type: "button", "aria-label": "Đóng", text: "×", onclick: () => cfgDialog.close() })),
-      h("div", { class: "g3-cfg__grp" }, toggle("ultra", "Ultra Mesh Quality"), toggle("ai_complete", "AI Complete")),
+      h("div", { class: "g3-cfg__grp" }, toggle("ultra", "Ultra Mesh Quality"), h("p", { class: "g3-dim g3-ultra-req", text: ULTRA_REQ }), toggle("ai_complete", "AI Complete")),
       h("div", { class: "g3-cfg__grp g3-cfg__grp--tex" }, toggle("texture", "Texture"), texSub),
       h("div", { class: "g3-cfg__grp" },
         h("div", { class: "g3-opt" }, h("span", { class: "g3-optl", text: "Topology" }), help("topology")),
@@ -340,6 +341,9 @@ function paintChips() {
   fill(P.chips, [c.ultra ? "Ultra" : null, c.topology === "quad" ? "Quad" : "Triangle", fmtN(c.polycount) + " mặt", c.texture ? "Texture " + c.quality : "Không texture",
     c.texture && c.pbr ? "PBR" : null, c.ai_complete ? "AI Complete" : null].filter(Boolean).map((t) => h("span", { class: "g3-chip", text: t })));
 }
+// Model tự tải lên (import_model) không có ảnh chụp: máy gen texture chiếu màu từ ảnh nên không làm được.
+const isUpload = (j) => !!(j && j.params && j.params.source === "upload");
+const NO_PHOTO_TEX = "Model tự tải lên không có ảnh chụp nào. Gen texture chiếu màu từ ảnh trước, sau, trái, phải, nên chỉ chạy trên model dựng từ ảnh.";
 // Model gốc cho Gen texture / Gen xương từ job đang chọn.
 function baseFor(kind) {
   const j = S.job;
@@ -395,8 +399,8 @@ function paintLeft() {
       b ? [h("div", { class: "g3-sec", text: "Texture" }),
         h("div", { class: "g3-cfg__grp g3-cfg__grp--tex", style: "border-radius:10px" }, textureOpts()),
         h("div", { class: "g3-cfg__grp", style: "padding:0" }, toggle("ai_complete", "AI Complete")),
-        h("p", { class: "g3-note", text: b.params && b.params.source === "upload" ? "Model tự tải lên không có ảnh gốc: máy vẽ màu theo AI Complete." : "Mỗi lần gen là một phiên bản texture mới cạnh bản cũ. Màu chiếu từ ảnh trước, sau, trái, phải đã gửi lúc tạo model." }),
-        h("div", { class: "g3-go" }, h("button", { type: "button", onclick: () => submitChild("texture"), text: "Gen texture" }))] : null);
+        isUpload(b) ? h("p", { class: "g3-note g3-note--warn", text: NO_PHOTO_TEX }) : h("p", { class: "g3-note", text: "Mỗi lần gen là một phiên bản texture mới cạnh bản cũ. Màu chiếu từ ảnh trước, sau, trái, phải đã gửi lúc tạo model." }),
+        h("div", { class: "g3-go" }, h("button", { type: "button", disabled: isUpload(b), onclick: () => submitChild("texture"), text: "Gen texture" }))] : null);
     return;
   }
   if (ui.tool === "rig") {
@@ -443,6 +447,7 @@ async function submitShape() {
 async function submitChild(kind, parent) {
   const b = parent || baseFor(kind);
   if (!b) return toast(kind === "texture" ? "Chọn một model đã xong trước" : "Chọn model đã xong trước");
+  if (kind === "texture" && isUpload(b)) return toast(NO_PHOTO_TEX);
   try {
     const r = await guard(api("submit", { kind, parent_id: b.id, params: kind === "texture" ? textureParams() : { skeleton: "mixamo" } }));
     toast(kind === "texture" ? "Đã gửi gen texture" : "Đã gửi gen xương");
@@ -803,7 +808,7 @@ function paintBar() {
       h("button", { class: "g3-ib", type: "button", title: "Về góc nhìn trước", "aria-label": "Về góc nhìn trước", disabled: !viewer.canUndo, html: svg("undo"), onclick: () => viewer.undo() }),
       h("span", { class: "g3-sep" }),
       tb("retry", "Gen lại", resubmit, { disabled: !j || active(j), title: "Gửi lại cùng thông số với seed mới" }),
-      tb("texture", "Gen texture", () => submitChild("texture"), { disabled: !texBase, title: "Gen texture với cài đặt Texture hiện tại" }),
+      tb("texture", "Gen texture", () => submitChild("texture"), { disabled: !texBase || isUpload(texBase), title: isUpload(texBase) ? NO_PHOTO_TEX : "Gen texture với cài đặt Texture hiện tại" }),
       tb("rig", "Gen xương", () => submitChild("rig"), { disabled: !rigBase }),
       j && j.kind === "rig" && j.status === "done" ? h("a", { class: "g3-tb g3-tb--link", href: animUrl(j.id), html: svg("play") + "<span>Thử anim</span>" }) : null,
       h("span", { class: "g3-sep" }),

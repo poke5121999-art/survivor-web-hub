@@ -77,7 +77,8 @@ const busyPixels = (page, sel) => page.evaluate(async (sel) => {
       await chooser.setFiles(obj);
       await page.waitForFunction(() => window.__gen3d.S.job && window.__gen3d.S.job.params.source === 'upload' && window.__gen3d.viewer.loaded, null, { timeout: 60000 });
       ok(true, 'tải OBJ lên: đổi sang glb trong trình duyệt, ra model source upload, hiện trong viewport');
-      ok(!(await page.locator('.g3-go button', { hasText: 'Gen texture' }).isDisabled()), 'model tải lên gen texture được');
+      ok(await page.locator('.g3-go button', { hasText: 'Gen texture' }).isDisabled() && /không có ảnh chụp/.test(await page.locator('.g3-note--warn').innerText()), 'model tải lên: Gen texture bị khoá, có lời báo cần ảnh');
+      await page.screenshot({ path: path.join(OUT, 'mock-upload-no-texture.png') });
       await page.locator('.g3-rail__btn[data-tool=model]').click();
 
       // gửi ảnh qua giao diện (mock): Nhiều góc, 2 ảnh

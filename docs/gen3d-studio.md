@@ -55,7 +55,8 @@ job = {
 // kind = "shape"
 params = {
   views: { front?: path, back?: path, left?: path, right?: path },   // ít nhất 1, tối đa 4
-  ultra: boolean,                 // Ultra Mesh Quality: lưới marching cubes dày hơn + nhiều bước khử nhiễu hơn
+  ultra: boolean,                 // Ultra Mesh Quality: lưới marching cubes dày hơn + nhiều bước khử nhiễu hơn; PC cần ~12 GB
+                                  //   commit trống (cuối bước shape vọt thêm ~4 GB), chờ 5 phút không đủ thì job hỏng có lời báo
   topology: "triangle" | "quad",
   polycount: number,              // 500..2_000_000; với quad là số mặt tứ giác
   seed: number,
@@ -107,8 +108,13 @@ thiếu thì báo `lowmem` và không claim, job rơi sang máy sau. Máy chung 
 | kind | Các bước | Model |
 |---|---|---|
 | shape | tách nền từng ảnh (BiRefNet) → TripoSG từ ảnh trước (hoặc ảnh duy nhất) → dọn mesh → giảm còn `polycount` (tam giác) hoặc remesh tứ giác (Instant Meshes) | TripoSG 1.5B (MIT) |
-| texture | khử sáng (tuỳ) → chiếu các ảnh người dùng lên mesh theo hướng nhìn → vùng mù: tô lân cận hoặc diffusion vẽ bù → atlas theo quality → PBR (tuỳ) | chốt sau spike S3 |
-| rig | đặt T-pose chuẩn → đoán xương humanoid tên mixamorig → skin weights → glb | chốt sau spike S2 |
+| texture | khử sáng (tuỳ) → chiếu các ảnh người dùng lên mesh theo hướng nhìn → vùng mù: tô lân cận hoặc diffusion vẽ bù → atlas theo quality → PBR (tuỳ) | route A `tex.py` (xatlas + chiếu ảnh, không model); AI Complete = SD1.5 inpaint |
+| rig | đặt T-pose chuẩn → đoán xương humanoid tên mixamorig → skin weights → glb | Make-It-Animatable v2 + `build_rig.py` (khung trục Mixamo của Soldier.glb) |
+
+Máy PC chạy ba pipeline thật qua adapter `tools/gen3d-worker/pipe_{shape,texture,rig}.py` (cách chạy, file ra, giới hạn
+50 MB: `tools/gen3d-worker/README.md`, mục Pipeline thật). Texture chiếu màu từ `views_clean` của job shape gốc, nên model
+tự tải lên (`source = "upload"`) không gen texture được: worker báo lỗi, trang khoá nút Gen texture cho model đó. Mọi glb
+kết quả ≤ 48 MB (ảnh nhúng đổi sang JPEG, rồi giảm cạnh nếu cần).
 
 TripoSG chỉ dựng hình từ một ảnh. Ảnh sau, trái, phải được dùng cho texture (chiếu thẳng màu thật từ ảnh lên mesh) và để
 chọn ảnh rõ nhất làm đầu vào shape khi thiếu ảnh trước.
@@ -119,7 +125,12 @@ chọn ảnh rõ nhất làm đầu vào shape khi thiếu ảnh trước.
 một file glb chỉ chứa track xương mixamorig, xuất từ FBX Mixamo "Without Skin"). Vì cả hai phía cùng tên xương, clip gắn
 vào `AnimationMixer` của model theo tên. Tên giống nhau chưa đủ: trục cục bộ của xương khác nhau giữa FBX Mixamo, glb xuất qua
 Blender (Xbot) và rig của máy gen, nên trang retarget theo không gian thế giới: xương nhận độ xoay của clip so với T-pose của
-clip, đặt lên T-pose của model. Điều kiện là cả hai đứng T-pose. Hips dịch theo tỉ lệ chiều cao Hips. Có tìm theo tên và mô
+clip, đặt lên T-pose của model. Điều kiện là cả hai đứng T-pose. Hips dịch theo tỉ lệ chiều cao Hips. Riêng model rig của máy gen
+(`asset.generator = "gen3d-rig"`, xương dựng theo khung trục Soldier.glb) gặp clip cùng khung (Hips nghỉ lệch < 60°, tức
+`seed-Soldier-*`) thì gắn thẳng theo tên: giữ track quaternion, chỉ giữ position của Hips, bỏ scale. Retarget thế giới làm
+tay giơ lên với các clip này; clip import từ FBX (Hips nghỉ gần đơn vị) gắn thẳng thì người gập lộn, nên vẫn đi retarget
+thế giới. `?retarget=direct|world` ép một đường để so. Đã kiểm trên chuỗi thật (lính 4 ảnh): Walk, Run (Soldier), Running,
+Jump đều đứng đúng, không bẹp, không lộn. Có tìm theo tên và mô
 tả, GIF Mixamo khi rê chuột, tốc độ, tua, lặp, Tại chỗ, hiện xương.
 
 ## Trang
