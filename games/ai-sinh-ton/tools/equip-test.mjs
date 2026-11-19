@@ -61,18 +61,13 @@ try {
       await tap(page, 'tab-equip', 20);
       const t = await page.evaluate(() => ({ screen: __G.screen, toasts: __toasts.slice(), want: __G.meta.lockText('equip'), lvl: __G.meta.acc.level }));
       check(t.screen === 'home' && t.toasts[t.toasts.length - 1] === t.want, P(`tab Trang Bị at account level ${t.lvl} stays on "${t.screen}" and toasts "${t.toasts[t.toasts.length - 1]}" (want "${t.want}")`));
-      // level 7: the screen opens, merge buttons are locked
-      await page.evaluate(() => { const M = __G.meta; M.acc.cheatUnlock = false; M.acc.level = 7; M.acc.xp = 0; M.save(); __toasts.length = 0; });
+      // level 7 without three identical items: the screen opens and the merge buttons do not exist
+      await page.evaluate(() => { const M = __G.meta; M.acc.cheatUnlock = false; M.acc.level = 7; M.acc.xp = 0; M.acc.mergeOpen = false; M.acc.bag = []; M.save(); __toasts.length = 0; });
       await step(page, 10);
       await tap(page, 'tab-equip', 20);
       check(await screenName(page) === 'equip', P('tab Trang Bị opens at level 7'));
-      const want = await page.evaluate(() => __G.meta.lockText('merge'));
-      await tap(page, 'merge', 10);
-      let r = await page.evaluate(() => ({ t: __toasts.slice(-1)[0], mode: __G.metaUi.equipUi.mode }));
-      check(r.t === want && r.mode === 'normal', P(`GHÉP below level 9 toasts "${r.t}" (want "${want}") and stays in mode ${r.mode}`));
-      await tap(page, 'automerge', 10);
-      r = await page.evaluate(() => __toasts.slice(-1)[0]);
-      check(r === want, P(`GHÉP NHANH below level 9 toasts "${r}"`));
+      const ids = (await targets(page)).map((q) => q.id);
+      check(!ids.includes('merge') && !ids.includes('automerge') && ids.includes('equip-best'), P('GHÉP and GHÉP NHANH are not shown before three identical items; MẶC TỐT NHẤT is (' + ids.filter((i) => /merge|best/.test(i)).join(',') + ')'));
       await snap(page, phone, 'locked'); await audit(page, P('locked merge'));
       check(problems.length === 0, P('locks: no console errors') + (problems[0] ? ' ' + problems[0] : ''));
       await g.ctx.close();
@@ -86,7 +81,7 @@ try {
     await setBag(page, []);
     await tap(page, 'tab-equip', 25);
     let u = await eu(page);
-    check((await screenName(page)) === 'equip' && u.bag === 0 && u.emptyText === 'Thắng ải để nhặt trang bị', P(`empty bag shows "${u.emptyText}" (${u.bag} items)`));
+    check((await screenName(page)) === 'equip' && u.bag === 0 && u.emptyText === '', P(`empty bag shows no standing text ("${u.emptyText}", ${u.bag} items)`));
     await snap(page, phone, 'empty'); await audit(page, P('empty bag'));
 
     // wear, stats, move between heroes
@@ -211,6 +206,25 @@ try {
     await tap(page, 'auto-do', 20);
     A = await acc(page);
     check(A.bag.length === 1 && A.bag[0].tier === 2, P(`9 Thường left ${A.bag.length} item of tier ${A.bag[0] && A.bag[0].tier} (${A.bag[0] && TIERS[A.bag[0].tier].name})`));
+
+    // MẶC TỐT NHẤT: strongest free item per slot, never one another hero wears
+    {
+      const [bw, bw2, ba] = await setBag(page, [['w_bua', 1, 1], ['w_cua', 0, 1], ['a_lop', 0, 1]], { 1: { weapon: 0 } });
+      await page.evaluate(() => __G.goto('equip')); await refresh(page);
+      await tap(page, 'hero-prev', 20); await tap(page, 'hero-prev', 20);
+      let u2 = await eu(page);
+      const hb = u2.hero;
+      const btn0 = (await targets(page)).find((q) => q.id === 'equip-best');
+      check(!!btn0 && btn0.enabled && u2.best.enabled, P(`MẶC TỐT NHẤT is enabled for ${hb} when it would change something (${JSON.stringify(u2.best)})`));
+      await tap(page, 'equip-best', 25);
+      const A2 = await acc(page); u2 = await eu(page);
+      check(A2.equip[hb].weapon === bw2 && A2.equip[hb].armor === ba && A2.equip[A2.team[1]].weapon === bw, P(`MẶC TỐT NHẤT wore the free weapon and the armour and left the weapon another hero wears (${JSON.stringify(A2.equip[hb])})`));
+      const btn1 = (await targets(page)).find((q) => q.id === 'equip-best');
+      check(btn1 && !btn1.enabled, P('MẶC TỐT NHẤT is disabled when nothing would change'));
+      await snap(page, phone, 'equip-best');
+      await tap(page, 'stat-panel', 10);
+      check((await eu(page)).toasts.slice(-1)[0] === 'Công và Máu của tướng, đã cộng trang bị', P('tapping the stat panel explains it in one line'));
+    }
 
     // ---------- save across reload
     await setBag(page, [['w_cua', 1, 3], ['a_lop', 0, 2], ['f_chay', 2, 7]], { 0: { weapon: 0, boots: 2 } });

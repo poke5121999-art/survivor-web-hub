@@ -4,7 +4,6 @@
 import { SLOTS, TIERS, ITEM, itemStat, upgradeCost, refundOf, autoMergePlan } from '../data/equip.js?v=20261119c';
 import { HERO } from '../data/heroes.js?v=20261119c';
 import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261119c';
-import { lockButton } from './guide.js?v=20261119c';
 import { ITEM_ICON } from './itemicons.js?v=20261119c';
 
 const SLOT = Object.fromEntries(SLOTS.map((s) => [s.id, s]));
@@ -25,8 +24,8 @@ export function createEquip(game) {
   const eq = ui.screen('equip'), sheet = ui.screen('item', { modal: true }), autoS = ui.screen('auto', { modal: true });
   const bd = makeBackdrop(ui, 'equip'); eq.put(bd, 0, 0, -40);
   const S = { hero: '', mode: 'normal', sort: 0, main: 0, picks: [], sheet: 0 };
-  const U = (mui.equipUi = { mode: 'normal', hero: '', atk: '', hp: '', atkBonus: '', hpBonus: '', bag: 0, sort: '', mats: {}, main: 0, picks: [], need: 0, preview: null, sheet: null, auto: null, fx: false, emptyText: '', hint: '' });
-  let dirty = true, fx = null;
+  const U = (mui.equipUi = { mode: 'normal', hero: '', atk: '', hp: '', atkBonus: '', hpBonus: '', bag: 0, sort: '', mats: {}, main: 0, picks: [], need: 0, preview: null, sheet: null, auto: null, fx: false, emptyText: '', hint: '', fly: null, flyN: 0, slotInfo: {}, best: null, toasts: [] });
+  let dirty = true, fx = null, pulse = 0;
   meta.on(() => { dirty = true; });
 
   const bag = () => meta.acc.bag;
@@ -39,6 +38,10 @@ export function createEquip(game) {
   };
   const veilGeo = new THREE.PlaneGeometry(1, 1), veilMat = new THREE.MeshBasicMaterial({ color: 0x120a24, transparent: true, opacity: 0.62, depthWrite: false, toneMapped: false });
   const cap = (s) => s.charAt(0).toLocaleUpperCase('vi') + s.slice(1);
+  // every explanation is one short toast, kept in U for the tests
+  const say = (line) => { U.toasts.push(line); if (U.toasts.length > 12) U.toasts.shift(); ui.toast(line); };
+  // an invisible tap area (the kit button without its mesh)
+  const tapArea = (id, w, h, onTap) => { const b = ui.button({ id, w, h, shadow: false, onTap }); b.traverse((o) => { if (o.isMesh) o.visible = false; }); return b; };
 
   // ---------- chrome of the screen ----------
   const title = ui.text('TRANG BỊ', { size: 22, align: 'center', upper: true, outlineW: 3.2 }); eq.put(title, 180, 50, 6); mui.regTitle('equip', title);
@@ -55,29 +58,38 @@ export function createEquip(game) {
     return { v, b, x };
   };
   const sA = stat(12, 'atk'), sH = stat(182, 'hp');
+  heroG.put(tapArea('stat-panel', 344, 48, () => say('Công và Máu của tướng, đã cộng trang bị')), 8, 74, 9);
 
   // stage panel with the hero and the six slots
   const stage = ui.panel({ w: STAGE.w, h: STAGE.h, r: 22, color: 0x5a3fa0, depth: 5, bevel: 3 }); eq.put(stage, STAGE.x, STAGE.y, 4);
   const nameT = ui.text('', { size: 14, align: 'center', outlineW: 2.4 }); heroG.put(nameT, 180, 294, 24);
   const prev = ui.button({ id: 'hero-prev', w: 44, h: 40, r: 12, color: PAL.blue, icon: 'left', shadow: false, onTap: () => cycle(-1) }); heroG.put(prev, 80, 282, 22);
+  heroG.put(tapArea('equip-hero', 112, 48, () => say(heroIds().length > 1 ? 'Chạm mũi tên để đổi tướng' : 'Tướng đang mặc trang bị')), 124, 280, 20);
   const next = ui.button({ id: 'hero-next', w: 44, h: 40, r: 12, color: PAL.blue, icon: 'right', shadow: false, onTap: () => cycle(1) }); heroG.put(next, 236, 282, 22);
 
   // bag header
   const bagT = ui.text('TÚI ĐỒ', { size: 16, outlineW: 2.4 }); eq.put(bagT, 14, 346, 6);
   const countT = ui.text('', { size: 11, color: 0xffe9a8, outlineW: 1.8 }); eq.put(countT, 82, 351, 6);
   const sortB = ui.button({ id: 'sort', w: 104, h: 36, r: 12, color: PAL.blue, label: SORTS[0].label, size: 13, shadow: false, onTap: () => { S.sort = (S.sort + 1) % SORTS.length; dirty = true; } }); eq.put(sortB, 244, 340, 6);
-  eq.put(ui.text('BẢN RÈN CỦA TỪNG Ô', { size: 9, color: 0xffe9a8, outlineW: 1.4 }), 14, 372, 6);
 
   const sc = ui.scroll({ w: GRID.w, h: GRID.h }); eq.put(sc, GRID.x, GRID.y, 4);
   const emptyG = ui.group(); eq.put(emptyG, 0, 0, 6); emptyG.setVisible(false);
   emptyG.put(ui.icon('bag', { size: 64 }), 148, 452, 2);
-  const emptyT = ui.text('Thắng ải để nhặt trang bị', { size: 15, align: 'center', outlineW: 2.4 }); emptyG.put(emptyT, 180, 526, 2);
 
-  // bottom buttons: normal mode and merge mode
-  const mergeB = ui.button({ id: 'merge', w: 166, h: 52, r: 16, color: PAL.orange, label: 'GHÉP', size: 19, onTap: enterMerge }); eq.put(mergeB, 10, 626, 6);
-  const autoB = ui.button({ id: 'automerge', w: 166, h: 52, r: 16, color: PAL.blue, label: 'GHÉP NHANH', size: 15, onTap: openAuto }); eq.put(autoB, 184, 626, 6);
-  const mLock = ui.icon('lock', { size: 28, sway: false }), aLock = ui.icon('lock', { size: 28, sway: false });
-  mergeB.put(mLock, 132, -8, 14); autoB.put(aLock, 132, -8, 14);
+  // bottom buttons: normal mode (MẶC TỐT NHẤT, plus GHÉP once merge is open and GHÉP NHANH after the first merge) and merge mode.
+  // GHÉP and GHÉP NHANH do not exist before they open, so the row is rebuilt when that changes.
+  let bestB = null, mergeB = null, autoB = null, bottomKey = '';
+  function buildBottom() {
+    const showMerge = meta.unlocked('merge'), showAuto = showMerge && meta.autoShown(), key = showMerge + '|' + showAuto;
+    if (key === bottomKey) return; bottomKey = key;
+    for (const n of [bestB, mergeB, autoB]) if (n) kill(n);
+    mergeB = autoB = null;
+    const mk = (id, x, w, color, label, size, fn, sub) => { const n = ui.button({ id, w, h: 52, r: 16, color, label, sub, size, onTap: fn }); eq.put(n, x, 626, 6); return n; };
+    if (!showMerge) bestB = mk('equip-best', 10, 340, PAL.green, 'MẶC TỐT NHẤT', 19, wearBest, ' ');
+    else if (!showAuto) { mergeB = mk('merge', 10, 108, PAL.orange, 'GHÉP', 19, enterMerge); bestB = mk('equip-best', 126, 224, PAL.green, 'MẶC TỐT NHẤT', 17, wearBest, ' '); }
+    else { mergeB = mk('merge', 10, 98, PAL.orange, 'GHÉP', 17, enterMerge); bestB = mk('equip-best', 114, 140, PAL.green, 'MẶC TỐT NHẤT', 13, wearBest, ' '); autoB = mk('automerge', 262, 88, PAL.blue, 'GHÉP NHANH', 11, openAuto); }
+    layoutMode();
+  }
   const cancelB = ui.button({ id: 'merge-cancel', w: 100, h: 52, r: 16, color: PAL.red, label: 'HUỶ', size: 17, onTap: leaveMerge }); eq.put(cancelB, 10, 626, 6);
   const doB = ui.button({ id: 'merge-do', w: 232, h: 52, r: 16, color: PAL.green, label: 'GHÉP', sub: ' ', size: 19, onTap: doMerge }); eq.put(doB, 118, 626, 6);
   cancelB.setVisible(false); doB.setVisible(false);
@@ -128,30 +140,36 @@ export function createEquip(game) {
   fr.addEventListener('pointerup', endDrag); fr.addEventListener('pointercancel', endDrag);
 
   let slotNodes = [];
-  function hasBetter(hid, slot, cur) {
-    const worn = wornMap(), curStat = cur ? itemStat(cur) : 0;
-    return bag().some((i) => slotOf(i) === slot && !worn.has(i.uid) && itemStat(i) > curStat);
-  }
   function buildSlots() {
     for (const n of slotNodes) kill(n); slotNodes = [];
-    const e = meta.acc.equip[S.hero] || {};
+    const e = meta.acc.equip[S.hero] || {}, sd = meta.dots().slotDots[S.hero] || {};
+    U.slotInfo = {};
     const place = (slot, x, y) => {
       const cur = find(e[slot]); let t;
-      if (cur) {
-        t = itemTile(cur, { size: 56, id: 'slot-' + slot, onTap: () => openSheet(cur.uid), up: meta.canUpgradeItem(cur.uid).ok, dot: hasBetter(S.hero, slot, cur), slotIcon: false });
+      if (!meta.slotOpen(slot)) {
+        const ghost = ui.group({ w: 34, h: 34 }); ghost.put(ui.icon(slot, { size: 34, sway: false }), 0, 0, 0);
+        for (let k = 0; k < 2; k++) { const m = new THREE.Mesh(veilGeo, veilMat); m.scale.set(40, 40, 1); ghost.put(m, 17, 17, 14 + k); }
+        t = ui.tile({ size: 56, color: 0x2b2548, node: ghost, id: 'slot-' + slot, onTap: () => say(meta.slotLine(slot)) });
+        t.put(ui.icon('lock', { size: 24, sway: false }), 16, 16, 40);
+        U.slotInfo[slot] = 'closed';
+      } else if (cur) {
+        t = itemTile(cur, { size: 56, id: 'slot-' + slot, onTap: () => openSheet(cur.uid), dot: !!sd[slot], slotIcon: false });
+        U.slotInfo[slot] = 'worn';
       } else {
         const ghost = ui.group({ w: 34, h: 34 }); ghost.put(ui.icon(slot, { size: 34, sway: false }), 0, 0, 0);
         const m = new THREE.Mesh(veilGeo, veilMat); m.scale.set(40, 40, 1); ghost.put(m, 17, 17, 14);
         t = ui.tile({ size: 56, color: 0x4a3f78, node: ghost, id: 'slot-' + slot, onTap: () => tapEmpty(slot) });
-        if (hasBetter(S.hero, slot, null)) t.setBadge(true);
+        if (sd[slot]) t.setBadge(true);
+        U.slotInfo[slot] = 'empty';
       }
+      if (sd[slot]) U.slotInfo[slot] += ':dot';
       heroG.put(t, x, y, 8); slotNodes.push(t);
     };
     LEFT.forEach((s, i) => place(s, 14, 132 + i * 66)); RIGHT.forEach((s, i) => place(s, 290, 132 + i * 66));
   }
   function tapEmpty(slot) {
     const worn = wornMap(), c = bag().filter((i) => slotOf(i) === slot && !worn.has(i.uid)).sort((a, b) => itemStat(b) - itemStat(a))[0];
-    if (c) openSheet(c.uid); else ui.toast(`Chưa có ${SLOT[slot].name} nào trong túi đồ`);
+    if (c) openSheet(c.uid); else say(`${SLOT[slot].name}: chưa có món nào, thắng ải để nhặt`);
   }
   function refreshHero() {
     const s = meta.heroStats(S.hero);
@@ -161,6 +179,12 @@ export function createEquip(game) {
     sA.b.pos(sA.x + 36 + sA.v.w + 6, 19); sH.b.pos(sH.x + 36 + sH.v.w + 6, 19);
     Object.assign(U, { hero: S.hero, atk: fmt(s.atk), hp: fmt(s.hp), atkBonus: s.atkFlat ? '+' + fmt(s.atkFlat) : '', hpBonus: s.hpFlat ? '+' + fmt(s.hpFlat) : '' });
     const multi = heroIds().length > 1; prev.setVisible(multi); next.setVisible(multi);
+    if (bestB) {
+      const plan = meta.equipBestPlan(S.hero), g = plan.gain, ok = plan.changes.length > 0;
+      bestB.setEnabled(ok); bestB.setBadge(!!(meta.dots().best[S.hero]));
+      bestB.setSub(ok ? [g.atk ? '+' + fmt(g.atk) + ' Công' : '', g.hp ? '+' + fmt(g.hp) + ' Máu' : ''].filter(Boolean).join('  ') : 'Đã tốt nhất');
+      U.best = { enabled: ok, changes: plan.changes.length, gain: g };
+    }
   }
 
   // ---------- bag grid ----------
@@ -192,8 +216,7 @@ export function createEquip(game) {
     list.forEach((it, i) => {
       const x = (i % GRID.cols) * GRID.pitch + 2, y = Math.floor(i / GRID.cols) * GRID.pitch + 2, w = worn.get(it.uid);
       const r = merging ? roleOf(it, worn) : { role: 'free' };
-      const e = meta.acc.equip[S.hero] || {}, cur = find(e[slotOf(it)]);
-      const dot = !merging && !w && itemStat(it) > (cur ? itemStat(cur) : 0);
+      const dot = false;
       const t = itemTile(it, { size: GRID.size, id: 'bag-' + it.uid, onTap: () => onBag(it.uid), slotIcon: true, dot, shadow: true });
       if (w && w.hid !== S.hero) { used[w.hid] = (used[w.hid] || 0) + 1; t.put(chipOf(w.hid, used[w.hid]), GRID.size - 24 - 3, 3, 14); }
       if (merging) {
@@ -206,17 +229,21 @@ export function createEquip(game) {
       sc.put(t, x, y, 2); gridNodes.push(t);
     });
     sc.setContentH(Math.max(GRID.h, Math.ceil(list.length / GRID.cols) * GRID.pitch + 4)); sc.scrollTo(keep);
-    const empty = !list.length && !merging; emptyG.setVisible(empty); U.emptyText = empty ? 'Thắng ải để nhặt trang bị' : '';
+    const empty = !list.length && !merging; emptyG.setVisible(empty); U.emptyText = '';
     countT.set(`${list.length} món`); U.bag = list.length; U.sort = SORTS[S.sort].label; sortB.setLabel(U.sort);
     U.uids = list.map((it) => it.uid);
   }
   function buildMats() {
-    for (const n of matNodes) kill(n); matNodes = [];
-    SLOTS.forEach((s, i) => {
+    for (const n of matNodes) kill(n); matNodes = []; U.mats = {};
+    if (!meta.unlocked('upgrade')) return;
+    let k = 0;
+    SLOTS.forEach((s) => {
+      if (!meta.slotOpen(s.id)) return;
       const n = meta.acc.mats[s.id] || 0, p = ui.panel({ w: 54, h: 26, r: 13, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false });
       p.put(ui.icon(s.id, { size: 28, sway: false }), -6, -1, 4); p.put(ui.text(fmt(n), { size: 12, align: 'right', valign: 'mid', outlineW: 1.8 }), 50, 14, 4);
-      eq.put(p, 10 + i * 57.5, 384, 6); matNodes.push(p); U.mats[s.id] = fmt(n);
+      eq.put(p, 10 + k++ * 57.5, 384, 6); matNodes.push(p); U.mats[s.id] = fmt(n);
     });
+    const area = tapArea('mats', 340, 48, () => say('Bản rèn: dùng để nâng cấp món cùng ô')); eq.put(area, 10, 372, 3); matNodes.push(area);
   }
 
   // ---------- item sheet ----------
@@ -238,6 +265,7 @@ export function createEquip(game) {
     put(ui.text(def.name, { size: 20, align: 'center', outlineW: 3 }), 158, 124);
     const tn = T.name, tp = ui.panel({ w: Math.max(96, tn.length * 11 + 28), h: 24, r: 12, color: T.color, depth: 3, bevel: 2, ow: 2.4, shadow: false }); put(tp, 158 - Math.max(96, tn.length * 11 + 28) / 2, 152);
     tp.put(ui.text(tn, { size: 13, align: 'center', valign: 'mid', upper: true, outlineW: 2 }), Math.max(96, tn.length * 11 + 28) / 2, 13, 2);
+    put(tapArea('tier-tag', Math.max(120, tn.length * 11 + 28), 48, () => say(T.need ? `${tn}: ghép ${T.need} món lên ${TIERS[it.tier + 1].name}` : `${tn}: bậc cao nhất`)), 158 - Math.max(120, tn.length * 11 + 28) / 2, 140, 8);
     put(ui.text(`Cấp ${it.lv}/${T.maxLv}`, { size: 14, align: 'center', outlineW: 2.2 }), 158, 182);
     put(ui.icon(STAT_ICON[slot.stat], { size: 30, sway: false }), 96, 202);
     const st = itemStat(it); put(ui.text(`+${fmt(st)} ${STAT_NAME[slot.stat]}`, { size: 18, color: 0xffe27a, outlineW: 2.6 }), 130, 207);
@@ -256,22 +284,39 @@ export function createEquip(game) {
     const cur = meta.acc.equip[S.hero] && find(meta.acc.equip[S.hero][def.slot]);
     wearB.setSub(w && w.hid === S.hero ? HERO[S.hero].name : w ? `Lấy từ ${HERO[w.hid].name}` : cur ? `Thay ${ITEM[cur.item].name}` : `Cho ${HERO[S.hero].name}`);
     let line;
-    if (it.lv >= T.maxLv) line = 'Cấp tối đa'; else if (up.ok) line = `${fmt(up.cost.gold)} vàng · ${up.cost.mats} bản rèn`; else if (up.why === 'thiếu vàng') line = `Thiếu ${fmt(up.cost.gold - meta.acc.gold)} vàng`; else line = `Thiếu ${up.cost.mats - meta.acc.mats[def.slot]} bản rèn`;
+    if (it.lv >= T.maxLv) line = 'Cấp tối đa'; else if (up.free) line = 'MIỄN PHÍ'; else if (up.ok) line = `${fmt(up.cost.gold)} vàng · ${up.cost.mats} bản rèn`; else if (up.why === 'thiếu vàng') line = `Thiếu ${fmt(up.cost.gold - meta.acc.gold)} vàng`; else line = `Thiếu ${up.cost.mats - meta.acc.mats[def.slot]} bản rèn`;
     upB.setEnabled(up.ok); upB.setSub(line);
     U.sheet = { uid: it.uid, name: def.name, tier: tn, lv: `Cấp ${it.lv}/${T.maxLv}`, stat: `+${fmt(st)} ${STAT_NAME[slot.stat]}`, perks, wear: w && w.hid === S.hero ? 'THÁO' : 'MẶC', upgrade: line, upgradeOk: up.ok };
   }
+  // the number that rises: a big +N over the stat it changed, and the stat strip pulses
+  function popGain(g) {
+    const rows = [['atk', 96, g.atk], ['hp', 266, g.hp]].filter((r) => r[2] > 0);
+    for (const [key, x, n] of rows) { ui.fly('+' + fmt(n), x, 116, { size: 34 }); U.fly = { stat: key, text: '+' + fmt(n), n }; U.flyN++; }
+    if (rows.length) pulse = 0.55;
+  }
+  const statDiff = (a, b) => ({ atk: b.atk - a.atk, hp: b.hp - a.hp });
   function doWear() {
     const it = find(S.sheet); if (!it) return;
     const w = wornMap().get(it.uid), slot = slotOf(it);
     if (w && w.hid === S.hero) { const r = meta.unequip(S.hero, slot); if (!r.ok) { ui.toast(cap(r.why)); return; } ui.toast(`Đã tháo ${ITEM[it.item].name}`); closeSheet(); return; }
+    const s0 = meta.heroStats(S.hero);
     const r = meta.equip(S.hero, it.uid); if (!r.ok) { ui.toast(cap(r.why)); return; }
     ui.toast(`${HERO[S.hero].name} đã mặc ${ITEM[it.item].name}`); closeSheet();
     const left = LEFT.includes(slot); burst.spawn(left ? 42 : 318, 160 + (left ? LEFT : RIGHT).indexOf(slot) * 66, 22, TIERS[it.tier].color, 170); game.vibrate && game.vibrate(15);
+    popGain(statDiff(s0, meta.heroStats(S.hero)));
+  }
+  function wearBest() {
+    if (fx) return;
+    const s0 = meta.heroStats(S.hero), r = meta.equipBest(S.hero); if (!r.ok) { ui.toast(cap(r.why)); return; }
+    ui.toast(`${HERO[S.hero].name} đã mặc ${r.changes.length} món tốt nhất`); game.vibrate && game.vibrate(20);
+    burst.spawn(180, 230, 26, 0xffc21f, 190); popGain(statDiff(s0, meta.heroStats(S.hero)));
   }
   function doUpgrade() {
     const it = find(S.sheet); if (!it) return;
+    const free = !meta.unlocked('upgrade'), s0 = meta.heroStats(S.hero);
     const r = meta.upgradeItem(it.uid); if (!r.ok) { ui.toast(cap(r.why)); return; }
     shBurst.spawn(180, 150, 24, TIERS[it.tier].color, 200); ui.fly('LÊN CẤP ' + r.lv + '!', 180, 150); game.vibrate && game.vibrate(20);
+    if (free) { closeSheet(); popGain(statDiff(s0, meta.heroStats(S.hero))); }
   }
 
   // ---------- merge mode ----------
@@ -329,7 +374,7 @@ export function createEquip(game) {
   function leaveMerge() { if (fx) return; S.mode = 'normal'; S.main = 0; S.picks = []; dirty = true; layoutMode(); }
   function layoutMode() {
     const m = S.mode === 'merge';
-    heroG.setVisible(!m); mergeG.setVisible(m); mergeB.setVisible(!m); autoB.setVisible(!m); cancelB.setVisible(m); doB.setVisible(m);
+    heroG.setVisible(!m); mergeG.setVisible(m); for (const n of [bestB, mergeB, autoB]) if (n) n.setVisible(!m); cancelB.setVisible(m); doB.setVisible(m);
     title.set(m ? 'GHÉP TRANG BỊ' : 'TRANG BỊ'); U.mode = S.mode; stage.setColor(m ? 0x8a3fa0 : rarityColor(S.hero));
   }
   function onBag(uid) {
@@ -417,10 +462,9 @@ export function createEquip(game) {
     S.picks = S.picks.filter((u) => find(u));
     if (S.mode === 'merge' && S.main && TIERS[find(S.main).tier].need === 0) { S.main = 0; S.picks = []; }
     if (builtFor !== S.hero) buildModel();
-    refreshHero(); buildSlots(); buildGrid(); buildMats();
+    buildBottom(); refreshHero(); buildSlots(); buildGrid(); buildMats();
     if (S.mode === 'merge') { buildPreview(); paintMergeButtons(); }
     U.main = S.main; U.picks = S.picks.slice(); layoutMode();
-    const lk = !meta.unlocked('merge'); lockButton(mergeB, lk); lockButton(autoB, lk); mLock.setVisible(lk); aLock.setVisible(lk);
     if (S.sheet) buildSheet();
   }
   return [{
@@ -435,6 +479,7 @@ export function createEquip(game) {
       if (!ui.isShown('equip')) return;
       bd.tick(ui.t); burst.update(dt); shBurst.update(dt);
       if (fx) stepFx(dt);
+      if (pulse > 0) { pulse = Math.max(0, pulse - dt); const k = Math.sin((pulse / 0.55) * Math.PI) * 0.06; statP.scale.set(1 + k, 1 + k, 1); statP.pos(8 - 172 * k, 78 - 20 * k, 6); }
       if (dirty && !fx) { dirty = false; rebuildAll(); }
     },
   }];

@@ -3,6 +3,7 @@
 import { createMeta } from '../js/meta.js';
 import { levelCost, levelMul, HERO_RARITY } from '../js/data/economy.js';
 import { itemStat } from '../js/data/equip.js';
+import { isUnlocked as import_isUnlocked } from '../js/data/unlocks.js';
 import { HERO } from '../js/data/heroes.js';
 
 const fails = [];
@@ -380,12 +381,51 @@ const win = (M, stage, extra = {}) => M.finishStage({ stage, won: true, wavesCle
   check(M.claimChapter(0).ok, 'chapter chest opens after stage 5');
   check(refused(M.equip('gio', 1), 'equip') === (M.acc.level < 6), 'equip follows level 6');
   for (let s = 6; M.acc.level < 6; s++) win(M, s);
-  const w = give(M, 'weapon', 'w_cua');
-  check(M.equip('gio', w.uid).ok && M.upgradeItem(w.uid).ok === (M.canUpgradeItem(w.uid).ok), 'equip and upgrade open at level 6');
-  check(refused(M.autoMerge(), 'merge') === (M.acc.level < 9), 'merge follows level 9');
-  while (M.acc.level < 9) win(M, 10);
+  check(M.unlocked('equip') && M.acc.bag.length === 2 && M.acc.bag[0].item === 'w_cua', 'equip opens at level 6: the gift weapon and the chapter chest item (claimed just after) are the whole bag');
+  const w = M.acc.bag[0];
+  check(M.equip('gio', w.uid).ok && M.upgradeItem(w.uid).ok, 'equip and the free first upgrade work at level 6');
+  check(refused(M.autoMerge(), 'merge'), 'merge is still locked with one item');
   for (let i = 0; i < 3; i++) give(M, 'weapon', 'w_cua');
-  check(M.autoMerge().ok, 'autoMerge opens at level 9');
+  check(M.unlocked('merge') === true, 'three identical items in the bag open merge');
+}
+
+// equipment before and after Trang Bị opens (literal numbers)
+{
+  const N = brandNew();
+  win(N, 1);
+  N.acc.gold = 0; N.acc.gems = 1000; N.acc.freePull = false; N.acc.pity = 0;
+  const g0 = N.acc.gold;
+  const r = N.finishStage({ stage: 3, won: true, wavesCleared: 5, seconds: 40 });
+  check(r.items.length === 0 && N.acc.bag.length === 0 && Object.values(N.acc.mats).every((n) => n === 0), 'before level 6: a first clear drops no item and no material');
+  eq([r.gold, r.itemGold, N.acc.gold - g0, r.mats], [630 + 3 * 30 + 2 * 10, 110, 630 + 110, 0], 'before level 6: stage 3 first clear pays 630 gold plus 3 items x 30 and 2 mats x 10 as gold');
+  eq(M0pull(N), [300, 0], 'before level 6: a gacha item row pays 300 gold (kind gold, n 300) and adds no item');
+  // level 5 -> 6
+  while (N.acc.level < 5) N.finishStage({ stage: 1, won: true, wavesCleared: 5, seconds: 40 });
+  const bagBefore = N.acc.bag.length;
+  eq([N.unlocked('equip'), bagBefore], [false, 0], 'level 5: Trang Bị locked, bag empty');
+  let up = null;
+  while (!up) { const q = N.finishStage({ stage: 1, won: true, wavesCleared: 5, seconds: 40 }); if (q.unlocked.includes('equip')) up = q; }
+  eq([up.unlocked.includes('equip'), N.acc.bag.length, N.acc.bag[0].item, N.acc.bag[0].tier, N.acc.bag[0].lv, up.items.length], [true, 1, 'w_cua', 0, 1, 1], 'the unlock gives exactly one level-1 Thường Cưa Xích Cũ and nothing else');
+  eq(N.openSlots(), ['weapon'], 'at the unlock only the weapon slot is open');
+  check(!N.slotOpen('armor') && N.slotLine('armor') === 'Giáp: Rơi từ ải ' + (N.acc.equipAt + 2) + ' trở đi', 'a closed slot says where it drops: ' + N.slotLine('armor'));
+  const at = N.acc.equipAt;
+  const w1 = N.finishStage({ stage: 2, won: true, wavesCleared: 5, seconds: 40 });
+  check(w1.items.length === 0 || w1.items.every((i) => ['w_cua', 'w_no', 'w_bua'].includes(i.item)), 'stages after the unlock drop weapons only while only the weapon slot is open');
+  eq(N.acc.mats, { weapon: 0, necklace: 0, gloves: 0, armor: 0, belt: 0, boots: 0 }, 'materials still pay gold before the first upgrade');
+  // slot opening order by stages cleared after the unlock
+  N.acc.cleared = at; N.acc.equipAt = at;
+  const order = [];
+  for (let k = 0; k <= 5; k++) { N.acc.cleared = at + k; order.push(N.openSlots().slice().sort().join('+')); }
+  const S = (...x) => x.sort().join('+');
+  eq(order, [S('weapon'), S('weapon', 'armor'), S('weapon', 'armor', 'gloves', 'boots'), S('weapon', 'armor', 'gloves', 'boots'), S('weapon', 'armor', 'gloves', 'boots', 'necklace', 'belt'), S('weapon', 'armor', 'gloves', 'boots', 'necklace', 'belt')], 'slots open: weapon; armor 1 stage later; gloves and boots 2; necklace and belt 4');
+  N.acc.cleared = at;
+  check(N.equip('gio', N.acc.bag[0].uid).ok, 'the weapon can be worn');
+  check(!N.equip('gio', give(N, 'armor', 'a_lop').uid).ok && N.equip('gio', N.acc.bag[N.acc.bag.length - 1].uid).why === N.slotLine('armor'), 'an item of a closed slot cannot be worn (refused with the slot line)');
+}
+function M0pull(M) {
+  // force the item row of the gacha table: the first pull whose row is an item
+  for (let k = 0; k < 400; k++) { M.acc.gems = 1000; const g0 = M.acc.gold; const r = M.pull(1).results[0]; if (r.row === 'item') return [M.acc.gold - g0, M.acc.bag.length + (r.item ? 1 : 0) - M.acc.bag.length]; }
+  return [-1, -1];
 }
 
 // XP and level
@@ -520,6 +560,94 @@ function FTUE_IDS_OK(M) { return ['intro', 'ult', 'pick', 'join', 'boss', 'rewar
   eq(M2.acc, M.acc, 'save and reload give an identical account');
   const V = createMeta({ storage: st, now: () => clock, preset: 'vet' });
   eq(V.acc.cleared, 1, 'a preset is ignored when a save exists');
+}
+
+// the gentle opening: free first upgrade, merge by triple, equipBest, the dot reasons, old saves
+// a new account taken to Trang Bị with two heroes and the weapon gift
+const opened = () => {
+  const M = brandNew();
+  M.acc.heroes.yta = { level: 1, shards: 0 }; M.acc.team = ['gio'];
+  win(M, 1); M.acc.level = 5; M.acc.xp = 199; win(M, 2); // crosses to level 6 and hands the weapon over
+  return M;
+};
+{
+  const M = opened();
+  const w = M.acc.bag[0];
+  eq([M.unlocked('equip'), M.acc.bag.length, w.item, M.unlocked('upgrade'), true], [true, 1, 'w_cua', false, true], 'opened account: one weapon, upgrade not open yet');
+  M.acc.gold = 1000; M.acc.mats.weapon = 0;
+  const c1 = M.canUpgradeItem(w.uid);
+  eq([c1.ok, c1.cost.gold, c1.cost.mats, c1.free], [true, 0, 0, true], 'the first upgrade is free (0 gold, 0 materials)');
+  M.equip('gio', w.uid);
+  const u1 = M.upgradeItem(w.uid);
+  eq([u1.ok, u1.free, w.lv, M.acc.gold, M.acc.mats.weapon, M.unlocked('upgrade')], [true, true, 2, 1000, 0, true], 'free upgrade: level 2, gold and materials untouched, upgrade now open');
+  const c2 = M.canUpgradeItem(w.uid);
+  eq([c2.ok, c2.cost.gold, c2.cost.mats], [false, 114, 1], 'the second upgrade costs upgradeCost(2): 114 gold and 1 material (refused without the material)');
+  M.acc.mats.weapon = 1; const u2 = M.upgradeItem(w.uid);
+  eq([u2.ok, M.acc.gold, M.acc.mats.weapon, w.lv], [true, 1000 - 114, 0, 3], 'the second upgrade takes 114 gold and 1 weapon material');
+  const r = M.finishStage({ stage: 3, won: true, wavesCleared: 5, seconds: 40 });
+  check(r.mats === 2 && Object.values(M.acc.mats).reduce((a, b) => a + b, 0) === 2, 'after the first upgrade materials drop again');
+}
+{
+  // merge: triple of the same item and tier, latched; no bag field means locked
+  const M = opened();
+  const noBag = { level: 20, cleared: 40 }; 
+  check(M.lockText('merge') === 'Có 3 món giống nhau thì mở', 'merge lock text names the condition');
+  give(M, 'weapon', 'w_cua'); eq(M.unlocked('merge'), false, 'merge: two identical items keep it locked');
+  give(M, 'weapon', 'w_no'); eq(M.unlocked('merge'), false, 'merge: two of one kind plus another still locked');
+  give(M, 'weapon', 'w_cua'); eq(M.unlocked('merge'), true, 'merge: three identical items open it');
+  check(M.pendingReveals().includes('merge'), 'merge opening is announced by a reveal');
+  eq([M.autoShown(), M.acc.stats.merges], [false, 0], 'Ghép Nhanh is hidden before the first manual merge');
+  const ids = M.acc.bag.filter((i) => i.item === 'w_cua').map((i) => i.uid);
+  const t = M.guideTokens();
+  eq([t['bag-main'], t['bag-copy1'], t['bag-copy2']], ids.map((u) => 'bag-' + u), 'guide tokens name the triple');
+  check(M.merge(ids[0], ids.slice(1)).ok, 'the guided merge works');
+  eq([M.unlocked('merge'), M.autoShown(), M.acc.stats.merges, M.acc.bag.filter((i) => i.tier === 1 && i.item === 'w_cua').length], [true, true, 1, 1], 'merge stays open after the triple is gone; Ghép Nhanh shows; one Tốt Cưa Xích Cũ');
+  const st = fakeStorage(); const M3 = brandNew(st); M3.acc = M.acc; M3.save(); const M4 = brandNew(st);
+  eq([M4.unlocked('merge'), M4.autoShown()], [true, true], 'merge and Ghép Nhanh survive a reload');
+  eq(import_isUnlocked(noBag, 'merge'), false, 'isUnlocked works when the account has no bag field (merge locked)');
+}
+{
+  // equipBest: strongest free item per opened slot, never one another hero wears
+  const M = fresh();
+  const a = give(M, 'weapon', 'w_cua'), b = give(M, 'weapon', 'w_bua', 1), c = give(M, 'armor', 'a_lop'), d = give(M, 'armor', 'a_kevlar');
+  M.equip('mua', b.uid);
+  const plan = M.equipBestPlan('thep');
+  eq(plan.changes.map((x) => x.slot + ':' + x.uid), ['weapon:' + a.uid, 'armor:' + c.uid], 'equipBestPlan: the free weapon (the better one is worn by another hero) and the stronger armour');
+  const r = M.equipBest('thep');
+  eq([r.ok, r.changes.length, r.gain.atk, r.gain.hp, M.acc.equip.thep.weapon, M.acc.equip.thep.armor, M.acc.equip.mua.weapon], [true, 2, itemStat(a), itemStat(c), a.uid, c.uid, b.uid], 'equipBest wears them and reports the gain');
+  check(!M.equipBest('thep').ok && M.equipBest('thep').why === 'không có món nào mạnh hơn', 'equipBest with nothing better is refused');
+  const N = brandNew(); check(!N.equipBest('gio').ok && N.equipBest('gio').why === N.lockText('equip'), 'equipBest before Trang Bị refuses with the lock text');
+}
+{
+  // every dot reason flips the tab dot on and off, for team heroes only
+  const M = opened(); M.acc.gold = 0; M.acc.mats.weapon = 0;
+  const w = M.acc.bag[0];
+  M.acc.stats.upgrades = 1; // past the free upgrade
+  let d = M.dots();
+  eq([d.equip, d.equipWhy.better, d.slotDots.gio.weapon, d.best.gio], [true, true, 'better', true], 'dot: a stronger free item for an opened slot lights the tab, the slot and Mặc Tốt Nhất');
+  M.equip('gio', w.uid); d = M.dots();
+  eq([d.equip, d.equipWhy.better, d.slotDots.gio.weapon, !!d.best.gio], [false, false, undefined, false], 'dot off: worn, nothing to upgrade without gold and materials');
+  M.acc.gold = 500; M.acc.mats.weapon = 5; d = M.dots();
+  eq([d.equip, d.equipWhy.upgrade, d.slotDots.gio.weapon], [true, true, 'upgrade'], 'dot: an equipped item that can be upgraded lights the tab and its slot');
+  M.acc.gold = 0; d = M.dots(); eq(d.equip, false, 'dot off: not enough gold to upgrade');
+  const x = give(M, 'weapon', 'w_cua'), y = give(M, 'weapon', 'w_cua');
+  d = M.dots(); eq([d.equip, d.equipWhy.merge, d.merge], [true, true, true], 'dot: a merge is possible (three identical, two free) lights the tab');
+  check(M.dots().slotDots.gio.weapon === undefined, 'the merge dot is on GHÉP, not on a slot');
+  M.merge(x.uid, [y.uid, w.uid]).ok || M.autoMerge();
+  d = M.dots(); eq(d.equipWhy.merge, false, 'dot off: nothing left to merge');
+  const z = give(M, 'gloves', 'g_da'); d = M.dots();
+  eq([d.equip, d.slotDots.gio.gloves], [false, undefined], 'no dot for a new item in a closed slot (and none for a new item alone)');
+  const V = fresh(); const t = give(V, 'weapon', 'w_cua');
+  eq([V.dots().equip, V.dots().slotDots.thep.weapon], [true, 'better'], 'dot: a vet account opens every slot');
+  V.acc.team = ['thep']; V.equip('mua', t.uid); eq(V.dots().equip, false, 'dot off: the only better item is worn by a hero outside the team and nobody else lacks one');
+}
+{
+  // old saves keep everything they had
+  const st = fakeStorage();
+  st.setItem(KEY, JSON.stringify({ v: 1, gold: 900, gems: 40, cleared: 12, level: 9, heroes: { thep: { level: 2, shards: 0 }, gio: { level: 1, shards: 0 } }, team: ['thep', 'gio'], bag: [{ uid: 1, item: 'w_cua', tier: 0, lv: 3 }, { uid: 2, item: 'a_lop', tier: 0, lv: 1 }], ftue: { done: {}, session: true }, seenUnlock: { gacha: true }, visited: {} }));
+  const M = brandNew(st);
+  eq([M.acc.bag.length, M.openSlots().length, M.unlocked('upgrade'), M.unlocked('merge'), M.acc.ftue.done.equip, M.pendingReveals().includes('upgrade'), M.pendingReveals().includes('slot_hands')], [2, 6, true, true, true, false, false], 'an old save at level 9 keeps its items, every slot, upgrade and merge, and plays no equipment guide or reveal');
+  for (const scr of ['home', 'battle']) { const g = M.ftueNext({ screen: scr }); check(!(g && (g.id === 'equip' || g.id === 'merge')), `old save: no equipment or merge guide on ${scr}`); }
 }
 
 if (fails.length) { console.log(`\n${fails.length} FAILED`); process.exit(1); }

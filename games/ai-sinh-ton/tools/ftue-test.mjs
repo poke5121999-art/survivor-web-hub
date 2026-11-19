@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { serve, launch, open, checker, sheet, ROOT } from './pw.mjs';
 import { HERO } from '../js/data/heroes.js';
 import { UNLOCK } from '../js/data/unlocks.js';
+import { itemStat } from '../js/data/equip.js';
 
 const OUT = path.join(ROOT, '.chk', 'ftue'); fs.mkdirSync(OUT, { recursive: true });
 for (const f of fs.readdirSync(OUT)) if (f.endsWith('.png')) fs.unlinkSync(path.join(OUT, f));
@@ -235,6 +236,159 @@ try {
     await snap(p, 'old-save-home');
     check(problems.length === 0, `old save logged no errors (${problems.slice(0, 2).join(' | ') || 'none'})`);
     await ctx.close();
+  }
+
+  // ============ equipment: a gentle first meeting (pictures in .chk/ftue-equip/) ============
+  {
+    const OUTE = path.join(ROOT, '.chk', 'ftue-equip'); fs.mkdirSync(OUTE, { recursive: true });
+    for (const f of fs.readdirSync(OUTE)) if (f.endsWith('.png')) fs.unlinkSync(path.join(OUTE, f));
+    const eshots = [];
+    const snapE = async (page, name) => { const f = path.join(OUTE, name + '.png'); await page.screenshot({ path: f }); eshots.push(f); };
+    const eu = (page) => page.evaluate(() => JSON.parse(JSON.stringify(__G.metaUi.equipUi)));
+    const accOf = (page) => page.evaluate(() => JSON.parse(JSON.stringify(__G.meta.acc)));
+    const num = (x) => +String(x).replace(/\./g, '');
+    const ids = (page) => page.evaluate(() => __ui.targets().map((t) => t.id));
+    // a quiet win: every reveal is marked seen except Trang Bị, so the unlock reveal plays for real
+    const winQ = (page, stage) => page.evaluate((st) => { const M = __G.meta; for (const id of ['spectate', 'speed', 'daily', 'chapter']) M.ftueDone(id); const r = M.finishStage({ stage: st, won: true, wavesCleared: 5, seconds: 30 }); for (const id of M.pendingReveals()) if (id !== 'equip') M.markSeen(id); return { unlocked: r.unlocked, itemGold: r.itemGold, items: r.items.length, gold: r.gold }; }, stage);
+    // walk the running guide through real taps; a pause entry is waited out. hooks.at(i, target) runs when an entry shows.
+    async function walk(page, prefix, hooks = {}) {
+      const seq = []; const lines = []; let last = ''; let started = false; let idle = 0; const probs = [];
+      for (let it = 0; it < 700; it++) {
+        const d = await guide(page);
+        if (d.reveal) { await tapId(page, 'reveal-tap'); await step(page, 6); continue; }
+        if (!d.active) { if (started) break; if (++idle > 80) break; await step(page, 10); continue; }
+        started = true;
+        const key = d.idx + ':' + (d.waiting ? 'wait' : d.target);
+        if (key !== last) {
+          last = key; seq.push(d.waiting ? 'wait' : d.target); lines.push(d.text);
+          const n = String(seq.length).padStart(2, '0');
+          if (d.waiting) {
+            const hit = await page.evaluate(() => __ui.hitAt(180, 400));
+            if (hit !== 'guide-block') probs.push(`pause ${key}: tap lands on ${hit}`);
+            if (hooks.wait) await hooks.wait(seq.length - 1, page);
+            await snapE(page, `${prefix}-${n}-wait`);
+          } else if (d.rect) {
+            let r = null;
+            for (let k = 0; k < 10; k++) {
+              await step(page, 6);
+              r = await page.evaluate(() => {
+                const dd = __G.guide.dbg(), all = __ui.targets(), t = all.find((q) => q.id === dd.target && !/^(guide|reveal)/.test(q.id));
+                if (!t || !dd.rect) return null;
+                const others = all.filter((q) => q.enabled && !/^(guide|reveal)/.test(q.id) && q.id !== dd.target), wrong = [];
+                for (const o of others) { const cx = o.x + o.w / 2, cy = o.y + o.h / 2; if (cx < t.x - 1 || cx > t.x + t.w + 1 || cy < t.y - 1 || cy > t.y + t.h + 1) { const h = __ui.hitAt(cx, cy); if (h !== 'guide-block') wrong.push(o.id + '->' + h); } }
+                return { dx: Math.max(Math.abs(dd.rect.x - t.x), Math.abs(dd.rect.y - t.y), Math.abs(dd.rect.w - t.w), Math.abs(dd.rect.h - t.h)), wrong, others: others.length };
+              });
+              if (r && r.dx <= 2) break;
+            }
+            if (!r || r.dx > 2) probs.push(`step ${key}: spotlight off by ${r ? r.dx.toFixed(1) : 'n/a'}`);
+            if (r && r.wrong.length) probs.push(`step ${key}: not blocked ${r.wrong.slice(0, 3).join(', ')}`);
+            if (hooks.target) await hooks.target(seq.length - 1, d.target, page);
+            await snapE(page, `${prefix}-${n}-${d.target}`);
+          }
+        }
+        if (d.waiting) { await step(page, 12); continue; }
+        if (!d.rect) { await step(page, 8); continue; }
+        await tapId(page, d.target); await step(page, 12);
+      }
+      return { seq, lines, probs };
+    }
+
+    const { page: p, ctx, problems } = await fresh(); await step(p, 20);
+    await winIn(p, 1); await p.evaluate(() => __G.meta.ftueSkip());
+    for (let k = 0; k < 12; k++) { const a = await accOf(p); if (a.level >= 5) break; await winQ(p, a.cleared + 1); }
+    let a5 = await accOf(p);
+    const mats5 = Object.values(a5.mats).reduce((x, y) => x + y, 0);
+    check(a5.level === 5 && a5.bag.length === 0 && mats5 === 0, `level 5 after real clears: Trang Bị still shut, empty bag, no forge materials (level ${a5.level}, bag ${a5.bag.length}, mats ${mats5})`);
+    const g5 = a5.gold; const w6 = await winQ(p, a5.cleared + 1);
+    const a6 = await accOf(p);
+    check(w6.unlocked.includes('equip') && a6.level === 6 && a6.bag.length === 1 && a6.bag[0].item === 'w_cua' && a6.bag[0].tier === 0 && a6.bag[0].lv === 1, `the unlock stage gives exactly one weapon (bag ${a6.bag.map((i) => i.item + ':' + i.tier).join()}, unlocked ${w6.unlocked.join()})`);
+    check(w6.itemGold > 0 && a6.gold - g5 === w6.gold, `that stage's own items were paid as gold (${w6.itemGold} of ${w6.gold} gold)`);
+    await p.evaluate(() => { __G.goto('home', {}); }); await step(p, 90);
+    let d = await guide(p);
+    check(!!d.reveal && d.reveal.label === 'MỞ KHOÁ: ' + UNLOCK.equip.name.toLocaleUpperCase('vi'), `the reveal for Trang Bị plays (${d.reveal && d.reveal.label})`);
+    await step(p, 120); await snapE(p, '00-reveal');
+    for (let k = 0; k < 8 && (await guide(p)).reveal; k++) { await tapId(p, 'reveal-tap'); await step(p, 40); }
+    await step(p, 40);
+    d = await guide(p);
+    check(d.active && d.id === 'equip' && d.target === 'tab-equip', `then the equipment guide starts on the tab (${d.id}:${d.target})`);
+    const gift = a6.bag[0]; const stat1 = itemStat({ item: 'w_cua', tier: 0, lv: 1 }), stat2 = itemStat({ item: 'w_cua', tier: 0, lv: 2 });
+    const info = {};
+    const W = await walk(p, 'g', {
+      target: async (i, t, pg) => {
+        const tg = await ids(pg);
+        if (t === 'tab-equip') info.homeIds = tg;
+        if (t === 'bag-' + gift.uid) { const u = await eu(pg); info.atk0 = num(u.atk); info.slots = u.slotInfo; info.noMerge = !tg.includes('merge') && !tg.includes('automerge'); info.bagN = u.bag; info.gold0 = (await accOf(pg)).gold; info.mats0 = (await accOf(pg)).mats.weapon; }
+        if (t === 'upgrade') { const u = await eu(pg); info.upLine = u.sheet && u.sheet.upgrade; }
+      },
+      wait: async (i, pg) => { const u = await eu(pg); if (i === 4) { info.atk1 = num(u.atk); info.bonus1 = u.atkBonus; info.fly1 = u.fly; info.n1 = u.flyN; } else { info.fly2 = u.fly; info.n2 = u.flyN; info.atk2 = num(u.atk); } },
+    });
+    const want = ['tab-equip', 'equip-hero', 'bag-' + gift.uid, 'wear', 'wait', 'slot-weapon', 'upgrade', 'wait'];
+    check(JSON.stringify(W.seq) === JSON.stringify(want), `the equipment guide walked its steps in order (${W.seq.join(' ')})`);
+    check(W.probs.length === 0, `every step lit its target (spotlight within 2 px) and blocked the rest (${W.probs.slice(0, 3).join(' | ') || 'none'})`);
+    check(W.lines.every((l) => l && l.length <= 34), `one short line per step (${W.lines.join(' / ')})`);
+    check(info.noMerge === true && info.bagN === 1, `GHÉP and GHÉP NHANH targets do not exist and the bag shows one item (bag ${info.bagN})`);
+    const closed = Object.entries(info.slots || {}).filter(([, v]) => v.startsWith('closed')).map(([k]) => k);
+    check(closed.length === 5 && !closed.includes('weapon'), `five slots are dimmed (${closed.join()})`);
+    check(info.atk1 === info.atk0 + stat1 && info.bonus1 === '+' + stat1, `after MẶC the Công text is the old ${info.atk0} plus ${stat1} (${info.atk1}, bonus "${info.bonus1}")`);
+    check(!!info.fly1 && info.fly1.text === '+' + stat1 && info.fly1.n === stat1 && info.n1 >= 1, `a "+N" fly-up with N = ${stat1} was shown (${JSON.stringify(info.fly1)})`);
+    check(info.upLine === 'MIỄN PHÍ', `the upgrade button reads "${info.upLine}"`);
+    const aG = await accOf(p); const it2 = aG.bag.find((i) => i.uid === gift.uid);
+    check(it2.lv === 2 && aG.gold === info.gold0 && aG.mats.weapon === info.mats0, `the free upgrade cost 0 gold and 0 materials and raised the item to level ${it2.lv}`);
+    check(info.fly2 && info.fly2.n === stat2 - stat1 && info.n2 > info.n1 && info.atk2 === info.atk0 + stat2, `the number rose again: +${info.fly2 && info.fly2.n} to ${info.atk2} (want +${stat2 - stat1} to ${info.atk0 + stat2})`);
+    check(aG.ftue.done.equip === true, 'the equipment guide is saved as done');
+    // dimmed slots explain themselves; the screen has little standing text
+    await step(p, 60); await tapId(p, 'tab-equip'); await step(p, 30);
+    if ((await p.evaluate(() => __G.screen)) !== 'equip') { await p.evaluate(() => __G.goto('equip')); await step(p, 30); }
+    await tapId(p, 'slot-armor'); await step(p, 10);
+    const uA = await eu(p);
+    check(uA.toasts.slice(-1)[0] === 'Giáp: Rơi từ ải ' + (aG.equipAt + 2) + ' trở đi', `tapping a dimmed slot says where its item drops ("${uA.toasts.slice(-1)[0]}")`);
+    await snapE(p, '20-dimmed-slot-toast');
+    await tapId(p, 'stat-panel'); await step(p, 10);
+    check((await eu(p)).toasts.slice(-1)[0].length > 5, 'tapping the stat panel gives one line');
+    await snapE(p, '21-stat-toast');
+    // a reload shows no guide
+    await p.reload(); await p.waitForFunction('window.__ready === true'); await step(p, 200);
+    const rl = await p.evaluate(() => ({ g: __G.guide.dbg(), n: __G.meta.ftueNext({ screen: 'home', event: 'home' }), screen: __G.screen }));
+    check(!(rl.g.active && /^(equip|merge)$/.test(rl.g.id)) && (!rl.n || (rl.n.id !== 'equip' && rl.n.id !== 'merge')), `after a reload the equipment guide does not replay (${JSON.stringify(rl.n && rl.n.id)})`);
+    // merge appears only with three identical items, with its own guide
+    await p.evaluate(() => { const M = __G.meta; M.acc.bag.push({ uid: ++M.acc.uidSeq, item: 'w_cua', tier: 0, lv: 1 }); M.save(); });
+    await p.evaluate(() => { __G.goto('equip'); }); await step(p, 40);
+    let tg = await ids(p);
+    check(!tg.includes('merge') && !tg.includes('automerge'), 'two identical items: GHÉP and GHÉP NHANH are still not shown');
+    await snapE(p, '30-two-copies');
+    await p.evaluate(() => { const M = __G.meta; M.acc.bag.push({ uid: ++M.acc.uidSeq, item: 'w_cua', tier: 0, lv: 1 }); M.save(); __G.goto('home', {}); }); await step(p, 90);
+    const revs = [];
+    for (let k = 0; k < 10; k++) { const r = (await guide(p)).reveal; if (!r) break; if (!revs.includes(r.label)) revs.push(r.label); await tapId(p, 'reveal-tap'); await step(p, 40); }
+    check(revs.includes('MỞ KHOÁ: GHÉP TRANG BỊ'), `the third copy opens Ghép with a reveal (${revs.join(' | ')})`);
+    await step(p, 40);
+    const M0 = await accOf(p);
+    const W2 = await walk(p, 'm', {});
+    const tokens = M0.bag.filter((i) => i.item === 'w_cua' && i.tier === 0).sort((x, y) => x.uid - y.uid).map((i) => 'bag-' + i.uid);
+    check(JSON.stringify(W2.seq) === JSON.stringify(['tab-equip', 'merge', ...tokens, 'merge-do']), `the merge guide walked in order (${W2.seq.join(' ')})`);
+    check(W2.probs.length === 0, `merge guide: spotlight and blockers right (${W2.probs.slice(0, 3).join(' | ') || 'none'})`);
+    await step(p, 80);
+    const aM = await accOf(p);
+    check(aM.bag.length === 1 && aM.bag[0].item === 'w_cua' && aM.bag[0].tier === 1, `the guided merge made one Tốt Cưa Xích Cũ (bag ${aM.bag.map((i) => i.item + ':' + i.tier).join()})`);
+    await snapE(p, '40-merged');
+    await tapId(p, 'merge-cancel'); await step(p, 30);
+    tg = await ids(p);
+    check(tg.includes('merge') && tg.includes('automerge'), 'after the first merge GHÉP NHANH appears beside GHÉP');
+    await snapE(p, '41-auto-appears');
+    check(problems.length === 0, `equipment flow logged no errors (${problems.slice(0, 2).join(' | ') || 'none'})`);
+    await ctx.close();
+
+    // an old save that already has items sees no equipment guide
+    {
+      const { page: q, ctx: c2, problems: pr2 } = await fresh(); await step(q, 10);
+      await q.evaluate(() => localStorage.setItem('aisinhton.save.v1', JSON.stringify({ v: 1, gold: 900, gems: 40, cleared: 8, level: 7, heroes: { thep: { level: 2, shards: 0 }, mua: { level: 1, shards: 0 }, gio: { level: 1, shards: 0 } }, team: ['thep', 'mua', 'gio'], bag: [{ uid: 1, item: 'w_cua', tier: 0, lv: 2 }, { uid: 2, item: 'a_lop', tier: 0, lv: 1 }], ftue: { done: { intro: true, ult: true, pick: true, join: true, boss: true, reward: true, levelup: true, gacha: true, team: true, start2: true }, session: true }, seenUnlock: { gacha: true, equip: true }, visited: {} })));
+      await q.reload(); await q.waitForFunction('window.__ready === true'); await step(q, 200);
+      const o = await q.evaluate(() => ({ g: __G.guide.dbg(), n: __G.meta.ftueNext({ screen: 'home', event: 'home' }), bag: __G.meta.acc.bag.length, open: __G.meta.openSlots().length, rev: __G.meta.pendingReveals() }));
+      check(!(o.g.active && /^(equip|merge)$/.test(o.g.id)) && (!o.n || !/^(equip|merge)$/.test(o.n.id)) && o.bag === 2 && o.open === 6 && !o.rev.includes('equip') && !o.rev.some((x) => /^slot_|upgrade/.test(x)), `old save with items: no equipment guide, items kept, every slot open, no staged reveals (${JSON.stringify([o.n && o.n.id, o.bag, o.open, o.rev])})`);
+      await q.evaluate(() => { __G.goto('equip'); }); await step(q, 40); await snapE(q, '50-old-save-equip');
+      check(pr2.length === 0, 'old save equipment screen logged no errors');
+      await c2.close();
+    }
+    sheet(eshots, path.join(OUTE, 'sheet.png'), 6, 300);
   }
 
   // review sheet of every picture

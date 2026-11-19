@@ -6,7 +6,6 @@ import { createBattle, step, pickCard } from '../js/sim/battle.js';
 import { stageDef } from '../js/data/stages.js';
 import { createMeta } from '../js/meta.js';
 import { HERO } from '../js/data/heroes.js';
-import { ITEM, SLOTS, itemStat } from '../js/data/equip.js';
 import { tutorialStage } from '../js/data/unlocks.js';
 
 const PLAYERS = +process.argv[2] || 3; const TO = +process.argv[3] || 30; const MAXM = +process.argv[4] || 260;
@@ -41,13 +40,9 @@ function journey(seed) {
     for (let again = true; again;) { again = false; for (const id of A().team.slice().sort((a, b) => A().heroes[a].level - A().heroes[b].level)) if (M.levelUp(id).ok) { again = true; break; } }
     if (!M.unlocked('equip')) return;
     if (M.unlocked('merge')) M.autoMerge();
-    const worn = new Set(); for (const h of Object.values(A().equip)) for (const u of Object.values(h)) if (u) worn.add(u);
-    for (const id of A().team) for (const s of SLOTS) {
-      const cur = A().bag.find((i) => i.uid === ((A().equip[id] || {})[s.id] || -1));
-      let best = cur;
-      for (const it of A().bag) if (ITEM[it.item].slot === s.id && (!worn.has(it.uid) || it === cur) && (!best || itemStat(it) > itemStat(best))) best = it;
-      if (best && best !== cur) { if (M.equip(id, best.uid).ok) { worn.add(best.uid); if (cur) worn.delete(cur.uid); } }
-    }
+    for (const id of A().team) M.equipBest(id);
+    // the guided first upgrade is free: spend it on the first worn piece
+    if (!M.unlocked('upgrade')) for (const id of A().team) { const u = Object.values(A().equip[id] || {}).find(Boolean); if (u && M.upgradeItem(u).ok) break; }
     for (let k = 0; k < 200; k++) { let did = false; for (const id of A().team) for (const u of Object.values(A().equip[id] || {})) if (u && A().gold > 2000 && M.upgradeItem(u).ok) did = true; if (!did) break; }
   }
 

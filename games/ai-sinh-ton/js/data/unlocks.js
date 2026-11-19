@@ -1,5 +1,6 @@
 // Account level, the unlock table and the first-session guide (FTUE). Pure rules: meta.js stores the state,
 // the screens ask isUnlocked() and show lockText() on a padlock, tools/pacing.mjs reports when each thing opens.
+import { SLOTS, TIERS } from './equip.js?v=20261119c';
 
 // ---- account level (separate from hero levels) ----
 export const XP = { wave: 10, clear: 30, first: 60 };
@@ -19,7 +20,9 @@ export function addXp(level, xp, gain) {
 }
 
 // ---- unlock table ----
-// need: { stage: N } = stage N cleared, { level: N } = account level N. `guide` names the one-time guided step.
+// need: { stage: N } = stage N cleared, { level: N } = account level N, { after: N } = N stages cleared since Trang Bị opened
+// (acc.equipAt), { triple: true } = the bag holds 3 identical items (latched in acc.mergeOpen), { upgrades: N } = N item
+// upgrades done (acc.stats.upgrades). `slots` lists the equipment slots a row opens. `guide` names the one-time guided step.
 export const UNLOCKS = [
   { id: 'ult', name: 'Tung tối thượng', need: {}, guide: 'ult' },
   { id: 'cards', name: 'Thẻ nâng cấp', need: {}, guide: 'pick' },
@@ -33,23 +36,65 @@ export const UNLOCKS = [
   { id: 'autopick', name: 'Tự chọn thẻ', need: { level: 5 } },
   { id: 'chapter', name: 'Rương chương', need: { stage: 5 }, guide: 'chapter' },
   { id: 'equip', name: 'Trang bị', need: { level: 6 }, guide: 'equip' },
+  { id: 'upgrade', name: 'Nâng cấp trang bị', need: { upgrades: 1 } },
+  { id: 'slot_armor', name: 'Ô Giáp', need: { after: 1 }, slots: ['armor'] },
   { id: 'slot4', name: 'Ô đội hình 4', need: { level: 7 }, guide: 'team' },
   { id: 'autoult', name: 'Tự tung tối thượng', need: { level: 8 } },
-  { id: 'merge', name: 'Ghép trang bị', need: { level: 9 }, guide: 'merge' },
+  { id: 'slot_hands', name: 'Ô Găng Tay và Giày', need: { after: 2 }, slots: ['gloves', 'boots'] },
+  { id: 'slot_charm', name: 'Ô Dây Chuyền và Thắt Lưng', need: { after: 4 }, slots: ['necklace', 'belt'] },
+  { id: 'merge', name: 'Ghép trang bị', need: { triple: true }, guide: 'merge' },
 ];
 export const UNLOCK = Object.fromEntries(UNLOCKS.map((u) => [u.id, u]));
 
-// acc needs { level, cleared }
+// three identical items of an exact-merge tier
+export function hasTriple(bag) {
+  const seen = new Map();
+  for (const it of Array.isArray(bag) ? bag : []) {
+    if (!TIERS[it.tier] || !TIERS[it.tier].exact) continue;
+    const k = it.item + '|' + it.tier, n = (seen.get(k) || 0) + 1;
+    if (n >= TIERS[it.tier].need) return true;
+    seen.set(k, n);
+  }
+  return false;
+}
+
+// acc needs { level, cleared } and, for the equipment rows, equipAt, mergeOpen, bag and stats.upgrades when it has them
 export function isUnlocked(acc, id) {
   const u = UNLOCK[id];
   if (!u) return true;
-  return (u.need.stage === undefined || acc.cleared >= u.need.stage) && (u.need.level === undefined || acc.level >= u.need.level);
+  const n = u.need;
+  if (n.stage !== undefined && !(acc.cleared >= n.stage)) return false;
+  if (n.level !== undefined && !(acc.level >= n.level)) return false;
+  if (n.after !== undefined && !(isUnlocked(acc, 'equip') && Number.isFinite(acc.equipAt) && acc.cleared >= acc.equipAt + n.after)) return false;
+  if (n.triple && !(acc.mergeOpen || hasTriple(acc.bag))) return false;
+  if (n.upgrades !== undefined && !(acc.stats && acc.stats.upgrades >= n.upgrades)) return false;
+  return true;
 }
 
-export function lockText(id) {
+export function lockText(id, acc) {
   const n = UNLOCK[id].need;
+  if (n.after !== undefined) return acc && Number.isFinite(acc.equipAt) ? `Rơi từ ải ${Math.max(1, acc.equipAt + n.after + 1)} trở đi` : 'Mở sau khi có Trang Bị';
+  if (n.triple) return 'Có 3 món giống nhau thì mở';
+  if (n.upgrades !== undefined) return 'Nâng cấp một món để mở';
   return n.level !== undefined ? `Mở ở cấp ${n.level}` : n.stage !== undefined ? `Mở khi qua ải ${n.stage}` : '';
 }
+
+// ---- the equipment slots: weapon with Trang Bị, the rest by stages cleared after it ----
+const SLOT_ROW = {};
+for (const u of UNLOCKS) for (const s of u.slots || []) SLOT_ROW[s] = u.id;
+export function slotOpen(acc, slot) {
+  if (acc.cheatUnlock) return true;
+  if (!isUnlocked(acc, 'equip')) return false;
+  return !SLOT_ROW[slot] || isUnlocked(acc, SLOT_ROW[slot]);
+}
+export const openSlots = (acc) => SLOTS.map((s) => s.id).filter((s) => slotOpen(acc, s));
+// the one short line a dimmed slot gives
+export function slotLine(acc, slot) {
+  const name = SLOTS.find((s) => s.id === slot).name;
+  return `${name}: ${SLOT_ROW[slot] ? lockText(SLOT_ROW[slot], acc) : 'ô đầu tiên'}`;
+}
+// gold paid in place of equipment while it is not open yet
+export const EQUIP_GOLD = { item: 30, mat: 10, pullItem: 300 };
 
 export function teamSlots(acc) { return 1 + ['slot2', 'slot3', 'slot4'].filter((id) => isUnlocked(acc, id)).length; }
 
@@ -95,14 +140,34 @@ export const LATER_GUIDES = {
   speed: { text: 'Chạm để đánh nhanh gấp đôi', target: 'speed' },
   daily: { text: 'Mỗi ngày một rương', path: ['tab-rewards', 'daily'] },
   chapter: { text: 'Qua hết chương là có rương chương', path: ['tab-rewards', 'chapter0'] },
-  equip: { text: 'Mặc trang bị cho tướng', path: ['tab-equip'] },
-  merge: { text: 'Ghép 3 món giống nhau thành món bậc cao hơn', path: ['tab-equip', 'merge'] },
+  // path entries: a target id (tokens bag-first, bag-main, bag-copy1, bag-copy2 name the gift and the triple), or { wait } for a
+  // pause with no target; `line` is the one short line of that entry, `only: 'multiHero'` skips it with a single hero
+  equip: { text: 'Mặc trang bị cho tướng', path: [
+    { id: 'tab-equip', line: 'Mở Trang Bị' },
+    { id: 'equip-hero', line: 'Chọn tướng', only: 'multiHero' },
+    { id: 'bag-first', line: 'Chạm món đồ mới' },
+    { id: 'wear', line: 'Bấm MẶC' },
+    { wait: 2.2, line: 'Công tăng lên!', y: 410 },
+    { id: 'slot-weapon', line: 'Chạm món vừa mặc' },
+    { id: 'upgrade', line: 'Nâng cấp miễn phí' },
+    { wait: 2.6, line: 'Thắng ải để nhặt thêm trang bị', y: 410 },
+  ] },
+  merge: { text: 'Ghép 3 món giống nhau thành món bậc cao hơn', path: [
+    { id: 'tab-equip', line: 'Mở Trang Bị' },
+    { id: 'merge', line: 'Bấm GHÉP' },
+    { id: 'bag-main', line: 'Chọn món chính' },
+    { id: 'bag-copy1', line: 'Chọn món giống' },
+    { id: 'bag-copy2', line: 'Thêm một món giống nữa' },
+    { id: 'merge-do', line: 'Bấm GHÉP' },
+  ] },
 };
 
 // The scripted first stage: one hero, weak waves, the second hero joins when wave 2 is cleared, a small boss last.
 // battle.js reads it like any stage object; `tutorial` switches on the scripted events.
 export function tutorialStage(base) {
-  const g = (kind, n, at, ang) => ({ kind, n, at, ang, spread: 0.7 });
+  // ordinary packs arrive three times larger and weaker, like every stage's horde (stages.js HORDE); the giant stays one body
+  const H = 3;
+  const g = (kind, n, at, ang) => (kind === 'giant' ? { kind, n, at, ang, spread: 0.7 } : { kind, n: n * H, at: at * 0.6, ang, spread: 1.3, hpK: Math.pow(H, -0.62), atkK: Math.pow(H, -1.12) });
   return {
     ...base, n: 1, tutorial: true, name: 'Phố Hoang 1', hpMul: base.hpMul * 0.6, atkMul: base.atkMul * 0.45, bossHp: base.bossHp * 0.3, bossTier: 1,
     waves: [

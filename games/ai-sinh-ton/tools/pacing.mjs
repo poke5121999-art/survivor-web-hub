@@ -18,7 +18,7 @@ function player(seed) {
   const acc = { level: 1, xp: 0, cleared: 0, gold: NEW_ACCOUNT.gold, gems: NEW_ACCOUNT.gems, pity: 0, heroes: Object.fromEntries(NEW_ACCOUNT.heroes.map((id) => [id, { level: 1, shards: 0 }])) };
   const opened = {}; const tries = {}; let minutes = 0; let matches = 0; let lostRow = 0;
   const own = (id) => { if (!acc.heroes[id] || acc.heroes[id].level === 0) acc.heroes[id] = { level: 1, shards: (acc.heroes[id] || { shards: 0 }).shards }; };
-  const note = (before) => { for (const id of newUnlocks(before, acc)) opened[id] = { match: matches, min: Math.round(minutes), stage: acc.cleared, level: acc.level }; };
+  const note = (before) => { if (acc.equipAt === undefined && isUnlocked(acc, 'equip')) acc.equipAt = acc.cleared; for (const id of newUnlocks(before, acc)) opened[id] = { match: matches, min: Math.round(minutes), stage: acc.cleared, level: acc.level }; };
   for (const u of UNLOCKS) if (isUnlocked(acc, u.id)) opened[u.id] = { match: 0, min: 0, stage: 0, level: 1 };
   const team = () => Object.keys(acc.heroes).filter((id) => acc.heroes[id].level > 0).sort((a, b) => acc.heroes[b].level - acc.heroes[a].level || HEROES.findIndex((h) => h.id === a) - HEROES.findIndex((h) => h.id === b)).slice(0, teamSlots(acc));
   const spec = (id) => ({ id, mul: levelMul(acc.heroes[id].level) });
@@ -42,7 +42,7 @@ function player(seed) {
     let k = 0;
     while ((B.phase === 'fight' || B.phase === 'pick') && k++ < 30 * 900) { if (B.phase === 'pick') { for (let i = 0; i < B.heroes.length; i++) if (B.picked[i] < 0) pickCard(B, i, 0); } else step(B); }
     matches++; minutes += B.t / 60 + MENU_MIN; if (n === next) tries[n] = (tries[n] || 0) + 1;
-    const won = B.phase === 'won'; const first = won && n === next; const before = { level: acc.level, cleared: acc.cleared };
+    const won = B.phase === 'won'; const first = won && n === next; const before = { level: acc.level, cleared: acc.cleared, equipAt: acc.equipAt };
     const r = won ? stageReward(n, first) : lossReward(n, Math.max(0, B.wave - 1));
     acc.gold += r.gold; acc.gems += r.gems; for (const id of ids) acc.heroes[id].shards += r.teamShards;
     Object.assign(acc, addXp(acc.level, acc.xp, xpForResult({ won, wavesCleared: won ? 5 : Math.max(0, B.wave - 1), first })));
@@ -61,7 +61,7 @@ console.log('\nunlock                 need            match  minute  stage  leve
 const rows = [];
 for (const u of UNLOCKS) {
   const got = runs.map((r) => r.opened[u.id]).filter(Boolean);
-  const need = u.need.level ? 'cấp ' + u.need.level : u.need.stage ? 'qua ải ' + u.need.stage : 'từ đầu';
+  const need = u.need.level ? 'cấp ' + u.need.level : u.need.stage ? 'qua ải ' + u.need.stage : u.need.after ? 'Trang bị +' + u.need.after + ' ải' : u.need.triple ? '3 món giống' : u.need.upgrades ? 'nâng cấp 1 lần' : 'từ đầu';
   if (got.length < runs.length / 2) { console.log(`${u.name.padEnd(22)} ${need.padEnd(14)} not reached by most players`); rows.push({ id: u.id, min: 1e9 }); continue; }
   const m = { match: med(got.map((g) => g.match)), min: med(got.map((g) => g.min)), stage: med(got.map((g) => g.stage)), level: med(got.map((g) => g.level)) };
   rows.push({ id: u.id, ...m });

@@ -6,12 +6,14 @@
 //     bag: [{uid, item, tier, lv}], equip: {heroId: {slot: uid|0}}, mats: {slot: n}, uidSeq, seed,
 //     daily: 'YYYY-MM-DD'|'', chapters: {c: true}, stats: {pulls, wins, losses}, seen: {key: true},
 //     level, xp (account level), ftue: {done: {stepId: true}, session}, seenUnlock: {id: true}, visited: {id: true},
-//     freePull, cheatUnlock? (only the 'vet' preset: every unlock treated as open) }
+//     freePull, cheatUnlock? (only the 'vet' preset: every unlock treated as open),
+//     equipAt (stages cleared when Trang Bị opened), mergeOpen (latched once the bag held 3 identical items) }
+// stats also counts upgrades and merges (manual) for the equipment unlocks.
 
 import { GACHA, HERO_RARITY, rollGacha, rollTen, levelCost, levelMul, stageReward, lossReward, DAILY, START } from './data/economy.js?v=20261119c';
-import { SLOTS, TIERS, ITEMS, ITEM, itemStat, upgradeCost, mergeProblem, merge as mergeItems, autoMergePlan, equipBonus } from './data/equip.js?v=20261119c';
+import { SLOTS, TIERS, ITEMS, ITEM, itemStat, upgradeCost, mergeProblem, merge as mergeItems, autoMergePlan, equipBonus, baseWorth } from './data/equip.js?v=20261119c';
 import { HEROES, HERO } from './data/heroes.js?v=20261119c';
-import { UNLOCKS, UNLOCK, isUnlocked, lockText, teamSlots, newUnlocks, addXp, xpForResult, NEW_ACCOUNT, GIFTS, FTUE, LATER_GUIDES } from './data/unlocks.js?v=20261119c';
+import { UNLOCKS, UNLOCK, isUnlocked, lockText, teamSlots, newUnlocks, addXp, xpForResult, NEW_ACCOUNT, GIFTS, FTUE, LATER_GUIDES, hasTriple, slotOpen, openSlots, slotLine, EQUIP_GOLD } from './data/unlocks.js?v=20261119c';
 import { makeRng } from './sim/battle.js?v=20261119c';
 
 const VERSION = 1;
@@ -23,7 +25,11 @@ const ROSTER = HEROES.map((h) => ({ id: h.id, rarity: h.rarity }));
 const FTUE_IDS = FTUE.map((s) => s.id);
 const GUIDE_IDS = [...FTUE_IDS, ...Object.keys(LATER_GUIDES)];
 // the home tab that shows a red dot while a feature is open and not yet visited
-const UNLOCK_TAB = { gacha: 'gacha', levelup: 'heroes', slot2: 'heroes', slot3: 'heroes', slot4: 'heroes', daily: 'rewards', chapter: 'rewards', equip: 'equip', merge: 'equip' };
+const UNLOCK_TAB = { gacha: 'gacha', levelup: 'heroes', slot2: 'heroes', slot3: 'heroes', slot4: 'heroes', daily: 'rewards', chapter: 'rewards' };
+// features that came with Trang Bị before it was staged: a save that already had it must not replay their reveals
+const STAGED = ['upgrade', 'slot_armor', 'slot_hands', 'slot_charm', 'merge'];
+const LEGACY_EQUIP_AT = -99;
+const GIFT_ITEM = 'w_cua';
 // the screen a later guide is shown on
 const LATER_SCREEN = { spectate: 'battle', speed: 'battle', daily: 'home', chapter: 'home', equip: 'home', merge: 'home' };
 const FIRST_PULL = GIFTS.find((g) => g.at === 'firstPull').hero;
@@ -49,11 +55,11 @@ function freshAccount(now, preset) {
     v: VERSION, gold: vet ? START.gold : NEW_ACCOUNT.gold, gems: vet ? START.gems : NEW_ACCOUNT.gems, pity: 0,
     heroes: Object.fromEntries(heroes.map((id) => [id, { level: 1, shards: 0 }])),
     team: heroes.slice(), cleared: 0, best: {}, bag: [], equip: {}, mats: emptyMats(), uidSeq: 0,
-    seed: (now().getTime() ^ 0x9e3779b9) >>> 0 || 1, daily: '', chapters: {}, stats: { pulls: 0, wins: 0, losses: 0 }, seen: {},
+    seed: (now().getTime() ^ 0x9e3779b9) >>> 0 || 1, daily: '', chapters: {}, stats: { pulls: 0, wins: 0, losses: 0, upgrades: 0, merges: 0 }, seen: {},
     level: vet ? 10 : 1, xp: 0, ftue: { done: {}, session: false }, seenUnlock: allTrue(openAtStart()), visited: allTrue(openAtStart()), freePull: !vet,
   };
   if (vet) {
-    acc.cheatUnlock = true;
+    acc.cheatUnlock = true; acc.equipAt = LEGACY_EQUIP_AT; acc.mergeOpen = true;
     acc.ftue = { done: allTrue(GUIDE_IDS), session: true };
     acc.seenUnlock = allTrue(UNLOCKS.map((u) => u.id)); acc.visited = allTrue(UNLOCKS.map((u) => u.id));
   }
@@ -124,16 +130,24 @@ function repair(raw, now, preset) {
   if (a.mats && typeof a.mats === 'object') for (const s of SLOT_IDS) acc.mats[s] = num(a.mats[s], 0);
   acc.chapters = {};
   if (a.chapters && typeof a.chapters === 'object') for (const [k, v] of Object.entries(a.chapters)) if (v && Number.isFinite(+k)) acc.chapters[k] = true;
-  acc.stats = { pulls: 0, wins: 0, losses: 0 };
+  acc.stats = { pulls: 0, wins: 0, losses: 0, upgrades: 0, merges: 0 };
   if (a.stats && typeof a.stats === 'object') for (const k of Object.keys(acc.stats)) acc.stats[k] = num(a.stats[k], 0);
+  // a save from before Trang Bị was staged: everything it could already use stays open, no guide, no reveals
+  const legacyEquip = isUnlocked(acc, 'equip') && !Number.isFinite(a.equipAt);
+  if (Number.isFinite(a.equipAt)) acc.equipAt = Math.floor(a.equipAt); else if (legacyEquip) acc.equipAt = LEGACY_EQUIP_AT;
+  if (legacyEquip && !(a.stats && Number.isFinite(a.stats.upgrades))) acc.stats.upgrades = 1;
+  if (a.mergeOpen === true || (a.mergeOpen === undefined && acc.level >= 9) || hasTriple(acc.bag)) acc.mergeOpen = true;
+  if (acc.mergeOpen && !(a.stats && Number.isFinite(a.stats.merges)) && a.mergeOpen === undefined) acc.stats.merges = 1;
   acc.seen = {};
   if (a.seen && typeof a.seen === 'object') for (const [k, v] of Object.entries(a.seen)) if (v) acc.seen[k] = true;
   const flags = (src, ids) => { const out = {}; if (src && typeof src === 'object') for (const id of ids) if (src[id]) out[id] = true; return out; };
   const open = UNLOCKS.filter((u) => acc.cheatUnlock || isUnlocked(acc, u.id)).map((u) => u.id);
   const ids = UNLOCKS.map((u) => u.id);
+  const legacyOpen = legacyEquip ? STAGED.filter((id) => open.includes(id)) : [];
   if (a.ftue && typeof a.ftue === 'object') {
     acc.ftue = { done: flags(a.ftue.done, GUIDE_IDS), session: a.ftue.session === true };
-    acc.seenUnlock = { ...base.seenUnlock, ...flags(a.seenUnlock, ids) }; acc.visited = { ...base.visited, ...flags(a.visited, ids) };
+    acc.seenUnlock = { ...base.seenUnlock, ...flags(a.seenUnlock, ids), ...allTrue(legacyOpen) }; acc.visited = { ...base.visited, ...flags(a.visited, ids) };
+    if (legacyEquip) { acc.ftue.done.equip = true; if (acc.mergeOpen) acc.ftue.done.merge = true; }
     acc.freePull = typeof a.freePull === 'boolean' ? a.freePull : acc.cleared < 1;
   } else if (acc.cleared >= 1) {
     // a save from before the guided first session counts as a finished one
@@ -152,11 +166,16 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
   const listeners = [];
 
   const owned = (id) => !!(M.acc.heroes[id] && M.acc.heroes[id].level > 0);
-  M.unlocked = (id) => !!M.acc.cheatUnlock || isUnlocked(M.acc, id);
-  M.lockText = (id) => lockText(id);
+  M.unlocked = (id) => { if (id === 'merge') latch(); return !!M.acc.cheatUnlock || isUnlocked(M.acc, id); };
+  M.lockText = (id) => lockText(id, M.acc);
+  M.slotOpen = (slot) => slotOpen(M.acc, slot);
+  M.openSlots = () => openSlots(M.acc);
+  M.slotLine = (slot) => slotLine(M.acc, slot);
+  // GHÉP NHANH shows after the first manual merge
+  M.autoShown = () => !!M.acc.cheatUnlock || M.acc.stats.merges >= 1;
   M.slots = () => slotsFor(M.acc);
   // the refusal of a command whose feature is still locked, or null
-  const locked = (id) => (M.unlocked(id) ? null : fail(lockText(id)));
+  const locked = (id) => (M.unlocked(id) ? null : fail(M.lockText(id)));
   const findItem = (uid) => M.acc.bag.find((i) => i.uid === uid);
   const wornUids = () => { const s = new Set(); for (const e of Object.values(M.acc.equip)) for (const u of Object.values(e)) if (u) s.add(u); return s; };
   const slotsOf = (hid) => (M.acc.equip[hid] || (M.acc.equip[hid] = emptySlots()));
@@ -184,7 +203,9 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     M.acc.seed = Math.floor(rng() * 4294967296) >>> 0 || 1;
     return out;
   };
-  const done = (name, result) => { M.save(); const r = { ok: true, ...result }; for (const fn of listeners) fn(name, r); return r; };
+  // merge stays open once the bag has held three identical items, even after they are merged away
+  const latch = () => { if (!M.acc.mergeOpen && hasTriple(M.acc.bag)) M.acc.mergeOpen = true; };
+  const done = (name, result) => { latch(); M.save(); const r = { ok: true, ...result }; for (const fn of listeners) fn(name, r); return r; };
 
   const newItem = (item, tier = 0) => { const it = { uid: ++M.acc.uidSeq, item, tier, lv: 1 }; M.acc.bag.push(it); return it; };
   const randomItem = (rng, tier, slots) => newItem(pick(rng, slots ? slots.flatMap((s) => ITEMS_BY_SLOT[s]) : ITEMS).id, tier);
@@ -232,7 +253,11 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
         } else if (o.kind === 'shard') {
           if (addShards(o.hero, o.n)) r.isNew = true;
         } else if (o.kind === 'gold') M.acc.gold += o.n;
-        else if (o.kind === 'item') r.item = randomItem(rng, 0);
+        else if (o.kind === 'item') {
+          // no equipment before Trang Bị: the row pays gold and says so
+          if (M.unlocked('equip')) r.item = randomItem(rng, 0, M.openSlots());
+          else { r.kind = 'gold'; r.n = EQUIP_GOLD.pullItem; M.acc.gold += r.n; }
+        }
         results.push(r);
         sync();
       };
@@ -274,19 +299,23 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     if (!Number.isInteger(stage) || stage < 1) return fail('ải không hợp lệ');
     const acc = M.acc;
     const first = !!won && stage > acc.cleared;
-    const before = { level: acc.level, cleared: acc.cleared };
+    const before = { level: acc.level, cleared: acc.cleared, equipAt: acc.equipAt, mergeOpen: acc.mergeOpen, stats: { upgrades: acc.stats.upgrades }, bag: acc.bag.map((i) => ({ ...i })), cheatUnlock: acc.cheatUnlock };
     const r = won ? stageReward(stage, first) : lossReward(stage, wavesCleared);
     const items = [];
+    // equipment and forge materials are paid as gold until their feature is open; items only fall for opened slots
+    const slotsNow = M.unlocked('equip') ? M.openSlots() : [];
+    const matsNow = M.unlocked('equip') && M.unlocked('upgrade');
+    let paidGold = 0; let mats = 0;
     withRng((rng) => {
-      let slots = null;
+      let slots = slotsNow;
       if (first) {
-        const open = SLOT_IDS.filter((s) => acc.team.some((id) => !(acc.equip[id] && acc.equip[id][s])));
+        const open = slotsNow.filter((s) => acc.team.some((id) => !(acc.equip[id] && acc.equip[id][s])));
         if (open.length) slots = open;
       }
-      for (let i = 0; i < r.items; i++) items.push(randomItem(rng, 0, slots));
-      for (let i = 0; i < r.mats; i++) acc.mats[pick(rng, SLOT_IDS)]++;
+      if (slotsNow.length) for (let i = 0; i < r.items; i++) items.push(randomItem(rng, 0, slots)); else paidGold += r.items * EQUIP_GOLD.item;
+      if (matsNow) { for (let i = 0; i < r.mats; i++) acc.mats[pick(rng, slotsNow)]++; mats = r.mats; } else paidGold += r.mats * EQUIP_GOLD.mat;
     });
-    acc.gold += r.gold; acc.gems += r.gems;
+    acc.gold += r.gold + paidGold; acc.gems += r.gems;
     for (const id of acc.team) addShards(id, r.teamShards);
     const xp = xpForResult({ won: !!won, wavesCleared: Math.max(0, wavesCleared), first });
     Object.assign(acc, addXp(acc.level, acc.xp, xp));
@@ -303,8 +332,15 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
       acc.cleared = Math.max(acc.cleared, stage);
       if (Number.isFinite(seconds) && seconds > 0 && !(acc.best[stage] <= seconds)) acc.best[stage] = seconds;
     } else acc.stats.losses++;
+    // Trang Bị opens: remember where, and hand over exactly one weapon
+    let gift = null;
+    if (!before.cheatUnlock && !isUnlocked(before, 'equip') && isUnlocked(acc, 'equip')) {
+      acc.equipAt = acc.cleared;
+      if (!acc.bag.length) { gift = newItem(GIFT_ITEM, 0); items.push(gift); }
+    }
+    latch();
     const unlocked = newUnlocks(before, acc);
-    return done('finishStage', { won: !!won, first, stage, gold: r.gold, gems: r.gems, teamShards: r.teamShards, mats: r.mats, items, xp, levelBefore: before.level, levelAfter: acc.level, unlocked, gifts });
+    return done('finishStage', { won: !!won, first, stage, gold: r.gold + paidGold, itemGold: paidGold, gems: r.gems, teamShards: r.teamShards, mats, items, gift, xp, levelBefore: before.level, levelAfter: acc.level, unlocked, gifts });
   };
   M.canClaimDaily = () => M.acc.daily !== dayOf(now());
   M.claimDaily = () => {
@@ -325,10 +361,12 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     if (M.acc.cleared < (c + 1) * CHAPTER_STAGES) return fail('chưa qua đủ ải của chương');
     M.acc.chapters[c] = true; M.acc.gems += CHAPTER_GEMS;
     const each = CHAPTER_STAGES * (c + 1);
-    for (const s of SLOT_IDS) M.acc.mats[s] += each;
-    let item;
-    withRng((rng) => { item = randomItem(rng, HIEM); });
-    return done('claimChapter', { chapter: c, gems: CHAPTER_GEMS, mats: each, item });
+    let item = null; let gold = 0; let mats = each;
+    if (M.unlocked('equip')) withRng((rng) => { item = randomItem(rng, HIEM, M.openSlots()); }); else gold += EQUIP_GOLD.item * baseWorth(HIEM);
+    if (!(M.unlocked('equip') && M.unlocked('upgrade'))) { gold += each * SLOT_IDS.length * EQUIP_GOLD.mat; mats = 0; }
+    M.acc.gold += gold;
+    for (const sl of SLOT_IDS) M.acc.mats[sl] += mats;
+    return done('claimChapter', { chapter: c, gems: CHAPTER_GEMS, mats, item, gold });
   };
 
   // ---- equipment
@@ -338,6 +376,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     const it = findItem(uid);
     if (!it) return fail('không tìm thấy món đồ');
     const slot = ITEM[it.item].slot;
+    if (!M.slotOpen(slot)) return fail(M.slotLine(slot));
     const from = wornBy(uid);
     if (from) M.acc.equip[from.hid][from.slot] = 0;
     slotsOf(hid)[slot] = uid;
@@ -350,10 +389,35 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     const uid = e[slot]; e[slot] = 0;
     return done('unequip', { hero: hid, slot, uid });
   };
+  // what MẶC TỐT NHẤT would do for a hero: per opened slot the strongest item nobody else wears, if it beats the worn one
+  M.equipBestPlan = (hid) => {
+    const changes = [];
+    if (!M.unlocked('equip') || !owned(hid)) return { changes, gain: { atk: 0, hp: 0 } };
+    const worn = wornUids(), e = M.acc.equip[hid] || {};
+    for (const slot of M.openSlots()) {
+      const cur = findItem(e[slot]), curStat = cur ? itemStat(cur) : 0;
+      let best = null;
+      for (const it of M.acc.bag) if (ITEM[it.item].slot === slot && (!worn.has(it.uid)) && (!best || itemStat(it) > itemStat(best))) best = it;
+      if (best && itemStat(best) > curStat) changes.push({ slot, uid: best.uid, replaces: cur ? cur.uid : 0, gain: itemStat(best) - curStat });
+    }
+    const gain = { atk: 0, hp: 0 };
+    for (const c of changes) gain[SLOTS.find((x) => x.id === c.slot).stat] += c.gain;
+    return { changes, gain };
+  };
+  M.equipBest = (hid) => {
+    const lock = locked('equip'); if (lock) return lock;
+    if (!owned(hid)) return fail('chưa có tướng này');
+    const plan = M.equipBestPlan(hid);
+    if (!plan.changes.length) return fail('không có món nào mạnh hơn');
+    for (const c of plan.changes) slotsOf(hid)[c.slot] = c.uid;
+    return done('equipBest', { hero: hid, changes: plan.changes, gain: plan.gain });
+  };
   M.canUpgradeItem = (uid) => {
     const it = findItem(uid);
     if (!it) return { ok: false, cost: null, why: 'không tìm thấy món đồ' };
     if (it.lv >= TIERS[it.tier].maxLv) return { ok: false, cost: null, why: 'đã đạt cấp tối đa' };
+    // the first upgrade of the account is free and teaches the button
+    if (!M.unlocked('upgrade')) return { ok: true, cost: { gold: 0, mats: 0 }, free: true, why: '' };
     const cost = upgradeCost(it.lv);
     if (M.acc.gold < cost.gold) return { ok: false, cost, why: 'thiếu vàng' };
     if (M.acc.mats[ITEM[it.item].slot] < cost.mats) return { ok: false, cost, why: 'thiếu bản rèn' };
@@ -364,8 +428,8 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     const c = M.canUpgradeItem(uid);
     if (!c.ok) return fail(c.why);
     const it = findItem(uid);
-    M.acc.gold -= c.cost.gold; M.acc.mats[ITEM[it.item].slot] -= c.cost.mats; it.lv++;
-    return done('upgradeItem', { uid, lv: it.lv, cost: c.cost });
+    M.acc.gold -= c.cost.gold; M.acc.mats[ITEM[it.item].slot] -= c.cost.mats; it.lv++; M.acc.stats.upgrades++;
+    return done('upgradeItem', { uid, lv: it.lv, cost: c.cost, free: !!c.free });
   };
   function applyMerge(main, fodder) {
     const r = mergeItems(main, fodder);
@@ -386,6 +450,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     const why = mergeProblem(main, fodder);
     if (why) return fail(why);
     const r = applyMerge(main, fodder);
+    M.acc.stats.merges++;
     return done('merge', { uid: main.uid, tier: main.tier, refund: r.refund });
   };
   M.autoMerge = () => {
@@ -441,9 +506,20 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
       return null;
     }
     for (const [id, g] of Object.entries(LATER_GUIDES)) {
+      if (id === 'merge' && M.acc.stats.merges > 0) continue;
+      if (id === 'equip' && !M.acc.bag.length) continue;
       if (!guideDone(id) && !(ctx.skip && ctx.skip.includes(id)) && M.unlocked(id) && LATER_SCREEN[id] === ctx.screen) return { id, ...g, later: true };
     }
     return null;
+  };
+  // bag item ids the later guides point at: the gift, or the first triple (main piece and two copies, lowest uids first)
+  M.guideTokens = () => {
+    const bag = M.acc.bag.slice().sort((a, b) => a.uid - b.uid), out = { 'bag-first': bag[0] ? 'bag-' + bag[0].uid : '' };
+    const groups = new Map();
+    for (const it of bag) if (TIERS[it.tier].exact) { const k = it.item + '|' + it.tier; (groups.get(k) || groups.set(k, []).get(k)).push(it); }
+    const tri = [...groups.values()].find((g) => g.length >= 3);
+    if (tri) { out['bag-main'] = 'bag-' + tri[0].uid; out['bag-copy1'] = 'bag-' + tri[1].uid; out['bag-copy2'] = 'bag-' + tri[2].uid; }
+    return out;
   };
   M.markSeen = (id) => { if (!UNLOCK[id] || M.acc.seenUnlock[id]) return { ok: true }; M.acc.seenUnlock[id] = true; return done('markSeen', { id }); };
   M.markVisited = (id) => { if (!UNLOCK[id] || M.acc.visited[id]) return { ok: true }; M.acc.visited[id] = true; return done('markVisited', { id }); };
@@ -459,22 +535,25 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     if (M.unlocked('levelup')) for (const id of Object.keys(acc.heroes)) if (owned(id) && M.canLevelUp(id).ok) { heroIds[id] = true; heroes = true; }
     const worn = wornUids();
     const free = acc.bag.filter((i) => !worn.has(i.uid));
-    let equip = false;
+    // equipment dots only where there is something worth doing: a stronger free item for an opened slot, an item that can be
+    // upgraded now, a merge that can be made. Team heroes only. A new item alone lights nothing.
+    const why = { better: false, upgrade: false, merge: false }, slotDots = {}, best = {};
     if (M.unlocked('equip')) {
-      equip = M.unlocked('merge') && autoMergePlan(acc.bag, worn).length > 0;
+      why.merge = M.unlocked('merge') && autoMergePlan(acc.bag, worn).length > 0;
       for (const id of acc.team) {
-        const e = acc.equip[id] || {};
-        for (const s of SLOT_IDS) {
+        const e = acc.equip[id] || {}; slotDots[id] = {};
+        for (const s of M.openSlots()) {
           const cur = findItem(e[s]);
           const curStat = cur ? itemStat(cur) : 0;
-          if (free.some((i) => ITEM[i.item].slot === s && itemStat(i) > curStat)) { equip = true; heroIds[id] = true; }
-          if (cur && M.canUpgradeItem(cur.uid).ok) equip = true;
+          if (free.some((i) => ITEM[i.item].slot === s && itemStat(i) > curStat)) { slotDots[id][s] = 'better'; best[id] = true; heroIds[id] = true; why.better = true; }
+          else if (cur && M.canUpgradeItem(cur.uid).ok) { slotDots[id][s] = 'upgrade'; why.upgrade = true; }
         }
       }
     }
+    const equip = why.better || why.upgrade || why.merge;
     let rewards = M.unlocked('daily') && M.canClaimDaily();
     if (M.unlocked('chapter')) for (let c = 0; c * CHAPTER_STAGES < acc.cleared; c++) if (M.canClaimChapter(c)) rewards = true;
-    const out = { gacha: M.unlocked('gacha') && (acc.freePull || acc.gems >= GACHA.cost), heroes, equip, rewards, heroIds };
+    const out = { gacha: M.unlocked('gacha') && (acc.freePull || acc.gems >= GACHA.cost), heroes, equip, rewards, heroIds, equipWhy: why, slotDots, best, merge: why.merge };
     for (const [id, tab] of Object.entries(UNLOCK_TAB)) if (M.unlocked(id) && !acc.visited[id]) out[tab] = true;
     return out;
   };

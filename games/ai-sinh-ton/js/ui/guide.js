@@ -9,7 +9,7 @@ import { kill, clamp, easeOut, easeBack } from './hud.js?v=20261119c';
 
 const GIVE_UP = 8;
 const HAND_LEN = 84;
-const FEATURE_ICON = { slot2: 'shield', slot3: 'shield', slot4: 'shield', levelup: 'up', gacha: 'capsule', spectate: 'eye', speed: 'speed', daily: 'chest', chapter: 'chest', autopick: 'check', equip: 'armor', autoult: 'ult', merge: 'gear', ult: 'ult', cards: 'star' };
+const FEATURE_ICON = { slot2: 'shield', slot3: 'shield', slot4: 'shield', levelup: 'up', gacha: 'capsule', spectate: 'eye', speed: 'speed', daily: 'chest', chapter: 'chest', autopick: 'check', equip: 'armor', autoult: 'ult', merge: 'gear', ult: 'ult', cards: 'star', upgrade: 'up', slot_armor: 'armor', slot_hands: 'gloves', slot_charm: 'necklace' };
 const isOwn = (id) => id.startsWith('guide') || id.startsWith('reveal');
 
 // a padlock badge and the greyed look of something still locked; the target stays tappable so the tap can say why
@@ -107,7 +107,12 @@ export function createGuide(game) {
   }
 
   // ---- steps ----
-  function pathOf(step) { return step.path || (step.target ? [step.target] : []); }
+  // A path entry is a target id (or a token meta.guideTokens() resolves), or { wait } for a pause with no target.
+  // pathOf gives the resolved ids (null for a pause); entryOf the entry with its one line of text.
+  const rawPath = (step) => (step.path || (step.target ? [step.target] : [])).map((e) => (typeof e === 'string' ? { id: e } : e));
+  const heroesOwned = () => Object.values(meta.acc.heroes).filter((h) => h.level > 0).length;
+  function pathOf(step) { const tk = meta.guideTokens(); return rawPath(step).map((e) => (e.id ? (tk[e.id] !== undefined ? tk[e.id] : e.id) : null)); }
+  const entryOf = (step, i) => rawPath(step)[i] || null;
   // a press is a pointer down and up on the target; the kit's own listener on the frame runs first, so its onTap has fired
   let downId = null, downOn = false, downXY = [0, 0];
   frame.addEventListener('pointerdown', (e) => { downId = ui.hitAt(e.clientX, e.clientY); const t = downId && ui.targets().find((q) => q.id === downId); downOn = !!(t && t.enabled); downXY = [e.clientX, e.clientY]; });
@@ -118,15 +123,15 @@ export function createGuide(game) {
   });
   function pressed(step) {
     if (S.step !== step) return;
-    S.idx++; S.miss = 0;
-    if (S.idx >= pathOf(step).length) finish(step);
+    S.idx++; S.miss = 0; S.wait = 0; S.t = 0;
+    if (S.idx >= rawPath(step).length) finish(step);
   }
   function onBlocked() {
     if (S.step && S.noTarget) finish(S.step);
-    else if (S.step) S.t = 0;
+    else if (S.step && !(entryOf(S.step, S.idx) || {}).wait) S.t = 0;
   }
   function begin(step) {
-    S.step = step; S.idx = 0; S.wait = 0; S.miss = 0; S.t = 0; S.rect = null; S.noTarget = pathOf(step).length === 0; panelKey = '';
+    S.step = step; S.idx = 0; S.wait = 0; S.miss = 0; S.t = 0; S.rect = null; S.noTarget = rawPath(step).length === 0; panelKey = '';
     if (step.freeze) game.frozen = true;
     hand.visible = false; dimKey = '';
   }
@@ -168,10 +173,11 @@ export function createGuide(game) {
     hand.position.set(cx, -tipY, 60);
     return { below, tipY };
   }
-  function placePanel(rect, hh) {
+  function placePanel(rect, hh, fixedY) {
     if (!panel) return;
     const H = ui.H; let y;
-    if (!rect) y = S.step && S.step.where === 'battle' ? 112 : H * 0.3;
+    if (fixedY !== undefined && !rect) y = fixedY;
+    else if (!rect) y = S.step && S.step.where === 'battle' ? 112 : H * 0.3;
     else if (hh.below) { y = rect.y + rect.h + HAND_LEN + 14; if (y + panelH > H - 20) y = Math.max(70, rect.y - panelH - 18); }
     else { y = rect.y - HAND_LEN - 14 - panelH; if (y < 64) y = Math.min(H - panelH - 20, rect.y + rect.h + 18); }
     const k = easeBack(clamp(S.t / 0.28, 0, 1));
@@ -186,7 +192,17 @@ export function createGuide(game) {
     ui.show('guide', { transition: 'none' });
     S.t += dt;
     skipBtn.setVisible(!!meta.acc.ftue.session);
-    buildPanel(step.text, S.noTarget && step.wait === undefined ? '' : S.noTarget ? 'Chạm để tiếp tục' : '');
+    let ent = entryOf(step, S.idx);
+    while (ent && ent.only === 'multiHero' && heroesOwned() < 2) { S.idx++; ent = entryOf(step, S.idx); }
+    if (!S.noTarget && !ent) { finish(step); return; }
+    if (ent && ent.wait !== undefined) {
+      buildPanel(ent.line || step.text, '');
+      S.rect = null; drawDim(null); layoutBands(null); hand.visible = false; placePanel(null, null, ent.y);
+      if (!game.paused) S.wait += dt;
+      if (S.wait >= ent.wait) pressed(step);
+      return;
+    }
+    buildPanel((ent && ent.line) || step.text, S.noTarget && step.wait === undefined ? '' : S.noTarget ? 'Chạm để tiếp tục' : '');
     if (S.noTarget) {
       S.rect = null; drawDim(null); layoutBands(null); hand.visible = false; placePanel(null, null);
       if (step.wait !== undefined && !game.paused) { S.wait += dt; if (S.wait >= step.wait) finish(step); }
@@ -209,8 +225,8 @@ export function createGuide(game) {
   const api = {
     name: 'guide', show() {}, hide() {}, update,
     dbg() {
-      const s = S.step;
-      return { active: !!s, id: s ? s.id : null, text: s ? s.text : '', target: s && !S.noTarget ? pathOf(s)[S.idx] : null, idx: S.idx, path: s ? pathOf(s) : [], noTarget: S.noTarget, rect: S.rect, skipVisible: skipBtn.visible, frozen: !!game.frozen, reveal: reveal ? reveal.dbg() : null };
+      const s = S.step, e = s ? entryOf(s, S.idx) : null;
+      return { active: !!s, id: s ? s.id : null, text: s ? (e && e.line) || s.text : '', target: s && !S.noTarget ? pathOf(s)[S.idx] : null, idx: S.idx, path: s ? pathOf(s) : [], noTarget: S.noTarget || !!(e && e.wait !== undefined), waiting: !!(e && e.wait !== undefined), rect: S.rect, skipVisible: skipBtn.visible, frozen: !!game.frozen, reveal: reveal ? reveal.dbg() : null };
     },
   };
   game.guide = api;
