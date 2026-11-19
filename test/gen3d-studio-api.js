@@ -122,6 +122,18 @@ async function botToken() {
   const ch = await asArt({ action: 'chain', id: rig.body.job.id });
   ok(ch.body.root_id === id && ch.body.jobs.length === 3, `chain trả 3 phiên bản của model (${ch.body.jobs?.length})`);
 
+  // Model tự tải lên: import_model ra job shape done, source upload, không máy gen; rig tiếp được
+  const mup = await asArt({ action: 'upload_urls', files: [{ name: 'tự làm.glb', type: 'model/gltf-binary', size: 4 }, { name: 'thumb.png', type: 'image/png', size: png.length }] });
+  ok(mup.status === 200 && /.glb$/.test(mup.body.files[0].path), 'upload_urls nhận glb');
+  await fetch(mup.body.files[0].uploadUrl, { method: 'PUT', headers: { 'content-type': 'model/gltf-binary' }, body: Buffer.from('glTF') });
+  ok((await asArt({ action: 'import_model', glb: 'refs/khac/x.glb' })).status === 400, 'import_model từ chối file của người khác');
+  const imp = await asArt({ action: 'import_model', title: 'test tải lên', glb: mup.body.files[0].path, thumb: mup.body.files[1].path, file_name: 'tự làm.fbx', stats: { tris: 12, verts: 8 } });
+  ok(imp.body.job?.kind === 'shape' && imp.body.job.status === 'done' && imp.body.job.params.source === 'upload' && !imp.body.job.worker && imp.body.job.result.stats.tris === 12, `import_model → shape done, source upload (${imp.body.error?.message ?? ''})`);
+  cleanup.push(imp.body.job.id);
+  const impRig = await asArt({ action: 'submit', kind: 'rig', parent_id: imp.body.job.id, params: {} });
+  ok(impRig.body.job?.parent_id === imp.body.job.id && impRig.body.job.root_id === imp.body.job.id, 'gen xương trên model tự tải lên');
+  await asArt({ action: 'cancel', id: impRig.body.job.id });
+
   // Texture bật lúc gửi shape: complete tự ra job texture con
   const auto = await asArt({ action: 'submit', kind: 'shape', title: 'test auto texture', params: { views, texture: { quality: '2K', pbr: false }, only_worker: W } });
   cleanup.push(auto.body.job.id);
@@ -154,7 +166,7 @@ async function botToken() {
   ok(del.body.deleted === id && (await asArt({ action: 'get', id })).status === 404 && (await asArt({ action: 'get', id: tex.body.job.id })).status === 404, 'xoá shape xoá luôn các phiên bản con');
   for (const x of cleanup) await asArt({ action: 'delete', id: x });
   await asWorker({ action: 'bye', worker_id: W });
-  ok(!(await asArt({ action: 'workers' })).body.workers.some((w) => w.id.startsWith('test:g3d')), 'bye gỡ các máy test');
+  ok(!(await asArt({ action: 'workers' })).body.workers.some((w) => [W, WS, WR, 'test:g3d-capslow'].includes(w.id)), 'bye gỡ các máy test');
   console.log(fails ? `${passes} PASS, ${fails} FAIL` : `ALL PASS (${passes})`);
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

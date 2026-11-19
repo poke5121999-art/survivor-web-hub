@@ -133,7 +133,8 @@ const KINDS = ["shape", "texture", "rig"] as const;
 const VIEWS = ["front", "back", "left", "right"] as const;
 const QUALITIES = ["2K", "4K", "8K"] as const;
 const TOPOLOGIES = ["triangle", "quad"] as const;
-const UPLOAD_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const UPLOAD_TYPES = ["image/png", "image/jpeg", "image/webp", "model/gltf-binary"];
+const MB = 1024 * 1024;
 const OUT_TYPES = ["model/gltf-binary", "image/png", "image/jpeg", "image/webp", "application/json"];
 const STAGES = ["setup", "segment", "generate", "optimize", "delight", "project", "inpaint", "bake", "skeleton", "skin", "uploading"];
 const WORKER_STATUS = ["idle", "busy", "paused", "lowmem"];
@@ -189,6 +190,7 @@ function parseParams(kind: string, p: any, userId: string) {
     polycount: Math.round(num(p.polycount, 500, 2_000_000) ?? 100_000),
     seed: Math.round(num(p.seed, 0, 2_147_483_647) ?? Math.floor(Math.random() * 2_147_483_647)),
     texture: p.texture && typeof p.texture === "object" ? parseTexture(p.texture) : null,
+    source: "generate",
     only_worker,
   };
 }
@@ -256,11 +258,12 @@ const art: Record<string, (b: any, u: User) => Promise<unknown>> = {
 
   async upload_urls(b, u) {
     const files = Array.isArray(b.files) ? b.files : [];
-    if (!files.length || files.length > 4) fail(400, "INVALID", "gửi từ 1 tới 4 ảnh");
+    if (!files.length || files.length > 4) fail(400, "INVALID", "gửi từ 1 tới 4 file");
     const stamp = crypto.randomUUID().slice(0, 8);
     const list = files.map((f: any, i: number) => {
       if (!UPLOAD_TYPES.includes(f?.type)) fail(400, "INVALID", `không nhận loại file ${f?.type}`);
-      if (typeof f.size === "number" && f.size > 15 * 1024 * 1024) fail(400, "INVALID", `${f.name} lớn hơn 15 MB`);
+      const max = f.type === "model/gltf-binary" ? 50 * MB : 15 * MB;
+      if (typeof f.size === "number" && f.size > max) fail(400, "INVALID", `${f.name} lớn hơn ${max / MB} MB`);
       return { path: `refs/${u.id}/${stamp}/${i}-${safeName(f.name)}`, type: f.type };
     });
     return { files: await signUpload(list) };
@@ -290,6 +293,28 @@ const art: Record<string, (b: any, u: User) => Promise<unknown>> = {
     if (parent && !(b.title ?? "").trim()) {
       await sql`update public.gen3d_jobs c set title = p.title from public.gen3d_jobs p where c.id = ${id} and p.id = ${parent.root_id}`;
     }
+    return { job: await getJob(id) };
+  },
+
+  // Model người dùng tự tải lên (glb; OBJ/FBX/STL trang đổi sang glb trước): thành job shape đã xong, không qua máy gen,
+  // để gen texture hay gen xương tiếp như model máy dựng.
+  async import_model(b, u) {
+    const own = (v: unknown, ext: RegExp) => {
+      const path = str(v, 300);
+      if (!path) return null;
+      if (!path.startsWith(`refs/${u.id}/`) || !ext.test(path)) fail(400, "INVALID", `file không thuộc người gửi hoặc sai loại: ${path}`);
+      return path;
+    };
+    const glb = own(b.glb, /.glb$/i) ?? fail(400, "INVALID", "thiếu glb");
+    const thumb = own(b.thumb, /.(png|jpe?g|webp)$/i);
+    const stats: Record<string, number> = {};
+    for (const k of ["tris", "verts", "bytes"]) if (typeof b.stats?.[k] === "number" && isFinite(b.stats[k])) stats[k] = Math.round(b.stats[k]);
+    const author = u.email.split("@")[0];
+    const id = await insertJob({
+      created_by: u.id, author, title: str(b.title, 120) || "Model tải lên", kind: "shape",
+      params: sql.json({ source: "upload", file_name: str(b.file_name, 120) || null, views: {}, topology: "triangle" }),
+      status: "done", finished_at: new Date(), result: sql.json({ files: { glb, ...(thumb ? { thumb } : {}) }, stats }),
+    }, author, "tải model lên");
     return { job: await getJob(id) };
   },
 
