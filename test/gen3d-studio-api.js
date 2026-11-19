@@ -93,6 +93,25 @@ async function botToken() {
   await asArt({ action: 'cancel', id: yieldJob.body.job.id });
   await asWorker({ action: 'heartbeat', worker_id: W, status: 'idle' });
 
+  // một hàng đợi chung: job không ghim máy chạy lần lượt, máy thứ hai rảnh cũng không nhận khi đã có job chạy
+  const SA = 'test:g3d-serial-a', SB = 'test:g3d-serial-b';
+  await hello(SA, ['shape'], -10, 0);
+  await hello(SB, ['shape'], -10, 0);
+  const qa = await asArt({ action: 'submit', kind: 'shape', title: 'test xếp hàng A', params: { views } });
+  const qb = await asArt({ action: 'submit', kind: 'shape', title: 'test xếp hàng B', params: { views } });
+  cleanup.push(qa.body.job.id, qb.body.job.id);
+  const ca = await asWorker({ action: 'claim', worker_id: SA });
+  ok(ca.body.job?.id === qa.body.job.id, 'máy A nhận job xếp hàng đầu tiên');
+  ok((await asWorker({ action: 'claim', worker_id: SB })).body.job === null, 'máy B rảnh vẫn không nhận khi đã có job chạy');
+  const gb = await asArt({ action: 'get', id: qb.body.job.id });
+  ok(gb.body.job.queue_ahead === 1, `job B thấy còn 1 việc trước (${gb.body.job.queue_ahead})`);
+  await asWorker({ action: 'fail', worker_id: SA, job_id: qa.body.job.id, error: 'test xong' });
+  const cb = await asWorker({ action: 'claim', worker_id: SB });
+  ok(cb.body.job?.id === qb.body.job.id, 'job A xong thì máy B nhận job B');
+  await asWorker({ action: 'fail', worker_id: SB, job_id: qb.body.job.id, error: 'test xong' });
+  await asWorker({ action: 'bye', worker_id: SA });
+  await asWorker({ action: 'bye', worker_id: SB });
+
   const c = await asWorker({ action: 'claim', worker_id: W });
   ok(c.body.job?.id === id && c.body.job.status === 'running' && c.body.job.worker === W, 'worker claim job shape → running');
   ok((await asWorker({ action: 'progress', worker_id: W, job_id: id, stage: 'generate', msg: 'TripoSG đang dựng' })).body.job_status === 'running', 'progress ghi được');
@@ -147,7 +166,7 @@ async function botToken() {
 
   const g = await asArt({ action: 'get', id });
   ok(g.body.job.log.length >= 4 && !g.body.job.log.some((l) => !(l && /^\d{4}-/.test(l.t) && typeof l.msg === 'string')), `get có log hợp lệ (${g.body.job.log.length} dòng)`);
-  const l = await asArt({ action: 'list', mine: true, limit: 10 });
+  const l = await asArt({ action: 'list', mine: true, limit: 40 });
   ok(l.body.jobs.some((j) => j.id === id) && !('log' in l.body.jobs[0]), 'list có job, không kèm log');
 
   const can = await asArt({ action: 'cancel', id: child.id });

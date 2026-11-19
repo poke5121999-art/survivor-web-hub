@@ -123,7 +123,11 @@ function isWorker(req: Request) {
 }
 
 const JOB_SUMMARY = sql`id, created_at, created_by, author, title, kind, parent_id, root_id, params,
-  status, stage, worker, attempts, claimed_at, heartbeat_at, finished_at, preview, result, error`;
+  status, stage, worker, attempts, claimed_at, heartbeat_at, finished_at, preview, result, error,
+  case when status = 'queued' and params->>'only_worker' is null then (
+    select count(*)::int from public.gen3d_jobs q
+    where q.params->>'only_worker' is null
+      and (q.status = 'running' or (q.status = 'queued' and q.created_at < gen3d_jobs.created_at))) end as queue_ahead`;
 
 const WORKER_COLS = sql`id, label, host, caps, enabled, priority, claim_delay_s, note, current_job,
   last_seen, jobs_done, gpu, mem,
@@ -433,11 +437,18 @@ const worker: Record<string, (b: any) => Promise<unknown>> = {
     await sql`update public.gen3d_workers set last_seen = now() where id = ${id}`;
     const config = await workerConfig(id);
     if (!config.enabled) return { job: null, config };
-    const [j] = await sql`
+    // Một hàng đợi chung cho cả xưởng: job không ghim máy (only_worker) chạy lần lượt từng cái một, kể cả khi
+    // nhiều máy cùng rảnh. Khoá advisory làm hai máy claim cùng lúc không cùng thấy "chưa có job nào chạy".
+    const [j] = await sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtext('gen3d-claim'))`;
+      return tx`
       with me as (select * from public.gen3d_workers where id = ${id}),
+      busy as (select exists (select 1 from public.gen3d_jobs
+        where status = 'running' and params->>'only_worker' is null) as running),
       pick as (
-        select j.id from public.gen3d_jobs j, me
+        select j.id from public.gen3d_jobs j, me, busy
         where j.status = 'queued'
+          and (j.params->>'only_worker' is not null or not busy.running)
           and me.caps ? j.kind
           and (j.params->>'only_worker' is null or me.id = any(string_to_array(j.params->>'only_worker', ',')))
           and (
@@ -455,6 +466,7 @@ const worker: Record<string, (b: any) => Promise<unknown>> = {
         claimed_at = now(), heartbeat_at = now(), error = null
       from pick where j.id = pick.id
       returning j.id`;
+    });
     if (!j) return { job: null, config };
     await sql`update public.gen3d_workers set status = 'busy', current_job = ${j.id}, note = null where id = ${id}`;
     await appendLog(j.id, "setup", `${config.label} nhận job`);

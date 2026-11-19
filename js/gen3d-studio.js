@@ -19,7 +19,7 @@ const KIND_LABEL = { shape: "Model", texture: "Texture", rig: "Xương" };
 const VIEWS = [["front", "Trước"], ["left", "Trái"], ["right", "Phải"], ["back", "Sau"]];
 const ACCEPT = /^image\/(png|jpeg|webp)$/;
 const ULTRA_REQ = "Ultra cần ~12 GB RAM trống trên máy gen, có thể chờ lâu.";
-const DEFAULT_CFG = { ultra: false, ai_complete: true, texture: true, quality: "4K", remove_lighting: true, pbr: false, topology: "triangle", polycount: 100000 };
+const DEFAULT_CFG = { ultra: false, ai_complete: false, texture: true, quality: "2K", remove_lighting: true, pbr: false, topology: "triangle", polycount: 100000 };
 const TIPS = {
   ultra: "Lưới marching cubes dày hơn và nhiều bước khử nhiễu hơn: mesh mịn, nhiều chi tiết hơn nhưng gen lâu hơn và tốn VRAM hơn. Máy gen cần ~12 GB RAM trống mới chạy, có thể chờ lâu; chờ 5 phút không đủ thì job báo lỗi.",
   ai_complete: "Vùng không ảnh nào nhìn thấy: tắt thì tô bằng màu lân cận, bật thì model diffusion vẽ bù. Chỉ có tác dụng khi gen texture.",
@@ -778,7 +778,7 @@ function paintView() {
     const prev = j.preview ? pubUrl(j.preview) : "";
     fill(P.overlay, h("div", { class: "g3-prog" },
       h("h3", {}, kindTag(j.kind), h("span", { text: j.title || "Model" }), statusPill(j.status)),
-      h("div", { class: "g3-dim", text: j.status === "queued" ? "Đang chờ máy gen rảnh · " + fmtDur(Date.now() - Date.parse(j.created_at)) : j.worker ? "Máy " + j.worker + " · " + fmtDur(Date.now() - Date.parse(j.claimed_at || j.created_at)) : "" }),
+      h("div", { class: "g3-dim", text: j.status === "queued" ? (j.queue_ahead > 0 ? "Xếp hàng: còn " + j.queue_ahead + " việc trước bạn · " : j.queue_ahead === 0 ? "Tới lượt, chờ máy gen nhận · " : "Đang chờ máy gen rảnh · ") + fmtDur(Date.now() - Date.parse(j.created_at)) : j.worker ? "Máy " + j.worker + " · " + fmtDur(Date.now() - Date.parse(j.claimed_at || j.created_at)) : "" }),
       stepper(j),
       prev ? h("img", { src: prev, alt: "Ảnh xem trước" }) : null,
       j.error ? h("div", { class: "g3-err", text: j.error }) : null,
