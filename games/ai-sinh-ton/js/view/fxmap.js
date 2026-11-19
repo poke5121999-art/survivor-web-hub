@@ -1,0 +1,294 @@
+// Maps every effect key the sim emits (sim `fx`, `attack`, projectile, zone, dash, buff, state keys) to a look, and
+// plays it with Blockade Z's G.fx calls, own ground marks and sounds. A key missing from KEYS plays a generic burst
+// and is logged once. counters[key] counts the effects played per key (the view-shots tool reads it).
+const THREE = window.THREE;
+const BZ = window.BZ;
+
+// palette per style: [core, edge]
+const STYLE = {
+  steel: [0xfff0c0, 0xffa040], fire: [0xffe070, 0xff4010], ice: [0xffffff, 0x7ad0ff], poison: [0xd0ff70, 0x4aa820], shock: [0xffffff, 0x70c0ff],
+  holy: [0xfff6b0, 0xffc840], blood: [0xff7080, 0xa01028], earth: [0xe0d0a8, 0x8a6a44], void: [0xe8b0ff, 0x7a30d8], plasma: [0xc0ffff, 0x20c0f0],
+  web: [0xffffff, 0xc0c8e8], sand: [0xffe090, 0xc89a40], bio: [0xe0ff90, 0x78b838], gun: [0xfff0a0, 0xff9a30], metal: [0xe8eef8, 0x7a8aa0],
+};
+
+// key: { s style, n size multiplier, snd sound, boom real explosion, bolt look for `bolt` parts, sky bolt from above, fall mark projectile,
+//        z zone look [shader style, colour 1, colour 2, puff rate, extra], atk look of a basic attack, ult/self wave }
+const K = (s, o = {}) => ({ s, ...o });
+export const KEYS = {
+  // hero basic attacks
+  slash_heavy: K('steel', { atk: 'slash', n: 2.3, snd: 'heavy' }), slash: K('steel', { atk: 'slash', n: 1.7 }), minigun: K('gun', { atk: 'tracer' }),
+  pistol: K('gun', { atk: 'tracer' }), shuriken: K('metal', { atk: 'tracer', n: 1.2 }), thrust: K('ice', { atk: 'thrust', n: 2 }), punch: K('fire', { atk: 'punch' }),
+  glaive: K('poison', { atk: 'slash', n: 2.4 }), shotgun: K('gun', { atk: 'tracer' }), javelin: K('shock', { atk: 'tracer', n: 1.3 }), hatchet: K('blood', { atk: 'slash', n: 1.8 }),
+  webbow: K('web', { atk: 'tracer' }), rocket: K('fire', { boom: true, n: 1 }),
+  // hero skills and ultimates
+  gold_shield: K('holy', { self: true }), charge: K('steel', { trail: true }), quake: K('earth', { self: true, ult: true, snd: 'heavy' }), overdrive: K('fire', { self: true }),
+  cluster: K('fire', { boom: true, fall: 'nade' }), drones: K('metal', { self: true, ult: true }), heal: K('holy', { heal: true }), dart: K('bio', { bolt: 'tracer' }),
+  revive: K('holy', { self: true, ult: true }), dash: K('shock', { trail: true }), gust: K('ice', { n: 1.2, snd: 'swipe' }), blades: K('steel', { bolt: 'slash', ult: true }),
+  airstrike: K('fire', { boom: true, fall: 'shell' }), mines: K('steel', { boom: true, fall: 'bomb' }), artillery: K('fire', { boom: true, fall: 'shell', ult: true }),
+  blink: K('void', { bolt: 'slash', trail: true }), pierce_star: K('metal', { n: 1.2 }), vanish: K('void', { self: true, ult: true }), ice_wave: K('ice', { n: 1.2 }),
+  ice_spike: K('ice', { n: 1.4 }), blizzard: K('ice', { ult: true, z: [2, 0x2f7fe0, 0xe8f6ff, 7] }), molotov: K('fire', { z: [0, 0xc02808, 0xffc030, 14] }),
+  rocket_jump: K('fire', { boom: true, trail: true }), dragon_breath: K('fire', { ult: true, z: [0, 0xc02808, 0xffd040, 20] }),
+  poison_cloud: K('poison', { z: [1, 0x3a8a18, 0xb8f050, 5] }), drain: K('blood', { bolt: 'drain' }), plague: K('poison', { ult: true, mark: true }),
+  turret: K('metal', { self: true }), armor_up: K('metal', { self: true }), fortress: K('metal', { self: true, ult: true }),
+  ball_lightning: K('shock', { ult: true, z: [5, 0x2080ff, 0xe0f4ff, 0, 'ball'] }), smite: K('holy', { bolt: 'sky', sky: true }), thunder: K('shock', { bolt: 'sky', sky: true, ult: true, snd: 'thunder' }),
+  pounce: K('blood', { bolt: 'slash', trail: true }), howl: K('earth', { self: true, snd: 'roar' }), werewolf: K('blood', { self: true, ult: true }),
+  swing: K('web', { trail: true }), web_pull: K('web', { pull: true }), web_net: K('web', { ult: true, mark: true, z: [3, 0xb8c0d8, 0xffffff, 0] }),
+  // enemy attacks
+  claw: K('blood', { atk: 'claw' }), bite: K('blood', { atk: 'bite' }), acid: K('poison', { n: 0.8 }), smash: K('earth', { atk: 'smash', n: 1.4, snd: 'heavy' }),
+  boulder: K('earth', { n: 1.2, snd: 'boom' }), plasma: K('plasma', { atk: 'tracer', n: 0.9 }), scarab: K('sand', { n: 1 }), void_ball: K('void', { n: 1.3, snd: 'boom' }),
+  // enemy and boss skills
+  leap: K('earth', { trail: true }), bloat: K('bio', { n: 1, snd: 'boom' }), shriek: K('plasma', { self: true, snd: 'screech' }), boss_slam: K('earth', { self: true, snd: 'heavy' }),
+  roar: K('earth', { self: true, snd: 'roar' }), rockfall: K('earth', { fall: 'rock', snd: 'heavy' }), phase: K('void', { self: true, trail: true }), shards: K('void', { bolt: 'tracer' }),
+  wail: K('void', { self: true, snd: 'screech' }), screech: K('plasma', { self: true, snd: 'screech' }), dive: K('metal', { trail: true }), sonic: K('plasma', { n: 1.2, snd: 'screech' }),
+  eggs: K('bio', { self: true }), web_spit: K('web', { n: 1.2 }), acid_sea: K('poison', { z: [1, 0x4aa820, 0xc8ff50, 6] }), bats: K('blood', { bolt: 'tracer' }),
+  blooddash: K('blood', { trail: true }), bloodnova: K('blood', { self: true, snd: 'boom' }), bloodrain: K('blood', { fall: 'blood' }), plasma_volley: K('plasma', { bolt: 'tracer' }),
+  laser: K('plasma', { n: 1.2 }), beam_in: K('plasma', { self: true }), acid_mines: K('poison', { fall: 'acid' }), pillars: K('sand', { n: 1.2 }), mummies: K('sand', { self: true }),
+  curse: K('sand', { n: 1.2 }), orbring: K('sand', { self: true, snd: 'boom' }), bombrun: K('fire', { boom: true, fall: 'bomb' }), tractor: K('plasma', { z: [4, 0x40c0ff, 0xd8f4ff, 0, 'beam'] }),
+  emp: K('plasma', { self: true, snd: 'thunder' }), charge_boss: K('earth', { trail: true }), void_breath: K('void', { n: 1.3, snd: 'roar' }), meteor: K('fire', { boom: true, fall: 'meteor' }),
+  tailspin: K('earth', { self: true, snd: 'swipe' }), boulder_roll: K('earth', { n: 1.3 }),
+  // emitted by the sim itself
+  turret_shot: K('gun', { atk: 'tracer' }), chain: K('shock', { bolt: 'arc' }), kill_blast: K('fire', { n: 0.8, snd: 'boom' }),
+  fire_pool: K('fire', { z: [0, 0xc02808, 0xffc030, 14] }), web: K('web', { z: [3, 0xb8c0d8, 0xffffff, 0] }),
+};
+// `charge` is both a hero skill and a boss skill: one entry serves both
+KEYS.charge = K('steel', { trail: true, snd: 'heavy' });
+
+const STATE = { invuln: STYLE.holy, stealth: STYLE.void, taunt: STYLE.steel };
+const PROJ = {
+  rocket: { mesh: 'rocket', c: 0xffa040, size: 1.2, arc: 0.6, trail: true }, acid: { mesh: 'blob', c: 0x9cff3a, size: 1.0, arc: 2.2 },
+  boulder: { mesh: 'rock', c: 0xffd8a0, size: 1.0, arc: 4, spin: 5 }, void_ball: { mesh: 'blob', c: 0xb060ff, size: 1.7, arc: 1.2 },
+  scarab: { mesh: 'scarab', c: 0xffd860, size: 1.0, arc: 1.6, spin: 8 }, plasma: { mesh: 'blob', c: 0x60f0ff, size: 1.0, arc: 0 },
+};
+const ULT_SPAN = 6;
+
+const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
+export function createFxMap(H, marks, ctx) {
+  const { G, scene, camera } = H;
+  const counters = {}; const missing = new Set(); const bump = (k) => { counters[k] = (counters[k] || 0) + 1; };
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  let budget = { pop: 0, boom: 0, puff: 0 };
+  const reduceFlash = () => !!(window.__G && window.__G.settings && window.__G.settings.reduceFlash);
+  const snd = (name, x, z, gain = 0.5) => { if (name) G.audio.playAt(name, V(x, 0, z), { gain }); };
+
+  function look(key) {
+    const k = KEYS[key];
+    if (k) return k;
+    if (!missing.has(key)) { missing.add(key); console.warn('[fxmap] no effect for key ' + key); }
+    return null;
+  }
+  const pal = (k) => STYLE[(k && k.s) || 'steel'];
+  const teamCol = (team, p) => (team === 0 ? p : [0xffd0a0, 0xff5a30]);
+
+  function screenAng(ax, az, bx, bz) {
+    const a = V(ax, 1, az).project(camera); const b = V(bx, 1, bz).project(camera);
+    return Math.atan2((b.y - a.y) * H.size.h, (b.x - a.x) * H.size.w);
+  }
+
+  function pop(x, y, z, r, cols) { if (budget.pop-- > 0) G.fx.pop(V(x, y, z), r, cols); }
+  function boom(x, z, r) {
+    if (budget.boom-- <= 0) return;
+    if (reduceFlash()) { G.fx.pop(V(x, 0.3, z), r * 0.8, [0xffd070, 0xff6020]); return; }
+    G.fx.explosion(V(x, 0.2, z), Math.min(1, Math.max(0.4, r / 4.2)));
+  }
+  function wave(x, z, r, cols, life = 0.55) { marks.ring(x, z, Math.max(0.3, r * 0.2), r, cols[1], life, 0.85); marks.ring(x, z, 0.2, r * 0.8, cols[0], life * 0.8, 0.22); }
+
+  // ---- parts of the sim `fx` event ----
+  const PART = {
+    burst(e, k, p) {
+      const r = e.r || 1; const cols = teamCol(e.team, p); const n = k.n || 1;
+      pop(e.x, 0.3, e.z, Math.min(2, Math.max(0.5, r * 0.4 * Math.min(1.3, n))), cols);
+      wave(e.x, e.z, r, cols, 0.5); marks.flare(e.x, e.z, r * 1.1, cols[1], 0.45, e.team === 0 ? 0.3 : 0.5);
+      if (k.boom && r >= 1.6) boom(e.x, e.z, r);
+      if (k.s === 'earth' && budget.puff-- > 0) G.fx.chunks && G.fx.chunks(V(e.x, 0.4, e.z), 4 + Math.round(r), [BZ.mat('stone')], V(0, 1, 0), 0.7);
+      snd(k.snd || (k.boom ? 'boom' : (e.team === 0 ? 'impact' : 'hit')), e.x, e.z, k.boom ? 0.5 : 0.3);
+    },
+    cone(e, k, p) {
+      const cols = teamCol(e.team, p); const half = (e.deg * Math.PI) / 360; const r = e.r;
+      for (let i = 0; i < 16; i++) {
+        const a = e.ang + (G.rng.next() * 2 - 1) * half; const d = r * (0.25 + G.rng.next() * 0.75);
+        const v = V(e.x + Math.cos(a) * d, 0.5 + G.rng.next() * 0.8, e.z + Math.sin(a) * d);
+        G.fx.puff(v, { glow: true, vel: V(Math.cos(a) * 3, 0.5, Math.sin(a) * 3), drag: 1.5, s0: 0.7, s1: 1.8, life: 0.5 + G.rng.next() * 0.3, c0: cols[0], c1: cols[1], a0: 0.7, spin: 0 });
+      }
+      marks.ring(e.x, e.z, 0.5, r, cols[1], 0.45, 0.6);
+      snd(k.snd || 'swipe', e.x, e.z, 0.4);
+    },
+    line(e, k, p) {
+      const cols = teamCol(e.team, p);
+      marks.strip(e.x, e.z, e.x2, e.z2, Math.max(0.5, e.w), cols[1], 0.4, 0.8); marks.strip(e.x, e.z, e.x2, e.z2, Math.max(0.2, e.w * 0.3), cols[0], 0.3, 0.95);
+      for (let i = 0; i < 5; i++) { const t = (i + 0.5) / 5; G.fx.puff(V(e.x + (e.x2 - e.x) * t, 0.9, e.z + (e.z2 - e.z) * t), { glow: true, s0: 1.1, s1: 0.3, life: 0.3, c0: cols[0], c1: cols[1], a0: 0.9, spin: 0 }); }
+      snd(k.snd || 'saber_swing', e.x, e.z, 0.4);
+    },
+    heal(e) { sparkle(e.x, e.z, [0xd8ffb8, 0x58e070], 6); marks.ring(e.x, e.z, 0.4, 1.7, 0x58e070, 0.6, 0.8); snd('pickup', e.x, e.z, 0.3); },
+    shield(e) { marks.ring(e.x, e.z, 0.5, 2.1, 0x9ad8ff, 0.5, 0.9); sparkle(e.x, e.z, [0xffffff, 0x7ac0ff], 4); },
+    bolt(e, k, p) {
+      const cols = teamCol(e.team, p); const style = k.bolt || 'tracer';
+      const to = V(e.x, 1.2, e.z);
+      if (style === 'sky') {
+        G.fx.bolt(V(e.x, 18, e.z), V(e.x, 0.2, e.z), cols[1]); G.fx.bolt(V(e.x + 0.2, 18, e.z), V(e.x, 0.2, e.z), cols[0]);
+        pop(e.x, 0.3, e.z, 1.4, cols); marks.ring(e.x, e.z, 0.3, 2.2, cols[1], 0.4, 0.9); snd(k.snd || 'thunder', e.x, e.z, 0.35); return;
+      }
+      const from = V(e.fromX, 1.3, e.fromZ);
+      if (style === 'arc') G.fx.arc(from, to, cols[1]);
+      else if (style === 'drain') { G.fx.bolt(to, from, 0xff4060); pop(e.x, 1, e.z, 0.7, [0xff7080, 0xa01028]); }
+      else if (style === 'slash') { G.fx.slash(to, cols[0], screenAng(e.fromX, e.fromZ, e.x, e.z), 1.5); G.fx.puff(to, { glow: true, s0: 0.3, s1: 1.4, life: 0.2, c0: 0xffffff, c1: cols[1], a0: 1, spin: 0 }); }
+      else { G.fx.tracer(from, to, cols[1]); pop(e.x, 1, e.z, 0.6, cols); }
+      snd(k.snd, e.x, e.z, 0.3);
+    },
+    mark(e, k, p) { marks.flare(e.x, e.z, e.r, p[1], Math.min(e.dur || 2, 3), 0.28); wave(e.x, e.z, e.r, p, 0.7); },
+    pull(e, k, p) { marks.ring(e.x, e.z, e.r, 0.4, p[0], 0.5, 0.8); marks.ring(e.x, e.z, e.r * 0.7, 0.3, p[1], 0.6, 0.6); snd('swipe', e.x, e.z, 0.4); },
+  };
+
+  function sparkle(x, z, cols, n) {
+    for (let i = 0; i < n && budget.puff-- > 0; i++) {
+      const a = G.rng.range(0, 6.283); const d = G.rng.range(0.3, 1);
+      G.fx.puff(V(x + Math.cos(a) * d, 0.3, z + Math.sin(a) * d), { glow: true, vel: V(0, G.rng.range(1.5, 3), 0), drag: 0.5, s0: 0.35, s1: 0.1, life: G.rng.range(0.6, 1), c0: cols[0], c1: cols[1], a0: 1, spin: 0 });
+    }
+  }
+
+  const lastHurt = new Map();
+
+  // ---- event handlers: return nothing; ctx supplies unit lookups ----
+  const ON = {
+    fx(e) {
+      const k = look(e.key); if (!k) { PART.burst(e, KEYS.slash, STYLE.steel); return; }
+      const p = pal(k); const f = PART[e.part]; if (!f) return;
+      f(e, k, p); bump(e.key);
+    },
+    tele(e) {
+      const k = look(e.key); marks.tele(e, k && k.fall); if (k) bump(e.key);
+    },
+    zone(e) {
+      const k = look(e.key); if (!k || !k.z) { if (k) bump(e.key); return; }
+      marks.zoneStart(e, k.z); bump(e.key);
+      const p = pal(k); marks.ring(e.x, e.z, 0.5, e.r, p[1], 0.5, 0.7);
+    },
+    zone_end(e) { marks.zoneEnd(e.id); },
+    cast(e) {
+      const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (!k) return; bump(e.key);
+      const p = u.hero ? [0xffffff, ctx.colorOf(e.uid)] : pal(k);
+      marks.ring(u.x, u.z, 0.4, 2.4, p[1], 0.5, 0.8); marks.flare(u.x, u.z, 2, p[1], 0.5, 0.3);
+      if (k.snd && !u.hero) snd(k.snd, u.x, u.z, 0.5);
+    },
+    ult(e) {
+      const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (k) bump(e.key);
+      const c = ctx.colorOf(e.uid); const col = new THREE.Color(c);
+      marks.flare(u.x, u.z, 4.5, c, 0.9, 0.3); marks.ring(u.x, u.z, 0.5, ULT_SPAN, c, 0.7, 0.8); marks.ring(u.x, u.z, 0.3, ULT_SPAN * 0.6, c, 0.55, 0.4);
+      pop(u.x, 1, u.z, 1.1, [col.getHex(), col.getHex()]); snd('wave_start', u.x, u.z, 0.4);
+    },
+    dash(e) {
+      const k = look(e.key); if (k) bump(e.key);
+      const p = pal(k); const dx = e.x2 - e.x; const dz = e.z2 - e.z; const d = Math.hypot(dx, dz);
+      marks.strip(e.x, e.z, e.x2, e.z2, 1.1, p[1], 0.35, 0.7);
+      const n = Math.min(10, Math.ceil(d / 1.2));
+      for (let i = 0; i < n && budget.puff-- > 0; i++) { const t = i / n; G.fx.puff(V(e.x + dx * t, 0.6, e.z + dz * t), { glow: true, s0: 0.9, s1: 0.2, life: 0.35, c0: p[0], c1: p[1], a0: 0.8, spin: 0 }); }
+      if (e.jump) { marks.ring(e.x2, e.z2, 0.4, 2, p[1], 0.4, 0.8); G.fx.puff(V(e.x2, 0.3, e.z2), { s0: 0.8, s1: 2.4, life: 0.5, c0: 0xb8b0a0, c1: 0x9a9488, a0: 0.5 }); }
+      snd('swipe', e.x, e.z, 0.3);
+    },
+    summon(e) {
+      const u = ctx.unit(e.owner); const c = u && u.hero ? ctx.colorOf(e.owner) : 0xb0c0ff;
+      pop(e.x, 0.6, e.z, 1.1, [0xffffff, c]); marks.ring(e.x, e.z, 0.3, 1.8, c, 0.5, 0.8); bump('summon'); snd('pickup', e.x, e.z, 0.3);
+    },
+    spawn(e) {
+      if (Math.hypot(e.x, e.z) > 12.5) return;
+      const c = e.boss ? 0xff6030 : 0xc8b0ff; pop(e.x, 0.5, e.z, 0.9, [0xffffff, c]); marks.ring(e.x, e.z, 0.3, 1.6, c, 0.4, 0.7);
+    },
+    heal(e) { if (e.amt > 0 && budget.puff > 0) { sparkle(e.x, e.z, [0xd8ffb8, 0x58e070], 2); } },
+    revive(e) {
+      const u = ctx.unit(e.uid); const x = e.x; const z = e.z; bump('revive');
+      marks.pillar(x, z, 0xffd860, 1.1); marks.ring(x, z, 0.3, 3, 0xffe890, 0.7, 0.9); sparkle(x, z, [0xffffff, 0xffd860], 8); void u;
+    },
+    die(e) {
+      if (e.expire) { marks.ring(e.x, e.z, 0.3, 1.2, 0xc8d0ff, 0.35, 0.6); return; }
+      const u = ctx.unit(e.uid); if (!u) return;
+      if (u.hero) { pop(e.x, 0.8, e.z, 1.2, [0xffffff, 0xff6070]); marks.ring(e.x, e.z, 0.3, 2.4, 0xff6070, 0.5, 0.8); return; }
+      if (e.boss) { boom(e.x, e.z, 5); wave(e.x, e.z, 7, STYLE.fire, 0.8); marks.flare(e.x, e.z, 6, 0xffa040, 0.9, 0.7); return; }
+      if (budget.puff-- > 0) G.fx.puff(V(e.x, 0.5, e.z), { s0: 0.6, s1: 1.9, life: 0.55, c0: 0xa8a49c, c1: 0x7a766e, a0: 0.45 });
+    },
+    hit(e) {
+      const u = ctx.unit(e.uid); if (!u || !u.hero) return;
+      if (e.shield) { marks.ring(u.x, u.z, 0.8, 1.9, 0x9ad8ff, 0.25, 0.7); return; }
+      const t = lastHurt.get(e.uid) || 0; if (ctx.time() - t < 0.18) return; lastHurt.set(e.uid, ctx.time());
+      pop(u.x, 1.3, u.z, 0.45, [0xffffff, 0xff5060]);
+    },
+    block(e) { const u = ctx.unit(e.uid); if (u) { marks.ring(u.x, u.z, 0.6, 1.9, 0xffd860, 0.3, 0.9); pop(u.x, 1.3, u.z, 0.5, [0xffffff, 0xffd860]); } },
+    buff(e) { const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (k) bump(e.key); const p = pal(k); marks.ring(u.x, u.z, 0.5, 1.8, p[1], 0.6, 0.8); sparkle(u.x, u.z, p, 4); },
+    state(e) {
+      const u = ctx.unit(e.uid); if (!u) return; const k = look(e.fx); if (k) bump(e.fx);
+      const p = STATE[e.key] || pal(k); marks.ring(u.x, u.z, 0.5, 2, p[1], 0.6, 0.85); sparkle(u.x, u.z, p, 5); snd('saber_on', u.x, u.z, 0.3);
+    },
+    status(e) { const u = ctx.unit(e.uid); if (u && u.hero) { const c = { burn: 0xff7030, poison: 0x78d838, freeze: 0x8ae0ff, slow: 0x8ab8ff, stun: 0xffe860, root: 0x8a6a44, bleed: 0xc02838 }[e.k]; if (c) marks.ring(u.x, u.z, 0.4, 1.4, c, 0.35, 0.8); } },
+  };
+
+  // ---- basic attacks ----
+  function attack(e, from, hero) {
+    const k = look(e.key); if (!k) return; bump(e.key);
+    const p = pal(k); const team = ctx.unit(e.uid) ? ctx.unit(e.uid).team : 0; const cols = teamCol(team, p);
+    const tgt = V(e.tx, 1.0, e.tz); const kind = k.atk;
+    if (e.kind === 'shot' || e.kind === 'cone') {
+      const n = e.kind === 'cone' ? 3 : 1;
+      for (let i = 0; i < n; i++) G.fx.tracer(from.clone(), V(e.tx + G.rng.range(-0.3, 0.3) * (n > 1 ? 2 : 1), 1.0, e.tz + G.rng.range(-0.3, 0.3)), cols[1]);
+      G.fx.muzzle(from); if (e.key === 'shuriken' || e.key === 'javelin') pop(e.tx, 1, e.tz, 0.5, cols);
+      if (!hero) snd(e.key === 'plasma' ? 'smg' : 'pistol', e.x, e.z, 0.3);
+      return;
+    }
+    if (e.kind === 'proj') { G.fx.muzzle(from); if (!hero) snd(e.key === 'boulder' ? 'swipe' : 'pistol', e.x, e.z, 0.25); return; }
+    // melee: a slash in front of the attacker, aimed along the screen direction of the blow
+    const dx = e.tx - e.x; const dz = e.tz - e.z; const d = Math.hypot(dx, dz) || 1; const f = Math.min(d, 1.5) / d;
+    const at = V(e.x + dx * f, 1.0, e.z + dz * f); const ang = screenAng(e.x, e.z, e.tx, e.tz);
+    if (kind === 'slash') G.fx.slash(at, cols[0], ang + 0.5, k.n || 1.5);
+    else if (kind === 'thrust') { G.fx.slash(tgt, cols[0], ang, 1.8); G.fx.tracer(V(e.x, 1.1, e.z), tgt, cols[1]); }
+    else if (kind === 'punch') { G.fx.pop(tgt, 0.6, cols); G.fx.slash(tgt, cols[0], ang, 1.1); }
+    else if (kind === 'claw') { G.fx.slash(V(e.tx, 1.1, e.tz), 0xffb0a0, ang + 1.2, 0.8); }
+    else if (kind === 'bite') { G.fx.slash(V(e.tx, 0.9, e.tz), 0xfff0e0, ang + 1.6, 0.7); }
+    else if (kind === 'smash') { marks.ring(e.tx, e.tz, 0.4, 2.2, 0xd8c8a8, 0.4, 0.7); G.fx.puff(V(e.tx, 0.3, e.tz), { s0: 0.8, s1: 2.8, life: 0.5, c0: 0xb8ae98, c1: 0x8a8070, a0: 0.55 }); snd('heavy', e.tx, e.tz, 0.35); }
+  }
+
+  // ---- projectiles drawn from B.projs ----
+  const projs = new Map();
+  function buildProj(def) {
+    const g = new THREE.Group();
+    const col = (c) => new THREE.MeshBasicMaterial({ color: c });
+    if (def.mesh === 'rocket') { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.7, 8), new THREE.MeshLambertMaterial({ color: 0xe8e8f0 })); b.rotation.x = Math.PI / 2; const n = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.3, 8), col(0xff4a30)); n.rotation.x = Math.PI / 2; n.position.z = 0.5; g.add(b, n); }
+    else if (def.mesh === 'rock') g.add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.55), new THREE.MeshLambertMaterial({ color: 0x8a7a68 })));
+    else if (def.mesh === 'scarab') { const b = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6), col(0x30c890)); b.scale.set(1, 0.6, 1.3); g.add(b); const w = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.04, 0.3), col(0xffd860)); w.position.y = 0.2; g.add(w); }
+    else g.add(new THREE.Mesh(new THREE.SphereGeometry(0.3 * def.size, 10, 8), col(def.c)));
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: def.c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+    sp.scale.setScalar(1.4 * def.size); g.add(sp); scene.add(g); return g;
+  }
+  function syncProjs(B, dt) {
+    const seen = new Set();
+    for (const p of B.projs) {
+      seen.add(p); let r = projs.get(p);
+      if (!r) { const def = PROJ[p.key] || { mesh: 'blob', c: 0xfff0b0, size: 0.9, arc: 0 }; r = { g: buildProj(def), def, d0: Math.hypot(p.tx - p.x, p.tz - p.z) + 0.01, x: p.x, z: p.z }; projs.set(p, r); }
+      const k = 1 - Math.exp(-30 * dt); r.x += (p.x - r.x) * k; r.z += (p.z - r.z) * k;
+      const left = Math.hypot(p.tx - r.x, p.tz - r.z); const prog = Math.min(1, Math.max(0, 1 - left / r.d0));
+      const y = 1.2 + Math.sin(Math.PI * prog) * r.def.arc; r.g.position.set(r.x, y, r.z);
+      if (r.def.spin) r.g.rotation.y += r.def.spin * dt; else r.g.lookAt(p.tx, 1.0, p.tz);
+      if (r.def.trail && budget.puff > 0) G.fx.trail(r.g.position);
+      else if (r.def.mesh === 'blob' && budget.puff-- > 0 && G.rng.chance(0.5)) G.fx.puff(r.g.position.clone(), { glow: true, s0: 0.5, s1: 0.1, life: 0.25, c0: r.def.c, c1: r.def.c, a0: 0.6, spin: 0 });
+    }
+    for (const [p, r] of projs) if (!seen.has(p)) { scene.remove(r.g); projs.delete(p); }
+  }
+
+  // ---- lingering effects on units ----
+  function unitsFx(B, dt) {
+    for (const u of B.units) {
+      if (!u.alive || !u.status) continue;
+      const s = u.status; if (!(s.burn || s.poison || s.freeze || s.bleed)) continue;
+      if (!u.hero) continue; // enemy statuses are drawn by the zombie pool itself
+      if (!G.rng.chance(dt * 9) || budget.puff-- <= 0) continue;
+      const c = s.burn ? [0xffd070, 0xff4010] : s.poison ? [0xd0ff70, 0x4aa820] : s.freeze ? [0xffffff, 0x7ad0ff] : [0xff7080, 0xa01028];
+      G.fx.puff(V(u.x + G.rng.range(-0.4, 0.4), 0.4, u.z + G.rng.range(-0.4, 0.4)), { glow: !!s.burn, vel: V(0, s.burn ? 2 : 0.8, 0), drag: 0.6, s0: 0.4, s1: 0.8, life: 0.7, c0: c[0], c1: c[1], a0: 0.7 });
+    }
+  }
+
+  return {
+    KEYS, counters, missing, STYLE, look,
+    onEvent(e) { const h = ON[e.e]; if (h) h(e); },
+    attack,
+    update(B, dt) { budget = { pop: 8, boom: 2, puff: 40 }; if (B) { syncProjs(B, dt); unitsFx(B, dt); } marks.update(dt, B); },
+    clear() { for (const r of projs.values()) scene.remove(r.g); projs.clear(); marks.clear(); },
+    wrapA,
+  };
+}
