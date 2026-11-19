@@ -94,11 +94,11 @@ export const ENEMIES = [
       { name: 'Mưa Đá', move: 'rockrain', tier: 2, cd: 12, first: 8, ops: [{ op: 'rain', at: 'cluster', r: 8, n: 8, over: 2, hitR: 2.4, dmg: 1.3, delay: 0.5, seek: true }], fx: 'rockfall', lock: 0.9 },
       { name: 'Xung Kích', move: 'charge', tier: 3, cd: 11, first: 10, when: { targetWithin: 16 }, ops: [{ op: 'line', len: 14, w: 3, dmg: 2.4, delay: 1, status: st('stun', 1) }, { op: 'dash', to: 'through', delay: 1 }], fx: 'charge', lock: 1.2 },
     ] },
-  { id: 'dragon', name: 'Rồng Hư Không', boss: true, fly: true, hp: 11500, atk: 58, aspd: 0.7, speed: 4, r: 1.6, ranged: true, attack: { kind: 'proj', range: 12, aoe: 2, speed: 14, fx: 'void_ball' },
+  { id: 'dragon', name: 'Rồng Hư Không', boss: true, fly: true, hp: 11500, atk: 46, aspd: 0.7, speed: 4, r: 1.6, ranged: true, attack: { kind: 'proj', range: 12, aoe: 2, speed: 14, fx: 'void_ball' },
     skills: [
-      { name: 'Hơi Thở Hư Không', move: 'breath', cd: 9, first: 3, when: { targetWithin: 14 }, ops: [{ op: 'cone', r: 12, deg: 50, dmg: 2.2, delay: 1.1, status: st('burn', 3, 0.3) }], fx: 'void_breath', lock: 1.4 },
-      { name: 'Bổ Nhào', move: 'dive', cd: 10, first: 6, when: { targetWithin: 18 }, ops: [{ op: 'line', len: 16, w: 3, dmg: 2, delay: 1 }, { op: 'dash', to: 'through', delay: 1 }], fx: 'dive', lock: 1.2 },
-      { name: 'Sao Băng', move: 'meteor', tier: 2, cd: 12, first: 8, ops: [{ op: 'rain', at: 'cluster', r: 9, n: 9, over: 2.5, hitR: 2.6, dmg: 1.5, delay: 0.5, seek: true }], fx: 'meteor', lock: 0.9 },
+      { name: 'Hơi Thở Hư Không', move: 'breath', cd: 9, first: 3, when: { targetWithin: 14 }, ops: [{ op: 'cone', r: 11, deg: 45, dmg: 1.6, delay: 1.2, status: st('burn', 3, 0.2) }], fx: 'void_breath', lock: 1.4 },
+      { name: 'Bổ Nhào', move: 'dive', cd: 10, first: 6, when: { targetWithin: 18 }, ops: [{ op: 'line', len: 16, w: 3, dmg: 1.5, delay: 1.1 }, { op: 'dash', to: 'through', delay: 1.1 }], fx: 'dive', lock: 1.3 },
+      { name: 'Sao Băng', move: 'meteor', tier: 2, cd: 12, first: 8, ops: [{ op: 'rain', at: 'cluster', r: 9, n: 7, over: 2.5, hitR: 2.4, dmg: 1.2, delay: 0.5, seek: true }], fx: 'meteor', lock: 0.9 },
       { name: 'Quật Đuôi', move: 'tailspin', tier: 3, cd: 9, first: 10, when: { enemyWithin: 5 }, ops: [{ op: 'aoe', at: 'self', r: 5.5, dmg: 1.8, delay: 0.6, kb: 3 }], fx: 'tailspin', lock: 0.9 },
     ] },
 ];
