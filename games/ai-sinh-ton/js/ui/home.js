@@ -15,7 +15,9 @@ const DOT_OF = { 'tab-gacha': 'gacha', 'tab-equip': 'equip', 'tab-heroes': 'hero
 const TAB_LOCK = { 'tab-gacha': 'gacha', 'tab-equip': 'equip' };
 const VISIT = { gacha: 'gacha', heroes: 'heroes', hero: 'heroes', equip: 'equip', rewards: 'rewards' };
 const SLOT_UNLOCK = [null, 'slot2', 'slot3', 'slot4'];
-const LAST_STAGE = 10;
+const STAGES_PER_CHAPTER = 5, CAMPAIGN_CHAPTERS = 6;
+const chapterOf = (n) => Math.floor((n - 1) / STAGES_PER_CHAPTER);
+const chapterStart = (k) => k * STAGES_PER_CHAPTER + 1;
 
 // kit dispose() mutates the tree while it walks it: release the deepest nodes first
 export function kill(n) { const list = []; n.traverse((o) => list.push(o)); for (let i = list.length - 1; i >= 0; i--) if (list[i].dispose) list[i].dispose(); n.parent && n.parent.remove(n); }
@@ -160,9 +162,10 @@ export function createHome(game) {
 
   // ---- Ra Trận ----
   let sel = 0, lastMax = 0; mui.stage = () => sel;
-  const maxStage = () => Math.min(LAST_STAGE, meta.acc.cleared + 1);
-  const title = ui.text('ẢI 1', { size: 46, color: PAL.gold, align: 'center', upper: true, outlineW: 4.5, shadow: 3 }); home.put(title, 180, 56, 6); mui.regTitle('home', title);
-  const stageName = ui.text('PHỐ HOANG 1', { size: 21, align: 'center', upper: true, outlineW: 3 }); home.put(stageName, 180, 114, 6); mui.regTitle('home', stageName);
+  const maxStage = () => meta.acc.cleared + 1;
+  const chapLine = ui.text('CHƯƠNG 1: PHỐ HOANG', { size: 14, color: 0xffe9a8, align: 'center', upper: true, outlineW: 2.4 }); home.put(chapLine, 180, 46, 6); mui.regTitle('home', chapLine);
+  const title = ui.text('ẢI 1', { size: 40, color: PAL.gold, align: 'center', upper: true, outlineW: 4.2, shadow: 3 }); home.put(title, 180, 64, 6); mui.regTitle('home', title);
+  const stageName = ui.text('PHỐ HOANG 1', { size: 18, align: 'center', upper: true, outlineW: 2.6 }); home.put(stageName, 180, 112, 6); mui.regTitle('home', stageName);
   const bossPill = ui.panel({ w: 220, h: 28, r: 14, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(bossPill, 60, 144);
   const skull = ui.icon('skull', { size: 30 }); bossPill.put(skull, -6, -1, 4);
   const bossTxt = ui.text('Boss: Khổng Lồ', { size: 13, align: 'left', valign: 'mid' }); bossPill.put(bossTxt, 30, 15);
@@ -174,9 +177,20 @@ export function createHome(game) {
   const frameP = ui.panel({ w: 330, h: 228, r: 22, color: 0x5a3fa0, depth: 5, bevel: 3 }); home.put(frameP, 15, 196);
   frameP.put(dio.node, 6, 6, 1);
   const hint = ui.text('', { size: 11, align: 'center', color: 0xffe9a8 }); frameP.put(hint, 165, 203, 10);
+  // five pips of the chapter under the diorama's top edge: cleared, next to play, locked; the fifth is the boss spike
+  const pipBar = ui.panel({ w: 186, h: 34, r: 17, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(pipBar, 87, 206, 12);
+  const pipRing = ui.panel({ w: 30, h: 30, r: 15, color: 0xffffff, depth: 1, bevel: 0.5, ow: 2, shadow: false }); pipBar.put(pipRing, 0, 2, 1);
+  const pips = [0, 1, 2, 3, 4].map((i) => {
+    const spike = i === STAGES_PER_CHAPTER - 1, p = ui.panel({ w: 24, h: 24, r: 12, color: PAL.disabled, depth: 2, bevel: 1.2, ow: 2, shadow: false }); pipBar.put(p, 13 + i * 34, 5, 3);
+    if (spike) { const sk = ui.icon('skull', { size: 24, sway: false }); p.put(sk, 0, 0, 4); }
+    return { p, x: 13 + i * 34 };
+  });
+  mui.pips = []; mui.chapterLine = '';
   const prev = ui.button({ id: 'stage-prev', w: 48, h: 56, r: 14, color: PAL.blue, icon: 'left', onTap: () => setStage(sel - 1) }); home.put(prev, 2, 282, 6);
   const next = ui.button({ id: 'stage-next', w: 48, h: 56, r: 14, color: PAL.blue, icon: 'right', onTap: () => setStage(sel + 1) }); home.put(next, 310, 282, 6);
   const lockI = ui.icon('lock', { size: 22 }); home.put(lockI, 323, 296, 20);
+  const chapPrev = ui.button({ id: 'chapter-prev', w: 48, h: 56, r: 14, color: PAL.purple, icon: 'left', label: 'CHƯƠNG', stack: true, size: 8.5, onTap: () => setStage(chapterStart(chapterOf(sel) - 1)) }); home.put(chapPrev, 2, 348, 6);
+  const chapNext = ui.button({ id: 'chapter-next', w: 48, h: 56, r: 14, color: PAL.purple, icon: 'right', label: 'CHƯƠNG', stack: true, size: 8.5, onTap: () => setStage(chapterStart(chapterOf(sel) + 1)) }); home.put(chapNext, 310, 348, 6);
 
   home.put(ui.text('ĐỘI HÌNH', { size: 12, color: 0xffe9a8 }), 18, 432, 6);
   const powTxt = ui.text('', { size: 13, align: 'right', color: 0xffe9a8 }); home.put(powTxt, 342, 431, 6);
@@ -207,13 +221,23 @@ export function createHome(game) {
   function setStage(n) {
     const max = maxStage(); n = Math.max(1, Math.min(max, n)); const same = n === sel; sel = n;
     const def = stageDef(n); dio.dress(n);
+    const k = chapterOf(n), endless = k >= CAMPAIGN_CHAPTERS;
+    mui.chapterLine = endless ? 'Vô Tận: ải ' + n : 'Chương ' + (k + 1) + ': ' + def.chapterName; chapLine.set(mui.chapterLine);
     title.set('ẢI ' + n); stageName.set(def.name);
+    mui.pips = pips.map((pp, i) => {
+      const m = chapterStart(k) + i, st = m <= meta.acc.cleared ? 'cleared' : m <= max ? 'current' : 'locked', spike = i === STAGES_PER_CHAPTER - 1;
+      pp.p.setColor(st === 'cleared' ? PAL.green : st === 'current' ? PAL.gold : spike ? 0x6a3040 : PAL.disabled);
+      return { n: m, state: st, spike, sel: m === n };
+    });
+    pipRing.pos(pips[(n - 1) % STAGES_PER_CHAPTER].x - 3, 2);
+
     bossTxt.set('Boss: ' + def.bossName);
     spikeTag.setVisible(def.spike); bossPill.pos(def.spike ? 24 : 60, 144);
     const best = meta.acc.best[n]; bestTxt.set(best ? 'Kỷ lục: ' + fmtTime(best) : 'Chưa có kỷ lục');
     prev.setEnabled(n > 1);
     const lockedNext = n >= max; next.setEnabled(!lockedNext); lockI.setVisible(lockedNext);
-    hint.set(n >= LAST_STAGE ? 'Ải 11 trở đi: sắp có' : n >= max ? 'Thắng ải này để mở ải kế tiếp' : '');
+    chapPrev.setEnabled(k > 0); chapNext.setEnabled(chapterStart(k + 1) <= max);
+    hint.set(n >= max ? 'Thắng ải này để mở ải kế tiếp' : '');
     start.setSub('Ải ' + n + ' - ' + def.name);
     refreshTeam(false); return !same;
   }
@@ -227,7 +251,8 @@ export function createHome(game) {
 
   const refreshDots = () => {
     const d = meta.dots();
-    for (const id of Object.keys(DOT_OF)) tabs[id].b.setBadge(!!d[DOT_OF[id]]);
+    mui.badges = {};
+    for (const id of Object.keys(DOT_OF)) { mui.badges[id] = !!d[DOT_OF[id]]; tabs[id].b.setBadge(mui.badges[id]); }
   };
 
   const showHome = () => {

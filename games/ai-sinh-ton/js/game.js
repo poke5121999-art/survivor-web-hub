@@ -11,7 +11,6 @@ import { tutorialStage } from './data/unlocks.js?v=20261119c';
 const SETTINGS_KEY = 'aisinhton.settings.v1';
 const SETTINGS_DEF = { quality: '', sound: true, vibrate: true, reduceFlash: false, autoPick: false, autoUlt: false };
 const RESULT_DELAY = 1.4;
-export const LAST_STAGE = 10;
 
 // [module path, factory name]; a module that is not there yet is skipped so the game still boots
 const SCREENS = [
@@ -110,7 +109,7 @@ export async function attachGame(game, { params }) {
   game.setPaused = (b) => { game.paused = !!b; game.events.emit('paused', { paused: game.paused }); };
   game.leaveBattle = () => { game.frozen = false; tut.on = false; game.tutorial = false; game.stop(); game.watching = 0; game.setPaused(false); game.setSpeed(1); game.events.emit('battle:end', {}); game.goto('home', {}); };
   game.retry = () => game.startBattle(game.stageN);
-  game.nextStage = () => game.startBattle(Math.min(LAST_STAGE, game.stageN + 1));
+  game.nextStage = () => game.startBattle(game.stageN + 1);
   game.openSettings = () => { if (game.screens.result) game.goto('result', { mode: 'settings', over: true }); };
   game.stageInfo = (n) => stageDef(n);
 

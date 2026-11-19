@@ -19,7 +19,7 @@ if [ -z "$AST_BASE" ]; then
   run pacing node tools/pacing.mjs 5 60
   run journey node tools/journey.mjs 5 30 260
 fi
-for t in smoke battle-test meta-ui-test equip-test ftue-test view-shots floor-shots ui-shots; do
+for t in smoke battle-test meta-ui-test equip-test campaign-test ftue-test view-shots floor-shots ui-shots; do
   # floor-shots compares against a local extract of the old Blockade Z, which is not on the deployed site
   [ -n "$AST_BASE" ] && [ "$t" = floor-shots ] && continue
   [ -f "tools/$t.mjs" ] && run "$t" node "tools/$t.mjs"
