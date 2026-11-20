@@ -101,6 +101,13 @@ const fake = {
   hubBuild: null,
   // As a gs-design deployed before a table was added to KNOWN: list leaves it out.
   unlisted: [],
+  // Đẩy LIVE: rows as the proxy returns them; null = LIVE_NOT_CONFIGURED.
+  liveRows: null,
+  liveCalls: [],
+  liveView() {
+    if (!this.liveRows) return [503, { ok: false, error: { code: 'LIVE_NOT_CONFIGURED', message: 'Chưa cài khoá server của GameSpark LIVE cho hàm gs-design.' } }];
+    return [200, { ok: true, rows: JSON.parse(JSON.stringify(this.liveRows)) }];
+  },
   gateView() { return { ok: true, exists: !!this.gateDoc, doc: JSON.parse(JSON.stringify(this.gateDoc || this.gateOff)) }; },
   guardView() { return { ok: true, rows: this.guardRows, meters: this.guardMeters, month: this.month }; },
   view(n) { const d = this.tables[n]; return { exists: !!d, docs: d || [], hash: hashDocs(d || []) }; },
@@ -110,6 +117,16 @@ const fake = {
     if (body.action === 'list') {
       const tables = {}; KNOWN.filter(n => !this.unlisted.includes(n)).forEach(n => { tables[n] = this.view(n); });
       return [200, { ok: true, project: 'repo-2d-topdown', env: 'dev', tables }];
+    }
+    if (body.action === 'live') return this.liveView();
+    if (body.action === 'live_push' || body.action === 'live_clear') {
+      this.liveCalls.push(body);
+      this.liveRows.forEach(r => {
+        if (!body.keys.includes(r.key)) return;
+        if (body.action === 'live_push') { r.live = r.dev; r.differs = false; r.override = { value: r.dev, base: r.md, by: 't@x', at: '2026-11-20T03:00:00Z', active: true }; }
+        else { r.live = r.md; r.override = null; r.differs = r.dev !== r.md; }
+      });
+      return this.liveView();
     }
     if (body.action === 'guard') return [200, this.guardView()];
     if (body.action === 'gate') return [200, this.gateView()];
@@ -213,7 +230,8 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const items = await p.$$eval('#dz-nav .dz-nav__item', els => els.length);
   const chipQ = await txt('#dz-nav [data-table="quests"] .dz-chip');
   const chipF = await txt('#dz-nav [data-table="foes"] .dz-chip');
-  check('sidebar liệt kê 38 bảng + tab Link trang góp ý + mục Chi phí dịch vụ + mục Phát hành & bảo trì', items === 41 &&
+  check('sidebar liệt kê 38 bảng + tab Link trang góp ý + mục Chi phí dịch vụ + mục Phát hành & bảo trì + mục Đẩy LIVE', items === 42 &&
+    (await txt('#dz-nav [data-table="live_tune"]')) === 'Đẩy LIVE' &&
     (await txt('#dz-nav [data-table="cost_guard"]')) === 'Chi phí dịch vụ' &&
     (await txt('#dz-nav [data-table="client_gate"]')) === 'Phát hành & bảo trì', String(items));
   check('quests là "Trên GameSpark"', chipQ === 'Trên GameSpark', chipQ);
@@ -912,7 +930,43 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   await p.waitForTimeout(800);
   check('bấm ▶ nghe mức hạ (voice.duck) tải tiếng mẫu', served.some(x => /^200 room\./.test(x)), served.join(','));
 
-  const e = errs.filter(x => !/favicon|404/.test(x));
+  // Đẩy LIVE
+  await open('live_tune');
+  await p.waitForSelector('#live-error');
+  check('Đẩy LIVE: thiếu khoá LIVE hiện thông báo 503 ngay trong tab', /Chưa cài khoá server/.test(await txt('#live-error')), await txt('#live-error'));
+  fake.liveRows = [
+    { key: 'shop_rules/default/goldCap.normal', table: 'shop_rules', id: 'default', path: 'goldCap.normal', dev: 150, live: 100, md: 100, override: null, differs: true },
+    { key: 'shop_rules/default/gemCap', table: 'shop_rules', id: 'default', path: 'gemCap', dev: 9, live: 9, md: 5,
+      override: { value: 9, base: 5, by: 'a@x.com', at: '2026-11-19T01:00:00Z', active: true }, differs: false },
+    { key: 'crew/son/hp', table: 'crew', id: 'son', path: 'hp', dev: 40, live: 40, md: 30,
+      override: { value: 40, base: 20, by: 'a@x.com', at: '2026-11-19T01:00:00Z', active: false }, differs: false }];
+  await open('quests'); await open('live_tune');
+  await p.waitForSelector('#live-table');
+  const lrows = await p.$$eval('#live-table tbody tr', trs => trs.map(t => ({ key: t.dataset.key, checked: t.querySelector('input').checked,
+    status: t.querySelector('[data-role="status"]').textContent, dev: t.querySelector('[data-role="dev"]').textContent, live: t.querySelector('[data-role="live"]').textContent })));
+  check('Đẩy LIVE: 3 dòng, chỉ dòng DEV ≠ LIVE được tick sẵn', lrows.length === 3 && lrows[0].checked && !lrows[1].checked && !lrows[2].checked, JSON.stringify(lrows.map(r => r.checked)));
+  check('Đẩy LIVE: cột trạng thái 3 kiểu', lrows[0].status === 'theo snapshot' && /^ghi đè bởi a@x\.com lúc /.test(lrows[1].status) &&
+    lrows[2].status === 'ghi đè hết hiệu lực: snapshot đã đổi', lrows.map(r => r.status).join(' | '));
+  check('Đẩy LIVE: dòng khác biệt được tô, nút ghi "Đẩy 1 mục lên LIVE", ghi chú 30 giây',
+    (await p.$eval('[data-key="shop_rules/default/goldCap.normal"]', e => e.classList.contains('dz-live-diff'))) &&
+    (await txt('#live-push')) === 'Đẩy 1 mục lên LIVE' && /tối đa 30 giây/.test(await txt('#live-help')), await txt('#live-push'));
+  const dl0 = dialogs.length;
+  dialogNo = true; await p.click('#live-push'); dialogNo = false;
+  check('Đẩy LIVE: hỏi xác nhận, liệt kê "nhãn: LIVE → DEV", huỷ thì không gọi', dialogs.length === dl0 + 1 &&
+    /shop_rules › default › goldCap\.normal: 100 → 150/.test(dialogs[dl0]) && fake.liveCalls.length === 0, dialogs[dl0]);
+  await p.click('#live-push');
+  await p.waitForSelector('#live-notice');
+  check('Đẩy LIVE: xác nhận thì gửi đúng khoá, vẽ lại theo phản hồi', fake.liveCalls.length === 1 && fake.liveCalls[0].action === 'live_push' &&
+    JSON.stringify(fake.liveCalls[0].keys) === '["shop_rules/default/goldCap.normal"]' &&
+    /^ghi đè bởi t@x lúc /.test(await txt('[data-key="shop_rules/default/goldCap.normal"] [data-role="status"]')) &&
+    (await txt('[data-key="shop_rules/default/goldCap.normal"] [data-role="live"]')) === '150' && (await txt('#live-push')) === 'Đẩy 0 mục lên LIVE', JSON.stringify(fake.liveCalls));
+  await p.check('[data-key="shop_rules/default/goldCap.normal"] input');
+  await p.click('#live-clear');
+  await p.waitForFunction(() => document.querySelector('[data-key="shop_rules/default/goldCap.normal"] [data-role="status"]').textContent === 'theo snapshot');
+  check('Đẩy LIVE: Về số snapshot gửi live_clear', fake.liveCalls.length === 2 && fake.liveCalls[1].action === 'live_clear' &&
+    (await txt('[data-key="shop_rules/default/goldCap.normal"] [data-role="live"]')) === '100', JSON.stringify(fake.liveCalls[1]));
+
+  const e = errs.filter(x => !/favicon|404|503/.test(x));
   check('không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
 
   await b.close();
