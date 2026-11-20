@@ -17,9 +17,9 @@ const PW = ENV.PLAYWRIGHT_PATH || path.join(ENV.HOME, '.cache/pw-node/node_modul
 const LOCK = path.join(ROOT, '.chk', 'chrome.lock');
 
 export const PHONES = {
-  s22: { viewport: { width: 360, height: 780 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true },
-  xiaomi: { viewport: { width: 461, height: 1002 }, deviceScaleFactor: 2.75, hasTouch: true, isMobile: true },
-  desktop: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1, hasTouch: false, isMobile: false },
+  s22: { viewport: { width: 780, height: 360 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true },
+  xiaomi: { viewport: { width: 1002, height: 461 }, deviceScaleFactor: 2.75, hasTouch: true, isMobile: true },
+  desktop: { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, hasTouch: false, isMobile: false },
 };
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };

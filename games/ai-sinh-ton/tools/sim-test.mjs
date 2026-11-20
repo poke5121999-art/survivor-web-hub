@@ -185,8 +185,9 @@ function play(opts, until) {
     return total;
   };
   let h = 0, flat = 0;
-  for (const seed of [3, 4, 5]) { h += frozenTime(false, seed); flat += frozenTime(true, seed); }
-  check(flat > 1 && Math.abs(h - flat) <= 0.25 * flat, `stage 20, three seeds: hero freeze time with the horde ${h.toFixed(1)}s vs ${flat.toFixed(1)}s with the multiplier at 1 (within 25%)`);
+  // twelve seeds: on three the sum swings by a factor of two with the arena shape alone (a longer fight freezes longer)
+  for (let seed = 3; seed < 15; seed++) { h += frozenTime(false, seed); flat += frozenTime(true, seed); }
+  check(flat > 1 && Math.abs(h - flat) <= 0.25 * flat, `stage 20, twelve seeds: hero freeze time with the horde ${h.toFixed(1)}s vs ${flat.toFixed(1)}s with the multiplier at 1 (within 25%)`);
 }
 
 // a wiped team loses
