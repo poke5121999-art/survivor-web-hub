@@ -144,7 +144,7 @@ export async function attachGame(game, { params }) {
     game.events.emit('sim:' + e.e, e);
     if (e.e === 'won' || e.e === 'lost') endT = RESULT_DELAY;
     if (tut.on) {
-      if (e.e === 'ult_ready') fireTutorial('ult_ready'); else if (e.e === 'pick') fireTutorial('pick');
+      if (e.e === 'ult_ready') fireTutorial('ult_ready'); else if (e.e === 'pick') tut.pickWait = true;
       else if (e.e === 'join') tut.joinWait = true;
       else if (e.e === 'wave' && tut.joinWait) { tut.joinWait = false; fireTutorial('join'); } else if (e.e === 'boss') fireTutorial('boss');
     }
@@ -191,6 +191,7 @@ export async function attachGame(game, { params }) {
   const glue = {
     update(dt, real) {
       if (endT > 0) { endT -= real; if (endT <= 0) finish(); }
+      if (tut.pickWait && !(host.world && host.world.busy)) { tut.pickWait = false; fireTutorial('pick'); }
       autoUlt();
       if (!ui) return;
       for (const name in game.screens) { const s = game.screens[name]; if (s.update) s.update(real); }

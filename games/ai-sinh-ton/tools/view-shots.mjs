@@ -44,7 +44,8 @@ const probe = () => {
   return out;
 };
 
-// pixel statistics of a screenshot through PIL: share of pixels between the HUD bands that are not fog colour, share of
+// pixel statistics of a screenshot through PIL: share of pixels between the HUD bands (top bar 40, hero cards from 280 of
+// the 360 high landscape frame) that are not the background colour, share of
 // clipped white (all channels >= 250), and the mean red-minus-blue around a point given as frame fractions
 function pix(file, fogHex, at) {
   const py = `
@@ -52,7 +53,7 @@ import sys, json
 from PIL import Image
 im = Image.open(sys.argv[1]).convert('RGB'); fog = int(sys.argv[2], 16); at = json.loads(sys.argv[3])
 W, H = im.size; fr = ((fog >> 16) & 255, (fog >> 8) & 255, fog & 255)
-px = im.load(); y0 = int(H * 90 / 780); y1 = int(H * 610 / 780); n = 0; fl = 0; wh = 0
+px = im.load(); y0 = int(H * 40 / 360); y1 = int(H * 280 / 360); n = 0; fl = 0; wh = 0
 for y in range(0, H, 3):
     for x in range(0, W, 3):
         r, g, b = px[x, y]
@@ -71,7 +72,7 @@ if at:
 print(json.dumps(out))`;
   return JSON.parse(execFileSync('python3', ['-c', py, file, fogHex, JSON.stringify(at || null)]).toString());
 }
-const FOG = { 3: 'a9b6c4' };
+const FOG = { 3: '1a2634' }; // the scene background of chapter 1 (js/view/themes.js, street)
 
 // resolves with the first sim event matching `pred` (source text), running the sim fast until then and at 1x after it
 const WAIT = () => {

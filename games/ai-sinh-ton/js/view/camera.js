@@ -119,7 +119,7 @@ export function createCamera(H) {
 
   function update(B, dt) {
     const k = H.size.w + 'x' + H.size.h;
-    if (k !== key) { key = k; solve(); if (H.fogK) H.fogK.invalidate(); }
+    if (k !== key) { key = k; solve(); }
     H.B = B;
     blend += (want - blend) * Math.min(1, dt * 3.5); if (Math.abs(want - blend) < 0.001) blend = want;
     const aspect = H.size.w / H.size.h;
@@ -153,9 +153,8 @@ export function createCamera(H) {
     camera.projectionMatrix.elements[9] = -lens;
     juiceView(blend > 0 && u);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
-    if (H.fogK && H.fogK.dirty && blend === 0 && !target) { camera.updateMatrixWorld(true); H.fogK.layout((x, y, z) => { v.set(x, y, z).project(camera); return Math.abs(v.x) < 1.04 && v.y > -1.02 && v.y < 1.0 && v.z < 1; }); }
-    // the fog starts behind the far rim, so the spawn rim dissolves into the mist
-    if (H.scene.fog) { H.scene.fog.near = fogBase + 14; H.scene.fog.far = fogBase + 60; }
+    // haze starts just past the fight: the far rim softens a little, what lies far below fades into the abyss colour
+    if (H.scene.fog) { H.scene.fog.near = fogBase + 3; H.scene.fog.far = fogBase + 46; }
     G.player.pos.set(focus.x, 0, focus.z); G.player.yaw = Math.atan2(pos.x - look.x, pos.z - look.z);
   }
   return C;

@@ -110,7 +110,8 @@ export function createPick(game) {
     dt = Math.min(dt, 0.05);
     const B = game.B;
     if (!B) { if (open) closeIt(); return; }
-    if (B.phase === 'pick' && !open) openIt(B);
+    const running = !!(game.host.world && game.host.world.busy);
+    if (B.phase === 'pick' && !open && !running) openIt(B);
     if (!open) return;
     if (B.phase !== 'pick') { leaving += dt; if (!anim || anim.kind !== 'out' || leaving > OUT_T + 0.05) closeIt(); else animate(dt); return; }
     const cur = B.picked.findIndex((p) => p < 0);
