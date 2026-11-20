@@ -704,5 +704,24 @@ const opened = () => {
   check(f2.gift && N.guideTokens()['bag-first'] === 'bag-' + f2.gift.uid, 'armour only: the gift weapon is given and the guide points at it');
 }
 
+// account deletion: wiping the storage then loading gives the account a first run gives, whatever was there before
+{
+  const first = brandNew(); first.load();
+  const want = JSON.stringify(first.acc);
+  const variants = {
+    'a played save': () => { const s = fakeStorage(); const M = fresh(s); M.load(); M.finishStage({ stage: 1, won: true, wavesCleared: 5, seconds: 30 }); M.save(); return s; },
+    'an old version save': () => { const s = fakeStorage(); s.setItem(KEY, JSON.stringify({ v: 0, gold: 99999, heroes: {} })); return s; },
+    'a newer (read-only) save': () => { const s = fakeStorage(); s.setItem(KEY, JSON.stringify({ v: 999, gold: 99999 })); return s; },
+    'an unreadable save': () => { const s = fakeStorage(); s.setItem(KEY, '{not json'); return s; },
+  };
+  for (const [name, mk] of Object.entries(variants)) {
+    const s = mk(); const before = createMeta({ storage: s, now: () => clock }); before.load();
+    s.m.delete(KEY);
+    const M = createMeta({ storage: s, now: () => clock }); M.load();
+    check(JSON.stringify(M.acc) === want && !M.readOnly, `wipe after ${name}, then load: the same account as a first run, writable`);
+    check(M.acc.gold === 500 && M.acc.gems === 300 && Object.keys(M.acc.heroes).join() === 'gio' && M.acc.cleared === 0 && !M.acc.ftue.session, `wipe after ${name}: 500 gold, 300 gems, only Gió, cleared 0, first session not done`);
+  }
+}
+
 if (fails.length) { console.log(`\n${fails.length} FAILED`); process.exit(1); }
 console.log('\nALL PASS');
