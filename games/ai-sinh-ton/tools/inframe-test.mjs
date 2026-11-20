@@ -21,7 +21,7 @@ const SHOTS = !argv.includes('--no-shots');
 const stArg = (argv.find((a) => a.startsWith('--stages=')) || '').slice(9);
 const STAGES = stArg ? stArg.split(',').map(Number) : [1, 3, 8, 15, 24];
 const PHONES = ['s22', 'xiaomi'];
-const TOP_PX = 90; const BOT_PX = 170;       // the HUD bands, design px
+const TOP_PX = 40; const BOT_PX = 84;        // the HUD: a top bar, and the corner hero cards (design px of the 780 x 360 frame; the bottom centre x 170..610 is open)
 const SIM_STEP = 0.5; const SIM_LIMIT = 900; // seconds of game time per stage
 const T0 = Date.now();
 const { check, done } = checker();
@@ -32,9 +32,9 @@ const RECORDER = () => {
   window.__rec = [];
   window.__proj = (x, y, z) => {
     V.set(x, y, z).project(H.camera); const u = H.size.u || 1; const fy = (1 - V.y) / 2; const fx = (V.x + 1) / 2;
-    const py = fy * H.size.h / u;
+    const py = fy * H.size.h / u; const px = fx * H.size.w / u; const hh = H.size.h / u;
     const inFrame = V.z < 1 && fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1;
-    return { fx, fy, py, inFrame, inBands: inFrame && py >= 90 && py <= H.size.h / u - 170 };
+    return { fx, fy, py, inFrame, inBands: inFrame && py >= 40 && py <= ((px < 170 || px > 610) ? hh - 84 : hh) };
   };
   const push = (k, x, z, extra) => { const B = G.B; window.__rec.push({ k, wave: B.wave, ...window.__proj(x, 1.0, z), ...extra }); };
   G.on((e) => {
@@ -95,18 +95,18 @@ async function measureStage(br, base, phone, stage, rimK, dims) {
 }
 
 // the camera at other frame shapes: swap the frame size under the camera, project the compass points, restore
-const ASPECTS = [[360, 780], [360, 702], [360, 640], [461, 1002], [369, 800]];
+const ASPECTS = [[780, 360], [1002, 461], [720, 360], [800, 360], [740, 360], [1280, 720]];
 async function aspectCompass(br, base, dims, rimK) {
   const r = await openPage(br, base, 's22', 'autostart=1&stage=3&noaudio=1&seed=3');
   const out = await r.page.evaluate(async ([sizes, ax, az, k]) => {
     const G = window.__G; const H = G.host; const V = new H.THREE.Vector3(); const keep = { w: H.size.w, h: H.size.h, u: H.size.u }; const res = [];
     for (const [w, h] of sizes) {
-      H.size.w = w; H.size.h = h; H.size.u = w / 360; for (let i = 0; i < 3; i++) G.cam.update(G.B, 1 / 30);
+      H.size.w = w; H.size.h = h; H.size.u = w / 780; for (let i = 0; i < 3; i++) G.cam.update(G.B, 1 / 30);
       let ok = true; let minPy = 1e9; let maxPy = -1e9; let maxFx = 0;
       for (let i = 0; i < 16; i++) {
         const a = i * Math.PI / 8; V.set(Math.cos(a) * ax * k, 0, Math.sin(a) * az * k).project(H.camera);
-        const py = (1 - V.y) / 2 * h / (w / 360); const fx = (V.x + 1) / 2; minPy = Math.min(minPy, py); maxPy = Math.max(maxPy, py); maxFx = Math.max(maxFx, Math.abs(fx - 0.5));
-        if (py < 90 || py > h / (w / 360) - 170 || fx < 0 || fx > 1) ok = false;
+        const u = w / 780; const py = (1 - V.y) / 2 * h / u; const fx = (V.x + 1) / 2; const px = fx * w / u; minPy = Math.min(minPy, py); maxPy = Math.max(maxPy, py); maxFx = Math.max(maxFx, Math.abs(fx - 0.5));
+        if (py < 40 || py > ((px < 170 || px > 610) ? h / u - 84 : h / u) || fx < 0 || fx > 1) ok = false;
       }
       res.push({ w, h, ok, minPy: +minPy.toFixed(1), maxPy: +maxPy.toFixed(1), halfW: +(maxFx * w).toFixed(1) });
     }
@@ -142,7 +142,7 @@ try {
   const after = {};
   for (const phone of PHONES) {
     after[phone] = {};
-    for (const s of STAGES) { after[phone][s] = await measureStage(br, srv.base, phone, s, 1.08, ARENA); console.log(`measured ${phone} stage ${s} (${Math.round((Date.now() - T0) / 1000)} s): ${JSON.stringify(after[phone][s].end)}`); }
+    for (const s of STAGES) { after[phone][s] = await measureStage(br, srv.base, phone, s, 1.04, ARENA); console.log(`measured ${phone} stage ${s} (${Math.round((Date.now() - T0) / 1000)} s): ${JSON.stringify(after[phone][s].end)}`); }
   }
   // ---- before: the deployed build, s22 only, cached ----
   let before = null;
@@ -186,11 +186,11 @@ try {
   const hs = after.s22[STAGES.includes(3) ? 3 : STAGES[0]].hero;
   if (hs.length) console.log(`hero on-screen height at s22, end of stage ${STAGES.includes(3) ? 3 : STAGES[0]}: min ${Math.min(...hs).toFixed(1)} max ${Math.max(...hs).toFixed(1)} CSS px`);
 
-  const asp = await aspectCompass(br, srv.base, ARENA, 1.08);
-  for (const a of asp) check(a.ok, `frame ${a.w}x${a.h}: rim at 1.08 projects between the bands (py ${a.minPy}..${a.maxPy}, half width ${a.halfW} of ${a.w / 2})`);
+  const asp = await aspectCompass(br, srv.base, ARENA, 1.04);
+  for (const a of asp) check(a.ok, `frame ${a.w}x${a.h}: rim at 1.04 projects between the bands (py ${a.minPy}..${a.maxPy}, half width ${a.halfW} of ${a.w / 2})`);
   const dk = await openPage(br, srv.base, 'desktop', 'autostart=1&stage=3&noaudio=1&seed=3');
   await dk.page.evaluate(RECORDER);
-  const dc = await dk.page.evaluate(([ax, az]) => { const o = []; for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; o.push(window.__proj(Math.cos(a) * ax * 1.08, 0, Math.sin(a) * az * 1.08)); } return o; }, [ARENA.x, ARENA.z]);
+  const dc = await dk.page.evaluate(([ax, az]) => { const o = []; for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; o.push(window.__proj(Math.cos(a) * ax * 1.04, 0, Math.sin(a) * az * 1.04)); } return o; }, [ARENA.x, ARENA.z]);
   check(dc.every((c) => c.inBands), `desktop frame: eight rim compass points between the bands (py ${dc.map((c) => c.py.toFixed(0)).join(' ')})`);
   await dk.ctx.close();
 

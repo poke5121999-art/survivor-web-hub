@@ -2,13 +2,14 @@
 // that Blockade Z's fx, audio, zombie and boss code expects. The sim never touches it; actors.js and camera.js
 // read H and draw the battle on top.
 import { createFloor } from './floor.js?v=20261120c';
+import { createFog } from './fog.js?v=20261120c';
 import { ARENA } from '../sim/battle.js?v=20261120c';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
 const SETTINGS_KEY = 'aisinhton.settings.v1';
 const WALL_K = 1.17;           // the fog wall stands just behind the spawn rim (1.04 to 1.07 of the ellipse)
-const RAIN = { x: 20, z: 32, h: 16 }; // rain wraps inside this box around the focus: arena plus its fog rim
+const RAIN = { x: 48, z: 24, h: 16 }; // rain wraps inside this box around the focus: arena plus its fog rim
 const FAR_MS = 26;
 
 // Tiers differ by the sharpest DPR they may use, shadows, bloom and particle counts. Every tier keeps the drawing
@@ -69,7 +70,7 @@ export async function createHost({ frame, canvas, params }) {
 
   const scene = (G.scene = new THREE.Scene());
   scene.fog = new THREE.Fog(0xa9b6c4, 150, 400);
-  const camera = (G.camera = new THREE.PerspectiveCamera(30, 360 / 780, 1, 500));
+  const camera = (G.camera = new THREE.PerspectiveCamera(30, 780 / 360, 1, 500));
   camera.rotation.order = 'YXZ';
   scene.add(camera);
 
@@ -80,7 +81,7 @@ export async function createHost({ frame, canvas, params }) {
   sun.castShadow = quality.shadow > 0;
   if (sun.castShadow) {
     sun.shadow.mapSize.set(quality.shadow, quality.shadow);
-    const c = sun.shadow.camera; c.left = -15; c.right = 15; c.top = 15; c.bottom = -15; c.near = 5; c.far = 90;
+    const c = sun.shadow.camera; c.left = -26; c.right = 26; c.top = 15; c.bottom = -15; c.near = 5; c.far = 90;
     sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.04;
   }
   scene.add(sun); scene.add(sun.target);
@@ -112,6 +113,7 @@ export async function createHost({ frame, canvas, params }) {
   // ---- the floor: Blockade Z's ground technique per chapter, melting into the fog colour past the fight area ----
   const floorK = createFloor({ scene, quality });
   const floor = floorK.group;
+  const fogK = createFog({ scene, quality }, floorK.uniforms);
   const ring = new THREE.Object3D(); ring.visible = false;
 
   // far half of a cylinder only: back faces are the wall seen from inside, the near half is culled by the camera side
@@ -159,11 +161,11 @@ export async function createHost({ frame, canvas, params }) {
   G.post.on = postCan && quality.post; G.post.strength = 0.32;
 
   // ---- sizing ----
-  const size = { w: 360, h: 780, u: 1, dpr: 1, scale: 1 };
+  const size = { w: 780, h: 360, u: 1, dpr: 1, scale: 1 };
   const gov = { k: 1, shadows: quality.shadow > 0, post: G.post.on };
   function resize() {
     const r = frame.getBoundingClientRect(); const w = Math.max(2, Math.round(r.width)); const h = Math.max(2, Math.round(r.height));
-    size.w = w; size.h = h; size.u = w / 360;
+    size.w = w; size.h = h; size.u = w / 780;
     size.dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, quality.maxDpr * gov.k));
     renderer.setPixelRatio(size.dpr); renderer.setSize(w, h, false);
     size.scale = renderer.domElement.width / w;
@@ -172,13 +174,13 @@ export async function createHost({ frame, canvas, params }) {
   }
 
   const stats = { frameMs: 16, draws: 0, tris: 0, scale: 1 };
-  const H = { THREE, renderer, scene, camera, G, quality, size, resize, stats, floor, ring, wall, floorK, get floorMeshes() { return floorK.meshes; } };
+  const H = { THREE, renderer, scene, camera, G, quality, size, resize, stats, floor, ring, wall, floorK, fogK, get floorMeshes() { return floorK.meshes; } };
 
   H.setStage = (def) => {
     const fog = new THREE.Color(def.fog);
     scene.fog.color.copy(fog); scene.background = fog; renderer.setClearColor(fog, 1);
     wallMat.color.copy(fog);
-    floorK.setStage(def);
+    floorK.setStage(def); fogK.setStage(def);
     hemi.color.copy(skyBase).lerp(fog, 0.25);
   };
   H.setStage({ chapter: 0, fog: 0xa9b6c4 });

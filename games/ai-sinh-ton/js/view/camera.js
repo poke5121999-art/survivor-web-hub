@@ -7,14 +7,16 @@ import { FLY_Y } from './keys.js?v=20261120c';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
-const PITCH = 50 * Math.PI / 180;
+const PITCH_MIN = 45 * Math.PI / 180;   // the overview pitch is solved inside this range so the ellipse fills the frame height too
+const PITCH_MAX = 58 * Math.PI / 180;
 const FOV_OVER = 30;
 const FOV_CHASE = 58;
-const BAND_TOP = 90;    // design px (frame width 360) the HUD takes at the top and bottom, and the side margin
-const BAND_BOT = 170;
-const SIDE = 8;
-const FIT_K = 1.08;     // the spawn rim is at 1.04 to 1.07 of the ellipse
-const HEAD = 1.2;       // body height that must still clear the top band at the far rim
+const BAND_TOP = 40;    // design px (frame 780 x 360) the top HUD bar takes; the hero cards sit in the bottom corners, over the ellipse's falling-away corners
+const MARGIN_BOT = 12;  // the spawn rim's lowest point stays this far above the bottom edge
+const SIDE_FRAC = 0.03; // the spawn rim's left and right points sit this share of the frame width from the edges
+const FIT_K = 1.04;     // the spawn rim is at 1.04 of the ellipse
+const HERO_K = 0.9;     // heroes stay inside this share of the ellipse
+const HEAD = 0.7;       // body height that must still clear the top bar at the far rim
 const PTS = 48;
 const PUSH = 0.028;      // push-in on an ultimate: 2.8% scale about the casting hero, clamped so the rim stays in the frame
 const RIM_PAD = 0.012;   // NDC margin kept between the rim and the frame edge while pushing
@@ -25,39 +27,50 @@ const CHASE_PITCH = 22 * Math.PI / 180;
 
 export function createCamera(H) {
   const { camera, G } = H;
-  const fit = new THREE.PerspectiveCamera(FOV_OVER, 360 / 780, 1, 500);
+  const fit = new THREE.PerspectiveCamera(FOV_OVER, 780 / 360, 1, 500);
   const focus = new THREE.Vector3();
   const v = new THREE.Vector3(); const look = new THREE.Vector3(); const pos = new THREE.Vector3();
-  let dist = 40; let shift = 0; let rim = { x: 0.95, y0: -0.5, y1: 0.7 }; let key = ''; let blend = 0; let want = 0; let target = 0; let fov = FOV_OVER;
-  const C = { focus, get R() { return ARENA.z * FIT_K; }, get dist() { return dist; }, get shift() { return shift; }, mode: 'overview', spectate(uid) { target = uid || 0; want = target ? 1 : 0; H.spectateUid = target; }, update };
+  let dist = 20; let pitch = 50 * Math.PI / 180; let shift = 0; let vis = 0; let rim = { x: 0.95, y0: -0.5, y1: 0.7 }; let key = ''; let blend = 0; let want = 0; let target = 0; let fov = FOV_OVER;
+  const C = { focus, get R() { return ARENA.z * FIT_K; }, get dist() { return dist; }, get shift() { return shift; }, get pitch() { return pitch; }, mode: 'overview', spectate(uid) { target = uid || 0; want = target ? 1 : 0; H.spectateUid = target; }, update };
   Object.defineProperty(C, 'mode', { get: () => (target ? 'spectate' : 'overview') });
 
-  // NDC bounding box of the fit ring seen from distance d (no lens shift)
-  function bbox(d) {
-    fit.position.set(0, Math.sin(PITCH) * d, Math.cos(PITCH) * d); fit.lookAt(0, 0, 0); fit.updateMatrixWorld(true);
+  // NDC bounding box of the ellipse scaled by k (bodies head high when head > 0) seen from distance d at pitch p, no lens shift
+  function bbox(d, p, k, head) {
+    fit.position.set(0, Math.sin(p) * d, Math.cos(p) * d); fit.lookAt(0, 0, 0); fit.updateMatrixWorld(true);
     let x1 = -9; let y0 = 9; let y1 = -9;
     for (let i = 0; i < PTS; i++) {
       const a = (i / PTS) * Math.PI * 2;
-      for (const h of [0, HEAD]) {
-        v.set(Math.cos(a) * ARENA.x * FIT_K, h, Math.sin(a) * ARENA.z * FIT_K).project(fit);
+      for (const h of head && Math.sin(a) < 0 ? [0, head] : [0]) {  // heads only matter at the far side, under the top bar
+        v.set(Math.cos(a) * ARENA.x * k, h, Math.sin(a) * ARENA.z * k).project(fit);
         x1 = Math.max(x1, Math.abs(v.x)); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
       }
     }
     return { x1, y0, y1 };
   }
 
-  function solve() {
-    const { w, h } = H.size; const u = H.size.u || 1;
-    const top = 2 * BAND_TOP * u / h; const bot = 2 * BAND_BOT * u / h; const halfX = 1 - SIDE * u / (w / 2); const freeY = 2 - top - bot;
-    fit.aspect = w / h; fit.updateProjectionMatrix();
-    let lo = 8; let hi = 200;
+  // distance that makes the spawn rim fill halfX of the half width (and at most freeY of the height), and its box
+  function fitAt(p, halfX, freeY) {
+    let lo = 4; let hi = 200;
     for (let i = 0; i < 40; i++) {
-      const d = (lo + hi) / 2; const b = bbox(d);
+      const d = (lo + hi) / 2; const b = bbox(d, p, FIT_K, HEAD);
       if (Math.max(b.x1 / halfX, (b.y1 - b.y0) / freeY) > 1) lo = d; else hi = d;
     }
-    dist = hi; const b = bbox(dist);
+    return { d: hi, b: bbox(hi, p, FIT_K, HEAD) };
+  }
+
+  function solve() {
+    const { w, h } = H.size; const u = H.size.u || 1;
+    const top = 2 * BAND_TOP * u / h; const bot = 2 * MARGIN_BOT * u / h; const halfX = 1 - 2 * SIDE_FRAC; const freeY = 2 - top - bot;
+    fit.aspect = w / h; fit.updateProjectionMatrix();
+    // width binds: take the pitch whose height span fills the free band (steeper = taller ellipse on screen)
+    let lo = PITCH_MIN; let hi = PITCH_MAX;
+    const span = (p) => { const f = fitAt(p, halfX, 1e9); return f.b.y1 - f.b.y0; };
+    if (span(hi) <= freeY) lo = hi; else if (span(lo) >= freeY) hi = lo;
+    else for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (span(mid) < freeY) lo = mid; else hi = mid; }
+    pitch = (lo + hi) / 2; const f = fitAt(pitch, halfX, freeY); dist = f.d; const b = f.b;
     shift = (-1 + bot + freeY / 2) - (b.y0 + b.y1) / 2;
-    rim = { x: b.x1, y0: b.y0 + shift, y1: b.y1 + shift };
+    const hb = bbox(dist, pitch, HERO_K, 0);
+    rim = { x: hb.x1, y0: hb.y0 + shift, y1: hb.y1 + shift };
   }
 
   function unitOf(B, uid) { return B && B.byUid && B.byUid.get(uid); }
@@ -86,10 +99,10 @@ export function createCamera(H) {
 
   function update(B, dt) {
     const k = H.size.w + 'x' + H.size.h;
-    if (k !== key) { key = k; solve(); }
+    if (k !== key) { key = k; solve(); if (H.fogK) H.fogK.invalidate(); }
     blend += (want - blend) * Math.min(1, dt * 3.5); if (Math.abs(want - blend) < 0.001) blend = want;
     const aspect = H.size.w / H.size.h;
-    pos.set(0, Math.sin(PITCH) * dist, Math.cos(PITCH) * dist);
+    pos.set(0, Math.sin(pitch) * dist, Math.cos(pitch) * dist);
     look.set(0, 0, 0);
     let lens = shift; let fv = FOV_OVER; let fogBase = dist;
     const u = target ? unitOf(B, target) : null;
@@ -119,6 +132,7 @@ export function createCamera(H) {
     camera.projectionMatrix.elements[9] = -lens;
     juiceView(blend > 0 && u);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    if (H.fogK && H.fogK.dirty && blend === 0 && !target) { camera.updateMatrixWorld(true); H.fogK.layout((x, y, z) => { v.set(x, y, z).project(camera); return Math.abs(v.x) < 1.04 && v.y > -1.02 && v.y < 1.0 && v.z < 1; }); }
     // the fog starts behind the far rim, so the spawn rim dissolves into the mist
     if (H.scene.fog) { H.scene.fog.near = fogBase + 14; H.scene.fog.far = fogBase + 60; }
     G.player.pos.set(focus.x, 0, focus.z); G.player.yaw = Math.atan2(pos.x - look.x, pos.z - look.z);

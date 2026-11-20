@@ -4,11 +4,14 @@
 // shade. Blockade Z has no wet ground and no arena paint: this file adds, in the same material, grime and chapter cover
 // (frost, sand, soot), the worn arena ring painted into the surface, and rain wetness with small puddles and ripples.
 import { ARENA } from '../sim/battle.js?v=20261120c';
+import { GLSL_NOISE, GLSL_FOG } from './fog.js?v=20261120c';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
-const E = 24;                 // half size of the built square; past the fog rim nothing is seen
-const AX = ARENA.x / ARENA.z; // the arena is an ellipse: random placements are squeezed across the screen by this
+const E = 30;                 // half size of the built square: the overview frame, its shake and the hidden edge all land inside it
+// The recipes were laid out for the portrait arena (narrow in x, long in z); the landscape arena is that ellipse turned a
+// quarter turn, so the built floor group is rotated and the recipes keep their own (portrait) x and z.
+const AX = ARENA.z / ARENA.x;
 const TOP = ['ny', 'px', 'nx', 'pz', 'nz'];
 
 // One recipe per chapter (stageDef.chapter). cover: what settles on the floor (colour, amount); wet: how much rain shows.
@@ -46,14 +49,15 @@ function kit(B, rng) {
     const yy = lift();
     for (let i = 0; i < n; i++) { const a = rng.range(0, 6.283); const d = Math.sqrt(rng.next()) * rmax; const s = rng.range(s0, s1); const x = Math.cos(a) * d * AX; const z = Math.sin(a) * d; rect(x - s, z - s * rng.range(0.6, 1), x + s, z + s * rng.range(0.6, 1), key, { ...o, y: yy, uv: 'fit', vary: 0.1 }); }
   };
-  return { rect, fill, strip, dashes, blob, decals, lift };
+  const swap = (r) => { rng = r; };
+  return { rect, fill, strip, dashes, blob, decals, lift, swap };
 }
 
 // the old Blockade Z plaza (world.js: concrete to the walls, a 24 m tiled square, 6 m asphalt roads with dashed centre
 // lines), with the road run past the side of the fight and a zebra crossing over it
 function street(K, rng) {
   K.fill('concrete');
-  K.rect(-12, -12, 12, 12, 'tile', { y: 0.006, tint: [0.78, 0.78, 0.8] }); // a touch darker than the town's: additive casts need headroom
+  K.rect(-12, -E, 12, E, 'tile', { y: 0.006, tint: [0.78, 0.78, 0.8] }); // a touch darker than the town's: additive casts need headroom
   const x0 = 1.2; const x1 = 7.2;
   K.rect(x0, -E, x1, E, 'asphalt', { y: 0.01 });
   K.rect(x0 - 0.3, -E, x0, E, 'concrete_dark', { y: 0.011 }); K.rect(x1, -E, x1 + 0.3, E, 'concrete_dark', { y: 0.011 });
@@ -102,14 +106,26 @@ function rim(K, rng) {
   K.decals(8, 'scorch', 0.5, 1.3, 11);
 }
 
+
+// Past the fight area the floor keeps its character: scorch marks and patches of the chapter's own materials scattered over
+// r = 1 to 2.6 of the (portrait-laid) ellipse, from their own rng so the inside of the arena is untouched.
+const OUTER = [['concrete_dark', null], ['asphalt', null], ['concrete_dark', [0.85, 0.9, 1]], ['dirt', [1.55, 1.32, 0.98]], ['burnt', null], ['cobble', [0.5, 0.46, 0.62]]];
+function outer(K, rng, ch) {
+  const yy = K.lift();
+  for (let i = 0; i < 46; i++) {
+    const a = rng.range(0, 6.283); const d = Math.sqrt(rng.range(1.7, 6.8)); const s = rng.range(0.4, 1.2);
+    const x = Math.cos(a) * d * ARENA.z; const z = Math.sin(a) * d * ARENA.x;
+    K.rect(x - s, z - s * rng.range(0.6, 1), x + s, z + s * rng.range(0.6, 1), 'scorch', { y: yy, uv: 'fit', vary: 0.1 });
+  }
+  const [key, tint] = OUTER[ch] || OUTER[0];
+  for (let i = 0; i < 14; i++) { const a = rng.range(0, 6.283); const d = Math.sqrt(rng.range(1.7, 6.5)); K.blob(Math.cos(a) * d * ARENA.z, Math.sin(a) * d * ARENA.x, rng.range(0.8, 1.8), key, tint ? { tint } : {}); }
+  if (ch === 1) { const y2 = K.lift(); for (const z0 of [-24, 18.6]) for (let x = -E; x <= E; x += 2.7) if (!rng.chance(0.2)) K.rect(x - 0.06, z0, x + 0.06, z0 + 5, 'road_line', { y: y2, vary: 0.25 }); }
+}
+
 // ---- the surface shader, patched into each Lambert material ----
 const GLSL_COMMON = `
 varying vec3 vWP; uniform vec3 uFogC; uniform float uR0; uniform float uR1; uniform vec2 uArena; uniform float uWet; uniform float uTime;
-uniform vec3 uCover; uniform float uCoverK; uniform float uGrime; uniform vec3 uPaint; uniform vec3 uSky; uniform float uPud;
-float fh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float vn(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(fh(i), fh(i + vec2(1.0, 0.0)), f.x), mix(fh(i + vec2(0.0, 1.0)), fh(i + vec2(1.0, 1.0)), f.x), f.y); }
-float fbm(vec2 p) { float s = 0.0; float a = 0.5; for (int i = 0; i < FLOOR_OCT; i++) { s += vn(p) * a; p = p * 2.03 + 17.1; a *= 0.5; } return s / (1.0 - 2.0 * a); }
+uniform vec3 uCover; uniform float uCoverK; uniform float uGrime; uniform vec3 uSky; uniform float uPud;
 float fPud = 0.0; float fRip = 0.0; vec2 fRipN = vec2(0.0);
 `;
 const GLSL_SURFACE = `
@@ -121,20 +137,11 @@ const GLSL_SURFACE = `
   diffuseColor.rgb *= 1.0 - uGrime * g + 0.05 * (n2 - 0.5);
   float cover = smoothstep(0.5, 0.78, fbm(p * 0.22 + 3.7)) * uCoverK;
   diffuseColor.rgb = mix(diffuseColor.rgb, uCover * (0.9 + 0.2 * n2), cover * 0.6);
-  // the arena ring, painted into the surface and worn through where feet and wheels went
-  float lum = dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15));
+  // the play-area edge is only a faint soft darkening of the ground (no stripes, no line): a worn band around r = 1
   float wear = smoothstep(0.3, 0.62, fbm(p * 1.6 + 21.0)) * (0.7 + 0.3 * n2);
-  // ellipse norm (1 at the rim) and the distance to the rim in metres (negative inside)
   vec2 q = p / uArena; float an = length(q);
   float sd = (an - 1.0) / max(length(vec2(p.x / (uArena.x * uArena.x), p.y / (uArena.y * uArena.y))) / max(an, 0.001), 0.001);
-  float th = atan(q.y, q.x); float arc = (uArena.x + uArena.y) * 0.5 * th + (uArena.y - uArena.x) * 0.25 * sin(2.0 * th);
-  float s = arc + sd;
-  float band = step(-0.75, sd) * step(sd, -0.2);
-  vec3 stripe = mod(floor(s / 0.55), 2.0) < 0.5 ? uPaint : vec3(0.07, 0.07, 0.08);
-  float line = step(-0.07, sd) * step(sd, 0.07) + step(-0.88, sd) * step(sd, -0.8);
-  vec3 tex = vec3(0.55 + 0.9 * lum);
-  diffuseColor.rgb = mix(diffuseColor.rgb, stripe * tex, band * wear * 0.92);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.9, 0.84) * tex, line * wear * 0.85);
+  diffuseColor.rgb *= 1.0 - 0.1 * exp(-sd * sd / 0.6) * (0.55 + 0.45 * wear);
   // rain: darker wet ground, and small puddles where the surface dips
   fPud = smoothstep(0.7, 0.75, fbm(p * 0.95 + 11.0)) * uWet * uPud;
   diffuseColor.rgb *= 1.0 - uWet * 0.12 - fPud * 0.5;
@@ -154,7 +161,7 @@ const GLSL_LIGHT = `
   // a puddle mirrors the overcast sky, darker than the sky itself
   float gloss = uWet * 0.06 + fPud * 0.6;
   outgoingLight = mix(outgoingLight, uSky * 0.62, fres * gloss) + uSky * fRip * 0.08;
-  outgoingLight = mix(outgoingLight, uFogC, smoothstep(uR0, uR1, length(vWP.xz / uArena)));
+  { float fr = length(vWP.xz / uArena); outgoingLight = mix(outgoingLight, fogCol(vWP.xz, fr), fogK(fr)); }
 }
 `;
 
@@ -162,7 +169,7 @@ export function createFloor(H) {
   const { scene, quality } = H; const low = quality.name === 'low';
   const U = {
     uFogC: { value: new THREE.Color(0xa9b6c4) }, uR0: { value: 1.0 }, uR1: { value: 1.15 }, uArena: { value: new THREE.Vector2(ARENA.x, ARENA.z) }, uWet: { value: 1 }, uTime: { value: 0 },
-    uCover: { value: new THREE.Color() }, uCoverK: { value: 0 }, uGrime: { value: 0.3 }, uPaint: { value: new THREE.Color(0xf2c43a) },
+    uCover: { value: new THREE.Color() }, uCoverK: { value: 0 }, uGrime: { value: 0.3 },
     uSky: { value: new THREE.Color(0xb8c6d6) }, uPud: { value: 1 },
   };
   const mats = new Map();
@@ -175,7 +182,7 @@ export function createFloor(H) {
       Object.assign(sh.uniforms, U);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP = (modelMatrix * vec4(position, 1.0)).xyz;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + GLSL_COMMON)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + GLSL_COMMON + GLSL_NOISE + GLSL_FOG)
         .replace('#include <color_fragment>', '#include <color_fragment>\n' + GLSL_SURFACE)
         .replace('#include <opaque_fragment>', GLSL_LIGHT + '\n#include <opaque_fragment>');
     };
@@ -183,15 +190,15 @@ export function createFloor(H) {
     mats.set(key, m); return m;
   }
 
-  const group = new THREE.Group(); group.name = 'floor'; scene.add(group);
+  const group = new THREE.Group(); group.name = 'floor'; group.rotation.y = Math.PI / 2; group.updateMatrixWorld(true); scene.add(group);
   let built = -1;
   function build(ch) {
     for (const o of [...group.children]) { group.remove(o); o.geometry.dispose(); }
     const R = RECIPES[ch] || RECIPES[0]; const rng = BZ.rng('floor' + ch);
-    const B = new BZ.Builder('floor' + ch); R.build(kit(B, rng), rng);
+    const B = new BZ.Builder('floor' + ch); const K = kit(B, rng); R.build(K, rng); K.swap(BZ.rng('floorout' + ch)); outer(K, BZ.rng('floorout' + ch), ch);
     const g = B.build({ recv: true });
     for (const m of [...g.children]) { m.material = matOf(m.name); m.receiveShadow = true; m.matrixAutoUpdate = false; m.renderOrder = m.name === 'scorch' ? 1 : 0; group.add(m); }
-    U.uCover.value.setHex(R.cover[0]); U.uCoverK.value = R.cover[1]; U.uGrime.value = R.grime; U.uPaint.value.setHex(R.paint); U.uPud.value = R.wet;
+    U.uCover.value.setHex(R.cover[0]); U.uCoverK.value = R.cover[1]; U.uGrime.value = R.grime; U.uPud.value = R.wet;
     built = ch;
   }
 
