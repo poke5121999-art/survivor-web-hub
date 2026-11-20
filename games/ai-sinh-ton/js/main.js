@@ -8,6 +8,7 @@ import { createBattle, step, DT } from './sim/battle.js?v=20261120c';
 import { stageDef, expectedLevel } from './data/stages.js?v=20261120c';
 import { levelMul } from './data/economy.js?v=20261120c';
 import { attachGame } from './game.js?v=20261120c';
+import { createOrient } from './orient.js?v=20261120c';
 
 const DEFAULT_TEAM = ['thep', 'mua', 'yta', 'gio'];
 const MAX_CATCHUP = 8;
@@ -46,6 +47,7 @@ async function boot() {
   window.__G = game;
   window.__stats = host.stats;
   const glue = await attachGame(game, { params });
+  createOrient(game, frame);
 
   let acc = 0;
   function present(dt, realDt = dt) {
