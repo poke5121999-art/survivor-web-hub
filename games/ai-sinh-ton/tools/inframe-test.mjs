@@ -1,7 +1,8 @@
 // The whole fight inside the visible frame. Plays stages 1, 3, 8, 15 and 24 to the end of the boss wave in the real page
 // (s22 and xiaomi), and records the projected screen position, through the game's own camera, of every enemy spawn, every
 // enemy death, every hero attack target and (each 0.5 s) the living boss. Asserts the shares inside the frame and between
-// the HUD bands, and that the arena rim's eight compass points project between the bands at several frame aspects.
+// the HUD bands, and that the arena rim's compass points project inside the frame under the top bar (and the heroes' area
+// clear of the hero card block) at several frame aspects.
 // The same measurement runs on the previous build (deployed site) once, is cached in .chk/inframe/before.json
 // (--refresh-before re-runs it) and is printed side by side. Screenshots before and after at the same moments go to
 // .chk/inframe/ with a side-by-side sheet.
@@ -21,7 +22,7 @@ const SHOTS = !argv.includes('--no-shots');
 const stArg = (argv.find((a) => a.startsWith('--stages=')) || '').slice(9);
 const STAGES = stArg ? stArg.split(',').map(Number) : [1, 3, 8, 15, 24];
 const PHONES = ['s22', 'xiaomi'];
-const TOP_PX = 40; const BOT_PX = 84;        // the HUD: a top bar, and the corner hero cards (design px of the 780 x 360 frame; the bottom centre x 170..610 is open)
+const TOP_PX = 40; const BLOCK = { x0: 240, x1: 540, h: 80 }; // the HUD: a top bar, and one hero card block at the bottom centre (design px, 780 wide frame)
 const SIM_STEP = 0.5; const SIM_LIMIT = 900; // seconds of game time per stage
 const T0 = Date.now();
 const { check, done } = checker();
@@ -34,7 +35,8 @@ const RECORDER = () => {
     V.set(x, y, z).project(H.camera); const u = H.size.u || 1; const fy = (1 - V.y) / 2; const fx = (V.x + 1) / 2;
     const py = fy * H.size.h / u; const px = fx * H.size.w / u; const hh = H.size.h / u;
     const inFrame = V.z < 1 && fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1;
-    return { fx, fy, py, inFrame, inBands: inFrame && py >= 40 && py <= ((px < 170 || px > 610) ? hh - 84 : hh) };
+    const inBlock = px > 240 && px < 540 && py > hh - 80;
+    return { fx, fy, py, px, hh, inFrame, inBlock, inBands: inFrame && py >= 40 && !inBlock };
   };
   const push = (k, x, z, extra) => { const B = G.B; window.__rec.push({ k, wave: B.wave, ...window.__proj(x, 1.0, z), ...extra }); };
   G.on((e) => {
@@ -83,9 +85,11 @@ async function measureStage(br, base, phone, stage, rimK, dims) {
     for (const u of G.B.heroes) { const n = G.actors.nodeOf(u.uid); if (!n) continue; a.set(n.position.x, 0, n.position.z).project(H.camera); b.set(n.position.x, 2.7, n.position.z).project(H.camera); out.push(Math.abs(b.y - a.y) / 2 * H.size.h / (H.size.u || 1)); }
     return out;
   });
+  // the spawn rim's compass points inside the frame and under the top bar (the bottom one may pass under the hero block),
+  // the heroes' area (0.9 of the ellipse) clear of the block
   const compass = await page.evaluate(([ax, az, k]) => {
     const out = [];
-    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; const p = window.__proj(Math.cos(a) * ax * k, 0, Math.sin(a) * az * k); out.push({ a: i * 45, fx: +p.fx.toFixed(3), py: +p.py.toFixed(1), inBands: p.inBands }); }
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; const p = window.__proj(Math.cos(a) * ax * k, 0, Math.sin(a) * az * k); const h = window.__proj(Math.cos(a) * ax * 0.9, 0, Math.sin(a) * az * 0.9); out.push({ a: i * 45, fx: +p.fx.toFixed(3), py: +p.py.toFixed(1), inBands: p.inFrame && p.py >= 40 && p.py <= p.hh - 8 && !h.inBlock }); }
     return out;
   }, [dims.x, dims.z, rimK]);
   const problems = r.problems.filter((x) => !/Failed to load resource/.test(x));
@@ -106,7 +110,9 @@ async function aspectCompass(br, base, dims, rimK) {
       for (let i = 0; i < 16; i++) {
         const a = i * Math.PI / 8; V.set(Math.cos(a) * ax * k, 0, Math.sin(a) * az * k).project(H.camera);
         const u = w / 780; const py = (1 - V.y) / 2 * h / u; const fx = (V.x + 1) / 2; const px = fx * w / u; minPy = Math.min(minPy, py); maxPy = Math.max(maxPy, py); maxFx = Math.max(maxFx, Math.abs(fx - 0.5));
-        if (py < 40 || py > ((px < 170 || px > 610) ? h / u - 84 : h / u) || fx < 0 || fx > 1) ok = false;
+        if (py < 40 || py > h / u - 8 || fx < 0 || fx > 1) ok = false;
+        V.set(Math.cos(a) * ax * 0.9, 0, Math.sin(a) * az * 0.9).project(H.camera); const hx = (V.x + 1) / 2 * w / u; const hy = (1 - V.y) / 2 * h / u;
+        if (hx > 240 && hx < 540 && hy > h / u - 80) ok = false;
       }
       res.push({ w, h, ok, minPy: +minPy.toFixed(1), maxPy: +maxPy.toFixed(1), halfW: +(maxFx * w).toFixed(1) });
     }
@@ -177,7 +183,7 @@ try {
       check(a.dieBands.pct >= 95, `${phone} stage ${s}: enemy deaths between the HUD bands ${a.dieBands.pct.toFixed(1)}% (>= 95%)`);
       check(a.atk.n === 0 || a.atk.pct >= 98, `${phone} stage ${s}: ranged hero attack targets inside the frame ${a.atk.pct.toFixed(1)}% of ${a.atk.n} (>= 98%)`);
       check(a.boss.n > 0 && a.boss.pct >= 95, `${phone} stage ${s}: boss inside the frame ${a.boss.pct.toFixed(1)}% of ${a.boss.n} samples (>= 95%)`);
-      check(A.compass.every((c) => c.inBands), `${phone} stage ${s}: eight rim compass points between the bands (py ${A.compass.map((c) => c.py).join(' ')})`);
+      check(A.compass.every((c) => c.inBands), `${phone} stage ${s}: eight rim compass points in the frame under the top bar, heroes' area clear of the card block (py ${A.compass.map((c) => c.py).join(' ')})`);
       check(A.problems.length === 0 && A.errs === 0, `${phone} stage ${s}: no console problems or __errors ${A.problems.slice(0, 2).join(' | ')}`);
       bossAgg.die += A.boss.dieFrame.n; bossAgg.dieIn += A.boss.dieFrame.n * A.boss.dieFrame.pct / 100; bossAgg.dieBand += A.boss.dieBands.n * A.boss.dieBands.pct / 100;
     }
@@ -187,11 +193,11 @@ try {
   if (hs.length) console.log(`hero on-screen height at s22, end of stage ${STAGES.includes(3) ? 3 : STAGES[0]}: min ${Math.min(...hs).toFixed(1)} max ${Math.max(...hs).toFixed(1)} CSS px`);
 
   const asp = await aspectCompass(br, srv.base, ARENA, 1.04);
-  for (const a of asp) check(a.ok, `frame ${a.w}x${a.h}: rim at 1.04 projects between the bands (py ${a.minPy}..${a.maxPy}, half width ${a.halfW} of ${a.w / 2})`);
+  for (const a of asp) check(a.ok, `frame ${a.w}x${a.h}: rim at 1.04 in the frame under the bar, heroes' area clear of the card block (py ${a.minPy}..${a.maxPy}, half width ${a.halfW} of ${a.w / 2})`);
   const dk = await openPage(br, srv.base, 'desktop', 'autostart=1&stage=3&noaudio=1&seed=3');
   await dk.page.evaluate(RECORDER);
   const dc = await dk.page.evaluate(([ax, az]) => { const o = []; for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; o.push(window.__proj(Math.cos(a) * ax * 1.04, 0, Math.sin(a) * az * 1.04)); } return o; }, [ARENA.x, ARENA.z]);
-  check(dc.every((c) => c.inBands), `desktop frame: eight rim compass points between the bands (py ${dc.map((c) => c.py.toFixed(0)).join(' ')})`);
+  check(dc.every((c) => c.inFrame && c.py >= 40 && c.py <= c.hh - 8), `desktop frame: eight rim compass points in the frame under the top bar (py ${dc.map((c) => c.py.toFixed(0)).join(' ')})`);
   await dk.ctx.close();
 
   // ---- screenshots, before and after at the same moments ----

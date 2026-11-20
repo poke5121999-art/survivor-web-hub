@@ -1,14 +1,11 @@
-// The view host: renderer, scene, lights, the arena floor (floor.js) with its fog wall, rain, and the small `G` object
-// that Blockade Z's fx, audio, zombie and boss code expects. The sim never touches it; actors.js and camera.js
-// read H and draw the battle on top.
-import { createFloor } from './floor.js?v=20261120c';
-import { createFog } from './fog.js?v=20261120c';
-import { ARENA } from '../sim/battle.js?v=20261120c';
+// The view host: renderer, scene, lights, the battle world (world.js: the block island, its abyss and its lights), rain,
+// and the small `G` object that Blockade Z's fx, audio, zombie and boss code expects. The sim never touches it; actors.js
+// and camera.js read H and draw the battle on top.
+import { createWorld } from './world.js?v=20261120c';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
 const SETTINGS_KEY = 'aisinhton.settings.v1';
-const WALL_K = 1.17;           // the fog wall stands just behind the spawn rim (1.04 to 1.07 of the ellipse)
 const RAIN = { x: 48, z: 24, h: 16 }; // rain wraps inside this box around the focus: arena plus its fog rim
 const FAR_MS = 26;
 
@@ -25,15 +22,6 @@ function readTier(params) {
   try { saved = (JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}).quality || ''; } catch (e) { saved = ''; }
   const want = params.q || saved;
   return { ...(TIERS[want] || TIERS.medium) };
-}
-
-function gradientAlpha() {
-  const cv = document.createElement('canvas'); cv.width = 4; cv.height = 128; const c = cv.getContext('2d');
-  const g = c.createLinearGradient(0, 0, 0, 128);
-  // top of the wall (canvas top) is clear, the foot is solid; an eased ramp avoids visible bands
-  for (let i = 0; i <= 16; i++) { const k = i / 16; const a = Math.pow(k, 1.7); const v = Math.round(255 * a); g.addColorStop(k, `rgb(${v},${v},${v})`); }
-  c.fillStyle = g; c.fillRect(0, 0, 4, 128);
-  const t = new THREE.CanvasTexture(cv); t.wrapS = THREE.RepeatWrapping; return t;
 }
 
 // The stock puff and glow textures are 16 px and 32 px with alpha quantised to a few steps and nearest filtering:
@@ -85,7 +73,7 @@ export async function createHost({ frame, canvas, params }) {
     sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.04;
   }
   scene.add(sun); scene.add(sun.target);
-  G.hemi = hemi; G.sun = sun; const skyBase = new THREE.Color(0xdce8ff);
+  G.hemi = hemi; G.sun = sun;
 
   // ---- the player shim: only a listener position for audio and a focus for the camera ----
   G.player = { pos: new THREE.Vector3(), yaw: 0, vel: new THREE.Vector3(), alive: true, hp: 100, maxHp: 100, shake: BZ.spring(120, 9), slowT: 0, rootT: 0 };
@@ -110,20 +98,12 @@ export async function createHost({ frame, canvas, params }) {
   G.ui = { pop() {}, announce() {}, banner() {}, update() {} };
   G.coop = { guest: true, host: false, on: false, remotes: () => [], reportHit() {}, hurtRemote() {}, me: 'h' };
 
-  // ---- the floor: Blockade Z's ground technique per chapter, melting into the fog colour past the fight area ----
-  const floorK = createFloor({ scene, quality });
-  const floor = floorK.group;
-  const fogK = createFog({ scene, quality }, floorK.uniforms);
-  const ring = new THREE.Object3D(); ring.visible = false;
-
-  // far half of a cylinder only: back faces are the wall seen from inside, the near half is culled by the camera side
-  const wallMat = new THREE.MeshBasicMaterial({ color: 0xa9b6c4, alphaMap: gradientAlpha(), transparent: true, side: THREE.BackSide, depthWrite: false, fog: false });
-  const wall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 9, 64, 1, true), wallMat);
-  wall.scale.set(ARENA.x * WALL_K, 1, ARENA.z * WALL_K); wall.position.y = 4.4; wall.renderOrder = 5; wall.visible = false; scene.add(wall);
+  // ---- the world: one block island per stage over water or a fog abyss, lit by its own torches and lamps ----
+  const world = createWorld({ scene, quality, hemi, sun, renderer, camera, size: null });
 
   // ---- rain: instanced streaks that wrap around the camera focus, plus a few splashes ----
   const NP = Math.round(200 * Math.max(0.4, quality.particles));
-  const precip = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xe6eef8, transparent: true, opacity: 0.22, depthWrite: false, fog: false }), NP);
+  const precip = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xe6eef8, transparent: true, opacity: 0.14, depthWrite: false, fog: false }), NP);
   precip.frustumCulled = false; precip.count = NP; precip.renderOrder = 6; scene.add(precip);
   const pr = BZ.rng('precip'); const pts = [];
   for (let i = 0; i < NP; i++) pts.push(new THREE.Vector3(pr.range(-RAIN.x / 2, RAIN.x / 2), pr.range(0, RAIN.h), pr.range(-RAIN.z / 2, RAIN.z / 2)));
@@ -174,21 +154,22 @@ export async function createHost({ frame, canvas, params }) {
   }
 
   const stats = { frameMs: 16, draws: 0, tris: 0, scale: 1 };
-  const H = { THREE, renderer, scene, camera, G, quality, size, resize, stats, floor, ring, wall, floorK, fogK, get floorMeshes() { return floorK.meshes; } };
+  const H = { THREE, renderer, scene, camera, G, quality, size, resize, stats, world, hemi, sun, B: null };
 
+  // rain falls only where the chapter has it (and never under ?weather=clear)
+  const noRain = !!(params && params.weather === 'clear');
   H.setStage = (def) => {
-    const fog = new THREE.Color(def.fog);
+    const th = world.setStage(def);
+    const fog = new THREE.Color(th.fog);
     scene.fog.color.copy(fog); scene.background = fog; renderer.setClearColor(fog, 1);
-    wallMat.color.copy(fog);
-    floorK.setStage(def); fogK.setStage(def);
-    hemi.color.copy(skyBase).lerp(fog, 0.25);
+    H.setRain(!noRain && th.rain > 0);
   };
-  H.setStage({ chapter: 0, fog: 0xa9b6c4 });
 
   H.update = (dt) => {
     G.fx.update(dt); G.audio.update();
     if (rainOn) updateRain(dt);
-    floorK.update(dt);
+    world.setBoss(!!(H.B && H.B.wave === 5 && H.B.phase === 'fight'));
+    world.update(dt);
     const f = G.player.pos;
     sun.position.set(f.x - 12, 32, f.z + 14); sun.target.position.set(f.x, 0, f.z); sun.target.updateMatrixWorld();
   };
@@ -220,15 +201,10 @@ export async function createHost({ frame, canvas, params }) {
   // the old Blockade Z's light per weather (sky.js DAY, rain dims it to 0.75) and its bloom rule (main.js: stronger the
   // weaker the sun)
   H.setRain = (on) => {
-    rainOn = !!on; precip.visible = rainOn; floorK.setWet(rainOn ? 1 : 0);
-    // rain cools the light toward the old game's moonlit blue (sky.js NIGHT: sky 0x8aa6e6, sun 0xb4c8ff)
-    const dim = rainOn ? 0.75 : 1; hemi.intensity = 1.7 * dim; sun.intensity = 2.3 * dim;
-    sun.color.set(0xfff2dc).lerp(new THREE.Color(0xb4c8ff), rainOn ? 0.45 : 0); skyBase.set(0xdce8ff).lerp(new THREE.Color(0x8aa6e6), rainOn ? 0.4 : 0);
-    hemi.color.copy(skyBase).lerp(scene.fog.color, 0.25);
+    rainOn = !!on; precip.visible = rainOn;
     G.post.strength = BZ.lerp(0.85, 0.3, BZ.clamp((sun.intensity - 1.1) / 1.2, 0, 1)) * 0.6;
   };
-  H.setRain(true);
-  if (params && params.weather === 'clear') H.setRain(false); // test switch: the floor without rain
+  H.setStage({ chapter: 0, n: 1 });
   if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => resize()).observe(frame);
   window.addEventListener('resize', resize);
   resize();
