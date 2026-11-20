@@ -153,7 +153,15 @@ try {
       check(d.white < 0.01, `${tag}: clipped white ${(d.white * 100).toFixed(2)}% (< 1%)`);
       if (wx === 'rain') {
         // a boss warning circle injected next to the focus: centre colour before and while it fills
-        const px = info.fx + 2.2; const pz = info.fz - 1.5;
+        // the spot near the focus that is farthest from any unit, so the sampled centre shows the floor and not a body
+        const [px, pz] = await page.evaluate(([fx, fz]) => {
+          const B = window.__G.B; let best = null;
+          for (const [ox, oz] of [[2.2, -1.5], [-2.2, -1.5], [2.2, 1.5], [-2.2, 1.5], [0, -2.6], [3.6, 0], [-3.6, 0], [0, 2.6]]) {
+            const x = fx + ox; const z = fz + oz; let d = 1e9; for (const u of B.units) if (u.alive) d = Math.min(d, Math.hypot(u.x - x, u.z - z));
+            if (!best || d > best[2]) best = [x, z, d];
+          }
+          return [best[0], best[1]];
+        }, [info.fx, info.fz]);
         const at = await page.evaluate(([x, z]) => { const H = window.__G.host; const v = new H.THREE.Vector3(x, 0, z).project(H.camera); return [(v.x + 1) / 2, (1 - v.y) / 2]; }, [px, pz]);
         const beforeF = await shot(page, `ours-${tag}-warn0.png`, '#frame');
         await page.evaluate(([x, z]) => { window.__G.actors.marks.tele({ team: 1, shape: 'circle', x, z, r: 2.2, t: 3 }); window.__step(45); }, [px, pz]);

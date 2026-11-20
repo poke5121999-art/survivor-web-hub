@@ -180,7 +180,7 @@ print(json.dumps(out))`;
     const med = (a) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : 0; };
     const REPORT = {};
     for (const id of HEROES) {
-      await g.page.evaluate((i) => { window.__G.start(2, { seed: 9, team: [i], auto: { ult: true, pick: 'best' } }); window.__sim(3); window.__step(4); }, id);
+      await g.page.evaluate((i) => { window.__G.start(2, { seed: 9, team: [i], auto: { ult: true, pick: 'best' } }); window.__G.paused = true; window.__sim(3); window.__step(4); }, id);
       const wid = await g.page.evaluate(() => window.BZ.HEROES.find((h) => h.id === window.__G.B.heroes[0].kind).weapon);
       const f = path.join(OUT, `ingame-${id}.png`); await g.page.locator('#frame').screenshot({ path: f });
       const bb = await g.page.locator('#frame').boundingBox();

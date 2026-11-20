@@ -1,10 +1,10 @@
 // Battle HUD: top band (pause, wave, timer, kills, speed, boss bar), four hero cards (live portrait, hp, ultimate
 // charge, flame, eye) and the transient pieces (damage numbers, banners, ultimate bursts, spectate controls).
 // Everything is drawn by the 3D UI kit; the sim is only ever read here, the player never steers a unit.
-import { HERO } from '../data/heroes.js?v=20261120c';
-import { ENEMY } from '../data/enemies.js?v=20261120c';
-import { HERO_RARITY } from '../data/economy.js?v=20261120c';
-import { lockButton } from './guide.js?v=20261120c';
+import { HERO } from '../data/heroes.js?v=20261120d';
+import { ENEMY } from '../data/enemies.js?v=20261120d';
+import { HERO_RARITY } from '../data/economy.js?v=20261120d';
+import { lockButton } from './guide.js?v=20261120d';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const easeOut = (t) => 1 - (1 - clamp(t, 0, 1)) ** 3;
@@ -229,7 +229,7 @@ export function createHud(game) {
   const twin = (q) => live.find((o) => o !== q && o.text === q.text && Math.abs(o.x - q.x) < 40 && Math.abs(o.y - q.y) < RISE + 40);
   function spawn(key, str, nx, ny, o, w, h) {
     const node = ui.text(str, { size: o.size ?? 20, color: o.color ?? PAL.gold, align: 'center', valign: 'mid', outlineW: 2.6 }); scr.put(node, nx, ny, 50);
-    const q = { node, key, text: str, x: nx, y: ny, w, h, age: 0, born: clock, base: o.size ?? 20, size: o.size ?? 20, sum: o.sum, n: o.n, heal: o.heal, merged: o.merged };
+    const q = { node, key, text: str, x: nx, y: ny, w, h, age: 0, born: clock, base: o.size ?? 20, size: o.size ?? 20, sum: o.sum, n: o.n, heal: o.heal, merged: o.merged, color: o.color };
     live.push(q); drawNumber(q); return q;
   }
   function drawNumber(q) {
@@ -275,7 +275,14 @@ export function createHud(game) {
     q.sum += p.sum; q.n += p.n; q.text = numStr(q);
     const size = p.heal ? 18 : clamp(17 + 2.2 * Math.log2(q.n), 17, 29); q.size = Math.max(q.size, size);
     q.node.set(q.text); Object.assign(q, sizeOf(q.text, q.size)); q.age = Math.min(q.age, NUMBER_LIFE * 0.45);
-    const t = twin(q); if (t) { const drop = t.age > q.age ? t : q; kill(drop.node); live.splice(live.indexOf(drop), 1); }
+    const t = twin(q); if (t) { const drop = t.age > q.age ? t : q; kill(drop.node); live.splice(live.indexOf(drop), 1); if (drop === q) return; }
+    // grown or made young again where it stands, it may now reach out of the play band or sit on a banner that came up
+    // after it: then it is placed again like a new number
+    const s = sweep(q);
+    if (s.y < BAND_TOP || q.y + q.h / 2 > ui.H - BOTTOM || [...bannerRects(), ...blockRects()].some((r) => meets(s, r))) {
+      kill(q.node); live.splice(live.indexOf(q), 1);
+      place(q.key, q.text, q.x, q.y, { color: q.color, size: q.size, sum: q.sum, n: q.n, heal: q.heal, merged: q.merged });
+    }
   }
   function flushNumbers() {
     const B = game.B;

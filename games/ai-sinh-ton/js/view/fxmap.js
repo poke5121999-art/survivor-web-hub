@@ -1,8 +1,8 @@
 // Maps every effect key the sim emits (sim `fx`, `attack`, projectile, zone, dash, buff, state keys) to a look, and
 // plays it with Blockade Z's G.fx calls, own ground marks and sounds. A key missing from KEYS plays a generic burst
 // and is logged once. counters[key] counts the effects played per key (the view-shots tool reads it).
-import { arenaNorm } from '../sim/battle.js?v=20261120c';
-import { HEROES } from '../data/heroes.js?v=20261120c';
+import { arenaNorm } from '../sim/battle.js?v=20261120d';
+import { HEROES } from '../data/heroes.js?v=20261120d';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -276,10 +276,12 @@ export function createFxMap(H, marks, ctx) {
   const sideOf = (ax, az, bx, bz) => { const a = V(ax, 1, az).project(camera); const b = V(bx, 1, bz).project(camera); return b.x >= a.x ? 1 : -1; };
   const heroCol = (uid) => ctx.colorOf(uid);
   const coreOf = (c) => new THREE.Color(c).lerp(new THREE.Color(0xdff6ff), 0.3).getHex();
+  // a wide additive stroke in the hero's pale colour turns a bright floor white: the same hue with less red cannot clip all three channels
+  const coolOf = (c) => { const k = new THREE.Color(c); k.r *= 0.35; return k.getHex(); };
   function gioDash(e, d) {
     const c = heroCol(e.uid); const blink = !!e.blink;
-    marks.streak(e.x, 1.0, e.z, e.x2, 1.0, e.z2, blink ? 1.0 : 1.7, c, blink ? 0.4 : 0.55, 0.9, { sweep: 0.07, k: [0.1, 0.75, 0.1], kind: 'dash' });
-    marks.streak(e.x, 1.0, e.z, e.x2, 1.0, e.z2, blink ? 0.3 : 0.5, coreOf(c), blink ? 0.34 : 0.5, 0.85, { sweep: 0.06, k: [0.3, 1, 0.3], kind: 'dash' });
+    marks.streak(e.x, 1.0, e.z, e.x2, 1.0, e.z2, blink ? 1.0 : 1.7, coolOf(c), blink ? 0.4 : 0.55, 0.6, { sweep: 0.07, k: [0.1, 0.75, 0.1], kind: 'dash' });
+    marks.streak(e.x, 1.0, e.z, e.x2, 1.0, e.z2, blink ? 0.22 : 0.3, coreOf(c), blink ? 0.34 : 0.5, 0.45, { sweep: 0.06, k: [0.3, 1, 0.3], kind: 'dash' });
     const n = Math.max(1, Math.round((blink ? 2 : 4) * Math.min(1, qual() + 0.34))); const flip = sideOf(e.x, e.z, e.x2, e.z2);
     for (let i = 0; i < n; i++) { const t = blink ? 0.3 + i * 0.4 : (i + 0.5) / n * 0.92 + 0.04; marks.ghost(e.x + (e.x2 - e.x) * t, e.z + (e.z2 - e.z) * t, c, { delay: i * 0.025, life: 0.38, a: 0.55, flip, drift: 0.5 }); }
     if (!blink) { dashWin.uid = e.uid; dashWin.until = ctx.time() + 0.04; bump('gio_dash'); }
@@ -297,8 +299,8 @@ export function createFxMap(H, marks, ctx) {
     const cx = x + jx; const cz = z + jz; const cy = 1.4;
     const dx = (rt.x * Math.cos(th) + up.x * Math.sin(th)) * L; const dy = (rt.y * Math.cos(th) + up.y * Math.sin(th)) * L; const dz = (rt.z * Math.cos(th) + up.z * Math.sin(th)) * L;
     const sgn = i % 2 ? -1 : 1;
-    marks.streak(cx - dx * sgn, cy - dy * sgn, cz - dz * sgn, cx + dx * sgn, cy + dy * sgn, cz + dz * sgn, fin ? 1.5 : 0.85, c, 0.45, 0.9, { sweep: 0.06, k: [0.08, 0.55, 0.08], kind: 'cut', bow: 0.05 * sgn });
-    marks.streak(cx - dx * sgn, cy - dy * sgn, cz - dz * sgn, cx + dx * sgn, cy + dy * sgn, cz + dz * sgn, fin ? 0.5 : 0.26, coreOf(c), 0.4, 0.9, { sweep: 0.06, k: [0.14, 0.5, 0.14], kind: 'cut', bow: 0.05 * sgn });
+    marks.streak(cx - dx * sgn, cy - dy * sgn, cz - dz * sgn, cx + dx * sgn, cy + dy * sgn, cz + dz * sgn, fin ? 1.3 : 0.75, coolOf(c), 0.45, 0.6, { sweep: 0.06, k: [0.08, 0.55, 0.08], kind: 'cut', bow: 0.05 * sgn });
+    marks.streak(cx - dx * sgn, cy - dy * sgn, cz - dz * sgn, cx + dx * sgn, cy + dy * sgn, cz + dz * sgn, fin ? 0.3 : 0.15, coreOf(c), 0.4, 0.9, { sweep: 0.06, k: [0.14, 0.5, 0.14], kind: 'cut', bow: 0.05 * sgn });
     pop(x, 1.1, z, 0.55, [c, c]); marks.flash(x, 1.2, z, fin ? 1.8 : 1.4, c, fin ? 0.12 : 0.22);
     if (fin) { marks.ring(x, z, 0.5, 5, c, 0.5, 0.8); marks.wall(x, z, 0.5, 4.5, c, 0.45, 1.6, 0.4); }
     bump('gio_slash'); snd('swipe', x, z, 0.35); void u;

@@ -1,22 +1,29 @@
 // Camera director. Overview: one fixed framing of the whole arena ellipse (ARENA from the sim, plus the spawn rim), world x to
-// screen right and world z up the screen, pulled back until the near rim fills the frame width and the far rim still sits
-// between the HUD bands; the lens shift centres the ellipse in the free band. No follow and no zoom, so everything the
-// sim does happens inside the picture. Spectate: a chase camera behind and above one unit, blended in and out.
-import { ARENA } from '../sim/battle.js?v=20261120c';
-import { FLY_Y } from './keys.js?v=20261120c';
+// screen right and world z down the screen, a narrow lens at about 45 to 50 degrees so the block world reads isometric (the
+// diagonal comes from the world's 45-degree block grid, not from turning the fight). Pulled back until the spawn rim spans
+// the frame width; the lens shift puts the far rim just under the top bar; the pitch is the steepest one (up to 50) that
+// keeps heroes (0.9 of the ellipse) above the hero card block at the bottom centre and the rim's corners above the bottom
+// edge. No follow and no zoom, so everything the sim does happens inside the picture. Spectate: a chase camera behind and
+// above one unit, blended in and out.
+import { ARENA } from '../sim/battle.js?v=20261120d';
+import { FLY_Y } from './keys.js?v=20261120d';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
-const PITCH_MIN = 45 * Math.PI / 180;   // the overview pitch is solved inside this range so the ellipse fills the frame height too
-const PITCH_MAX = 58 * Math.PI / 180;
-const FOV_OVER = 30;
+const PITCH_MIN = 42 * Math.PI / 180;
+const PITCH_MAX = 50 * Math.PI / 180;
+const FOV_OVER = 19;
 const FOV_CHASE = 58;
-const BAND_TOP = 40;    // design px (frame 780 x 360) the top HUD bar takes; the hero cards sit in the bottom corners, over the ellipse's falling-away corners
-const MARGIN_BOT = 12;  // the spawn rim's lowest point stays this far above the bottom edge
-const SIDE_FRAC = 0.03; // the spawn rim's left and right points sit this share of the frame width from the edges
+const BAND_TOP = 40;    // design px (frame 780 wide) the top HUD bar takes
+const TOP_GAP = 4;      // the far rim (heads included) sits this far under the bar
+const BLOCK = { x0: 240, x1: 540, h: 80 }; // the hero cards: bottom centre, this tall from the bottom edge
+const BLOCK_PAD = 2;    // heroes' feet (and their ring) stay this far above the block
+const MARGIN_BOT = 8;   // the spawn rim outside the block stays this far above the bottom edge
+const SIDE_FRAC = 0.042; // the spawn rim's left and right points sit this share of the frame width from the edges
 const FIT_K = 1.04;     // the spawn rim is at 1.04 of the ellipse
 const HERO_K = 0.9;     // heroes stay inside this share of the ellipse
-const HEAD = 0.7;       // body height that must still clear the top bar at the far rim
+const HERO_RING = 0.3;  // metres around a hero's foot point that must clear the block too
+const HEAD = 0.5;       // height at the far rim that still clears the top bar: a monster killed as it arrives shows from the waist up
 const PTS = 48;
 const PUSH = 0.028;      // push-in on an ultimate: 2.8% scale about the casting hero, clamped so the rim stays in the frame
 const RIM_PAD = 0.012;   // NDC margin kept between the rim and the frame edge while pushing
@@ -48,27 +55,40 @@ export function createCamera(H) {
     return { x1, y0, y1 };
   }
 
-  // distance that makes the spawn rim fill halfX of the half width (and at most freeY of the height), and its box
-  function fitAt(p, halfX, freeY) {
-    let lo = 4; let hi = 200;
-    for (let i = 0; i < 40; i++) {
-      const d = (lo + hi) / 2; const b = bbox(d, p, FIT_K, HEAD);
-      if (Math.max(b.x1 / halfX, (b.y1 - b.y0) / freeY) > 1) lo = d; else hi = d;
-    }
+  // distance that makes the spawn rim fill halfX of the half width, and its box
+  function fitAt(p, halfX) {
+    let lo = 4; let hi = 300;
+    for (let i = 0; i < 40; i++) { const d = (lo + hi) / 2; const b = bbox(d, p, FIT_K, HEAD); if (b.x1 / halfX > 1) lo = d; else hi = d; }
     return { d: hi, b: bbox(hi, p, FIT_K, HEAD) };
+  }
+
+  // with the far rim pinned under the top bar: how far the heroes' area and the rim corners clear the bottom (design px; >= 0 fits)
+  function clearance(p, d, sh) {
+    const { w, h } = H.size; const u = H.size.u || 1; const hd = h / u; const wd = w / u;
+    fit.position.set(0, Math.sin(p) * d, Math.cos(p) * d); fit.lookAt(0, 0, 0); fit.updateMatrixWorld(true);
+    const px = (x, z) => { v.set(x, 0, z).project(fit); return [(v.x + 1) / 2 * wd, (1 - (v.y + sh)) / 2 * hd]; };
+    let hero = 1e9; let rimc = 1e9;
+    for (let i = 0; i < PTS * 2; i++) {
+      const a = (i / (PTS * 2)) * Math.PI * 2; const c = Math.cos(a); const s = Math.sin(a);
+      const q = px(c * (ARENA.x * HERO_K + HERO_RING), s * (ARENA.z * HERO_K + HERO_RING));
+      if (q[0] > BLOCK.x0 - 4 && q[0] < BLOCK.x1 + 4) hero = Math.min(hero, hd - BLOCK.h - BLOCK_PAD - q[1]);
+      const r = px(c * ARENA.x * FIT_K, s * ARENA.z * FIT_K);
+      if (r[0] < BLOCK.x0 || r[0] > BLOCK.x1) rimc = Math.min(rimc, hd - MARGIN_BOT - r[1]);
+    }
+    return Math.min(hero, rimc);
   }
 
   function solve() {
     const { w, h } = H.size; const u = H.size.u || 1;
-    const top = 2 * BAND_TOP * u / h; const bot = 2 * MARGIN_BOT * u / h; const halfX = 1 - 2 * SIDE_FRAC; const freeY = 2 - top - bot;
+    const topY = 1 - 2 * (BAND_TOP + TOP_GAP) * u / h; const halfX = 1 - 2 * SIDE_FRAC;
     fit.aspect = w / h; fit.updateProjectionMatrix();
-    // width binds: take the pitch whose height span fills the free band (steeper = taller ellipse on screen)
-    let lo = PITCH_MIN; let hi = PITCH_MAX;
-    const span = (p) => { const f = fitAt(p, halfX, 1e9); return f.b.y1 - f.b.y0; };
-    if (span(hi) <= freeY) lo = hi; else if (span(lo) >= freeY) hi = lo;
-    else for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (span(mid) < freeY) lo = mid; else hi = mid; }
-    pitch = (lo + hi) / 2; const f = fitAt(pitch, halfX, freeY); dist = f.d; const b = f.b;
-    shift = (-1 + bot + freeY / 2) - (b.y0 + b.y1) / 2;
+    let best = null;
+    for (let p = PITCH_MAX; p >= PITCH_MIN - 1e-6; p -= 0.25 * Math.PI / 180) {
+      const f = fitAt(p, halfX); const sh = topY - f.b.y1; const c = clearance(p, f.d, sh);
+      if (!best || c > best.c) best = { p, d: f.d, sh, c };
+      if (c >= 0) { best = { p, d: f.d, sh, c }; break; }
+    }
+    pitch = best.p; dist = best.d; shift = best.sh; C.fitClear = best.c;
     const hb = bbox(dist, pitch, HERO_K, 0);
     rim = { x: hb.x1, y0: hb.y0 + shift, y1: hb.y1 + shift };
   }
@@ -100,6 +120,7 @@ export function createCamera(H) {
   function update(B, dt) {
     const k = H.size.w + 'x' + H.size.h;
     if (k !== key) { key = k; solve(); if (H.fogK) H.fogK.invalidate(); }
+    H.B = B;
     blend += (want - blend) * Math.min(1, dt * 3.5); if (Math.abs(want - blend) < 0.001) blend = want;
     const aspect = H.size.w / H.size.h;
     pos.set(0, Math.sin(pitch) * dist, Math.cos(pitch) * dist);

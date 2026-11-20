@@ -148,7 +148,7 @@ const LIVE = async ([mode, opt]) => {
     const now = performance.now() - t0;
     for (const c of casts) if (!c.done && now >= c.at) { c.done = true; castAt.push(performance.now() - t0); if (opt.stall) stallNext = true; if (c.what === 'ult') { const u = B.heroes[c.slot]; u.ult = 1; u.ultReady = true; SIM.castUlt(B, c.slot); } else if (c.what === 'kick') J.kick(c.px); else if (c.what === 'tap') window.dispatchEvent(new Event('pointerdown')); else if (c.what === 'boom') J.onEvent({ e: 'fx', team: 1, key: 'boss_slam', part: 'burst' }); }
     const p = proj(0, 0, 0);
-    rows.push({ t: now, Bt: B.t, scale: J.scale, stopped: J.stopped, part: J.partial, shake: J.view.shake.px, push: J.view.push, off: Math.hypot(p[0] - p0[0], p[1] - p0[1]) * H.size.w / 2, offX: (p[0] - p0[0]) * H.size.w / 2, offY: (p[1] - p0[1]) * H.size.h / 2, margin: rimMargin() });
+    rows.push({ t: now, Bt: B.t, scale: J.scale, stopped: J.stopped, part: J.partial, shake: J.view.shake.px, push: J.view.push, off: Math.hypot((p[0] - p0[0]) * H.size.w / 2, (p[1] - p0[1]) * H.size.h / 2), offX: (p[0] - p0[0]) * H.size.w / 2, offY: (p[1] - p0[1]) * H.size.h / 2, margin: rimMargin() });
     step++;
   }
   G.paused = true; G.speed = 1;
@@ -187,7 +187,9 @@ async function live(br, base, phone) {
   const rows = u1.rows;
   // from the cast to the first frame that runs again: the sim clock stands still for all of it (the cast frame itself is a long one)
   const stop = (() => { const i = rows.findIndex((x) => x.stopped); if (i < 0) return { ms: 0, sim: 0, frames: 0 }; let j = i; while (j < rows.length && rows[j].stopped) j++; const k = Math.min(j, rows.length - 1); return { ms: rows[k].t - u1.castAt[0], sim: rows[k].Bt - rows[Math.max(0, i - 1)].Bt, frames: j - i }; })();
-  check(stop.ms >= 40 && stop.ms <= 80, `${tag}: hit-stop on an ultimate lasts ${stop.ms.toFixed(0)} ms of real time over ${stop.frames} frames (40 to 80), the sim advanced ${(stop.sim * 1000).toFixed(0)} ms inside it; ideal ${u1.stops.length ? u1.stops[u1.stops.length - 1].ms : '-'} ms`);
+  // the stop the game asks for must be 40 to 80 ms; on screen it starts and ends on a frame, so it shows for up to two frames longer
+  const asked = u1.stops.length ? u1.stops[u1.stops.length - 1].ms : -1;
+  check(asked >= 40 && asked <= 80 && stop.ms >= 40 && stop.ms <= asked + 34, `${tag}: hit-stop on an ultimate lasts ${stop.ms.toFixed(0)} ms of real time over ${stop.frames} frames (asked 40 to 80, shown at most two 60 Hz frames longer), the sim advanced ${(stop.sim * 1000).toFixed(0)} ms inside it; ideal ${u1.stops.length ? u1.stops[u1.stops.length - 1].ms : '-'} ms`);
   // one 70 ms stalled frame right after the burst: the stop ends on the wall clock, so the sim takes no tick before the 55 ms deadline
   const us = await run({ secs: 1.2, stall: 70, casts: [{ at: 300, what: 'ult', slot: 0 }] });
   const c0 = us.castAt[0]; const ideal = us.stops.length ? us.stops[us.stops.length - 1].ms : 55;

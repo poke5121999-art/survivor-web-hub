@@ -1,7 +1,7 @@
 // Ground layer: warning marks that fill up before an attack lands (with a falling projectile for `fall` marks),
 // lingering zones animated from the live sim zone, expanding rings and flares. Everything is a flat mesh just above
 // the floor, drawn by a few small shaders, so it stays cheap and reads from above.
-import { ARENA } from '../sim/battle.js?v=20261120c';
+import { ARENA } from '../sim/battle.js?v=20261120d';
 const THREE = window.THREE;
 
 const NOISE = `
@@ -156,6 +156,9 @@ export function createMarks(H) {
   }
 
   // ---- rings and flares ----
+  // the 42 to 50 degree overview draws a ground ring about a quarter larger than a steeper one: dimmed so a white ring on a
+  // bright floor stays under the clipped-white limit
+  const RING_K = 0.8;
   function ring(x, z, r0, r1, color, life = 0.5, alpha = 0.9) {
     let rec = rings.find((r) => !r.on);
     if (!rec) {
@@ -450,7 +453,7 @@ export function createMarks(H) {
       if (z.extra) { z.extra.position.x = z.x; z.extra.position.z = z.z; if (z.extra.isSprite) { z.extra.scale.setScalar(2.8 + Math.sin(clock * 20) * 0.35); if (G.rng.chance(dt * 14)) { const aa = G.rng.range(0, 6.28); G.fx.arc(new THREE.Vector3(z.x, 1.3, z.z), new THREE.Vector3(z.x + Math.cos(aa) * 2.4, 0.3, z.z + Math.sin(aa) * 2.4), 0xbfe8ff); } } else z.extra.material.opacity = 0.2 * a; }
       if (z.end < 0) zoneFx(z, dt);
     }
-    for (const r of rings) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; r.mesh.visible = false; continue; } const e = 1 - Math.pow(1 - k, 3); r.mesh.scale.setScalar(r.r0 + (r.r1 - r.r0) * e); r.mesh.material.opacity = r.a * (1 - k); }
+    for (const r of rings) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; r.mesh.visible = false; continue; } const e = 1 - Math.pow(1 - k, 3); r.mesh.scale.setScalar(r.r0 + (r.r1 - r.r0) * e); r.mesh.material.opacity = r.a * (1 - k) * RING_K; }
     for (const f of flares) if (f.on) { f.t += dt; const k = f.t / f.life; if (k >= 1) { f.on = false; f.mesh.visible = false; continue; } f.mesh.scale.setScalar(f.r * (0.7 + 0.5 * k)); f.mesh.material.opacity = f.a * (1 - k) * Math.min(1, k * 8); }
   }
 

@@ -30,7 +30,7 @@ export const GRIP = {
     rest: { rh: [0.28, 0.42, 0.1], lh: [-0.02, 0.58, 0.42], twist: 0.2 }, aim: { rh: [0.28, 0.5, 0.1], lh: [-0.02, 0.58, 0.42], twist: 0.2 } },
   javelin: { scale: 1.4, type: 'thrown', ...GUN, main: [0, 0, 0.1], support: null, stock: null, carry: [0.5, 0.2, 0.84] },
   shuriken: { scale: 3, type: 'thrown', ...GUN, main: [0, 0.02, -0.105], support: null, stock: null },
-  fists: { scale: 2.3, type: 'fists', ...GUN, main: [0, 0, -0.07], support: null, stock: null, both: true },
+  fists: { scale: 3.6, type: 'fists', ...GUN, main: [0, 0, -0.07], support: null, stock: null, both: true },
   claws: { scale: 2.0, type: 'fists', ...GUN, main: [0, 0, -0.07], support: null, stock: null, both: true },
   dualpistol: { scale: 1.9, type: 'dual', ...GUN, main: [0, -0.09, 0], support: null, stock: null,
     rest: { m: [0.28, 0.5, 0.36], yaw: 0.1, pitch: 0, twist: 0 }, aim: { m: [0.26, 0.62, 0.42], yaw: 0.04, pitch: 0.02, twist: 0 } },

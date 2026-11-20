@@ -5,7 +5,7 @@
 //   2. props: dim box-built silhouettes (wrecks, lamp posts, crates, pillars, dead trees) standing between r = 1.3 and 2.2,
 //      merged into one mesh plus one mesh of soft blob shadows, placed deterministically from the stage number and only
 //      where the fixed overview camera can see them (camera.js calls layout() once per frame size and per stage).
-import { ARENA } from '../sim/battle.js?v=20261120c';
+import { ARENA } from '../sim/battle.js?v=20261120d';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -172,6 +172,8 @@ void main() { float r = length(vWP.xz / uArena); float fo = clamp(fogK(r) * 1.2 
     const rng = BZ.rng('fogprops' + ch + ':' + stage); const M = mesher(); M.tone = K.tone;
     const want = low ? Math.round(K.n * 0.7) : K.n; placed = [];
     const ok = (name, x, z, rad) => {
+      // the overview looks across the near side at 42 to 50 degrees: nothing stands between the camera and the fight
+      if (z + rad > ARENA.z * 0.5) return false;
       for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; if (norm(x + Math.cos(a) * rad, z + Math.sin(a) * rad) < 1.17) return false; }
       for (const p of placed) if (Math.hypot(p.x - x, p.z - z) < (p.rad + rad) * 0.7) return false;
       return vis(x, 0.1, z) || vis(x, 2.5, z) || vis(x, 5, z);

@@ -1,7 +1,7 @@
 // Stages: five waves each, the fifth is the stage's boss. A stage is fully determined by its number, so every
 // player meets the same waves. Stages 1-30 are the campaign; past 30 the same rules keep scaling without end.
-import { ENEMY } from './enemies.js?v=20261120c';
-import { expectedSlots } from './unlocks.js?v=20261120c';
+import { ENEMY } from './enemies.js?v=20261120d';
+import { expectedSlots } from './unlocks.js?v=20261120d';
 
 export const CHAPTERS = [
   { name: 'Phố Hoang', floor: 0x8f9aa6, fog: 0xa9b6c4 },
