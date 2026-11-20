@@ -1,6 +1,7 @@
-// Shared chrome of the menu screens (top bar with the counters and the gear, the 5-tab bottom bar, the warm backdrop)
-// and the Ra Trận tab. The other menu screens (heroes.js, gacha.js, soon.js) never draw the chrome: they only
-// name themselves in MENU and call game.chrome.* when they need the nav hidden.
+// Shared chrome of the menu screens in landscape (the left rail of five tabs, the settings gear, the counters with the
+// account level top-right, the warm backdrop) and the Ra Trận tab. The other menu screens (heroes.js, gacha.js, soon.js)
+// never draw the chrome: they only name themselves in MENU. Their content lives right of RAIL.right (106) and below the
+// counters (y 48) on the right; the toast sits top-centre (ui.toastAt).
 import { stageDef, expectedLevel } from '../data/stages.js?v=20261120c';
 import { HERO } from '../data/heroes.js?v=20261120c';
 import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261120c';
@@ -9,10 +10,59 @@ import { lockButton } from './guide.js?v=20261120c';
 import { xpNeed } from '../data/unlocks.js?v=20261120c';
 
 export const MENU = ['home', 'heroes', 'hero', 'gacha', 'equip', 'rewards'];
+// rail geometry in design units: buttons start at x, the backdrop panel ends at right; content starts at right + 8
+export const RAIL = { x: 28, w: 60, right: 98, top: 62, gap: 3, tabH: 52, content: 106 };
 const TAB_OF = { home: 'tab-battle', heroes: 'tab-heroes', hero: 'tab-heroes', gacha: 'tab-gacha', equip: 'tab-equip', rewards: 'tab-rewards' };
 const GO = { 'tab-gacha': 'gacha', 'tab-equip': 'equip', 'tab-battle': 'home', 'tab-heroes': 'heroes', 'tab-rewards': 'rewards' };
 const DOT_OF = { 'tab-gacha': 'gacha', 'tab-equip': 'equip', 'tab-heroes': 'heroes', 'tab-rewards': 'rewards' };
 const TAB_LOCK = { 'tab-gacha': 'gacha', 'tab-equip': 'equip' };
+const TABS = [['tab-gacha', 'Triệu Hồi', null], ['tab-equip', 'Trang Bị', 'armor'], ['tab-battle', 'Ra Trận', 'sword'], ['tab-heroes', 'Tướng', 'shield'], ['tab-rewards', 'Thưởng', 'chest']];
+
+// The left rail. Built once per game into `screen` (the shared chrome, which is shown above every MENU screen, so the
+// other screens get it without calling this); a later call only sets the active tab and returns the same rail.
+// Returns { setActive(id), update(dt), refreshDots(), setVisible(b), dirty(), tabs, right }.
+export function buildRail(ui, game, screen, active = 'tab-battle') {
+  if (game.rail) { game.rail.setActive(active); return game.rail; }
+  const meta = game.meta, PAL = ui.PAL, THREE = ui.THREE, mui = game.metaUi || (game.metaUi = {});
+  const nav = ui.panel({ w: RAIL.right + 26, h: 5 * RAIL.tabH + 4 * RAIL.gap + 16, r: 18, color: 0x3a2d78, depth: 5, bevel: 3 });
+  screen.put(nav, -26, RAIL.top - 8, 0);
+  const glowCan = document.createElement('canvas'); glowCan.width = glowCan.height = 64;
+  { const c = glowCan.getContext('2d'), g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,210,120,1)'); g.addColorStop(0.5, 'rgba(255,150,60,.55)'); g.addColorStop(1, 'rgba(255,120,40,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); }
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(92, 92), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowCan), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  nav.put(glow, 56, 34, 0.2);
+  const tabs = {}; let y = 8;
+  for (const [id, label, icon] of TABS) {
+    const big = id === 'tab-battle', w = RAIL.w, h = RAIL.tabH;
+    const b = ui.button({ id, w, h, r: 14, color: big ? PAL.orange : 0x5b49a8, icon: icon || undefined, label, stack: true, size: 10, onTap: () => { const need = TAB_LOCK[id]; if (need && !meta.unlocked(need)) { ui.toast(meta.lockText(need)); return; } game.goto(GO[id]); } });
+    nav.put(b, RAIL.x + 26, y, 1.5);
+    if (!icon) { const cap = capsule3d(THREE, 0xff8ad0, 0x6ad8ff); cap.scale.setScalar(16); cap.rotation.z = 0.55; cap.rotation.x = 0.25; b.put(cap, w / 2, h * 0.36, 9); }
+    tabs[id] = { b, x0: RAIL.x + 26, cx: RAIL.x + 26, y0: y, cy: y };
+    if (TAB_LOCK[id]) { tabs[id].lock = ui.icon('lock', { size: 24, sway: false }); b.put(tabs[id].lock, w - 24, -4, 16); }
+    y += h + RAIL.gap;
+  }
+  let cur = active, dotsDirty = true;
+  meta.on(() => { dotsDirty = true; });
+  const rail = {
+    tabs, right: RAIL.right, node: nav,
+    setActive(id) { cur = id; },
+    dirty() { dotsDirty = true; },
+    setVisible(b) { nav.setVisible(!!b); },
+    refreshDots() {
+      const d = meta.dots(); mui.badges = {};
+      for (const id of Object.keys(DOT_OF)) { mui.badges[id] = !!d[DOT_OF[id]]; tabs[id].b.setBadge(mui.badges[id]); }
+    },
+    update(dt) {
+      if (dotsDirty) { dotsDirty = false; rail.refreshDots(); }
+      for (const id in TAB_LOCK) { const lk = !meta.unlocked(TAB_LOCK[id]); lockButton(tabs[id].b, lk); tabs[id].lock.setVisible(lk); }
+      for (const id in tabs) { const tb = tabs[id], tx = tb.x0 + (id === cur ? 8 : 0); tb.cx += (tx - tb.cx) * (1 - Math.exp(-dt * 14)); tb.b.pos(tb.cx, tb.y0); }
+      const at = tabs[cur];
+      if (at) { glow.position.x += (at.cx + RAIL.w / 2 - glow.position.x) * (1 - Math.exp(-dt * 14)); glow.position.y = -(at.y0 + RAIL.tabH / 2); const s = 1 + Math.sin(ui.t * 4) * 0.06; glow.scale.set(s, s, 1); }
+    },
+  };
+  game.rail = rail; rail.refreshDots();
+  return rail;
+}
+
 const VISIT = { gacha: 'gacha', heroes: 'heroes', hero: 'heroes', equip: 'equip', rewards: 'rewards' };
 const SLOT_UNLOCK = [null, 'slot2', 'slot3', 'slot4'];
 const STAGES_PER_CHAPTER = 5, CAMPAIGN_CHAPTERS = 6;
@@ -47,9 +97,9 @@ export function makeBackdrop(ui, theme) {
   const THREE = ui.THREE, T = THEMES[theme], node = ui.group(), c = document.createElement('canvas'); c.width = 4; c.height = 256;
   const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256); T.g.forEach((col, i) => gr.addColorStop(i / 2, col)); g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const bg = new THREE.Mesh(new THREE.PlaneGeometry(360, 940), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })); bg.position.set(180, -470, 0); node.add(bg);
+  const bg = new THREE.Mesh(new THREE.PlaneGeometry(780, 440), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })); bg.position.set(390, -180, 0); node.add(bg);
   const shapes = [];
-  const defs = [['glow', 300, 0.38, 60, 160], ['glow', 260, 0.3, 300, 420], ['glow', 340, 0.26, 120, 650], ['sq', 120, 0.12, 40, 300], ['sq', 90, 0.12, 320, 120], ['dia', 150, 0.1, 290, 560], ['dia', 100, 0.12, 70, 520], ['sq', 140, 0.09, 250, 700]];
+  const defs = [['glow', 360, 0.38, 130, 90], ['glow', 320, 0.3, 640, 120], ['glow', 400, 0.26, 380, 300], ['sq', 130, 0.12, 120, 260], ['sq', 100, 0.12, 690, 300], ['dia', 150, 0.1, 560, 60], ['dia', 100, 0.12, 260, 90], ['sq', 120, 0.09, 730, 200]];
   defs.forEach(([k, s, a, x, y], i) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(s, s), new THREE.MeshBasicMaterial({ map: softTex(THREE, k), color: T.accent, transparent: true, opacity: a, depthWrite: false, toneMapped: false, blending: k === 'glow' ? THREE.AdditiveBlending : THREE.NormalBlending }));
     m.position.set(x, -y, 1 + i * 0.1); node.add(m); shapes.push({ m, x, y, k, ph: i * 1.3, sp: 0.15 + (i % 3) * 0.07 });
@@ -109,76 +159,56 @@ export function createHome(game) {
   const chrome = ui.screen('chrome'), home = ui.screen('home');
   const chromeShown = () => MENU.some((n) => ui.isShown(n));
 
-  // ---- chrome: top bar ----
+  // ---- chrome: counters and account level top-right, the gear top-left above the rail ----
   const shownVal = { gold: meta.acc.gold, gems: meta.acc.gems };
   const counters = {};
   const pill = (key, icon, x, w) => {
-    const p = ui.panel({ w, h: 32, r: 16, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); chrome.put(p, x, 10);
+    const p = ui.panel({ w, h: 32, r: 16, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); chrome.put(p, x, 8);
     const t = ui.text(fmt(shownVal[key]), { size: 16, align: 'right', valign: 'mid' }); p.put(t, w - 12, 17); p.put(ui.icon(icon, { size: 36 }), -8, -3, 4);
     counters[key] = { t, last: fmt(shownVal[key]) }; mui.barText[key] = counters[key].last;
   };
-  pill('gold', 'gold', 14, 100); pill('gems', 'gem', 118, 92);
-  // account level: "Cấp N" and the bar to the next one
-  const lvPill = ui.panel({ w: 90, h: 32, r: 16, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); chrome.put(lvPill, 214, 10);
-  const lvTxt = ui.text('Cấp 1', { size: 13, align: 'center', valign: 'mid' }); lvPill.put(lvTxt, 45, 10, 2);
-  const lvBar = ui.bar({ w: 70, h: 8, color: PAL.green, r: 4, value: 0 }); lvPill.put(lvBar, 10, 19.5, 1);
+  pill('gold', 'gold', 466, 100); pill('gems', 'gem', 572, 92);
+  const lvPill = ui.panel({ w: 80, h: 32, r: 16, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); chrome.put(lvPill, 672, 8);
+  const lvTxt = ui.text('Cấp 1', { size: 13, align: 'center', valign: 'mid' }); lvPill.put(lvTxt, 40, 10, 2);
+  const lvBar = ui.bar({ w: 62, h: 8, color: PAL.green, r: 4, value: 0 }); lvPill.put(lvBar, 9, 19.5, 1);
   mui.level = { text: 'Cấp 1' };
   let lvKey = '';
-  const gear = ui.button({ id: 'gear', w: 44, h: 36, r: 12, color: PAL.blue, icon: 'gear', shadow: false, onTap: () => { if (game.openSettings) game.openSettings(); } });
-  chrome.put(gear, 306, 8);
+  const gear = ui.button({ id: 'gear', w: RAIL.w, h: 44, r: 12, color: PAL.blue, icon: 'gear', shadow: false, onTap: () => { if (game.openSettings) game.openSettings(); } });
+  chrome.put(gear, RAIL.x, 6);
 
-  // ---- chrome: bottom bar ----
-  const nav = ui.panel({ w: 348, h: 66, r: 20, color: 0x3a2d78, depth: 5, bevel: 3 }); nav.anchor(6, 'bottom', -76); chrome.holder.add(nav);
-  const glowCan = document.createElement('canvas'); glowCan.width = glowCan.height = 64;
-  { const c = glowCan.getContext('2d'), g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,210,120,1)'); g.addColorStop(0.5, 'rgba(255,150,60,.55)'); g.addColorStop(1, 'rgba(255,120,40,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); }
-  const glow = new THREE.Mesh(new THREE.PlaneGeometry(96, 96), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowCan), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
-  nav.put(glow, 40, 33, 0.2);
-  const TABS = [['tab-gacha', 'Triệu Hồi', null, 60, 0], ['tab-equip', 'Trang Bị', 'armor', 60, 0], ['tab-battle', 'Ra Trận', 'sword', 80, 1], ['tab-heroes', 'Tướng', 'shield', 60, 0], ['tab-rewards', 'Thưởng', 'chest', 60, 0]];
-  const tabs = {}; let x = 8;
-  for (const [id, label, icon, w, big] of TABS) {
-    const h = big ? 78 : 52, b = ui.button({ id, w, h, r: 14, color: big ? PAL.orange : 0x5b49a8, icon: icon || undefined, label, stack: true, size: 10, onTap: () => { const need = TAB_LOCK[id]; if (need && !meta.unlocked(need)) { ui.toast(meta.lockText(need)); return; } game.goto(GO[id]); } });
-    const y0 = big ? -16 : 7; nav.put(b, x, y0, 1.5);
-    if (!icon) { const cap = capsule3d(THREE, 0xff8ad0, 0x6ad8ff); cap.scale.setScalar(16); cap.rotation.z = 0.55; cap.rotation.x = 0.25; b.put(cap, w / 2, h * 0.36, 9); }
-    tabs[id] = { b, x, y0, cy: y0, cx: x + w / 2, big };
-    if (TAB_LOCK[id]) { tabs[id].lock = ui.icon('lock', { size: 26, sway: false }); b.put(tabs[id].lock, w - 28, -2, 16); }
-    x += w + 4;
-  }
-  let activeTab = 'tab-battle';
-
-  // chrome shows with the menu screens, above them; the hero page hides the nav
+  const rail = buildRail(ui, game, chrome, 'tab-battle');
   game.chrome = {
     raise() { ui.show('chrome', { transition: 'none' }); },
-    setNav(b) { nav.setVisible(!!b); },
+    setNav(b) { rail.setVisible(b); },
   };
   game.events.on('screen', ({ name }) => {
     if (!MENU.includes(name)) return;
-    activeTab = TAB_OF[name]; game.chrome.raise(); nav.setVisible(name !== 'hero');
+    rail.setActive(TAB_OF[name]); game.chrome.raise(); rail.setVisible(name !== 'hero');
     if (VISIT[name]) meta.visitTab(VISIT[name]);
   });
-  meta.on(() => { dotsDirty = true; });
-  let dotsDirty = true;
 
   const bd = makeBackdrop(ui, 'battle'); home.put(bd, 0, 0, -40);
 
-  // ---- Ra Trận ----
+  // ---- Ra Trận: header and diorama in the middle, team and the start button in the right column ----
+  const CX = 338, COL = 576, COLW = 176;
   let sel = 0, lastMax = 0; mui.stage = () => sel;
   const maxStage = () => meta.acc.cleared + 1;
-  const chapLine = ui.text('CHƯƠNG 1: PHỐ HOANG', { size: 14, color: 0xffe9a8, align: 'center', upper: true, outlineW: 2.4 }); home.put(chapLine, 180, 46, 6); mui.regTitle('home', chapLine);
-  const title = ui.text('ẢI 1', { size: 40, color: PAL.gold, align: 'center', upper: true, outlineW: 4.2, shadow: 3 }); home.put(title, 180, 64, 6); mui.regTitle('home', title);
-  const stageName = ui.text('PHỐ HOANG 1', { size: 18, align: 'center', upper: true, outlineW: 2.6 }); home.put(stageName, 180, 112, 6); mui.regTitle('home', stageName);
-  const bossPill = ui.panel({ w: 220, h: 28, r: 14, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(bossPill, 60, 144);
-  const skull = ui.icon('skull', { size: 30 }); bossPill.put(skull, -6, -1, 4);
-  const bossTxt = ui.text('Boss: Khổng Lồ', { size: 13, align: 'left', valign: 'mid' }); bossPill.put(bossTxt, 30, 15);
-  const spikeTag = ui.panel({ w: 86, h: 28, r: 14, color: 0xe0242e, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(spikeTag, 256, 144);
-  spikeTag.put(ui.text('ẢI GẮT', { size: 13, align: 'center', upper: true, valign: 'mid' }), 43, 15);
-  const bestTxt = ui.text('', { size: 12, align: 'center', color: 0xffe9a8 }); home.put(bestTxt, 180, 176, 6);
+  const chapLine = ui.text('CHƯƠNG 1: PHỐ HOANG', { size: 12.5, color: 0xffe9a8, align: 'center', upper: true, outlineW: 2.2 }); home.put(chapLine, CX, 5, 6); mui.regTitle('home', chapLine);
+  const title = ui.text('ẢI 1', { size: 30, color: PAL.gold, align: 'center', upper: true, outlineW: 3.6, shadow: 2.5 }); home.put(title, CX, 19, 6); mui.regTitle('home', title);
+  const stageName = ui.text('PHỐ HOANG 1', { size: 14, align: 'center', upper: true, outlineW: 2.2 }); home.put(stageName, CX, 57, 6); mui.regTitle('home', stageName);
+  const bossPill = ui.panel({ w: 200, h: 26, r: 13, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(bossPill, 238, 78);
+  const skull = ui.icon('skull', { size: 28 }); bossPill.put(skull, -6, -1, 4);
+  const bossTxt = ui.text('Boss: Khổng Lồ', { size: 13, align: 'left', valign: 'mid' }); bossPill.put(bossTxt, 28, 14);
+  const spikeTag = ui.panel({ w: 80, h: 26, r: 13, color: 0xe0242e, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(spikeTag, 402, 78);
+  spikeTag.put(ui.text('ẢI GẮT', { size: 13, align: 'center', upper: true, valign: 'mid' }), 40, 14);
 
-  const dio = createDiorama(ui, { w: 318, h: 216 });
-  const frameP = ui.panel({ w: 330, h: 228, r: 22, color: 0x5a3fa0, depth: 5, bevel: 3 }); home.put(frameP, 15, 196);
+  const DW = 344, DH = 224, FX = 160, FY = 108;
+  const dio = createDiorama(ui, { w: DW, h: DH });
+  const frameP = ui.panel({ w: DW + 12, h: DH + 12, r: 22, color: 0x5a3fa0, depth: 5, bevel: 3 }); home.put(frameP, FX, FY);
   frameP.put(dio.node, 6, 6, 1);
-  const hint = ui.text('', { size: 11, align: 'center', color: 0xffe9a8 }); frameP.put(hint, 165, 203, 10);
+  const hint = ui.text('', { size: 12, align: 'center', color: 0xffe9a8, outlineW: 2 }); frameP.put(hint, (DW + 12) / 2, DH - 14, 10);
   // five pips of the chapter under the diorama's top edge: cleared, next to play, locked; the fifth is the boss spike
-  const pipBar = ui.panel({ w: 186, h: 34, r: 17, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(pipBar, 87, 206, 12);
+  const pipBar = ui.panel({ w: 186, h: 34, r: 17, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(pipBar, CX - 93, FY + 6, 12);
   const pipRing = ui.panel({ w: 30, h: 30, r: 15, color: 0xffffff, depth: 1, bevel: 0.5, ow: 2, shadow: false }); pipBar.put(pipRing, 0, 2, 1);
   const pips = [0, 1, 2, 3, 4].map((i) => {
     const spike = i === STAGES_PER_CHAPTER - 1, p = ui.panel({ w: 24, h: 24, r: 12, color: PAL.disabled, depth: 2, bevel: 1.2, ow: 2, shadow: false }); pipBar.put(p, 13 + i * 34, 5, 3);
@@ -186,33 +216,36 @@ export function createHome(game) {
     return { p, x: 13 + i * 34 };
   });
   mui.pips = []; mui.chapterLine = '';
-  const prev = ui.button({ id: 'stage-prev', w: 48, h: 56, r: 14, color: PAL.blue, icon: 'left', onTap: () => setStage(sel - 1) }); home.put(prev, 2, 282, 6);
-  const next = ui.button({ id: 'stage-next', w: 48, h: 56, r: 14, color: PAL.blue, icon: 'right', onTap: () => setStage(sel + 1) }); home.put(next, 310, 282, 6);
-  const lockI = ui.icon('lock', { size: 22 }); home.put(lockI, 323, 296, 20);
-  const chapPrev = ui.button({ id: 'chapter-prev', w: 48, h: 56, r: 14, color: PAL.purple, icon: 'left', label: 'CHƯƠNG', stack: true, size: 8.5, onTap: () => setStage(chapterStart(chapterOf(sel) - 1)) }); home.put(chapPrev, 2, 348, 6);
-  const chapNext = ui.button({ id: 'chapter-next', w: 48, h: 56, r: 14, color: PAL.purple, icon: 'right', label: 'CHƯƠNG', stack: true, size: 8.5, onTap: () => setStage(chapterStart(chapterOf(sel) + 1)) }); home.put(chapNext, 310, 348, 6);
+  const AX = RAIL.content, BX = FX + DW + 12 + 4;
+  const prev = ui.button({ id: 'stage-prev', w: 48, h: 56, r: 14, color: PAL.blue, icon: 'left', onTap: () => setStage(sel - 1) }); home.put(prev, AX, 138, 6);
+  const next = ui.button({ id: 'stage-next', w: 48, h: 56, r: 14, color: PAL.blue, icon: 'right', onTap: () => setStage(sel + 1) }); home.put(next, BX, 138, 6);
+  const lockI = ui.icon('lock', { size: 22 }); home.put(lockI, BX + 13, 152, 20);
+  const chapPrev = ui.button({ id: 'chapter-prev', w: 48, h: 56, r: 14, color: PAL.purple, icon: 'left', label: 'CHƯƠNG', stack: true, size: 8.5, onTap: () => setStage(chapterStart(chapterOf(sel) - 1)) }); home.put(chapPrev, AX, 208, 6);
+  const chapNext = ui.button({ id: 'chapter-next', w: 48, h: 56, r: 14, color: PAL.purple, icon: 'right', label: 'CHƯƠNG', stack: true, size: 8.5, onTap: () => setStage(chapterStart(chapterOf(sel) + 1)) }); home.put(chapNext, BX, 208, 6);
 
-  home.put(ui.text('ĐỘI HÌNH', { size: 12, color: 0xffe9a8 }), 18, 432, 6);
-  const powTxt = ui.text('', { size: 13, align: 'right', color: 0xffe9a8 }); home.put(powTxt, 342, 431, 6);
+  home.put(ui.text('ĐỘI HÌNH', { size: 12, color: 0xffe9a8, outlineW: 2 }), COL, 48, 6);
+  const powTxt = ui.text('', { size: 12, align: 'left', color: 0xffe9a8, outlineW: 1.8 }); home.put(powTxt, COL, 64, 6);
   let slotNodes = [];
-  const recTxt = ui.text('', { size: 13, align: 'center' }); home.put(recTxt, 180, 534, 6);
-  const start = ui.button({ id: 'start', w: 280, h: 74, color: PAL.green, label: 'BẮT ĐẦU', sub: ' ', size: 30, pulse: true, onTap: () => { if (sel >= 1 && sel <= maxStage()) game.startBattle(sel); } });
-  home.put(start, 40, 562, 6);
+  const recTxt = ui.text('', { size: 12, align: 'center', outlineW: 1.8 }); home.put(recTxt, COL + COLW / 2, 226, 6);
+  const bestTxt = ui.text('', { size: 11.5, align: 'center', color: 0xffe9a8, outlineW: 1.8 }); home.put(bestTxt, COL + COLW / 2, 243, 6);
+  const start = ui.button({ id: 'start', w: COLW, h: 64, color: PAL.green, label: 'BẮT ĐẦU', sub: ' ', size: 24, pulse: true, onTap: () => { if (sel >= 1 && sel <= maxStage()) game.startBattle(sel); } });
+  home.put(start, COL, 268, 6);
 
   function buildSlots() {
     for (const s of slotNodes) kill(s); slotNodes = [];
+    const S = 66, G = 8, X0 = COL + (COLW - 2 * S - G) / 2;
     for (let i = 0; i < 4; i++) {
-      const id = meta.acc.team[i], px = 17 + i * 84, py = 450, need = SLOT_UNLOCK[i];
+      const id = meta.acc.team[i], px = X0 + (i % 2) * (S + G), py = 82 + Math.floor(i / 2) * (S + 6), need = SLOT_UNLOCK[i];
       if (need && !meta.unlocked(need)) {
-        const p = ui.tile({ size: 74, color: 0x6b6785, id: 'team-' + i, onTap: () => ui.toast(meta.lockText(need)) });
-        p.put(ui.icon('lock', { size: 38, sway: false }), 18, 6, 14);
-        p.put(ui.text(meta.lockText(need).replace('Mở khi qua ải ', 'Ải '), { size: 10, align: 'center', outlineW: 1.6, maxW: 64 }), 37, 50, 14);
+        const p = ui.tile({ size: S, color: 0x6b6785, id: 'team-' + i, onTap: () => ui.toast(meta.lockText(need)) });
+        p.put(ui.icon('lock', { size: 32, sway: false }), 17, 5, 14);
+        p.put(ui.text(meta.lockText(need).replace('Mở khi qua ải ', 'Ải '), { size: 10, align: 'center', outlineW: 1.6, maxW: 58 }), S / 2, 42, 14);
         home.put(p, px, py, 6); slotNodes.push(p);
       } else if (id) {
-        const p = ui.portrait(id, { size: 74, color: rarityColor(id), id: 'team-' + i, onTap: () => game.goto('heroes', { mode: 'team', slot: i }) });
-        p.put(ui.text('Lv.' + meta.acc.heroes[id].level, { size: 11, outlineW: 1.8 }), 7, 56, 14); home.put(p, px, py, 6); slotNodes.push(p);
+        const p = ui.portrait(id, { size: S, color: rarityColor(id), id: 'team-' + i, onTap: () => game.goto('heroes', { mode: 'team', slot: i }) });
+        p.put(ui.text('Lv.' + meta.acc.heroes[id].level, { size: 11, outlineW: 1.8 }), 6, 50, 14); home.put(p, px, py, 6); slotNodes.push(p);
       } else {
-        const p = ui.tile({ size: 74, color: PAL.disabled, node: ui.text('+', { size: 34 }), id: 'team-' + i, onTap: () => game.goto('heroes', { mode: 'team', slot: i }) });
+        const p = ui.tile({ size: S, color: PAL.disabled, node: ui.text('+', { size: 32 }), id: 'team-' + i, onTap: () => game.goto('heroes', { mode: 'team', slot: i }) });
         home.put(p, px, py, 6); slotNodes.push(p);
       }
     }
@@ -232,13 +265,13 @@ export function createHome(game) {
     pipRing.pos(pips[(n - 1) % STAGES_PER_CHAPTER].x - 3, 2);
 
     bossTxt.set('Boss: ' + def.bossName);
-    spikeTag.setVisible(def.spike); bossPill.pos(def.spike ? 24 : 60, 144);
+    spikeTag.setVisible(def.spike); bossPill.pos(def.spike ? 194 : 238, 78);
     const best = meta.acc.best[n]; bestTxt.set(best ? 'Kỷ lục: ' + fmtTime(best) : 'Chưa có kỷ lục');
     prev.setEnabled(n > 1);
     const lockedNext = n >= max; next.setEnabled(!lockedNext); lockI.setVisible(lockedNext);
     chapPrev.setEnabled(k > 0); chapNext.setEnabled(chapterStart(k + 1) <= max);
     hint.set(n >= max ? 'Thắng ải này để mở ải kế tiếp' : '');
-    start.setSub('Ải ' + n + ' - ' + def.name);
+    start.setSub('Ải ' + n);
     refreshTeam(false); return !same;
   }
   function refreshTeam(force) {
@@ -246,19 +279,13 @@ export function createHome(game) {
     if (force || key !== teamKey) { teamKey = key; buildSlots(); }
     const tp = meta.teamPower(), rp = recPower(meta, sel);
     powTxt.set('Sức mạnh đội: ' + fmt(tp));
-    recTxt.set('Sức mạnh đề nghị: ' + fmt(rp)); recTxt.setColor(tp >= rp ? 0x7dff8a : 0xffa040);
+    recTxt.set('Đề nghị: ' + fmt(rp)); recTxt.setColor(tp >= rp ? 0x7dff8a : 0xffa040);
   }
-
-  const refreshDots = () => {
-    const d = meta.dots();
-    mui.badges = {};
-    for (const id of Object.keys(DOT_OF)) { mui.badges[id] = !!d[DOT_OF[id]]; tabs[id].b.setBadge(mui.badges[id]); }
-  };
 
   const showHome = () => {
     const max = maxStage();
     if (!sel || sel === lastMax || sel > max) sel = max;
-    lastMax = max; ui.show('home', { transition: 'none' }); setStage(sel); refreshDots();
+    lastMax = max; ui.show('home', { transition: 'none' }); setStage(sel); rail.dirty();
   };
   const hideHome = () => ui.hide('home', { transition: 'none' });
   meta.on(() => { if (ui.isShown('home')) { const m = maxStage(); if (sel === lastMax) sel = m; lastMax = m; setStage(sel); } });
@@ -276,16 +303,9 @@ export function createHome(game) {
         if (v !== tgt) { v += (tgt - v) * (1 - Math.exp(-dt * 9)); if (Math.abs(tgt - v) < 0.6) v = tgt; shownVal[key] = v; }
         const s = fmt(v); if (s !== counters[key].last) { counters[key].last = s; counters[key].t.set(s); mui.barText[key] = s; }
       }
-      if (dotsDirty) { dotsDirty = false; refreshDots(); }
-      for (const id in TAB_LOCK) { const lk = !meta.unlocked(TAB_LOCK[id]); lockButton(tabs[id].b, lk); tabs[id].lock.setVisible(lk); }
       { const L = meta.acc.level, k = L + ':' + meta.acc.xp; if (k !== lvKey) { lvKey = k; lvTxt.set('Cấp ' + L); lvBar.set(meta.acc.xp / xpNeed(L)); mui.level = { text: 'Cấp ' + L, level: L, xp: meta.acc.xp, need: xpNeed(L) }; } }
-      for (const id in tabs) {
-        const tb = tabs[id], act = id === activeTab, ty = tb.y0 - (act && !tb.big ? 8 : 0);
-        tb.cy += (ty - tb.cy) * (1 - Math.exp(-dt * 14)); tb.b.pos(tb.x, tb.cy);
-      }
-      const at = tabs[activeTab]; if (at) { glow.position.x += (at.cx - glow.position.x) * (1 - Math.exp(-dt * 14)); glow.position.y = -(at.cy + (at.big ? 34 : 24)); const s = 1 + Math.sin(ui.t * 4) * 0.06; glow.scale.set(s * (at.big ? 1.25 : 1), s * (at.big ? 1.25 : 1), 1); }
+      rail.update(dt);
     },
   };
-  dotsDirty = true;
   return [chromeApi, screenApi];
 }

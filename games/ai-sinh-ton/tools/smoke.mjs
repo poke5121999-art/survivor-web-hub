@@ -9,7 +9,7 @@ const OUT = process.argv[2] || path.join(ROOT, '.chk', 'smoke'); fs.mkdirSync(OU
 const { check, done } = checker();
 const srv = await serve(); const br = await launch();
 try {
-  for (const phone of ['s22', 'xiaomi']) {
+  for (const phone of ['s22', 'xiaomi', 'desktop']) {
     const home = await open(br, srv.base, phone, 'noaudio=1&q=low');
     const h = await home.page.evaluate(() => ({ state: __G.state, screen: __G.screen, scale: __stats.scale, errors: (window.__errors || []).length, ui: !!window.__ui, gold: __G.meta.acc.gold, gems: __G.meta.acc.gems, heroes: Object.keys(__G.meta.acc.heroes).length }));
     check(h.state === 'home' && h.ui, `${phone}: boots to home with the UI kit (state ${h.state}, screen "${h.screen}")`);
