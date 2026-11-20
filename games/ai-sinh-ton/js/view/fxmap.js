@@ -2,6 +2,7 @@
 // plays it with Blockade Z's G.fx calls, own ground marks and sounds. A key missing from KEYS plays a generic burst
 // and is logged once. counters[key] counts the effects played per key (the view-shots tool reads it).
 import { arenaNorm } from '../sim/battle.js?v=20261120c';
+import { HEROES } from '../data/heroes.js?v=20261120c';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -58,6 +59,11 @@ const STATE = { invuln: STYLE.holy, stealth: STYLE.void, taunt: STYLE.steel };
 const PROJ = {
 };
 const ULT_SPAN = 6;
+// Gió: the whirlwind lasts as long as the stun it casts (the sim's aoe is instant); the ultimate is ten cuts over the sim's own window
+const GIO = HEROES.find((h) => h.id === 'gio');
+const WHIRL_DUR = GIO.s2.ops[0].status.dur;
+const ULT_CUTS = GIO.ult.ops.find((o) => o.op === 'bolts');
+const SLASH_N = 10;
 
 // ---- the vertical layer ----
 // Every key gets layers that rise off the floor so the event reads as a 3D one from the fixed overview. A layer is
@@ -213,6 +219,7 @@ export function createFxMap(H, marks, ctx) {
       const r = e.r || 1; const cols = teamCol(e.team, p); const n = k.n || 1;
       pop(e.x, 0.3, e.z, Math.min(r >= 3 ? 1.1 : 2, Math.max(0.5, r * 0.4 * Math.min(1.3, n))), cols);
       wave(e.x, e.z, r, cols, 0.5); marks.flare(e.x, e.z, r * 1.1, cols[1], 0.45, e.team === 0 ? 0.3 : 0.5);
+      if (e.key === 'gust' && e.team === 0) { marks.whirl(e.x, e.z, r, ctx.colorOf(e.by), WHIRL_DUR); bump('gio_whirl'); }
       if (k.boom && r >= 1.6) { if (k.ult && e.team === 0) G.fx.pop(V(e.x, 0.3, e.z), 1.2, [0xffd070, 0xff6020]); else boom(e.x, e.z, r); } // a volley ultimate lands many at once: their additive shock rings and screen flashes would stack to white
       if (k.s === 'earth' && budget.puff-- > 0) G.fx.chunks && G.fx.chunks(V(e.x, 0.4, e.z), 4 + Math.round(r), [BZ.mat('stone')], V(0, 1, 0), 0.7);
       snd(k.snd || (k.boom ? 'boom' : (e.team === 0 ? 'impact' : 'hit')), e.x, e.z, k.boom ? 0.5 : 0.3);
@@ -242,9 +249,11 @@ export function createFxMap(H, marks, ctx) {
         G.fx.bolt(V(e.x, 18, e.z), V(e.x, 0.2, e.z), cols[1]); G.fx.bolt(V(e.x + 0.2, 18, e.z), V(e.x, 0.2, e.z), cols[0]);
         pop(e.x, 0.3, e.z, 1.4, cols); marks.ring(e.x, e.z, 0.3, 2.2, cols[1], 0.4, 0.9); snd(k.snd || 'thunder', e.x, e.z, 0.35); return;
       }
+      if (e.key === 'blades' && cuts) cuts.q.push({ x: e.x, z: e.z });
       const from = V(e.fromX, 1.3, e.fromZ);
       if (style === 'arc') G.fx.arc(from, to, cols[1]);
       else if (style === 'drain') { G.fx.bolt(to, from, 0xff4060); pop(e.x, 1, e.z, 0.7, [0xff7080, 0xa01028]); }
+      else if (style === 'slash' && e.key === 'blades') { G.fx.puff(to, { glow: true, s0: 0.3, s1: 1.2, life: 0.18, c0: cols[1], c1: cols[1], a0: 0.7, spin: 0 }); }
       else if (style === 'slash') { G.fx.slash(to, cols[0], screenAng(e.fromX, e.fromZ, e.x, e.z), 1.5); G.fx.puff(to, { glow: true, s0: 0.3, s1: 1.4, life: 0.2, c0: 0xffffff, c1: cols[1], a0: 1, spin: 0 }); }
       else { G.fx.tracer(from, to, cols[1]); pop(e.x, 1, e.z, 0.6, cols); }
       snd(k.snd, e.x, e.z, 0.3);
@@ -261,6 +270,71 @@ export function createFxMap(H, marks, ctx) {
   }
 
   const lastHurt = new Map();
+
+  // ---- Gió's light: the dash stroke and afterimages, the cut arc, the ten cuts of the ultimate ----
+  const dashWin = { uid: 0, until: 0 }; let cuts = null;
+  const sideOf = (ax, az, bx, bz) => { const a = V(ax, 1, az).project(camera); const b = V(bx, 1, bz).project(camera); return b.x >= a.x ? 1 : -1; };
+  const heroCol = (uid) => ctx.colorOf(uid);
+  const coreOf = (c) => new THREE.Color(c).lerp(new THREE.Color(0xdff6ff), 0.3).getHex();
+  function gioDash(e, d) {
+    const c = heroCol(e.uid); const blink = !!e.blink;
+    marks.streak(e.x, 1.0, e.z, e.x2, 1.0, e.z2, blink ? 1.0 : 1.7, c, blink ? 0.4 : 0.55, 0.9, { sweep: 0.07, k: [0.1, 0.75, 0.1], kind: 'dash' });
+    marks.streak(e.x, 1.0, e.z, e.x2, 1.0, e.z2, blink ? 0.3 : 0.5, coreOf(c), blink ? 0.34 : 0.5, 0.85, { sweep: 0.06, k: [0.3, 1, 0.3], kind: 'dash' });
+    const n = Math.max(1, Math.round((blink ? 2 : 4) * Math.min(1, qual() + 0.34))); const flip = sideOf(e.x, e.z, e.x2, e.z2);
+    for (let i = 0; i < n; i++) { const t = blink ? 0.3 + i * 0.4 : (i + 0.5) / n * 0.92 + 0.04; marks.ghost(e.x + (e.x2 - e.x) * t, e.z + (e.z2 - e.z) * t, c, { delay: i * 0.025, life: 0.38, a: 0.55, flip, drift: 0.5 }); }
+    if (!blink) { dashWin.uid = e.uid; dashWin.until = ctx.time() + 0.04; bump('gio_dash'); }
+  }
+  function dashHit(e) {
+    const c = heroCol(dashWin.uid); const cols = [coreOf(c), c];
+    pop(e.x, 1, e.z, 0.8, cols); G.fx.slash(V(e.x, 1.1, e.z), cols[0], G.rng.range(-0.8, 0.8), 1.6);
+    marks.flash(e.x, 1.1, e.z, 1.8, c, 0.4); bump('gio_dash_hit');
+  }
+  function cutAt(i, x, z) {
+    const fin = i === SLASH_N - 1; const u = cuts && ctx.unit(cuts.uid); const c = heroCol(cuts.uid);
+    const rt = V(1, 0, 0).applyQuaternion(camera.quaternion); const up = V(0, 1, 0).applyQuaternion(camera.quaternion);
+    const th = (i % 2 ? -1 : 1) * (0.5 + 0.16 * ((i * 7) % 3)) + (fin ? 0.1 : 0); const L = fin ? 6.2 : 4.3 + 0.4 * ((i * 5) % 3);
+    const jx = ((i * 53) % 7 - 3) * 0.25; const jz = ((i * 29) % 5 - 2) * 0.25;
+    const cx = x + jx; const cz = z + jz; const cy = 1.4;
+    const dx = (rt.x * Math.cos(th) + up.x * Math.sin(th)) * L; const dy = (rt.y * Math.cos(th) + up.y * Math.sin(th)) * L; const dz = (rt.z * Math.cos(th) + up.z * Math.sin(th)) * L;
+    const sgn = i % 2 ? -1 : 1;
+    marks.streak(cx - dx * sgn, cy - dy * sgn, cz - dz * sgn, cx + dx * sgn, cy + dy * sgn, cz + dz * sgn, fin ? 1.5 : 0.85, c, 0.45, 0.9, { sweep: 0.06, k: [0.08, 0.55, 0.08], kind: 'cut', bow: 0.05 * sgn });
+    marks.streak(cx - dx * sgn, cy - dy * sgn, cz - dz * sgn, cx + dx * sgn, cy + dy * sgn, cz + dz * sgn, fin ? 0.5 : 0.26, coreOf(c), 0.4, 0.9, { sweep: 0.06, k: [0.14, 0.5, 0.14], kind: 'cut', bow: 0.05 * sgn });
+    pop(x, 1.1, z, 0.55, [c, c]); marks.flash(x, 1.2, z, fin ? 1.8 : 1.4, c, fin ? 0.12 : 0.22);
+    if (fin) { marks.ring(x, z, 0.5, 5, c, 0.5, 0.8); marks.wall(x, z, 0.5, 4.5, c, 0.45, 1.6, 0.4); }
+    bump('gio_slash'); snd('swipe', x, z, 0.35); void u;
+    const J = window.__G && window.__G.juice; if (J && J.slash) J.slash(i, fin);
+  }
+  // Gió's basic cut: a short diagonal streak across the target, alternating direction
+  let gioSide = 1;
+  function gioCut(at, cols) {
+    gioSide = -gioSide; const rt = V(1, 0, 0).applyQuaternion(camera.quaternion); const up = V(0, 1, 0).applyQuaternion(camera.quaternion);
+    const th = gioSide * 0.6; const L = 1.7; const dx = (rt.x * Math.cos(th) + up.x * Math.sin(th)) * L; const dy = (rt.y * Math.cos(th) + up.y * Math.sin(th)) * L; const dz = (rt.z * Math.cos(th) + up.z * Math.sin(th)) * L;
+    marks.streak(at.x - dx, at.y - dy, at.z - dz, at.x + dx, at.y + dy, at.z + dz, 0.55, cols[1], 0.2, 0.9, { sweep: 0.04, k: [0.1, 0.7, 0.1], kind: 'hit' });
+    marks.streak(at.x - dx, at.y - dy, at.z - dz, at.x + dx, at.y + dy, at.z + dz, 0.16, cols[0], 0.17, 0.9, { sweep: 0.04, k: [0.25, 0.9, 0.25], kind: 'hit' });
+    pop(at.x, at.y, at.z, 0.4, cols);
+  }
+  function updateCuts(B) {
+    if (!cuts) return;
+    while (cuts.i < SLASH_N) {
+      const due = ULT_CUTS.every * cuts.i; const dt = B.t - cuts.t0;
+      if (dt < due - 1e-6) break;
+      let tgt = cuts.q.shift();
+      if (!tgt) { if (dt < due + 0.12) break; const u = ctx.unit(cuts.uid); tgt = u ? { x: u.x + Math.cos(u.face) * 1.8, z: u.z + Math.sin(u.face) * 1.8 } : { x: 0, z: 0 }; }
+      cutAt(cuts.i++, tgt.x, tgt.z);
+    }
+    if (cuts.i >= SLASH_N) cuts = null;
+  }
+  // a hero's blade arc: edge points at the tip and a third of the way up the blade, from the cut phase of the swing
+  function swordArc(a) {
+    const g = a.grip; if (!g || g.row.type !== 'sword2') return;
+    const sw = a.st.swing; const inCut = sw >= 0.3 && sw < 0.62 && a.u.alive;
+    if (inCut) {
+      if (!a.arc || !a.arc.on) { a.arc = marks.arc(heroCol(a.u.uid), 0.11, 0.95, [0.2, 1, 0.2]); bump('gio_arc'); }
+      a.node.updateMatrixWorld(true); const o = g.objs[0].g;
+      const t = o.localToWorld(V(0, 1.1, 0)); const b = o.localToWorld(V(0, 0.38, 0));
+      marks.arcPush(a.arc, t.x, t.y, t.z, b.x, b.y, b.z);
+    } else if (a.arc) { marks.arcEnd(a.arc); a.arc = null; }
+  }
 
   // ---- event handlers: return nothing; ctx supplies unit lookups ----
   const ON = {
@@ -296,6 +370,7 @@ export function createFxMap(H, marks, ctx) {
     },
     ult(e) {
       const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (k) bump(e.key);
+      if (e.key === 'blades') cuts = { t0: ctx.time(), i: 0, q: [], uid: e.uid, n: 0 };
       const c = ctx.colorOf(e.uid); const col = new THREE.Color(c);
       marks.flare(u.x, u.z, 4.5, c, 0.9, 0.3); marks.ring(u.x, u.z, 0.5, ULT_SPAN, c, 0.7, 0.8); marks.ring(u.x, u.z, 0.3, ULT_SPAN * 0.6, c, 0.55, 0.4);
       pop(u.x, 1, u.z, 1.1, [col.getHex(), col.getHex()]); snd('wave_start', u.x, u.z, 0.4);
@@ -306,6 +381,7 @@ export function createFxMap(H, marks, ctx) {
       const k = look(e.key); if (k) bump(e.key);
       const p = pal(k); const dx = e.x2 - e.x; const dz = e.z2 - e.z; const d = Math.hypot(dx, dz);
       marks.strip(e.x, e.z, e.x2, e.z2, 1.1, p[1], 0.35, 0.7);
+      if (e.key === 'dash' || (e.key === 'blades' && e.blink)) gioDash(e, d);
       const n = Math.min(10, Math.ceil(d / 1.2));
       for (let i = 0; i < n && budget.puff-- > 0; i++) { const t = i / n; G.fx.puff(V(e.x + dx * t, 0.6, e.z + dz * t), { glow: true, s0: 0.9, s1: 0.2, life: 0.35, c0: p[0], c1: p[1], a0: 0.8, spin: 0 }); }
       if (e.jump) { marks.ring(e.x2, e.z2, 0.4, 2, p[1], 0.4, 0.8); G.fx.puff(V(e.x2, 0.3, e.z2), { s0: 0.8, s1: 2.4, life: 0.5, c0: 0xb8b0a0, c1: 0x9a9488, a0: 0.5 }); }
@@ -320,11 +396,18 @@ export function createFxMap(H, marks, ctx) {
       if (arenaNorm(e.x, e.z) < 0.98) { // spawned inside the arena by a skill: the old pop
         const c = e.boss ? 0xff6030 : 0xc8b0ff; pop(e.x, 0.5, e.z, 0.9, [0xffffff, c]); marks.ring(e.x, e.z, 0.3, 1.6, c, 0.4, 0.7); return;
       }
-      // stepping out of the fog at the rim: a burst of mist (the fog colour, lifted) and a ripple on the ground, no flash
+      // climbing over the island's edge (arrival.js): a splash of the water or a puff of the abyss where it comes up, and a
+      // few dislodged blocks falling away
+      const W = H.world; const th = W ? W.theme : null; const ap = W ? W.arrival(e.x, e.z) : null;
+      const ex = ap ? e.x + ap.dx * ap.d : e.x; const ez = ap ? e.z + ap.dz * ap.d : e.z;
+      const wet = !!th && th.abyss.type === 'water'; const ey = wet ? th.abyss.y + 0.3 : -0.8;
+      const cA = th ? (wet ? th.abyss.foam : th.abyss.shallow) : 0xa9b6c4; const cB = th ? (wet ? th.abyss.shallow : th.abyss.haze) : 0xa9b6c4;
       const su = ctx.unit(e.uid);
-      if (su && su.horde) { if (budget.puff > 0 && G.rng.chance(0.3)) { budget.puff--; G.fx.puff(V(e.x, 0.4, e.z), { vel: V(0, 0.9, 0), drag: 1.8, s0: 0.8, s1: 1.8, life: 0.5, c0: scene.fog ? scene.fog.color.getHex() : 0xa9b6c4, c1: scene.fog ? scene.fog.color.getHex() : 0xa9b6c4, a0: 0.55 }); } return; }
-      const fog = scene.fog ? scene.fog.color : new THREE.Color(0xa9b6c4); const mist = fog.getHex(); const pale = fog.clone().lerp(new THREE.Color(0xffffff), 0.35).getHex();
+      if (su && su.horde) { if (W && !(ap && ap.bridge) && G.rng.chance(0.35)) W.debris(ex, ez, 1, 2); if (budget.puff > 0 && G.rng.chance(0.3)) { budget.puff--; G.fx.puff(V(ex, ey, ez), { vel: V(0, 2.4, 0), drag: 1.8, s0: 0.7, s1: 1.7, life: 0.55, c0: cA, c1: cB, a0: 0.55 }); } return; }
+      const fog = new THREE.Color(cB); const mist = fog.getHex(); const pale = new THREE.Color(cA).lerp(new THREE.Color(0xffffff), 0.2).getHex();
+      if (W && !e.boss && !(ap && ap.bridge)) W.debris(ex, ez, e.elite ? 4 : 2, 2.5);
       if (e.boss) {
+        if (W) W.quake(e.x, e.z);
         const dark = fog.clone().multiplyScalar(0.28).getHex(); const mid = fog.clone().multiplyScalar(0.55).getHex();
         for (let i = 0; i < 9; i++) {
           const a = G.rng.range(0, 6.283); const d = G.rng.range(0, 1.6);
@@ -338,7 +421,7 @@ export function createFxMap(H, marks, ctx) {
       const n = e.elite ? 7 : 4; const big = e.elite ? 1.4 : 1;
       for (let i = 0; i < n; i++) {
         const a = G.rng.range(0, 6.283);
-        G.fx.puff(V(e.x, 0.3 + G.rng.range(0, 0.5), e.z), { vel: V(Math.cos(a) * 1.6, G.rng.range(0.6, 1.6), Math.sin(a) * 1.6), drag: 1.8, s0: 0.9 * big, s1: 2.2 * big, life: 0.55 + G.rng.range(0, 0.2), c0: pale, c1: mist, a0: 0.7 });
+        G.fx.puff(V(ex, ey + G.rng.range(0, 0.4), ez), { vel: V(Math.cos(a) * 1.2, G.rng.range(1.8, 3.2), Math.sin(a) * 1.2), drag: 1.8, s0: 0.8 * big, s1: 2.0 * big, life: 0.6 + G.rng.range(0, 0.2), c0: pale, c1: mist, a0: 0.65 });
       }
       marks.ring(e.x, e.z, 0.3, e.elite ? 2.2 : 1.5, pale, 0.5, 0.55);
     },
@@ -356,6 +439,7 @@ export function createFxMap(H, marks, ctx) {
       if (budget.puff-- > 0) G.fx.puff(V(e.x, 0.5, e.z), { s0: 0.6, s1: 1.9, life: 0.55, c0: 0xa8a49c, c1: 0x7a766e, a0: 0.45 });
     },
     hit(e) {
+      if (dashWin.uid && e.by === dashWin.uid && ctx.time() <= dashWin.until && !e.dot && e.x !== undefined) dashHit(e);
       const u = ctx.unit(e.uid); if (!u || !u.hero) return;
       if (e.shield) { marks.ring(u.x, u.z, 0.8, 1.9, 0x9ad8ff, 0.25, 0.7); return; }
       const t = lastHurt.get(e.uid) || 0; if (ctx.time() - t < 0.18) return; lastHurt.set(e.uid, ctx.time());
@@ -386,7 +470,8 @@ export function createFxMap(H, marks, ctx) {
     // melee: a slash in front of the attacker, aimed along the screen direction of the blow
     const dx = e.tx - e.x; const dz = e.tz - e.z; const d = Math.hypot(dx, dz) || 1; const f = Math.min(d, 1.5) / d;
     const at = V(e.x + dx * f, 1.0, e.z + dz * f); const ang = screenAng(e.x, e.z, e.tx, e.tz);
-    if (kind === 'slash') G.fx.slash(at, cols[0], ang + 0.5, k.n || 1.5);
+    if (kind === 'slash' && e.key === 'slash' && hero) gioCut(at, [coreOf(heroCol(e.uid)), heroCol(e.uid)]);
+    else if (kind === 'slash') G.fx.slash(at, cols[0], ang + 0.5, k.n || 1.5);
     else if (kind === 'thrust') { G.fx.slash(tgt, cols[0], ang, 1.8); G.fx.tracer(V(e.x, 1.1, e.z), tgt, cols[1]); }
     else if (kind === 'punch') { G.fx.pop(tgt, 0.6, cols); G.fx.slash(tgt, cols[0], ang, 1.1); }
     else if (kind === 'claw') { G.fx.slash(V(e.tx, 1.1, e.tz), 0xffb0a0, ang + 1.2, 0.8); }
@@ -436,9 +521,9 @@ export function createFxMap(H, marks, ctx) {
   return {
     KEYS, counters, missing, STYLE, look,
     onEvent(e) { const h = ON[e.e]; if (h) h(e); },
-    attack,
-    update(B, dt) { budget = { pop: 8, boom: 2, puff: 60 }; vb = 28; if (B) { syncProjs(B, dt); unitsFx(B, dt); } marks.update(dt, B); },
-    clear() { for (const r of projs.values()) scene.remove(r.g); projs.clear(); marks.clear(); },
+    attack, swordArc, WHIRL_DUR,
+    update(B, dt) { budget = { pop: 8, boom: 2, puff: 60 }; vb = 28; if (B) { syncProjs(B, dt); unitsFx(B, dt); updateCuts(B); } marks.update(dt, B); },
+    clear() { for (const r of projs.values()) scene.remove(r.g); projs.clear(); marks.clear(); cuts = null; dashWin.uid = 0; },
     wrapA,
   };
 }

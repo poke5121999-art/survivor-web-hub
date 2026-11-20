@@ -5,6 +5,7 @@
 // Deaths are pooled: a corpse record plays out through the same meshes, a few cubes fly from a ring buffer, a splat every
 // few deaths. No per-unit object, no per-death allocation.
 import { FLY_Y } from './keys.js?v=20261120c';
+import { arrive } from './arrival.js?v=20261120c';
 
 const THREE = window.THREE;
 const BZ = window.BZ;
@@ -111,7 +112,7 @@ export function createHorde(H) {
   const states = new Map();
   const corpses = [];
   let showcase = [];
-  let B = null; let clock = 0; let frame = 0; let nDeaths = 0; let deathsWin = []; let soundWin = []; let cubeBudget = 0;
+  let hk = null; let B = null; let clock = 0; let frame = 0; let nDeaths = 0; let deathsWin = []; let soundWin = []; let cubeBudget = 0;
   const stats = { units: 0, corpses: 0, cubes: 0, splats: 0 };
 
   // ---- scratch ----
@@ -193,12 +194,16 @@ export function createHorde(H) {
       if (st.swing >= 0) { st.swing += dt / 0.34; if (st.swing >= 1) st.swing = -1; }
       st.hit = Math.max(0, st.hit - dt * 8);
     }
-    let rise = 1; let sink = 0;
-    if (e.spawnT > 0) { const g = 1 - Math.pow(Math.max(0, e.spawnT) / SPAWN_T, 2); rise = 0.35 + 0.65 * g; sink = -(1 - g) * 1.1; }
-    const y = (e.fly ? (FLY_Y[e.kind] || 3) : 0) + sink * sty.s;
+    let rise = 1; let sink = 0; let ax = 0; let az = 0;
+    if (e.spawnT > 0) { const ar = arrive(H, e, st.x, st.z); rise = ar.s; sink = ar.y / sty.s; ax = ar.ox; az = ar.oz; }
+    const L = hk && hk.lift ? hk.lift(st.uid) : null;
+    const y = (e.fly ? (FLY_Y[e.kind] || 3) : 0) + sink * sty.s + (L ? L.y : 0);
     let tint = ONE;
     if (e.status) { for (const k in e.status) { if (STATUS_TINT[k]) { tint = STATUS_TINT[k]; break; } } }
-    put({ x: st.x, y, z: st.z, yaw: st.yaw, sty, sc: st.sc * rise, ph: st.ph, lean: -st.hit * 0.28, nod: st.hit * 0.3, armA: 0, swing: st.swing, fall: 0, tint, k: (sty.glow || 1) * (1 + st.hit * 1.4), sh: st.sh, pa: st.pa, sk: st.sk });
+    // climbing out of the abyss: dark toward the abyss colour while the rise runs
+    let fk = 0;
+    if (e.spawnT > 0 && H.world) { fk = Math.pow(Math.max(0, e.spawnT) / SPAWN_T, 1.2) * 0.6; const c = H.world.spawnTint; tint = [tint[0] + (Math.min(1.8, c.r * 1.6) - tint[0]) * fk, tint[1] + (Math.min(1.8, c.g * 1.6) - tint[1]) * fk, tint[2] + (Math.min(1.8, c.b * 1.6) - tint[2]) * fk]; }
+    put({ x: st.x + ax + (L ? L.ox : 0), y, z: st.z + az + (L ? L.oz : 0), yaw: st.yaw + (L ? L.yaw : 0), sty, sc: st.sc * rise, ph: st.ph, lean: -st.hit * 0.28, nod: st.hit * 0.3, armA: 0, swing: st.swing, fall: L ? L.tilt : 0, tint, k: (sty.glow || 1) * (1 + st.hit * 1.4 + fk * 0.5), sh: st.sh, pa: st.pa, sk: st.sk });
     st.sc2 = rise; st.px = st.x; st.pz = st.z; st.py = y; st.tint = tint;
   }
 
@@ -271,7 +276,7 @@ export function createHorde(H) {
     meshes, stats, states,
     // the units drawn here this frame: horde units plus enemies the zombie pool had no body for
     sync(batl, dt, overflow, hooks) {
-      B = batl; frame++; clock += dt; cubeBudget = 36;
+      B = batl; hk = hooks; frame++; clock += dt; cubeBudget = 36;
       while (deathsWin.length && clock - deathsWin[0] > 0.5) deathsWin.shift();
       nTorso = 0; nWing = 0; nArm = 0; let units = 0;
       for (const e of B.enemies) {

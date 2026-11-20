@@ -133,7 +133,7 @@ try {
   await page.evaluate(STAGE);
   const sheets = { stand: [], attack: [], hands: [], side: [], walk: [] }; const labels = { stand: [], attack: [], hands: [], side: [], walk: [] };
   const save = (kind, id, wid, url) => { const f = path.join(OUT, `${kind}-${id}.png`); fs.writeFileSync(f, Buffer.from(url.split(',')[1], 'base64')); sheets[kind].push(f); labels[kind].push(`${id} / ${wid}`); };
-  const lim = { two: 0.615, shoulder: 0.615, wrist: 0.615, dual: 0.615, pole: 0.615 };
+  const lim = { sword2: 0.615, two: 0.615, shoulder: 0.615, wrist: 0.615, dual: 0.615, pole: 0.615 };
   for (const id of HEROES) {
     const wid = await page.evaluate((i) => window.__gs.build(i).bz.weapon, id);
     // a cast that puts the weapon away, then the weapon comes back: the grip must be right again
@@ -152,7 +152,7 @@ try {
       }
       if (lim[m.type]) { for (const [n, rr] of [['R', m.reachR], ['L', m.reachL]]) if (rr !== undefined) check(rr <= lim[m.type], `${tag}: ${n} grip reach ${rr.toFixed(3)} m (<= ${lim[m.type]})`); }
       if (pose !== 'walk') check(m.minY >= -0.01, `${tag}: lowest weapon vertex ${m.minY.toFixed(3)} m (>= 0)`);
-      if (pose === 'stand' && m.hasTip && ['two', 'shoulder', 'wrist', 'dual', 'one', 'pole'].includes(m.type)) check(m.tipD <= 0.05, `${tag}: muzzle ${m.tipD.toFixed(3)} m from the barrel end (<= 0.05)`);
+      if (pose === 'stand' && m.hasTip && ['two', 'shoulder', 'wrist', 'dual', 'one', 'pole', 'sword2'].includes(m.type)) check(m.tipD <= 0.05, `${tag}: muzzle ${m.tipD.toFixed(3)} m from the barrel end (<= 0.05)`);
     }
   }
   check(bad(problems).length === 0, `stage: no console problems ${problems.slice(0, 3).join(' | ')}`);
