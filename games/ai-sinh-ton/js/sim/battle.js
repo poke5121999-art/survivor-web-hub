@@ -12,7 +12,7 @@ import { CARD, offerCards } from '../data/cards.js?v=20261120c';
 export const DT = 1 / 30;
 // The arena is an ellipse sized to a portrait phone frame: x is across the screen, z is up the screen. The whole
 // of it is on screen at once, so nothing can spawn, fight or die where the player cannot see it.
-export const ARENA = { x: 4.8, z: 9.4 };
+export const ARENA = { x: 9.6, z: 4.6 };
 // fractions of the ellipse: heroes stay inside HERO_K, enemies step out of the fog at SPAWN_K (the rim the eye sees)
 const HERO_K = 0.9;
 export const SPAWN_K = 1.04;

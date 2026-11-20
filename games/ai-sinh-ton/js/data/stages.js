@@ -45,7 +45,7 @@ export const MAX_ALIVE = 120;
 // battle.js addStatus). Bodies freeze the same area at once and their durations overlap rather than add, so 1/m would cut the total
 // control time to a third; the exponent is tuned so a stage 20 run freezes heroes about as long as the same waves without the horde.
 // hordeOf(wave) = how many bodies stand in for one; big kinds (cost above 1.5) multiply less.
-export const HORDE = { base: 3, perWave: 1, bossWave: 5, bigDiv: 2.5, hpPow: 0.62, atkPow: 1.12, ccPow: 0.5, span: 0.45 };
+export const HORDE = { base: 3, perWave: 1, bossWave: 5, bigDiv: 2.5, hpPow: 0.62, atkPow: 1.12, ccPow: 0.7, span: 0.45 };
 export function hordeOf(w, cost) { const m = w >= 5 ? HORDE.bossWave : HORDE.base + HORDE.perWave * w; return cost > 1.5 ? Math.max(1, Math.round(m / HORDE.bigDiv)) : m; }
 // early stages are met with fewer team slots open (unlocks.js): wave size and boss health shrink to match
 export const TEAM_K = { 1: 0.3, 2: 0.36, 3: 0.65, 4: 0.92 };
