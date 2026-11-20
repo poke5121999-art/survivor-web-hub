@@ -9,13 +9,17 @@ import { stageDef } from './data/stages.js?v=20261120c';
 import { tutorialStage } from './data/unlocks.js?v=20261120c';
 
 const SETTINGS_KEY = 'aisinhton.settings.v1';
+const SAVE_KEY = 'aisinhton.save.v1';
+const OWN_PREFIX = 'aisinhton.';
+// query parameters that shape a run or a test account: the reload after a wipe starts clean without them
+const RELOAD_DROP = ['preset', 'autostart', 'stage', 'wave', 'seed', 'team', 'autoult', 'autopick', 'spectate'];
 const SETTINGS_DEF = { quality: '', sound: true, vibrate: true, reduceFlash: false, autoPick: false, autoUlt: false };
 const RESULT_DELAY = 1.4;
 
 // [module path, factory name]; a module that is not there yet is skipped so the game still boots
 const SCREENS = [
   ['./ui/home.js', 'createHome'], ['./ui/heroes.js', 'createHeroes'], ['./ui/gacha.js', 'createGacha'], ['./ui/equip.js', 'createEquip'], ['./ui/soon.js', 'createSoon'],
-  ['./ui/hud.js', 'createHud'], ['./ui/pick.js', 'createPick'], ['./ui/result.js', 'createResult'], ['./ui/guide.js', 'createGuide'],
+  ['./ui/hud.js', 'createHud'], ['./ui/pick.js', 'createPick'], ['./ui/result.js', 'createResult'], ['./ui/guide.js', 'createGuide'], ['./ui/account.js', 'createAccountPanel'],
 ];
 const V = new URL(import.meta.url).search;
 
@@ -46,7 +50,30 @@ export async function attachGame(game, { params }) {
   try { const kit = await import('./ui/kit.js?v=20261120c'); ui = kit.createUI({ THREE: host.THREE, renderer: host.renderer, frame }); } catch (e) { console.error('ui kit not loaded: ' + (e && e.message)); }
   game.ui = ui; window.__ui = ui;
 
+  // Wipes every key this game owns on the device and reloads as a brand-new account. The hub login keys, the shared
+  // 'blockadez.lang' and any unrelated key stay. Nothing may be written between the wipe and the reload.
+  game.deleteAccount = () => {
+    if (game.accountWiped) return [];
+    game.accountWiped = true;
+    game.meta.save = () => false;
+    const removed = [];
+    for (const store of [() => localStorage, () => sessionStorage]) {
+      try {
+        const s = store(), keys = [];
+        for (let i = 0; i < s.length; i++) { const k = s.key(i); if (k && k.startsWith(OWN_PREFIX)) keys.push(k); }
+        for (const k of [SETTINGS_KEY, SAVE_KEY]) if (!keys.includes(k)) keys.push(k);
+        for (const k of keys) { s.removeItem(k); removed.push(k); }
+      } catch (e) { console.error('storage not reachable while deleting the account: ' + (e && e.message)); }
+    }
+    const url = new URL(location.href);
+    for (const p of RELOAD_DROP) url.searchParams.delete(p);
+    game.events.emit('account:deleted', { removed });
+    location.replace(url.toString());
+    return removed;
+  };
+
   game.setSetting = (key, value) => {
+    if (game.accountWiped) return;
     game.settings[key] = value;
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(game.settings)); } catch (e) {}
     if (key === 'sound' && game.audio.setVolume) game.audio.setVolume(value ? 1 : 0);
@@ -55,12 +82,12 @@ export async function attachGame(game, { params }) {
   if (game.audio.setVolume) game.audio.setVolume(game.settings.sound ? 1 : 0);
   game.vibrate = (ms) => { if (game.settings.vibrate && navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} } };
 
-  // world point -> design units of the UI (360 wide, y down)
+  // world point -> design units of the UI (780 wide landscape frame, y down)
   const P = new host.THREE.Vector3();
   game.project = (x, z, y = 0) => {
     P.set(x, y, z).project(host.camera);
-    const u = frame.clientWidth / 360;
-    return { x: ((P.x + 1) / 2) * 360, y: (((1 - P.y) / 2) * frame.clientHeight) / u, behind: P.z > 1 };
+    const u = frame.clientWidth / 780;
+    return { x: ((P.x + 1) / 2) * 780, y: (((1 - P.y) / 2) * frame.clientHeight) / u, behind: P.z > 1 };
   };
 
   game.goto = (name, args) => {
