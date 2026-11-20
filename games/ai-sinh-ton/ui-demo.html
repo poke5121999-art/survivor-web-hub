@@ -8,7 +8,7 @@
 <style>
   html, body { margin: 0; height: 100%; background: #0d0a16; overflow: hidden; overscroll-behavior: none; }
   body { display: flex; align-items: center; justify-content: center; }
-  #frame { position: relative; width: min(100vw, calc(100vh * 9 / 19.5)); aspect-ratio: 9 / 19.5; overflow: hidden; background: #1b1236; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  #frame { position: relative; width: min(100vw, calc(100vh * 19.5 / 9)); aspect-ratio: 19.5 / 9; overflow: hidden; background: #1b1236; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
   #frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 </style>
 </head>
@@ -46,87 +46,86 @@ const bgScene = new THREE.Scene(), bgCam = new THREE.OrthographicCamera(-1, 1, 1
 const bgMat = new THREE.MeshBasicMaterial({ toneMapped: false }); bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat));
 const BG = {};
 function makeBG(kind) {
-  const c = document.createElement('canvas'); c.width = 270; c.height = 585; const g = c.getContext('2d');
+  const W = 585, H = 270, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
   if (kind === 'home') {
-    const gr = g.createLinearGradient(0, 0, 0, 585); gr.addColorStop(0, '#3a2a86'); gr.addColorStop(0.55, '#6a3aa8'); gr.addColorStop(1, '#a8408a'); g.fillStyle = gr; g.fillRect(0, 0, 270, 585);
-    const rg = g.createRadialGradient(135, 200, 10, 135, 200, 230); rg.addColorStop(0, 'rgba(255,200,120,.45)'); rg.addColorStop(1, 'rgba(255,200,120,0)'); g.fillStyle = rg; g.fillRect(0, 0, 270, 585);
+    const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#3a2a86'); gr.addColorStop(0.55, '#6a3aa8'); gr.addColorStop(1, '#a8408a'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    const rg = g.createRadialGradient(W * 0.42, 130, 10, W * 0.42, 130, 230); rg.addColorStop(0, 'rgba(255,200,120,.45)'); rg.addColorStop(1, 'rgba(255,200,120,0)'); g.fillStyle = rg; g.fillRect(0, 0, W, H);
   } else if (kind === 'grid') {
-    const gr = g.createLinearGradient(0, 0, 0, 585); gr.addColorStop(0, '#f08a1f'); gr.addColorStop(0.34, '#d9701a'); gr.addColorStop(0.35, '#2a3358'); gr.addColorStop(1, '#1c2240'); g.fillStyle = gr; g.fillRect(0, 0, 270, 585);
+    const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#f08a1f'); gr.addColorStop(0.34, '#d9701a'); gr.addColorStop(0.35, '#2a3358'); gr.addColorStop(1, '#1c2240'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
   } else {
-    g.fillStyle = '#9ba3b4'; g.fillRect(0, 0, 270, 585); g.strokeStyle = 'rgba(70,80,100,.35)'; g.lineWidth = 1;
-    for (let x = 0; x <= 270; x += 30) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 585); g.stroke(); }
-    for (let y = 0; y <= 585; y += 30) { g.beginPath(); g.moveTo(0, y); g.lineTo(270, y); g.stroke(); }
-    g.fillStyle = '#6a7390'; g.fillRect(0, 480, 270, 105); g.fillStyle = 'rgba(255,255,255,.5)'; for (let x = 10; x < 270; x += 56) g.fillRect(x, 540, 34, 5);
+    g.fillStyle = '#9ba3b4'; g.fillRect(0, 0, W, H); g.strokeStyle = 'rgba(70,80,100,.35)'; g.lineWidth = 1;
+    for (let x = 0; x <= W; x += 30) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+    for (let y = 0; y <= H; y += 30) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+    g.fillStyle = '#6a7390'; g.fillRect(0, 215, W, 55); g.fillStyle = 'rgba(255,255,255,.5)'; for (let x = 10; x < W; x += 56) g.fillRect(x, 240, 34, 5);
   }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 for (const k of ['home', 'grid', 'hud']) BG[k] = makeBG(k);
 
-// ---------- demo switch strip (always on top) ----------
+// ---------- demo switch strip (always on top, top-left) ----------
 const strip = ui.screen('strip');
 const names = { home: 'Chủ', grid: 'Lưới', hud: 'Trận' };
 let current = 'home';
 Object.keys(names).forEach((k, i) => {
   const b = ui.button({ id: 'go-' + k, w: 54, h: 26, r: 9, color: PAL.blue, label: names[k], size: 12, shadow: false, onTap: () => { window.__taps.push('go-' + k); show(k); } });
-  strip.put(b, 360 - 8 - (3 - i) * 58 + 4, 5);
+  strip.put(b, 8 + i * 58, 4);
 });
 ui.show('strip', { transition: 'none' });
 
-// ---------- screen 1: home ----------
+// ---------- screen 1: home (rail at the left, stage in the middle, team and start at the right) ----------
 const home = ui.screen('home');
 {
-  const pill = (x, icon, str, id) => {
-    const p = ui.panel({ w: 104, h: 28, r: 14, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(p, x, 40);
-    const t = ui.text(str, { size: 15, align: 'right' }); p.put(t, 94, 6); const ic = ui.icon(icon, { size: 32 }); p.put(ic, -8, -2, 4);
+  const pill = (x, icon, str) => {
+    const p = ui.panel({ w: 90, h: 28, r: 14, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(p, x, 8);
+    const t = ui.text(str, { size: 14, align: 'right' }); p.put(t, 82, 6); const ic = ui.icon(icon, { size: 32 }); p.put(ic, -8, -2, 4);
     return p;
   };
-  pill(14, 'gold', '12.480'); pill(128, 'gem', '320'); pill(242, 'shard', '1.250');
-  const title = ui.text('ẢI SINH TỒN', { size: 42, color: PAL.gold, align: 'center', upper: true, outlineW: 4.5, shadow: 3 }); home.put(title, 180, 92);
+  pill(476, 'gold', '12.480'); pill(574, 'gem', '320'); pill(672, 'shard', '1.250');
+  const title = ui.text('ẢI SINH TỒN', { size: 32, color: PAL.gold, align: 'center', upper: true, outlineW: 3.6, shadow: 3 }); home.put(title, 300, 6);
   window.__title = title;
-  const rib = ui.panel({ w: 236, h: 30, r: 15, color: 0xc92f4f, depth: 4, bevel: 2.4, ow: 2.6 }); home.put(rib, 62, 154);
-  rib.put(ui.text('Kỷ Băng Hà - Ải 12', { size: 14, align: 'center', upper: true }), 118, 6);
-  // a generic 3D object in a viewport: a little stage with a tower, turning slowly
+  const rib = ui.panel({ w: 236, h: 28, r: 14, color: 0xc92f4f, depth: 4, bevel: 2.4, ow: 2.6 }); home.put(rib, 182, 56);
+  rib.put(ui.text('Kỷ Băng Hà - Ải 12', { size: 13, align: 'center', upper: true }), 118, 5);
   const stage = new THREE.Group();
   const mk = (geo, col, y) => { const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col, roughness: 0.5 })); m.position.y = y; stage.add(m); return m; };
   mk(new THREE.CylinderGeometry(1.7, 1.9, 0.5, 28), 0x8fe0ff, 0); mk(new THREE.CylinderGeometry(1.45, 1.45, 0.12, 28), 0xe9fbff, 0.3);
   mk(new THREE.CylinderGeometry(0.42, 0.55, 1.5, 12), 0xff6a4a, 1.05); mk(new THREE.ConeGeometry(0.62, 0.8, 12), 0xffc21f, 2.2);
   for (let i = 0; i < 6; i++) { const a = i / 6 * 6.28, m = mk(new THREE.ConeGeometry(0.22, 0.6, 6), 0xbfefff, 0.55); m.position.x = Math.cos(a) * 1.2; m.position.z = Math.sin(a) * 1.2; }
-  const frameP = ui.panel({ w: 330, h: 196, r: 22, color: 0x5a3fa0, depth: 5, bevel: 3 }); home.put(frameP, 15, 200);
-  const view = ui.viewport(stage, { w: 318, h: 184, r: 17, bg: 0x4e3aa0, fps: 24, fov: 30, update: (dt) => { stage.rotation.y += dt * 0.7; } });
+  const frameP = ui.panel({ w: 340, h: 244, r: 22, color: 0x5a3fa0, depth: 5, bevel: 3 }); home.put(frameP, 112, 94);
+  const view = ui.viewport(stage, { w: 328, h: 232, r: 17, bg: 0x4e3aa0, fps: 24, fov: 30, update: (dt) => { stage.rotation.y += dt * 0.7; } });
   frameP.put(view, 6, 6, 1);
   stage.rotation.x = 0.15;
-  home.put(ui.text('ĐỘI HÌNH', { size: 13, color: 0xffe9a8 }), 18, 408);
+  home.put(ui.text('ĐỘI HÌNH', { size: 12, color: 0xffe9a8 }), 560, 44);
   const ids = (window.BZ && window.BZ.HEROES ? window.BZ.HEROES.map((h) => h.id) : ['a', 'b', 'c', 'd']);
   ['rare', 'epic', 'legend', 'good'].forEach((rar, i) => {
+    const x = 560 + (i % 2) * 80, y = 62 + Math.floor(i / 2) * 86;
     const p = ui.portrait(ids[i + 2] || ids[i], { size: 72, color: PAL.rarity[rar], id: 'hero-' + i, onTap: tap('hero-' + i) });
-    home.put(p, 14 + i * 87, 430);
-    const lv = ui.bar({ w: 72, h: 9, color: PAL.green, r: 4.5 }); lv.set(0.3 + i * 0.2, true); home.put(lv, 14 + i * 87, 508);
+    home.put(p, x, y);
+    const lv = ui.bar({ w: 72, h: 9, color: PAL.green, r: 4.5 }); lv.set(0.3 + i * 0.2, true); home.put(lv, x, y + 74);
   });
-  const go = ui.button({ id: 'start', w: 264, h: 76, color: PAL.green, label: 'BẮT ĐẦU', sub: 'Ải 12 - Rồng Hư Không', size: 30, pulse: true, onTap: tap('start') });
-  go.anchor(48, 'bottom', -224); home.holder.add(go);
-  const nav = ui.panel({ w: 348, h: 66, r: 20, color: 0x3a2d78, depth: 5, bevel: 3 }); nav.anchor(6, 'bottom', -76); home.holder.add(nav);
+  const go = ui.button({ id: 'start', w: 200, h: 64, color: PAL.green, label: 'BẮT ĐẦU', sub: 'Ải 12 - Rồng Hư Không', size: 24, pulse: true, onTap: tap('start') });
+  home.put(go, 552, 276);
+  const nav = ui.panel({ w: 78, h: 286, r: 18, color: 0x3a2d78, depth: 5, bevel: 3 }); home.put(nav, 8, 52);
   const tabs = [['capsule', 'Triệu Hồi', 0], ['armor', 'Trang Bị', 0], ['sword', 'Ra Trận', 1], ['shield', 'Tướng', 0], ['chest', 'Thưởng', 0]];
-  const wid = [60, 60, 80, 60, 60]; let x = 8;
   tabs.forEach(([ic, lab, big], i) => {
-    const w = wid[i], b = ui.button({ id: 'tab-' + i, w, h: big ? 78 : 52, r: 14, color: big ? PAL.orange : 0x5b49a8, icon: ic, label: lab, stack: true, size: 10, onTap: tap('tab-' + i) });
-    nav.put(b, x, big ? -16 : 7, 1); if (i === 1) b.setBadge(true); if (i === 4) b.setBadge(3); x += w + 4;
+    const b = ui.button({ id: 'tab-' + i, w: 62, h: 50, r: 14, color: big ? PAL.orange : 0x5b49a8, icon: ic, label: lab, stack: true, size: 10, onTap: tap('tab-' + i) });
+    nav.put(b, 8, 8 + i * 55, 1); if (i === 1) b.setBadge(true); if (i === 4) b.setBadge(3);
   });
 }
 
-// ---------- screen 2: grid, bars, ring, every icon ----------
+// ---------- screen 2: grid, bars, ring, every icon (stats at the left, scrolling grid at the right) ----------
 const grid = ui.screen('grid');
 {
-  grid.put(ui.text('TRANG BỊ', { size: 20, align: 'center', upper: true }), 180, 38);
-  const stats = ui.panel({ w: 340, h: 98, r: 18, color: 0x3a2d78, depth: 4, bevel: 3 }); grid.put(stats, 10, 66);
+  grid.put(ui.text('TRANG BỊ', { size: 20, align: 'center', upper: true }), 250, 8);
+  const stats = ui.panel({ w: 300, h: 98, r: 18, color: 0x3a2d78, depth: 4, bevel: 3 }); grid.put(stats, 90, 54);
   const row = (y, icon, label, val) => { stats.put(ui.icon(icon, { size: 28 }), 12, y); stats.put(ui.text(label, { size: 11, color: 0xd6ccff }), 46, y + 2); stats.put(ui.text(val, { size: 15 }), 46, y + 13); };
   row(10, 'atk', 'CÔNG', '119.590'); row(52, 'hp', 'MÁU', '492.849');
-  const hp = ui.bar({ w: 128, h: 15, color: PAL.green, ghost: true }); stats.put(hp, 146, 22); hp.set(0.75, true); hp.setGhost(1);
-  const mp = ui.bar({ w: 128, h: 15, color: PAL.blue }); stats.put(mp, 146, 46); mp.set(0.4, true);
-  const sh = ui.bar({ w: 128, h: 15, color: PAL.orange }); stats.put(sh, 146, 70); sh.set(0.9, true);
-  const rg = ui.ring({ r: 24, width: 8, color: PAL.purple }); stats.put(rg, 284, 26); rg.set(0.66, true);
+  const hp = ui.bar({ w: 110, h: 15, color: PAL.green, ghost: true }); stats.put(hp, 136, 22); hp.set(0.75, true); hp.setGhost(1);
+  const mp = ui.bar({ w: 110, h: 15, color: PAL.blue }); stats.put(mp, 136, 46); mp.set(0.4, true);
+  const sh = ui.bar({ w: 110, h: 15, color: PAL.orange }); stats.put(sh, 136, 70); sh.set(0.9, true);
+  const rg = ui.ring({ r: 24, width: 8, color: PAL.purple }); stats.put(rg, 252, 24); rg.set(0.66, true);
   rg.put(ui.icon('bolt', { size: 22 }), 13, 13);
   window.__demo = { hp, rg };
-  const sc = ui.scroll({ w: 340, h: 400 }); grid.put(sc, 10, 176);
+  const sc = ui.scroll({ w: 352, h: 240 }); grid.put(sc, 400, 54);
   sc.slotBack = null;
   const rars = ['common', 'good', 'rare', 'epic', 'legend', 'myth'], slots = ['weapon', 'necklace', 'gloves', 'armor', 'belt', 'boots'];
   let y = 4;
@@ -151,41 +150,41 @@ const grid = ui.screen('grid');
   }
   sc.setContentH(y + 10);
   window.__demo.scroll = sc;
-  const sort = ui.button({ id: 'sort', w: 156, h: 44, color: PAL.blue, label: 'Sắp Xếp', icon: 'gear', onTap: tap('sort') });
-  const merge = ui.button({ id: 'merge', w: 156, h: 44, color: PAL.orange, label: 'Ghép', onTap: tap('merge') }); merge.setBadge(true);
-  sort.anchor(14, 'bottom', -66); merge.anchor(190, 'bottom', -66); grid.holder.add(sort); grid.holder.add(merge);
-  const resize = () => { sc.h = Math.max(200, ui.H - 176 - 80); };
+  const sort = ui.button({ id: 'sort', w: 168, h: 44, color: PAL.blue, label: 'Sắp Xếp', icon: 'gear', onTap: tap('sort') });
+  const merge = ui.button({ id: 'merge', w: 168, h: 44, color: PAL.orange, label: 'Ghép', onTap: tap('merge') }); merge.setBadge(true);
+  sort.anchor(400, 'bottom', -56); merge.anchor(584, 'bottom', -56); grid.holder.add(sort); grid.holder.add(merge);
+  const resize = () => { sc.h = Math.max(120, ui.H - 54 - 66); };
   resize(); window.__demo.relayout = resize;
 }
 
-// ---------- screen 3: battle HUD mock ----------
+// ---------- screen 3: battle HUD mock (top bar, a pair of hero cards in each bottom corner) ----------
 const hud = ui.screen('hud');
 {
   const pause = ui.button({ id: 'pause', w: 38, h: 34, r: 10, color: 0x3a3d52, icon: 'pause', onTap: tap('pause') }); hud.put(pause, 8, 40);
-  const plate = ui.panel({ w: 118, h: 40, r: 12, color: 0x23283f, depth: 3, bevel: 2, gloss: false }); hud.put(plate, 121, 38);
-  const timer = ui.text('00:14', { size: 22, align: 'center' }); plate.put(timer, 59, 9);
-  const pips = []; for (let i = 0; i < 5; i++) { const p = ui.panel({ w: 32, h: 12, r: 6, color: i < 3 ? PAL.green : 0x4a4f68, depth: 2, bevel: 1.4, shadow: false, ow: 2 }); hud.put(p, 100 + i * 36, 86); pips.push(p); }
-  const spd = ui.button({ id: 'speed', w: 52, h: 34, r: 10, color: PAL.blue, icon: 'speed', label: '×2', size: 13, onTap: tap('speed') }); hud.put(spd, 300, 40);
-  const kills = ui.panel({ w: 86, h: 28, r: 14, color: 0x23283f, depth: 3, bevel: 2, gloss: false, ow: 2.4 }); hud.put(kills, 262, 108);
+  const plate = ui.panel({ w: 118, h: 36, r: 12, color: 0x23283f, depth: 3, bevel: 2, gloss: false }); hud.put(plate, 331, 4);
+  const timer = ui.text('00:14', { size: 20, align: 'center' }); plate.put(timer, 59, 7);
+  const pips = []; for (let i = 0; i < 5; i++) { const p = ui.panel({ w: 32, h: 12, r: 6, color: i < 3 ? PAL.green : 0x4a4f68, depth: 2, bevel: 1.4, shadow: false, ow: 2 }); hud.put(p, 300 + i * 36, 44); pips.push(p); }
+  const spd = ui.button({ id: 'speed', w: 52, h: 34, r: 10, color: PAL.blue, icon: 'speed', label: '×2', size: 13, onTap: tap('speed') }); hud.put(spd, 700, 8);
+  const kills = ui.panel({ w: 86, h: 28, r: 14, color: 0x23283f, depth: 3, bevel: 2, gloss: false, ow: 2.4 }); hud.put(kills, 600, 10);
   kills.put(ui.icon('skull', { size: 28 }), -4, 0, 4); kills.put(ui.text('128', { size: 15, align: 'right' }), 78, 6);
-  const boss = ui.bar({ w: 300, h: 20, color: PAL.red, ghost: true }); hud.put(boss, 30, 140); boss.set(0.62, true); boss.setGhost(0.9);
-  hud.put(ui.icon('skull', { size: 34 }), 2, 131); hud.put(ui.text('RỒNG HƯ KHÔNG', { size: 13, align: 'left', upper: true }), 38, 122);
+  const boss = ui.bar({ w: 300, h: 18, color: PAL.red, ghost: true }); hud.put(boss, 270, 76); boss.set(0.62, true); boss.setGhost(0.9);
+  hud.put(ui.icon('skull', { size: 30 }), 238, 70); hud.put(ui.text('RỒNG HƯ KHÔNG', { size: 12, align: 'left', upper: true }), 270, 60);
   window.__demo.boss = boss;
   const ids = (window.BZ && window.BZ.HEROES ? window.BZ.HEROES.map((h) => h.id) : ['a', 'b', 'c', 'd']);
   const cols = [PAL.rarity.rare, PAL.rarity.epic, PAL.rarity.legend, PAL.rarity.good], hpv = [0.9, 0.55, 0.25, 1], ult = [0.3, 1, 0.62, 0.05];
   window.__demo.hp = [];
   for (let i = 0; i < 4; i++) {
-    const x = 12 + i * 85;
-    const col = ui.group({ w: 76, h: 160 }); col.anchor(x, 'bottom', -168); hud.holder.add(col);
-    const p = ui.portrait(ids[i], { size: 70, color: cols[i], shadow: false, id: 'pt-' + i, onTap: tap('pt-' + i) }); col.put(p, 0, 22);
-    const r = ui.ring({ r: 15, width: 6, color: ult[i] >= 1 ? PAL.gold : PAL.purple }); r.set(ult[i], true); r.setReady(ult[i] >= 1); col.put(r, 50, 2, 20);
-    r.put(ui.icon('bolt', { size: 14 }), 8, 8);
-    if (ult[i] >= 1) { const f = ui.icon('flame', { size: 30 }); col.put(f, 40, -12, 22); }
-    const b = ui.bar({ w: 70, h: 11, color: hpv[i] < 0.3 ? PAL.red : PAL.green, ghost: true }); col.put(b, 0, 98); b.set(hpv[i], true); window.__demo.hp.push(b);
-    const eye = ui.button({ id: 'eye-' + i, w: 44, h: 28, r: 9, color: 0x3a3d52, icon: 'eye', shadow: false, onTap: tap('eye-' + i) }); col.put(eye, 13, 116);
+    const x = i < 2 ? 28 + i * 68 : 780 - 28 - 2 * 68 + (i - 2) * 68;
+    const col = ui.group({ w: 62, h: 104 }); col.anchor(x, 'bottom', -116); hud.holder.add(col);
+    const p = ui.portrait(ids[i], { size: 56, color: cols[i], shadow: false, id: 'pt-' + i, onTap: tap('pt-' + i) }); col.put(p, 0, 8);
+    const r = ui.ring({ r: 12, width: 5, color: ult[i] >= 1 ? PAL.gold : PAL.purple }); r.set(ult[i], true); r.setReady(ult[i] >= 1); col.put(r, 38, -6, 20);
+    r.put(ui.icon('bolt', { size: 12 }), 7, 7);
+    if (ult[i] >= 1) { const f = ui.icon('flame', { size: 26 }); col.put(f, 30, -22, 22); }
+    const b = ui.bar({ w: 56, h: 10, color: hpv[i] < 0.3 ? PAL.red : PAL.green, ghost: true }); col.put(b, 0, 68); b.set(hpv[i], true); window.__demo.hp.push(b);
+    const eye = ui.button({ id: 'eye-' + i, w: 44, h: 28, r: 9, color: 0x3a3d52, icon: 'eye', shadow: false, onTap: tap('eye-' + i) }); col.put(eye, 9, 80);
   }
   window.__demo.pips = pips;
-  window.__demo.fly = () => { ui.fly('37', 150, 330); ui.fly('128', 220, 280, { color: 0xff6a3a, size: 28 }); ui.fly('+12', 90, 360, { color: PAL.green }); };
+  window.__demo.fly = () => { ui.fly('37', 300, 160); ui.fly('128', 440, 130, { color: 0xff6a3a, size: 28 }); ui.fly('+12', 250, 190, { color: PAL.green }); };
 }
 
 function show(name) {
@@ -200,7 +199,7 @@ let last = performance.now(), frames = 0;
 function loop(now) {
   if (window.__hold) { last = now; requestAnimationFrame(loop); return; }
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (current === 'hud' && Math.random() < dt * 0.8) ui.fly(String(20 + (Math.random() * 400 | 0)), 70 + Math.random() * 220, 230 + Math.random() * 160);
+  if (current === 'hud' && Math.random() < dt * 0.8) ui.fly(String(20 + (Math.random() * 400 | 0)), 200 + Math.random() * 380, 120 + Math.random() * 140);
   renderer.setClearColor(0x1b1236, 1); renderer.clear();
   renderer.render(bgScene, bgCam);
   ui.update(dt); ui.render();

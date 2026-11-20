@@ -8,7 +8,7 @@ import { TIERS, ITEM, itemStat, upgradeCost } from '../js/data/equip.js';
 import { HERO } from '../js/data/heroes.js';
 import { levelMul } from '../js/data/economy.js';
 
-const OUT = path.join(ROOT, '.chk', 'equip'); fs.mkdirSync(OUT, { recursive: true });
+const OUT = path.join(ROOT, '.chk', 'landscape', 'shots-equip'); fs.mkdirSync(OUT, { recursive: true });
 const { check, done } = checker();
 const srv = await serve(); const br = await launch();
 const shots = [];
@@ -19,7 +19,7 @@ const targets = (page) => page.evaluate(() => __ui.targets());
 async function tap(page, id, n = 12) {
   const t = (await targets(page)).find((q) => q.id === id);
   if (!t) return false;
-  await page.touchscreen.tap(t.x + t.w / 2, t.y + t.h / 2);
+  if (await page.evaluate(() => navigator.maxTouchPoints > 0)) await page.touchscreen.tap(t.x + t.w / 2, t.y + t.h / 2); else await page.mouse.click(t.x + t.w / 2, t.y + t.h / 2);
   await step(page, n);
   return true;
 }
@@ -37,7 +37,7 @@ const setBag = (page, list, worn = {}) => page.evaluate(([l, w]) => {
 async function snap(page, phone, name) { const f = path.join(OUT, `${phone}-${name}.png`); await page.screenshot({ path: f }); shots.push(f); }
 async function audit(page, label) {
   const bad = await page.evaluate(() => {
-    const out = [], r = document.getElementById('frame').getBoundingClientRect(), k = r.width / 360;
+    const out = [], r = document.getElementById('frame').getBoundingClientRect(), k = r.width / 780;
     for (const t of __ui.targets()) {
       const hit = __ui.hitAt(t.x + t.w / 2, t.y + t.h / 2);
       if (t.w / k < 47.5 || t.h / k < 47.5) out.push(`${t.id} is ${(t.w / k).toFixed(1)}x${(t.h / k).toFixed(1)}`);
@@ -50,7 +50,7 @@ async function audit(page, label) {
 }
 
 try {
-  for (const phone of ['s22', 'xiaomi']) {
+  for (const phone of (process['env'].PH || 's22,xiaomi,desktop').split(',')) {
     const P = (m) => `${phone}: ${m}`;
     // ---------- 1. locks on an account below level 6
     {
@@ -240,8 +240,12 @@ try {
     check(problems.length === 0, P('no console errors') + (problems[0] ? ' ' + problems[0] : ''));
     await g.ctx.close();
   }
-  const s22 = shots.filter((f) => f.includes('s22-')), xi = shots.filter((f) => f.includes('xiaomi-'));
-  sheet(s22, path.join(OUT, 'review-s22.png'), 6, 300); sheet(xi, path.join(OUT, 'review-xiaomi.png'), 6, 300);
+  const LS = path.join(ROOT, '.chk', 'landscape'); fs.mkdirSync(LS, { recursive: true });
+  for (const phone of (process['env'].PH || 's22,xiaomi,desktop').split(',')) {
+    const pick = (names) => names.map((n) => path.join(OUT, `${phone}-${n}.png`)).filter((f) => fs.existsSync(f));
+    sheet(pick(['locked', 'empty', 'bag', 'worn', 'sheet', 'sheet-short', 'merge-start', 'merge-partial', 'merge-ready', 'merge-fx', 'merge-refused', 'automerge', 'equip-best', 'reload']), path.join(LS, `equip-${phone}.png`), 2, 640);
+    sheet(shots.filter((f) => f.includes(phone + '-')), path.join(OUT, `review-${phone}.png`), 6, 300);
+  }
 } catch (e) {
   console.log('FAIL test crashed: ' + (e && e.stack ? e.stack : e)); process.exitCode = 1;
 } finally { await br.close(); srv.close(); }
