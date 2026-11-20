@@ -11,15 +11,17 @@ const BASE = 'noaudio=1&q=low&seed=7&autostart=1&stage=1';
 // screens other delegates have not landed yet fail to load with a 404; that is not a battle problem
 const foreign = (s) => /ui\/(home|heroes|gacha|soon|diorama)\.js|status of 404/.test(s);
 
+let touch = true; // the desktop window has no touch screen: a mouse click goes through the same pointer path
+const tapAt = (page, x, y) => (touch ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
 const srv = await serve(); const br = await launch();
 const shots = [];
 
-async function frameK(page) { return page.evaluate(() => document.getElementById('frame').clientWidth / 360); }
+async function frameK(page) { return page.evaluate(() => document.getElementById('frame').clientWidth / 780); }
 const step = (page, n) => page.evaluate((k) => __step(k), n);
 const targets = (page) => page.evaluate(() => __ui.targets());
 async function tapId(page, id) {
   const t = (await targets(page)).find((q) => q.id === id); if (!t) return false;
-  await page.touchscreen.tap(t.x + t.w / 2, t.y + t.h / 2); return true;
+  await tapAt(page, t.x + t.w / 2, t.y + t.h / 2); return true;
 }
 async function shot(page, phone, name) { const f = path.join(OUT, `${phone}-${name}.png`); await page.locator('#frame').screenshot({ path: f }); shots.push(f); }
 
@@ -34,10 +36,26 @@ async function checkTargets(page, phone, state) {
   return list;
 }
 
+// the HUD owns only the top bar, the bottom-centre card block, the spectate block on the left edge and the boss bar:
+// nothing else may touch the middle of the fight (x 170..610, y 60..360), banners and floating numbers excepted
+async function hudAudit(page, phone, state) {
+  const d = await page.evaluate(() => ({ b: __G.screens.hud.dbg().boxes, H: __ui.H, bossY: __G.screens.hud.dbg().bossY, bossShown: __G.screens.hud.dbg().bossShown }));
+  const hit = (r) => r.x < 610 && r.x + r.w > 170 && r.y < 360 && r.y + r.h > 60;
+  const bad = [];
+  for (const r of d.b) {
+    if (/^card/.test(r.id)) {
+      const base = r.y + r.h; if (r.x < 240 - 0.5 || r.x + r.w > 540 + 0.5 || base > d.H - 12 + 0.5 || r.w > 72.5) bad.push(`${r.id} ${r.x.toFixed(0)},${r.y.toFixed(0)} ${r.w.toFixed(0)}x${r.h.toFixed(0)} leaves the bottom-centre block`);
+    } else if (hit(r)) bad.push(`${r.id} ${r.x.toFixed(0)},${r.y.toFixed(0)} ${r.w.toFixed(0)}x${r.h.toFixed(0)} sits in the middle of the fight`);
+  }
+  const cards = d.b.filter((r) => /^card/.test(r.id)), left = Math.min(...cards.map((r) => r.x)), right = Math.max(...cards.map((r) => r.x + r.w));
+  if (cards.length) { if (right - left > 300.5) bad.push(`card row is ${(right - left).toFixed(0)} wide`); if (Math.abs((left + right) / 2 - 390) > 0.5) bad.push(`card row centre ${((left + right) / 2).toFixed(1)}`); }
+  check(bad.length === 0 && cards.length > 0, `${phone} ${state}: ${d.b.length} HUD rectangles, ${cards.length} cards in one row x ${left.toFixed(0)}..${right.toFixed(0)} (${bad.join('; ') || 'none in the middle'})`);
+}
 const killWave = (page) => page.evaluate(() => { const B = __G.B; for (const e of B.enemies) e.hp = 0; let g = 0; while (B.phase === 'fight' && g++ < 300) __sim(1); __step(40); return B.phase; });
 
 try {
-  for (const phone of ['s22', 'xiaomi']) {
+  for (const phone of ['s22', 'xiaomi', 'desktop']) {
+    touch = phone !== 'desktop';
     const a = await open(br, srv.base, phone, BASE); const p = a.page;
     await p.evaluate(() => {
       window.__ev = [];
@@ -52,7 +70,7 @@ try {
     const anyFull = await p.evaluate(() => __G.B.heroes.some((u) => u.ult >= 1));
     check(!anyFull && ult0 === 0 && fl0 === 0, `${phone}: before any hero is full: ${ult0} enabled ult targets, ${fl0} flames, hero full ${anyFull}`);
     check(list.some((t) => t.id === 'ult0') && list.some((t) => t.id === 'eye3') && list.some((t) => t.id === 'pause') && list.some((t) => t.id === 'speed'), `${phone}: HUD targets pause, speed, ult0-3 and eye0-3 exist (${list.map((t) => t.id).join(',')})`);
-    await shot(p, phone, 'fight');
+    await hudAudit(p, phone, 'fight'); await shot(p, phone, 'fight');
     const auto = await p.evaluate(() => { __sim(10); const ev = window.__ev; return { attacks: ev.filter((e) => e.n === 'sim:attack').length, s1: ev.filter((e) => e.n === 'sim:cast' && e.slot === 's1').length, s2: ev.filter((e) => e.n === 'sim:cast' && e.slot === 's2').length, ults: ev.filter((e) => e.n === 'sim:ult').length, t: __G.B.t, heroes: __G.B.heroes.filter((u) => u.cast || u.casts).length }; });
     check(auto.attacks > 10 && auto.s1 > 0 && auto.s2 > 0, `${phone}: heroes fight on their own over ${auto.t.toFixed(0)}s: ${auto.attacks} attacks, ${auto.s1} skill-1 casts, ${auto.s2} skill-2 casts`);
     check(auto.ults === 0, `${phone}: nobody casts an ultimate by themselves: ${auto.ults} ult events`);
@@ -127,6 +145,27 @@ try {
     check(sp === 2, `${phone}: the speed button switches to x2 (speed ${sp})`);
     await tapId(p, 'speed');
 
+    // home settings: the account-delete button and the fullscreen switch exist only when their providers do
+    await p.evaluate(() => { delete __G.openAccountDelete; delete __G.fullscreen; __G.openSettings(); __step(30); });
+    let sl = await targets(p); let sids = sl.map((t) => t.id);
+    check(!sids.includes('acct-delete') && !sids.includes('set-fullscreen') && sids.includes('set-shake') && sids.includes('set-autoult'), `${phone} settings without providers: no acct-delete, no set-fullscreen (${sids.join(',')})`);
+    await tapId(p, 'resume'); await step(p, 30);
+    await p.evaluate(() => { window.__del = 0; __G.openAccountDelete = () => { window.__del++; }; __G.fullscreen = { on: false, supported: true, toggle() { this.on = !this.on; } }; __G.openSettings(); __step(30); });
+    sl = await checkTargets(p, phone, 'home settings'); sids = sl.map((t) => t.id);
+    check(sids.includes('acct-delete') && sids.includes('set-fullscreen') && !sids.includes('retry'), `${phone} home settings with providers: acct-delete and set-fullscreen present, no retry (${sids.join(',')})`);
+    { const del = sl.find((t) => t.id === 'acct-delete'), others = sl.filter((t) => t.id !== 'acct-delete'), k = await frameK(p);
+      const near = others.filter((t) => Math.hypot((t.x + t.w / 2) - (del.x + del.w / 2), (t.y + t.h / 2) - (del.y + del.h / 2)) < 70 * k).map((t) => t.id);
+      check(del.x / k > 390 && del.y / k > 200 && near.length === 0, `${phone}: acct-delete sits bottom-right at ${(del.x / k).toFixed(0)},${(del.y / k).toFixed(0)}, controls within 70 design px: ${near.join(',') || 'none'}`); }
+    await shot(p, phone, 'settings');
+    await tapId(p, 'set-fullscreen'); await step(p, 5);
+    check(await p.evaluate(() => __G.fullscreen.on), `${phone}: the fullscreen switch calls game.fullscreen.toggle()`);
+    await p.evaluate(() => { __G.fullscreen.supported = false; }); await tapId(p, 'resume'); await step(p, 30);
+    await p.evaluate(() => { __G.openSettings(); __step(30); });
+    check(!(await targets(p)).some((t) => t.id === 'set-fullscreen'), `${phone}: set-fullscreen hidden when supported is false`);
+    await tapId(p, 'acct-delete'); check((await p.evaluate(() => window.__del)) === 1, `${phone}: acct-delete calls game.openAccountDelete()`);
+    await tapId(p, 'resume'); await step(p, 30);
+    await p.evaluate(() => { delete __G.openAccountDelete; delete __G.fullscreen; });
+
     // errors, scale
     const fin = await p.evaluate(() => ({ errors: (window.__errors || []).slice(0, 3), scale: __stats.scale }));
     const probs = a.problems.filter((s) => !foreign(s));
@@ -138,12 +177,14 @@ try {
     const b = await open(br, srv.base, phone, BASE + '&wave=5'); const bp = b.page;
     await bp.evaluate(() => { __sim(6); __step(60); });
     const bs = await bp.evaluate(() => { const B = __G.B, u = B.byUid.get(B.boss), d = __G.screens.hud.dbg(); return { alive: !!(u && u.alive), name: u && u.def.name, d }; });
-    check(bs.alive && bs.d.bossShown && bs.d.bossName === bs.name && bs.d.bossY > 80, `${phone}: wave 5 shows the boss bar for "${bs.name}" (alive ${bs.alive}, bar "${bs.d.bossName}", y ${bs.d.bossY.toFixed(0)})`);
-    check(bs.d.banners.includes('boss') || true, 'boss banner');
+    check(bs.alive && bs.d.bossShown && bs.d.bossName === bs.name && bs.d.bossY > 40, `${phone}: wave 5 shows the boss bar for "${bs.name}" (alive ${bs.alive}, bar "${bs.d.bossName}", y ${bs.d.bossY.toFixed(0)})`);
+    { const br2 = await bp.evaluate(() => __G.screens.hud.dbg().bannerRects.filter((r) => r.age === 99)[0]); check(br2 && br2.w <= 300 && br2.y + br2.h < 70, `${phone}: boss bar rectangle ${br2 && JSON.stringify(br2)} is at most 300 wide and ends above y 70`); }
+    await hudAudit(bp, phone, 'boss wave');
     await shot(bp, phone, 'boss');
     await bp.evaluate(() => { __G.spectate(__G.B.boss); __step(70); });
     await shot(bp, phone, 'spec-boss');
     check((await bp.evaluate(() => __G.screens.hud.dbg().specShown)), `${phone}: spectating the boss shows the spectate controls`);
+    await hudAudit(bp, phone, 'spectate');
     const bl = await checkTargets(bp, phone, 'spectate');
     check(['spec-prev', 'spec-next', 'spec-all'].every((id) => bl.some((t) => t.id === id)), `${phone}: spectate has previous, next and overview buttons`);
     await tapId(bp, 'spec-next'); await step(bp, 5);
@@ -169,7 +210,7 @@ try {
         if (watch && i === 3) {
           const k = await frameK(cp), box = await cp.locator('#frame').boundingBox();
           await cp.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.4); await cp.mouse.down(); await cp.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.6, { steps: 8 }); await cp.mouse.up();
-          await cp.touchscreen.tap(box.x + box.width * 0.5, box.y + box.height * 0.45); await cp.touchscreen.tap(box.x + box.width * 0.2, box.y + box.height * 0.3);
+          await tapAt(cp, box.x + box.width * 0.5, box.y + box.height * 0.45); await tapAt(cp, box.x + box.width * 0.2, box.y + box.height * 0.3);
           void k;
         }
       }
@@ -185,6 +226,19 @@ try {
     check(same, `${phone}: taps and drags while spectating leave every sim position unchanged against a twin run (${A.snap.length} units compared)`);
     check(A.back && A.back.mode === 'overview' && A.back.w === 0, `${phone}: tapping eye1 again returns to the overview (mode ${A.back && A.back.mode})`);
     check(A.problems.length === 0 && A.errors === 0 && T.errors === 0, `${phone}: spectate runs have no errors`);
+
+    // damage numbers: a burst is one number, never two with the same text side by side
+    { const n = await open(br, srv.base, phone, BASE.replace('stage=1', 'stage=8') + '&autoult=1&autopick=1'); const np = n.page;
+      const r = await np.evaluate(() => {
+        const hud = __G.screens.hud; let samples = 0, dup = 0, seen = 0, max = 0; const ex = [];
+        for (let i = 0; i < 300 && __G.B.phase !== 'won' && __G.B.phase !== 'lost'; i++) {
+          __sim(0.1); __step(6); const d = hud.dbg(); samples++; seen += d.numbers ? 1 : 0; max = Math.max(max, d.numbers);
+          const l = d.numberList; for (let a = 0; a < l.length; a++) for (let b = a + 1; b < l.length; b++) if (l[a].text === l[b].text && Math.hypot(l[a].x - l[b].x, l[a].y - l[b].y) < 40) { dup++; if (ex.length < 3) ex.push(`${l[a].text}@${l[a].x.toFixed(0)},${l[a].y.toFixed(0)}/${l[b].x.toFixed(0)},${l[b].y.toFixed(0)}`); }
+        }
+        return { samples, dup, seen, max, ex };
+      });
+      check(r.samples >= 250 && r.seen > 20 && r.dup === 0, `${phone}: over ${r.samples} samples of stage 8 (numbers on screen in ${r.seen}, at most ${r.max}) ${r.dup} identical-text pairs within 40 design px ${r.ex.join(' ')}`);
+      await n.ctx.close(); }
 
     // 8: win flow
     const w = await open(br, srv.base, phone, BASE + '&autoult=1&autopick=1'); const wp = w.page;
@@ -212,5 +266,5 @@ try {
     await w.ctx.close();
   }
 } finally { await br.close(); srv.close(); }
-try { sheet(shots.filter((f) => /s22/.test(f)), path.join(OUT, 'sheet-s22.png'), 5, 300); sheet(shots.filter((f) => /xiaomi/.test(f)), path.join(OUT, 'sheet-xiaomi.png'), 5, 300); } catch (e) { console.log('sheet not written: ' + e.message); }
+try { const LAND = path.join(ROOT, '.chk', 'landscape'); fs.mkdirSync(LAND, { recursive: true }); for (const ph of ['s22', 'xiaomi', 'desktop']) sheet(shots.filter((f) => f.includes(ph + '-')), path.join(LAND, `battle-ui-${ph}.png`), 3, 520); } catch (e) { console.log('sheet not written: ' + e.message); }
 done();
