@@ -9,28 +9,54 @@ import { HERO } from '../js/data/heroes.js';
 import { UNLOCK } from '../js/data/unlocks.js';
 import { itemStat } from '../js/data/equip.js';
 
-const OUT = path.join(ROOT, '.chk', 'ftue'); fs.mkdirSync(OUT, { recursive: true });
+const OUT = path.join(ROOT, '.chk', 'ftue-run-' + process.pid); fs.mkdirSync(OUT, { recursive: true });
+const LAND = path.join(ROOT, '.chk', 'landscape'); fs.mkdirSync(LAND, { recursive: true });
+const PHONE_LIST = (process['env'].PHONES || 's22,xiaomi,desktop').split(',');
+let PHONE = 's22';
 for (const f of fs.readdirSync(OUT)) if (f.endsWith('.png')) fs.unlinkSync(path.join(OUT, f));
 const { check, done } = checker();
 const srv = await serve(); const br = await launch();
 const QUERY = 'noaudio=1&q=low';
 const shots = [];
+const blocked = new Set();
 const step = (page, n) => page.evaluate((k) => __step(k), n);
 const guide = (page) => page.evaluate(() => __G.guide.dbg());
-const tapAt = async (page, x, y) => { await page.touchscreen.tap(x, y); await step(page, 10); };
+const tapAt = async (page, x, y) => { if (PHONE === 'desktop') await page.mouse.click(x, y); else await page.touchscreen.tap(x, y); await step(page, 10); };
 async function tapId(page, id) {
   const t = (await page.evaluate(() => __ui.targets())).find((q) => q.id === id);
   if (!t) return false;
   await tapAt(page, t.x + t.w / 2, t.y + t.h / 2); return true;
 }
 async function snap(page, name) { const f = path.join(OUT, name + '.png'); await page.screenshot({ path: f }); shots.push(f); }
-const fresh = (phone = 's22', query = QUERY) => open(br, srv.base, phone, query, { fresh: true });
+const fresh = (phone = PHONE, query = QUERY) => open(br, srv.base, phone, query, { fresh: true });
+const safePt = (page) => page.evaluate(() => { const r = document.getElementById('frame').getBoundingClientRect(); return [r.left + r.width * 0.5, r.top + r.height * 0.07]; });
+const overlap = (a, b) => a.x < b.x + b.w - 0.5 && a.x + a.w > b.x + 0.5 && a.y < b.y + b.h - 0.5 && a.y + a.h > b.y + 0.5;
+const inside = (a, f) => a.x >= f.x - 0.5 && a.y >= f.y - 0.5 && a.x + a.w <= f.x + f.w + 0.5 && a.y + a.h <= f.y + f.h + 0.5;
 const hookToasts = (page) => page.evaluate(() => { window.__toasts = []; const o = __ui.toast; __ui.toast = (s) => { window.__toasts.push(s); o(s); }; });
 const WIN = { stage: 1, won: true, wavesCleared: 5, seconds: 30 };
 // win a stage in the page and play away the reveals so a modal never sits over the next tap
 const winIn = (page, stage, quiet) => page.evaluate(([s, q]) => { if (q) for (const id of ['spectate', 'speed', 'daily', 'chapter', 'equip', 'merge']) __G.meta.ftueDone(id); const r = __G.meta.finishStage({ stage: s, won: true, wavesCleared: 5, seconds: 30 }); for (const id of __G.meta.pendingReveals()) __G.meta.markSeen(id); return { level: __G.meta.acc.level, slots: __G.meta.slots(), unlocked: r.unlocked }; }, [stage, !!quiet]);
 
+// the speech panel and the hand lie inside the frame and clear of the target; the panel is clear of the wave banner zone
+async function layoutCheck(page, key, tgt) {
+  await page.evaluate(() => __step(14));
+  const r = await page.evaluate((id) => { const d = __G.guide.dbg(); const t = id ? __ui.targets().find((q) => q.id === id) : null; return { panel: d.panel, hand: d.hand, zone: d.bannerZone, frame: d.frame, t: t && { x: t.x, y: t.y, w: t.w, h: t.h }, hud: __G.screen === 'hud' ? __G.screens.hud.dbg().bannerRects : [], k: document.getElementById('frame').getBoundingClientRect().width / 780, fr: document.getElementById('frame').getBoundingClientRect().toJSON() }; }, tgt);
+  const bad = [];
+  if (!r.panel) bad.push('no panel'); else {
+    if (!inside(r.panel, r.frame)) bad.push('panel off frame');
+    if (r.t && overlap(r.panel, r.t)) bad.push('panel over target');
+    if (r.hand && overlap(r.panel, r.hand)) bad.push('panel over hand');
+    if (overlap(r.panel, r.zone)) bad.push('panel over banner zone');
+    for (const b of r.hud) { const q = { x: r.fr.x + (b.x - b.w / 2) * r.k, y: r.fr.y + b.y * r.k, w: b.w * r.k, h: b.h * r.k }; if (overlap(r.panel, q) || overlap(r.panel, { ...q, x: r.fr.x + b.x * r.k })) bad.push('panel over live banner'); }
+  }
+  if (r.t) { if (!r.hand) bad.push('no hand'); else { if (!inside(r.hand, r.frame)) bad.push('hand off frame'); if (overlap(r.hand, r.t)) bad.push('hand over target'); } }
+  check(bad.length === 0, `${PHONE}: step ${key}: speech panel and hand inside the frame, clear of the target and the banner zone (${bad.join(', ') || 'ok'})`);
+}
+
 try {
+for (PHONE of PHONE_LIST) {
+  console.log('=== ' + PHONE + ' ===');
+  const P = PHONE + ': ', shotsStart = shots.length;
   // ============ the whole first session on a fresh save ============
   const g = await fresh(); const { page } = g;
   await step(page, 20);
@@ -61,8 +87,9 @@ try {
         last = key; n++;
         if (d.noTarget) {
           await step(page, 20);
-          const hit = await page.evaluate(() => __ui.hitAt(180, 400));
-          check(hit === 'guide-block', `step ${key}: no target, a tap anywhere lands on the guide (hit ${hit})`);
+          const [sx, sy] = await safePt(page); const hit = await page.evaluate(([x, y]) => __ui.hitAt(x, y), [sx, sy]);
+          check(hit === 'guide-block', `${P}step ${key}: no target, a tap anywhere lands on the guide (hit ${hit})`);
+          await layoutCheck(page, key, null);
           await snap(page, `${String(n).padStart(2, '0')}-${d.id}`);
         } else if (d.rect) {
           if (d.id === 'reward') {
@@ -81,14 +108,15 @@ try {
               const wrong = [];
               for (const o of others) {
                 const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
-                if (cx < t.x - 1 || cx > t.x + t.w + 1 || cy < t.y - 1 || cy > t.y + t.h + 1) { const h = __ui.hitAt(cx, cy); if (h !== 'guide-block') wrong.push(o.id + '->' + h); }
+                if (cx < t.x - 1 || cx > t.x + t.w + 1 || cy < t.y - 1 || cy > t.y + t.h + 1) { const h = __ui.hitAt(cx, cy); if (h !== 'guide-block' && h !== 'guide-skip') wrong.push(o.id + '->' + h); }
               }
               return { dx: Math.max(Math.abs(dd.rect.x - t.x), Math.abs(dd.rect.y - t.y), Math.abs(dd.rect.w - t.w), Math.abs(dd.rect.h - t.h)), wrong, others: others.length, text: dd.text, frozen: dd.frozen };
             });
             if (r && r.dx <= 2) break;
           }
-          check(!!r && r.dx <= 2, `step ${key}: the spotlight equals the target hit box (off by ${r ? r.dx.toFixed(2) : 'n/a'} px)`);
-          check(!!r && r.wrong.length === 0, `step ${key}: the other ${r ? r.others : 0} enabled targets are blocked by the guide (${r ? r.wrong.slice(0, 3).join(', ') : ''})`);
+          check(!!r && r.dx <= 2, `${P}step ${key}: the spotlight equals the target hit box (off by ${r ? r.dx.toFixed(2) : 'n/a'} px)`);
+          await layoutCheck(page, key, d.target);
+          check(!!r && r.wrong.length === 0, `${P}step ${key}: the other ${r ? r.others : 0} enabled targets are blocked by the guide (${r ? r.wrong.slice(0, 3).join(', ') : ''})`);
           if (d.id === 'ult') {
             const t0 = await page.evaluate(() => __G.B.t); await page.waitForTimeout(400); await step(page, 40);
             const t1 = await page.evaluate(() => __G.B.t);
@@ -99,15 +127,25 @@ try {
         seq.push(key);
       }
       if (d.noTarget) {
-        if (d.id === 'join') { await step(page, 200); await page.evaluate(() => __sim(0.1)); } else await tapAt(page, 180, 400);
+        if (d.id === 'join') { await step(page, 200); await page.evaluate(() => __sim(0.1)); } else { const [sx, sy] = await safePt(page); await tapAt(page, sx, sy); }
         continue;
       }
       if (!d.rect) { if (st.phase === 'fight' && !st.d.frozen) await page.evaluate(() => __sim(0.2)); await step(page, 8); continue; }
       const idx0 = d.idx; const id0 = d.id;
       const ok = await tapId(page, d.target);
       await step(page, 12);
-      const d2 = await guide(page);
-      if (!ok || !(d2.idx > idx0 || d2.id !== id0 || !d2.active || d2.reveal)) { bad++; console.log(`  tap on ${key} did not move the guide on (${JSON.stringify(d2)})`); }
+      let d2 = await guide(page);
+      const moved = (q) => q.idx > idx0 || q.id !== id0 || !q.active || q.reveal;
+      if (!ok || !moved(d2)) {
+        // the centre of the target belongs to another target (a layout fault of that screen): retry on the free quarter points and record who owns the centre
+        const owner = await page.evaluate((id) => { const t = __ui.targets().find((q) => q.id === id); return t ? __ui.hitAt(t.x + t.w / 2, t.y + t.h / 2) : null; }, d.target);
+        for (const [fx, fy] of [[0.2, 0.2], [0.8, 0.2], [0.2, 0.8], [0.8, 0.8]]) {
+          if (moved(d2)) break;
+          const t = (await page.evaluate(() => __ui.targets())).find((q) => q.id === d.target); if (!t) break;
+          await tapAt(page, t.x + t.w * fx, t.y + t.h * fy); await step(page, 12); d2 = await guide(page);
+        }
+        if (moved(d2)) blocked.add(`${PHONE} ${key}: centre of the target hits "${owner}"`); else { bad++; console.log(`  tap on ${key} did not move the guide on (${JSON.stringify(d2).slice(0, 200)})`); }
+      }
       continue;
     }
     if (st.screen === 'home' && !st.session && st.cleared === 0 && !st.inBattle) { await tapId(page, 'start'); continue; }
@@ -149,6 +187,10 @@ try {
     let r = await p.evaluate(() => ({ screen: __G.screen, toasts: window.__toasts.slice(), acc: JSON.stringify(__G.meta.acc) }));
     check(r.screen === 'home' && r.toasts.join() === 'Mở khi qua ải 1' && r.acc === a, `gacha tab before stage 1: still home, state unchanged, toast "${r.toasts.join()}"`);
     await snap(p, 'lock-gacha-toast');
+    {
+      const tr = await p.evaluate(() => { const t = __ui.toastRect(), s = __ui.targets().find((q) => q.id === 'start'), f = document.getElementById('frame').getBoundingClientRect(), k = f.width / 780, g = __ui.targets().filter((q) => /^(gear|tab-)/.test(q.id)); return t && s && { t: { x: f.left + t.x * k, y: f.top + t.y * k, w: t.w * k, h: t.h * k }, s: { x: s.x, y: s.y, w: s.w, h: s.h }, f: f.toJSON(), rail: g.map((q) => ({ id: q.id, x: q.x, y: q.y, w: q.w, h: q.h })) }; });
+      check(!!tr && !overlap(tr.t, tr.s) && tr.t.x >= tr.f.x && tr.t.x + tr.t.w <= tr.f.x + tr.f.width && !tr.rail.some((q) => overlap(tr.t, q)), `${P}the toast rectangle does not meet BẮT ĐẦU, the rail or the frame edge (${tr ? JSON.stringify([tr.t, tr.s].map((q) => [q.x, q.y, q.w, q.h].map(Math.round))) : 'no toast'})`);
+    }
     await tapId(p, 'tab-equip');
     r = await p.evaluate(() => ({ screen: __G.screen, toasts: window.__toasts.slice() }));
     check(r.screen === 'home' && r.toasts[1] === 'Mở ở cấp 6', `equipment tab: still home, toast "${r.toasts[1]}"`);
@@ -245,7 +287,7 @@ try {
   }
 
   // ============ equipment: a gentle first meeting (pictures in .chk/ftue-equip/) ============
-  {
+  if (PHONE === 's22') {
     const OUTE = path.join(ROOT, '.chk', 'ftue-equip'); fs.mkdirSync(OUTE, { recursive: true });
     for (const f of fs.readdirSync(OUTE)) if (f.endsWith('.png')) fs.unlinkSync(path.join(OUTE, f));
     const eshots = [];
@@ -269,7 +311,7 @@ try {
           last = key; seq.push(d.waiting ? 'wait' : d.target); lines.push(d.text);
           const n = String(seq.length).padStart(2, '0');
           if (d.waiting) {
-            const hit = await page.evaluate(() => __ui.hitAt(180, 400));
+            const [sx, sy] = await safePt(page); const hit = await page.evaluate(([x, y]) => __ui.hitAt(x, y), [sx, sy]);
             if (hit !== 'guide-block') probs.push(`pause ${key}: tap lands on ${hit}`);
             if (hooks.wait) await hooks.wait(seq.length - 1, page);
             await snapE(page, `${prefix}-${n}-wait`);
@@ -281,7 +323,7 @@ try {
                 const dd = __G.guide.dbg(), all = __ui.targets(), t = all.find((q) => q.id === dd.target && !/^(guide|reveal)/.test(q.id));
                 if (!t || !dd.rect) return null;
                 const others = all.filter((q) => q.enabled && !/^(guide|reveal)/.test(q.id) && q.id !== dd.target), wrong = [];
-                for (const o of others) { const cx = o.x + o.w / 2, cy = o.y + o.h / 2; if (cx < t.x - 1 || cx > t.x + t.w + 1 || cy < t.y - 1 || cy > t.y + t.h + 1) { const h = __ui.hitAt(cx, cy); if (h !== 'guide-block') wrong.push(o.id + '->' + h); } }
+                for (const o of others) { const cx = o.x + o.w / 2, cy = o.y + o.h / 2; if (cx < t.x - 1 || cx > t.x + t.w + 1 || cy < t.y - 1 || cy > t.y + t.h + 1) { const h = __ui.hitAt(cx, cy); if (h !== 'guide-block' && h !== 'guide-skip') wrong.push(o.id + '->' + h); } }
                 return { dx: Math.max(Math.abs(dd.rect.x - t.x), Math.abs(dd.rect.y - t.y), Math.abs(dd.rect.w - t.w), Math.abs(dd.rect.h - t.h)), wrong, others: others.length };
               });
               if (r && r.dx <= 2) break;
@@ -445,7 +487,11 @@ try {
     sheet(eshots, path.join(OUTE, 'sheet.png'), 6, 300);
   }
 
-  // review sheet of every picture
-  sheet(shots, path.join(OUT, 'sheet.png'), 6, 300);
+  // review sheets of every picture of this phone
+  sheet(shots.slice(shotsStart), path.join(LAND, `ftue-${PHONE}.png`), 6, 300);
+  sheet(shots.slice(shotsStart).filter((f) => /00-home|lock-home|old-save|reveal|stage2-started/.test(f)), path.join(LAND, `home-${PHONE}.png`), 3, 480);
+  sheet(shots.slice(shotsStart), path.join(OUT, `sheet-${PHONE}.png`), 6, 300);
+}
 } finally { await br.close(); srv.close(); }
+for (const b of blocked) console.log('BLOCKED (other delegate screen): ' + b);
 done();

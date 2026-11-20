@@ -1,5 +1,5 @@
 // 3D UI kit: every panel, button, tile and HUD piece is a lit three.js mesh drawn over the battle by its own
-// orthographic scene. Design units are CSS px of a 360 wide frame (x right, y DOWN, origin top-left). A node's
+// orthographic scene. Design units are CSS px of a 780 wide landscape frame (780 x 360 at the S22 ratio) (x right, y DOWN, origin top-left). A node's
 // own origin is its top-left corner; world y is the negative of design y.
 import { makeGeo } from './kit-geo.js?v=20261120c';
 import { makeText } from './kit-text.js?v=20261120c';
@@ -22,9 +22,9 @@ function stepSpring(s, dt, k = 300, c = 19) {
 
 export function createUI({ THREE, renderer, frame }) {
   const geo = makeGeo(THREE);
-  const ui = { THREE, PAL, W: 360, H: 780, u: 1, dpr: 1, t: 0, drawCalls: 0 };
+  const ui = { THREE, PAL, W: 780, H: 360, u: 1, dpr: 1, t: 0, drawCalls: 0 };
   const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera(0, 360, 0, -780, 0.1, 2400); camera.position.z = 1200;
+  const camera = new THREE.OrthographicCamera(0, 780, 0, -360, 0.1, 2400); camera.position.z = 1200;
   const lights = [];
   { // one key light from the top-left, a fill from the lower right, a soft ambient; lights reach every layer
     const key = new THREE.DirectionalLight(0xfff3e0, 2.5); key.position.set(-0.5, 0.75, 1);
@@ -135,10 +135,10 @@ export function createUI({ THREE, renderer, frame }) {
     near.sort((a, b) => Math.hypot(dx - a.hb.x - a.hb.w / 2, dy - a.hb.y - a.hb.h / 2) - Math.hypot(dx - b.hb.x - b.hb.w / 2, dy - b.hb.y - b.hb.h / 2));
     return near[0] || null;
   }
-  const toDesign = (cx, cy) => { const r = frame.getBoundingClientRect(); return [(cx - r.left) / (r.width / 360), (cy - r.top) / (r.width / 360)]; };
+  const toDesign = (cx, cy) => { const r = frame.getBoundingClientRect(); return [(cx - r.left) / (r.width / 780), (cy - r.top) / (r.width / 780)]; };
   ui.hitAt = (cx, cy) => { const [dx, dy] = toDesign(cx, cy); const e = pick(dx, dy); return e ? e.t.id : null; };
   ui.targets = () => {
-    const r = frame.getBoundingClientRect(), k = r.width / 360;
+    const r = frame.getBoundingClientRect(), k = r.width / 780;
     return liveTargets().map((e) => ({ id: e.t.id, x: r.left + e.hb.x * k, y: r.top + e.hb.y * k, w: e.hb.w * k, h: e.hb.h * k, enabled: e.t.enabled, screen: e.s.screenName }));
   };
   ui.node = (id) => { for (const t of targets) if (t.id === id) return t.node; return null; };
@@ -164,7 +164,7 @@ export function createUI({ THREE, renderer, frame }) {
     const dist = Math.hypot(e.clientX - down.x0, e.clientY - down.y0);
     if (!down.drag && dist > 10) { down.drag = true; if (down.hit) { down.hit.t.press(false); } down.dead = true; }
     if (down.drag && down.scroll) {
-      const k = frame.getBoundingClientRect().width / 360, now = performance.now(), dyp = (e.clientY - down.lastY) / k;
+      const k = frame.getBoundingClientRect().width / 780, now = performance.now(), dyp = (e.clientY - down.lastY) / k;
       down.scroll.drag(-dyp); const dtm = Math.max(1, now - down.lastT); down.v = down.v * 0.6 + (-dyp / dtm * 1000) * 0.4; down.lastY = e.clientY; down.lastT = now;
     }
   });
@@ -178,7 +178,7 @@ export function createUI({ THREE, renderer, frame }) {
   };
   frame.addEventListener('pointerup', (e) => end(e, false));
   frame.addEventListener('pointercancel', (e) => end(e, true));
-  frame.addEventListener('wheel', (e) => { const [dx, dy] = toDesign(e.clientX, e.clientY), s = scrollAt(dx, dy); if (s) { s.scrollBy(e.deltaY / (frame.getBoundingClientRect().width / 360)); e.preventDefault(); } }, { passive: false });
+  frame.addEventListener('wheel', (e) => { const [dx, dy] = toDesign(e.clientX, e.clientY), s = scrollAt(dx, dy); if (s) { s.scrollBy(e.deltaY / (frame.getBoundingClientRect().width / 780)); e.preventDefault(); } }, { passive: false });
 
   // squash-and-spring press response shared by every pressable node
   function pressable(g, sp, onUpdate) {
@@ -417,11 +417,11 @@ export function createUI({ THREE, renderer, frame }) {
 
   // ---------- screens ----------
   let seq = 0;
-  function layoutScreen(s) { s.pivot.position.set(180, -ui.H / 2, 0); s.holder.position.set(-180, ui.H / 2, 0); s.h = ui.H; }
+  function layoutScreen(s) { s.pivot.position.set(390, -ui.H / 2, 0); s.holder.position.set(-390, ui.H / 2, 0); s.h = ui.H; }
   ui.screen = (name, o = {}) => {
     if (screens.has(name)) return screens.get(name);
     const root = new THREE.Group(), pivot = new THREE.Group(), holder = new THREE.Group(); root.add(pivot); pivot.add(holder);
-    Object.assign(root, { isScreen: true, screenName: name, modal: !!o.modal, pivot, holder, w: 360, h: ui.H, seq: 0, hiding: false, ax: null });
+    Object.assign(root, { isScreen: true, screenName: name, modal: !!o.modal, pivot, holder, w: 780, h: ui.H, seq: 0, hiding: false, ax: null });
     root.visible = false; root.put = (c, x = 0, y = 0, z = 0) => { holder.add(c); c.pos ? c.pos(x, y, z) : c.position.set(x, -y, z); return c; };
     root.slot = holder; scene.add(root); screens.set(name, root); layoutScreen(root); return root;
   };
@@ -453,13 +453,15 @@ export function createUI({ THREE, renderer, frame }) {
   // ---------- toast and floating numbers ----------
   const overlay = mkNode(); overlay.position.z = 1000; scene.add(overlay);
   let toast = null;
+  ui.toastAt = { x: 390, y: 62 };
   ui.toast = (str) => {
     if (toast) { toast.g.dispose(); toast = null; }
     const t = ui.text(str, { size: 13, valign: 'mid', align: 'center' }), w = Math.min(330, t.w + 34), h = 34, g = new THREE.Group(), holder = new THREE.Group();
     const p = ui.panel({ w, h, r: 17, color: 0x3a2a70, depth: 4, bevel: 2.4, ow: 2.4 }); holder.add(p); holder.add(t); t.pos(w / 2, h / 2 + 1, 10); holder.position.set(-w / 2, h / 2, 0); g.add(holder);
-    g.position.set(180, -(ui.H - 176), 0); g.dispose = () => { p.dispose(); t.dispose(); g.parent && g.parent.remove(g); }; overlay.add(g); toast = { g, t: 0, w };
+    g.position.set(ui.toastAt.x, -ui.toastAt.y, 0); g.dispose = () => { p.dispose(); t.dispose(); g.parent && g.parent.remove(g); }; overlay.add(g); toast = { g, t: 0, w };
     g.scale.setScalar(0.01);
   };
+  ui.toastRect = () => (toast ? { x: ui.toastAt.x - toast.w / 2, y: ui.toastAt.y - 17, w: toast.w, h: 34 } : null);
   const flies = [];
   ui.fly = (str, x, y, o = {}) => {
     const t = ui.text(str, { size: o.size ?? 20, color: o.color ?? PAL.gold, align: 'center', valign: 'mid', outlineW: 2.6 }); overlay.add(t); t.pos(x, y, 0); flies.push({ n: t, x, y, t: 0 });
@@ -467,10 +469,10 @@ export function createUI({ THREE, renderer, frame }) {
 
   // ---------- frame ----------
   ui.resize = () => {
-    const w = frame.clientWidth || 360, h = frame.clientHeight || 780, dpr = renderer.getPixelRatio();
-    const same = Math.abs(ui.u - w / 360) < 1e-4 && ui.dpr === dpr;
-    ui.u = w / 360; ui.dpr = dpr; ui.H = h / ui.u;
-    camera.left = 0; camera.right = 360; camera.top = 0; camera.bottom = -ui.H; camera.updateProjectionMatrix();
+    const w = frame.clientWidth || 780, h = frame.clientHeight || 360, dpr = renderer.getPixelRatio();
+    const same = Math.abs(ui.u - w / 780) < 1e-4 && ui.dpr === dpr;
+    ui.u = w / 780; ui.dpr = dpr; ui.H = h / ui.u;
+    camera.left = 0; camera.right = 780; camera.top = 0; camera.bottom = -ui.H; camera.updateProjectionMatrix();
     for (const s of screens.values()) layoutScreen(s);
     for (const g of anchored) placeAnchored(g);
     if (!same) txt.reraster();

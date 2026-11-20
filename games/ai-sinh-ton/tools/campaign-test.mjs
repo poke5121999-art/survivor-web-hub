@@ -17,7 +17,7 @@ const step = (page, n) => page.evaluate((k) => __step(k), n);
 async function tap(page, id) {
   const t = (await targets(page)).find((q) => q.id === id);
   if (!t) return false;
-  await page.touchscreen.tap(t.x + t.w / 2, t.y + t.h / 2);
+  if (page.__desk) await page.mouse.click(t.x + t.w / 2, t.y + t.h / 2); else await page.touchscreen.tap(t.x + t.w / 2, t.y + t.h / 2);
   await step(page, 8);
   return true;
 }
@@ -32,7 +32,7 @@ const toHome = async (page) => { await page.evaluate(() => __G.goto('home')); aw
 
 async function audit(page, label) {
   const bad = await page.evaluate(() => {
-    const out = [], r = document.getElementById('frame').getBoundingClientRect(), k = r.width / 360;
+    const out = [], r = document.getElementById('frame').getBoundingClientRect(), k = r.width / 780;
     for (const t of __ui.targets()) {
       const hit = __ui.hitAt(t.x + t.w / 2, t.y + t.h / 2);
       if (t.w / k < 47.5 || t.h / k < 47.5) out.push(`${t.id} is ${(t.w / k).toFixed(1)}x${(t.h / k).toFixed(1)}`);
@@ -57,10 +57,10 @@ async function clip(page, label) {
 }
 
 try {
-  for (const phone of ['s22', 'xiaomi']) {
+  for (const phone of ['s22', 'xiaomi', 'desktop']) {
     // ---------- stage select ----------
     {
-      const g = await open(br, srv.base, phone, 'noaudio=1&q=low'); const { page } = g;
+      const g = await open(br, srv.base, phone, 'noaudio=1&q=low'); const { page } = g; page.__desk = phone === 'desktop';
       await step(page, 20);
       let nx = await target(page, 'stage-next'), pv = await target(page, 'stage-prev');
       check((await stageNow(page)) === 1 && nx && !nx.enabled && pv && !pv.enabled, `${phone}: cleared 0 shows only stage 1, stage-next locked (${nx && nx.enabled}), stage-prev locked (${pv && pv.enabled})`);
@@ -109,7 +109,7 @@ try {
 
     // ---------- next after stage 10 ----------
     {
-      const g = await open(br, srv.base, phone, 'noaudio=1&q=low'); const { page } = g;
+      const g = await open(br, srv.base, phone, 'noaudio=1&q=low'); const { page } = g; page.__desk = phone === 'desktop';
       await step(page, 20); await setCleared(page, 9); await toHome(page);
       check((await stageNow(page)) === 10, `${phone}: cleared 9 opens on stage 10`);
       await tap(page, 'start'); await step(page, 20);
@@ -126,7 +126,7 @@ try {
 
     // ---------- chapter chests ----------
     {
-      const g = await open(br, srv.base, phone, 'noaudio=1&q=low'); const { page } = g;
+      const g = await open(br, srv.base, phone, 'noaudio=1&q=low'); const { page } = g; page.__desk = phone === 'desktop';
       await step(page, 20); await realRules(page); await setCleared(page, 4);
       await page.evaluate(() => __G.goto('rewards')); await step(page, 30);
       const dots = () => page.evaluate(() => ({ badge: __G.metaUi.badges['tab-rewards'], rewards: __G.meta.dots().rewards }));
@@ -159,7 +159,7 @@ try {
       check(ch[1].state === 'ready' && d.badge, `${phone}: cleared 10 opens chapter 2 (${ch.map((c) => c.state).join()}), red dot ${d.badge}`);
       await setCleared(page, 30); await step(page, 30);
       await snap(page, phone, 'rewards-many'); await audit(page, `${phone} rewards many`);
-      await page.evaluate(() => { const f = document.getElementById('frame'), r = f.getBoundingClientRect(); f.dispatchEvent(new WheelEvent('wheel', { deltaY: 400, clientX: r.left + r.width / 2, clientY: r.top + r.height * 0.7, bubbles: true, cancelable: true })); }); await step(page, 30);
+      await page.evaluate(() => { const f = document.getElementById('frame'), r = f.getBoundingClientRect(); f.dispatchEvent(new WheelEvent('wheel', { deltaY: 400, clientX: r.left + r.width * 0.75, clientY: r.top + r.height * 0.6, bubbles: true, cancelable: true })); }); await step(page, 30);
       await snap(page, phone, 'rewards-scrolled'); await audit(page, `${phone} rewards scrolled`);
       const t5 = await target(page, 'chapter5'); check(!!t5, `${phone}: the sixth chest is reachable by scrolling`);
       await clip(page, `${phone} rewards`);
@@ -169,6 +169,6 @@ try {
     }
   }
   const keep = ['home-0', 'home-13', 'home-35', 'rewards-locked', 'rewards-ready', 'rewards-claimed', 'rewards-many', 'rewards-scrolled'];
-  for (const ph of ['s22', 'xiaomi']) { const fs2 = keep.map((k) => path.join(OUT, `${ph}-${k}.png`)).filter((f) => fs.existsSync(f)); if (fs2.length) sheet(fs2, path.join(OUT, `review-${ph}.png`), 4, 330); }
+  for (const ph of ['s22', 'xiaomi', 'desktop']) { const fs2 = keep.map((k) => path.join(OUT, `${ph}-${k}.png`)).filter((f) => fs.existsSync(f)); if (fs2.length) sheet(fs2, path.join(ROOT, '.chk', 'landscape', `campaign-${ph}.png`), 4, 330); }
 } finally { await br.close(); srv.close(); }
 done();

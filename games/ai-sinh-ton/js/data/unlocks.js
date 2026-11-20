@@ -158,10 +158,10 @@ export const LATER_GUIDES = {
     { id: 'equip-hero', line: 'Chọn tướng', only: 'multiHero' },
     { id: 'bag-first', line: 'Chạm món đồ mới' },
     { id: 'wear', line: 'Bấm MẶC' },
-    { wait: 2.2, line: 'Công tăng lên!', y: 410 },
+    { wait: 2.2, line: 'Công tăng lên!' },
     { id: 'slot-weapon', line: 'Chạm món vừa mặc' },
     { id: 'upgrade', line: 'Nâng cấp miễn phí' },
-    { wait: 2.6, line: 'Thắng ải để nhặt thêm trang bị', y: 410 },
+    { wait: 2.6, line: 'Thắng ải để nhặt thêm trang bị' },
   ] },
   merge: { text: 'Ghép 3 món giống nhau thành món bậc cao hơn', path: [
     { id: 'tab-equip', line: 'Mở Trang Bị' },

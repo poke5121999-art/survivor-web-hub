@@ -1,12 +1,13 @@
-// Thưởng tab: the daily chest (meta.claimDaily) and the list of chapter chests (meta.claimChapter). Trang Bị lives in equip.js.
-import { makeBackdrop, makeBurst, fmt, kill } from './home.js?v=20261120c';
+// Thưởng tab in landscape: the daily chest and its receipt in the left column, the list of chapter chests (meta.claimChapter)
+// in the right column. Trang Bị lives in equip.js.
+import { makeBackdrop, makeBurst, fmt, kill, RAIL } from './home.js?v=20261120c';
 import { HERO } from '../data/heroes.js?v=20261120c';
 import { lockButton } from './guide.js?v=20261120c';
 import { CHAPTERS } from '../data/stages.js?v=20261120c';
 import { TIERS } from '../data/equip.js?v=20261120c';
 import { ITEM_ICON } from './itemicons.js?v=20261120c';
 
-const CHEST_ROW = 70, LIST = { x: 15, y: 402, w: 330, h: 230 };
+const CHEST_ROW = 70, COLA = RAIL.content + 2, COLB = 388, LIST = { x: COLB, y: 66, w: 364, h: 282 };
 const ROW_COLOR = { locked: 0x453a78, ready: 0xd8892a, claimed: 0x2f7a62 };
 
 
@@ -36,34 +37,34 @@ export function createSoon(game) {
   const bdR = makeBackdrop(ui, 'rewards'); rewards.put(bdR, 0, 0, -40);
 
   // ---- Thưởng: daily chest ----
-  const tR = ui.text('THƯỞNG', { size: 26, align: 'center', upper: true, outlineW: 3.4 }); rewards.put(tR, 180, 62, 6); mui.regTitle('rewards', tR);
-  const frameP = ui.panel({ w: 330, h: 150, r: 22, color: 0x6a3a98, depth: 5, bevel: 3 }); rewards.put(frameP, 15, 102, 6);
+  const tR = ui.text('THƯỞNG', { size: 22, align: 'center', upper: true, outlineW: 3 }); rewards.put(tR, COLA + 132, 8, 6); mui.regTitle('rewards', tR);
+  const frameP = ui.panel({ w: 264, h: 124, r: 22, color: 0x6a3a98, depth: 5, bevel: 3 }); rewards.put(frameP, COLA, 42, 6);
   const chest = buildChest(ui.THREE), U = chest.userData;
-  const ccam = new ui.THREE.PerspectiveCamera(30, 318 / 138, 0.1, 50); ccam.position.set(0, 3.0, 10.4); ccam.lookAt(0, 0.9, 0);
-  const view = ui.viewport(chest, { w: 318, h: 138, r: 17, bg: 0x7a4aa8, fps: 24, camera: ccam, update: (dt) => cu(dt) });
+  const ccam = new ui.THREE.PerspectiveCamera(30, 252 / 112, 0.1, 50); ccam.position.set(0, 2.5, 8.2); ccam.lookAt(0, 0.8, 0);
+  const view = ui.viewport(chest, { w: 252, h: 112, r: 17, bg: 0x7a4aa8, fps: 24, camera: ccam, update: (dt) => cu(dt) });
   frameP.put(view, 6, 6, 1);
-  const daily = ui.button({ id: 'daily', w: 250, h: 66, color: PAL.green, label: 'NHẬN', sub: ' ', size: 19, pulse: true, onTap: claim }); rewards.put(daily, 55, 262, 6);
-  const dailyLock = ui.icon('lock', { size: 34, sway: false }); daily.put(dailyLock, 214, -10, 14);
-  const chipRow = ui.group({ w: 330, h: 44 }); rewards.put(chipRow, 15, 340, 6);
+  const daily = ui.button({ id: 'daily', w: 264, h: 56, color: PAL.green, label: 'NHẬN', sub: ' ', size: 19, pulse: true, onTap: claim }); rewards.put(daily, COLA, 174, 6);
+  const dailyLock = ui.icon('lock', { size: 30, sway: false }); daily.put(dailyLock, 226, -8, 14);
+  const chipRow = ui.group({ w: 264, h: 44 }); rewards.put(chipRow, COLA, 250, 6);
   const burst = makeBurst(ui); rewards.put(burst.node, 0, 0, 40);
 
   // ---- chapter chests: one scroll row per campaign chapter ----
-  const head = ui.text('RƯƠNG CHƯƠNG', { size: 14, color: 0xffe9a8, outlineW: 2.2, upper: true }); rewards.put(head, 20, 382, 6);
+  const head = ui.text('RƯƠNG CHƯƠNG', { size: 13, color: 0xffe9a8, outlineW: 2.2, upper: true }); rewards.put(head, COLB + 6, 46, 6);
   const sc = ui.scroll({ w: LIST.w, h: LIST.h }); rewards.put(sc, LIST.x, LIST.y, 4);
-  const lockCard = ui.panel({ w: 330, h: 150, r: 22, color: 0x4a3a86, depth: 4, bevel: 3 }); rewards.put(lockCard, 15, 440, 6);
-  lockCard.put(ui.icon('lock', { size: 64, sway: false }), 133, 16, 4);
-  const lockTxt = ui.text('', { size: 15, align: 'center', outlineW: 2.2 }); lockCard.put(lockTxt, 165, 100, 4);
+  const lockCard = ui.panel({ w: LIST.w, h: 150, r: 22, color: 0x4a3a86, depth: 4, bevel: 3 }); rewards.put(lockCard, COLB, 110, 6);
+  lockCard.put(ui.icon('lock', { size: 56, sway: false }), LIST.w / 2 - 28, 14, 4);
+  const lockTxt = ui.text('', { size: 15, align: 'center', outlineW: 2.2 }); lockCard.put(lockTxt, LIST.w / 2, 100, 4);
   const dim = (m, on) => { if (m.userData.c0 === undefined) m.userData.c0 = m.color.getHex(); m.color.setHex(on ? new ui.THREE.Color(m.userData.c0).multiplyScalar(0.5).getHex() : m.userData.c0); };
   const rows = CHAPTERS.map((ch, c) => {
-    const g = ui.group({ w: 322, h: 64 }); sc.put(g, 4, c * CHEST_ROW + 4, 0);
-    const panel = ui.panel({ w: 322, h: 64, r: 18, color: ROW_COLOR.locked, depth: 4, bevel: 2.6, ow: 2.6 }); g.put(panel, 0, 0, 0);
+    const g = ui.group({ w: 356, h: 64 }); sc.put(g, 4, c * CHEST_ROW + 4, 0);
+    const panel = ui.panel({ w: 356, h: 64, r: 18, color: ROW_COLOR.locked, depth: 4, bevel: 2.6, ow: 2.6 }); g.put(panel, 0, 0, 0);
     const cm = buildChest(ui.THREE), cu2 = cm.userData; cm.scale.setScalar(15); cm.position.set(36, -41, 22); cm.rotation.x = 0.3; g.add(cm);
     const mats = []; cm.traverse((o) => { if (o.isMesh && o.material.isMeshStandardMaterial) mats.push(o.material); });
     const lockI2 = ui.icon('lock', { size: 26, sway: false }); g.put(lockI2, 40, 28, 30);
     g.put(ui.text(ch.name, { size: 15, outlineW: 2.2, upper: true }), 70, 8, 8);
     g.put(ui.text('Chương ' + (c + 1) + ' - Qua ải ' + (c + 1) * 5, { size: 11.5, color: 0xffe9a8, outlineW: 1.6 }), 70, 28, 8);
     g.put(ui.text('300 ngọc, bản rèn, 1 đồ Hiếm', { size: 10, color: 0xe2d8ff, outlineW: 1.4 }), 70, 45, 8);
-    const btn = ui.button({ id: 'chapter' + c, w: 84, h: 48, r: 14, color: PAL.green, label: 'NHẬN', size: 14, onTap: () => claimChapter(c) }); g.put(btn, 232, 8, 8);
+    const btn = ui.button({ id: 'chapter' + c, w: 84, h: 48, r: 14, color: PAL.green, label: 'NHẬN', size: 14, onTap: () => claimChapter(c) }); g.put(btn, 262, 8, 8);
     const bl = ui.icon('lock', { size: 24, sway: false }); btn.put(bl, 62, -8, 14);
     return { g, panel, cm, cu2, mats, lockI2, btn, bl, lid: 0, state: '' };
   });
@@ -124,18 +125,18 @@ export function createSoon(game) {
   };
   function showReceipt(r) {
     clearChips(); mui.chapterReceipt = null;
-    chip('gem', '+' + fmt(r.gems), 92, 0); chip('gold', '+' + fmt(r.gold), 92, 100); chip('shard', '+' + r.shards + ' ' + HERO[r.hero].name, 128, 202);
+    chip('gem', '+' + fmt(r.gems), 80, 0); chip('gold', '+' + fmt(r.gold), 80, 84); chip('shard', '+' + r.shards + ' ' + HERO[r.hero].name, 96, 168);
   }
   function showChapterReceipt(r) {
     clearChips();
-    chip('gem', '+' + fmt(r.gems), 92, 0); chip('gear', '+' + r.mats + ' bản rèn', 124, 100);
-    const t = ui.tile({ size: 40, color: TIERS[r.item.tier].color, icon: ITEM_ICON(r.item.item) }); chipRow.put(t, 232, 2, 4); chips.push(t);
-    const nm = ui.text(TIERS[r.item.tier].name, { size: 11, outlineW: 1.6 }); chipRow.put(nm, 278, 14, 4); chips.push(nm);
+    chip('gem', '+' + fmt(r.gems), 80, 0); chip('gear', '+' + r.mats + ' bản rèn', 104, 84);
+    const t = ui.tile({ size: 40, color: TIERS[r.item.tier].color, icon: ITEM_ICON(r.item.item) }); chipRow.put(t, 192, 2, 4); chips.push(t);
+    const nm = ui.text(TIERS[r.item.tier].name, { size: 11, outlineW: 1.6 }); chipRow.put(nm, 236, 14, 4); chips.push(nm);
   }
   function claim() {
     if (!meta.unlocked('daily')) { ui.toast(meta.lockText('daily')); return; }
     const r = meta.claimDaily(); if (!r.ok) { ui.toast('Hôm nay đã nhận rồi'); return; }
-    setClaimed(true); showReceipt(r); burst.spawn(180, 190, 26, 0xffd21f, 190); game.vibrate && game.vibrate(20);
+    setClaimed(true); showReceipt(r); burst.spawn(COLA + 132, 104, 26, 0xffd21f, 190); game.vibrate && game.vibrate(20);
   }
   let dirty = true; meta.on(() => { dirty = true; });
   const mk = (name, scr, bd, onShow) => ({
