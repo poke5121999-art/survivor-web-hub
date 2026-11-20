@@ -1631,7 +1631,7 @@
     pane.appendChild(h("header", { class: "dz-pane__head" },
       h("h2", { class: "dz-pane__title", text: LIVE_TITLE }),
       h("p", { class: "dz-pane__blurb", text: "Chỉnh số trên DEV bằng các tab bảng như thường, rồi đẩy riêng các thông số \"nóng\" này lên LIVE trong vài giây, không cần snapshot mới." }),
-      h("p", { class: "dz-pane__effect" }, h("strong", { text: "Có hiệu lực: " }), "Người chơi nhận số mới ở lần đăng nhập hoặc lần vào ca kế tiếp (server áp sau tối đa 30 giây).")));
+      h("p", { class: "dz-pane__effect" }, h("strong", { text: "Có hiệu lực: " }), "Server áp ngay; người chơi nhận số mới ở lần đăng nhập hoặc lần vào ca kế tiếp.")));
     if (!st.loaded) { pane.appendChild(h("p", { class: "dz-loading", text: "Đang tải…" })); return; }
     if (st.error) { pane.appendChild(h("div", { class: "dz-notice dz-notice--warn", id: "live-error", role: "alert" }, h("span", { text: st.error }))); return; }
     if (st.notice) pane.appendChild(h("div", { class: "dz-notice", id: "live-notice", role: "status" }, h("span", { text: st.notice })));
@@ -1661,7 +1661,7 @@
     pushBtn.addEventListener("click", function () {
       var p = picked(); if (!p.length) return;
       var lines = p.map(function (r) { return liveLabel(r) + ": " + liveVal(r.live) + " → " + liveVal(r.dev); });
-      if (!confirm("Đẩy " + p.length + " mục lên LIVE?\n\n" + lines.join("\n") + "\n\nNgười chơi LIVE nhận số mới sau tối đa 30 giây.")) return;
+      if (!confirm("Đẩy " + p.length + " mục lên LIVE?\n\n" + lines.join("\n") + "\n\nServer LIVE áp ngay; người chơi nhận số mới ở lần đăng nhập hoặc vào ca kế tiếp.")) return;
       runLive("live_push", p.map(function (r) { return r.key; }), "Đã đẩy {n} mục lên LIVE");
     });
     clearBtn.addEventListener("click", function () {
@@ -1674,7 +1674,7 @@
       h("tbody", null, body)));
     pane.appendChild(h("div", { class: "dz-guard__actions" }, pushBtn, clearBtn,
       h("button", { class: "btn", id: "live-reload", type: "button", text: "Tải lại", onclick: function () { loadLive(true); } })));
-    pane.appendChild(h("p", { class: "dz-help", id: "live-help", text: "Người chơi nhận số mới ở lần đăng nhập hoặc lần vào ca kế tiếp (server áp sau tối đa 30 giây)." }));
+    pane.appendChild(h("p", { class: "dz-help", id: "live-help", text: "Server áp ngay; người chơi nhận số mới ở lần đăng nhập hoặc lần vào ca kế tiếp." }));
     paint();
   }
 

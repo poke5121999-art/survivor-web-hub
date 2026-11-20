@@ -947,9 +947,9 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   check('Đẩy LIVE: 3 dòng, chỉ dòng DEV ≠ LIVE được tick sẵn', lrows.length === 3 && lrows[0].checked && !lrows[1].checked && !lrows[2].checked, JSON.stringify(lrows.map(r => r.checked)));
   check('Đẩy LIVE: cột trạng thái 3 kiểu', lrows[0].status === 'theo snapshot' && /^ghi đè bởi a@x\.com lúc /.test(lrows[1].status) &&
     lrows[2].status === 'ghi đè hết hiệu lực: snapshot đã đổi', lrows.map(r => r.status).join(' | '));
-  check('Đẩy LIVE: dòng khác biệt được tô, nút ghi "Đẩy 1 mục lên LIVE", ghi chú 30 giây',
+  check('Đẩy LIVE: dòng khác biệt được tô, nút ghi "Đẩy 1 mục lên LIVE", ghi chú áp ngay',
     (await p.$eval('[data-key="shop_rules/default/goldCap.normal"]', e => e.classList.contains('dz-live-diff'))) &&
-    (await txt('#live-push')) === 'Đẩy 1 mục lên LIVE' && /tối đa 30 giây/.test(await txt('#live-help')), await txt('#live-push'));
+    (await txt('#live-push')) === 'Đẩy 1 mục lên LIVE' && /Server áp ngay/.test(await txt('#live-help')), await txt('#live-push'));
   const dl0 = dialogs.length;
   dialogNo = true; await p.click('#live-push'); dialogNo = false;
   check('Đẩy LIVE: hỏi xác nhận, liệt kê "nhãn: LIVE → DEV", huỷ thì không gọi', dialogs.length === dl0 + 1 &&
