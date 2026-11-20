@@ -22,7 +22,11 @@ const BOSSES = ['giant', 'thrower', 'phantom', 'queen', 'brood'];
 const PEAK_MIN = 1.2;
 const APART_MIN = 0.6;
 const LEFT_MAX = 0.02;
-const DIO_DRAWS_MAX = 999;
+// the diorama's own draw calls per campaign stage with the old boxed boss (measured, BEFORE). The five first bosses' real
+// models draw no more than the boxes did; the six kit bosses' real models are 65 to 115 meshes and draw up to 88 more (dragon
+// 121 -> 209, measured), so their growth is held at 90
+const DIO_DRAWS_BEFORE = [117, 91, 106, 93, 129, 97, 115, 91, 110, 112, 104, 91, 99, 107, 109, 91, 107, 93, 110, 121, 109, 79, 102, 88, 111, 89, 107, 105, 110, 121];
+const DIO_KIT_GROWTH = 90;
 
 const shot = async (page, file) => { await page.locator('#frame').screenshot({ path: path.join(OUT, file) }); return path.join(OUT, file); };
 // a close crop around the boss (its box through the battle camera, padded), the size a player sees it at on a phone
@@ -185,7 +189,7 @@ try {
           if (ref) ref.body.root.traverse((o) => { if (o.isMesh && o.geometry) refGeos.add(o.geometry.uuid); });
           let same = 0; for (const g of geos) if (refGeos.has(g)) same++;
           // the boss's box corners through the diorama camera, in the camera's -1..1 frame
-          const box = new THREE.Box3().setFromObject(b); const v = new THREE.Vector3(); let lo = [9, 9], hi = [-9, -9];
+          const box = new THREE.Box3(); b.traverseVisible((o) => { if (o.isMesh) box.expandByObject(o); }); const v = new THREE.Vector3(); let lo = [9, 9], hi = [-9, -9];
           for (let i = 0; i < 8; i++) { v.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).project(D.node.camera); lo = [Math.min(lo[0], v.x), Math.min(lo[1], v.y)]; hi = [Math.max(hi[0], v.x), Math.max(hi[1], v.y)]; }
           // the diorama's own draws: its scene rendered once into its target
           const vp = D.node.vp; const c0 = r.info.render.calls; r.setRenderTarget(vp.rt); r.render(vp.scene, vp.cam); r.setRenderTarget(null); const draws = r.info.render.calls - c0;
@@ -197,9 +201,16 @@ try {
         console.log(`  diorama s${n} ${kind}: ${m.geos} visible geometries, ${m.same} shared with a battle ${kind} body (found ${m.ref}), frame x ${m.lo[0].toFixed(2)}..${m.hi[0].toFixed(2)} y ${m.lo[1].toFixed(2)}..${m.hi[1].toFixed(2)}, height ${m.h.toFixed(2)}, diorama draws ${m.draws} (boss ${m.bossDraws}), home ui draws ${m.ui}`);
         check(m.ref && m.geos > 0 && m.same >= m.geos * 0.9, `diorama ${kind}: the boss is the battle model (${m.same} of ${m.geos} visible geometries are a battle ${kind} body's)`);
         check(m.lo[0] >= -0.95 && m.hi[0] <= 0.95 && m.lo[1] >= -0.95 && m.hi[1] <= 0.95, `diorama ${kind}: the boss stays inside the frame (x ${m.lo[0].toFixed(2)}..${m.hi[0].toFixed(2)}, y ${m.lo[1].toFixed(2)}..${m.hi[1].toFixed(2)}, within +-0.95)`);
-        check(m.draws <= DIO_DRAWS_MAX, `diorama ${kind}: ${m.draws} draw calls (<= ${DIO_DRAWS_MAX})`);
+        check(m.draws <= DIO_DRAWS_BEFORE[n - 1] + 2, `diorama ${kind}: ${m.draws} draw calls (<= ${DIO_DRAWS_BEFORE[n - 1]} + 2, the boxed boss's count)`);
       }
       sheet(files, path.join(OUT, `diorama-${TAG}.png`), 3, 520);
+      // the six kit bosses are dressed the same way: every campaign stage gets its boss on the diorama
+      const all = await page.evaluate(async () => { const D = window.__dio; const out = []; for (let n2 = 1; n2 <= 30; n2++) { D.dress(n2); D.step(0.5); const b = D.boss; let vis = 0; if (b) b.traverseVisible((o) => { if (o.isMesh) vis++; }); const r = window.__G.host.renderer; const vp = D.node.vp; const c0 = r.info.render.calls; r.setRenderTarget(vp.rt); r.render(vp.scene, vp.cam); r.setRenderTarget(null); out.push([n2, window.__G.stageDef(n2).boss, vis, r.info.render.calls - c0]); } return out; });
+      const empty = all.filter((x) => x[2] === 0);
+      console.log('  diorama draws by stage: ' + all.map((x) => x[0] + ' ' + x[1] + ' ' + x[3]).join(', '));
+      const grow = all.map((x) => [x[0], x[1], x[3] - DIO_DRAWS_BEFORE[x[0] - 1]]); const most = grow.reduce((m, g) => (g[2] > m[2] ? g : m));
+      check(most[2] <= DIO_KIT_GROWTH, `diorama: draw calls grow by at most ${most[2]} over the boxed boss (stage ${most[0]} ${most[1]}; <= ${DIO_KIT_GROWTH})`);
+      check(empty.length === 0, `diorama: all 30 campaign stages show a boss with meshes (${empty.length} empty: ${empty.map((x) => x[0] + ' ' + x[1]).join(', ')})`);
     }
     check(problems.length === 0, `diorama: no page problems ${problems.slice(0, 3).join(' | ')}`);
     await ctx.close();

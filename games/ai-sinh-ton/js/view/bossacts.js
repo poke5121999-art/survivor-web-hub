@@ -184,9 +184,10 @@ export function bossModel(kind) {
   if (out.x.spider && out.x.spider.visible) { for (const l of out.x.legs) { l.hip.rotation.set(0, l.spread, l.s * 0.6); l.knee.rotation.z = -l.s * 0.3; } legMats(out.x); }
   return out;
 }
-// the miniature's idle: the pool's zombie reach and shuffle, the wings beating; `rest` is what the clone was built with
+// the miniature's idle: the pool's zombie reach and shuffle, the wings beating. It sets every channel a skill pose writes, so
+// a pose played on top of it (stepAct) never stays behind
 export function idlePose(m, t) {
-  const p = t * 2.2;
+  const p = t * 2.2; m.root.rotation.set(0, 0, 0);
   if (m.x.spider && m.x.spider.visible) {
     const X = m.x; X.abd.rotation.x = 0.15 + Math.sin(t * 2) * 0.05; X.ceph.rotation.x = 0; X.spider.rotation.set(0, 0, 0); X.spider.position.y = 0;
     for (const l of X.legs) { const ph = p + l.i * 1.6 + (l.s > 0 ? 0 : Math.PI); l.hip.rotation.set(0, l.spread + Math.cos(ph) * 0.06, l.s * (0.6 + Math.max(0, Math.sin(ph)) * 0.1)); l.knee.rotation.z = -l.s * 0.3; }
