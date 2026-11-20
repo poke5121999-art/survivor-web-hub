@@ -1,6 +1,6 @@
 // Shared Playwright plumbing for the browser tools: static server on the repo root (or AST_BASE for the deployed
 // site), Chrome launch, the two phone sizes, the hub session the login gate wants, and error capture.
-// One Chrome at a time on this box: every tool takes the lock file before launching.
+// Two Chromes at a time on this box: every tool takes one of two slot files before launching.
 import { createRequire } from 'node:module';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -40,20 +40,23 @@ export function serve() {
   });
 }
 
+// Two Chromes at most on this box, across every session and worktree (each worktree's .chk is a link to the main one):
+// a tool holds one of two slot files, written with its pid; a slot whose pid is gone is free again. The old single lock
+// file counts as a held slot while a tool started before this change is still running.
+const SLOTS = ['A', 'B'].map((k) => LOCK + '.' + k);
+let mine = '';
+const holder = (f) => { let pid = 0; try { pid = +fs.readFileSync(f, 'utf8'); } catch (e) { return 0; } if (!pid) return 0; try { process.kill(pid, 0); return pid; } catch (e) { try { fs.unlinkSync(f); } catch (e2) {} return 0; } };
 function takeLock() {
   fs.mkdirSync(path.dirname(LOCK), { recursive: true });
-  const until = Date.now() + 600000;
+  const until = Date.now() + 1800000;
   for (;;) {
-    try { fs.writeFileSync(LOCK, String(process.pid), { flag: 'wx' }); return; } catch (e) {
-      let pid = 0; try { pid = +fs.readFileSync(LOCK, 'utf8'); } catch (e2) { continue; }
-      let alive = false; try { process.kill(pid, 0); alive = true; } catch (e3) { alive = false; }
-      if (!alive) { try { fs.unlinkSync(LOCK); } catch (e4) {} continue; }
-      if (Date.now() > until) throw new Error('chrome lock held by pid ' + pid + ' for 10 minutes');
-      execFileSync('sleep', ['2']);
-    }
+    const held = [...SLOTS, LOCK].filter((f) => holder(f)).length;
+    if (held < SLOTS.length) for (const f of SLOTS) { try { fs.writeFileSync(f, String(process.pid), { flag: 'wx' }); mine = f; return; } catch (e) {} }
+    if (Date.now() > until) throw new Error('both chrome slots held for 30 minutes (pids ' + SLOTS.map(holder).join(', ') + ')');
+    execFileSync('sleep', ['2']);
   }
 }
-function dropLock() { try { if (+fs.readFileSync(LOCK, 'utf8') === process.pid) fs.unlinkSync(LOCK); } catch (e) {} }
+function dropLock() { try { if (mine && +fs.readFileSync(mine, 'utf8') === process.pid) fs.unlinkSync(mine); } catch (e) {} mine = ''; }
 
 // GL=egl uses the GPU (default), GL=swiftshader the software path
 export async function launch() {
