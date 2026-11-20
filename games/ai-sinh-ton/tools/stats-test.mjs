@@ -10,6 +10,8 @@ import { CARD } from '../js/data/cards.js';
 
 const OUT = path.join(ROOT, '.chk', 'stats'); fs.mkdirSync(OUT, { recursive: true });
 const { check, done } = checker();
+let touch = true; // the desktop window has no touch screen: a mouse click goes through the same pointer path
+const tapAt = (page, x, y) => (touch ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
 const srv = await serve(); const br = await launch();
 const shots = [];
 const BASE = 'noaudio=1&q=low&seed=7&autostart=1';
@@ -24,12 +26,12 @@ const step = (page, n) => page.evaluate((k) => __step(k), n);
 const targets = (page) => page.evaluate(() => __ui.targets());
 async function tap(page, id) {
   const t = (await targets(page)).find((q) => q.id === id); if (!t) return false;
-  await page.touchscreen.tap(t.x + t.w / 2, t.y + t.h / 2); await step(page, 10); return true;
+  await tapAt(page, t.x + t.w / 2, t.y + t.h / 2); await step(page, 10); return true;
 }
 async function shot(page, phone, name) { const f = path.join(OUT, `${phone}-${name}.png`); await page.locator('#frame').screenshot({ path: f }); shots.push(f); }
 async function audit(page, label) {
   const bad = await page.evaluate(() => {
-    const out = [], k = document.getElementById('frame').getBoundingClientRect().width / 360;
+    const out = [], k = document.getElementById('frame').getBoundingClientRect().width / 780;
     for (const t of __ui.targets()) {
       if (t.w / k < 47.5 || t.h / k < 47.5) out.push(`${t.id} is ${(t.w / k).toFixed(1)}x${(t.h / k).toFixed(1)}`);
       const hit = __ui.hitAt(t.x + t.w / 2, t.y + t.h / 2); if (hit !== t.id) out.push(`${t.id} centre hits ${hit}`);
@@ -118,7 +120,8 @@ async function detailCheck(page, phone, tag, report, snapAll) {
 }
 
 try {
-  for (const phone of ['s22', 'xiaomi']) {
+  for (const phone of ['s22', 'xiaomi', 'desktop']) {
+    touch = phone !== 'desktop';
     // formatting rules against literal cases, using the screen's own functions
     if (phone === 's22') {
       const g0 = await open(br, srv.base, phone, BASE + '&stage=1'); const p0 = g0.page;
@@ -202,9 +205,10 @@ try {
     check(terr.length === 0 && t.problems.filter((x) => !foreign(x)).length === 0, `${phone}: tutorial run has no errors (${[...terr, ...t.problems].slice(0, 2).join(' | ') || 'none'})`);
     await t.ctx.close();
   }
-  for (const phone of ['s22', 'xiaomi']) {
+  const LAND = path.join(ROOT, '.chk', 'landscape'); fs.mkdirSync(LAND, { recursive: true });
+  for (const phone of ['s22', 'xiaomi', 'desktop']) {
     const keep = shots.filter((f) => f.includes(phone + '-') && /(reward|stats|stats-sorted|stage8-detail0|stage8-detail1|stage8-detail2|stage8-detail3|loss|loss-detail0|zero|tutorial)\.png$/.test(f));
-    if (keep.length) sheet(keep, path.join(OUT, `review-${phone}.png`), 4, 330);
+    if (keep.length) sheet(keep, path.join(LAND, `result-${phone}.png`), 3, 520);
   }
 } finally { await br.close(); srv.close(); }
 done();
