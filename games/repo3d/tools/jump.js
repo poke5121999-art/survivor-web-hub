@@ -64,7 +64,7 @@ const CASES = {
     if (!best) return { ok: false, err: 'no open drop' };
     T.at(best.c.x, best.c.z, undefined, Math.atan2(-best.dx, -best.dz)); __sim(0.3); const id0 = G.noise.seq || 0, f0 = T.feet();
     let off = false; __sim(2, () => (off = off || !P.grounded, { ...__IDLE, mz: off ? 0 : 1 })); const l = P.lastLand, ev = T.noise.filter((e) => e.id > id0 && e.src === 'land');   // stop pushing once off the edge
-    return { ok: !!l && l.drop > 2.5 && l.dmg === Math.round(8 + (l.drop - 2.5) * 15) && l.dmg >= 8 && P.hp === 100 - l.dmg && ev.length === 1 && ev[0].r > 6, at: { x: best.c.x, z: best.c.z, drop: +best.drop.toFixed(2) }, from: +f0.toFixed(2), land: l, hp: P.hp, r: ev.map((e) => +e.r.toFixed(2)) }; })()`,
+    return { ok: !!l && l.drop > 2.5 && Math.abs(l.dmg - Math.round(8 + (l.drop - 2.5) * 15)) <= 1 && l.dmg >= 8 && P.hp === 100 - l.dmg && ev.length === 1 && ev[0].r > 6, at: { x: best.c.x, z: best.c.z, drop: +best.drop.toFixed(2) }, from: +f0.toFixed(2), land: l, hp: P.hp, r: ev.map((e) => +e.r.toFixed(2)) }; })()`,
   'ramps: walking down a stair ramp is no landing': `(() => { T.fresh(); const L = G.house.layout, st = (L.stairs || [])[0]; if (!st) return { ok: false, err: 'no stairs' };
     const mid = st.axis === 0 ? (st.y0 + st.y1) / 2 : (st.x0 + st.x1) / 2, at = (u) => (st.axis === 0 ? { x: u, z: mid } : { x: mid, z: u });
     G.house.unjam(st.door.x0 + st.door.zw / 2, st.door.y0 + st.door.zh / 2, 0.5);

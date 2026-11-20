@@ -43,7 +43,7 @@ async function open(br, srv, q) {
   const kill = setTimeout(() => { console.log('FAIL timeout 420 s'); process.exit(2); }, 420000);
   try {
     for (const theme of THEMES) {
-      const { ctx, page, logs } = await open(br, srv, `house=3&seed=7&foes=none&bots=0&flicker=0&theme=${theme}`);
+      const { ctx, page, logs } = await open(br, srv, `house=3&seed=7&foes=none&bots=0&flicker=0&traps=0&theme=${theme}`);
       await page.evaluate(`window.__paused = true; document.querySelectorAll('.ui-root .hud, .hx .pips, .hx .pads').forEach((e) => e.style.visibility = 'hidden')`);
       const shot = async (name) => { const f = path.join(OUT, `floors-${theme}-${name}.png`); const b = await page.screenshot({ path: f }); return { f, luma: await page.evaluate(LUMA(b.toString('base64'))) }; };
       // stairs: the first one, from the door side looking along the ramp, and from past the top looking back down

@@ -10,6 +10,10 @@ const { launch: pwLaunch, scratch } = require('./pw.js');
 const argv = process.argv.slice(2);
 const arg = (n, d) => { const i = argv.indexOf('--' + n); return i >= 0 ? argv[i + 1] : d; };
 const OUT = arg('out', scratch('look'));
+const POSE = arg('pose', '') ? arg('pose', '').split(',').map(Number) : null;   // --pose ax,az,lx,lz: the same view on two builds
+// The room shot's view per theme, pinned (house 1 seed 7): picking 'the longest clear view' moved the camera to another
+// room whenever decor changed, and the luma band then measured the room, not the light (batch 6f: same pose, same luma)
+const PINNED = { vampire: [24.5, 12.5, 43.5, 12.5], pyramid: [69.5, 32.5, 45.5, 37.5], vietnam: [41.5, 30.5, 51.5, 52.5], spacestation: [31.5, 49.5, 49.5, 50.5], asylum: [95.5, 12.5, 93.5, 22.5] };
 const THEMES = arg('themes', 'vampire,pyramid,vietnam,spacestation,asylum').split(',');
 const BOTS = 'bots=tam:loot,dung:thu,khoi:soi';
 const EXTRA = arg('extra', '');   // appended to the post shot, e.g. &bloom=0 to see one pass's share
@@ -45,6 +49,7 @@ const STAGE = `(() => { const G = __G, nav = G.foes.nav, P = G.player; window.__
       if (d > best && nav.clear(cells[a].x, cells[a].z, cells[b].x, cells[b].z, 0.7)) { best = d; at = cells[a]; look = cells[b]; }
     }
   }
+  const pin = window.__pose; if (pin && nav.clear(pin.at.x, pin.at.z, pin.look.x, pin.look.z, 0.7)) { at = pin.at; look = pin.look; } else window.__poseFallback = !!pin;
   P.body.setTranslation({ x: at.x, y: __G.house.heightAt(at.x, at.z) + 0.85, z: at.z }, true); P.body.setNextKinematicTranslation({ x: at.x, y: __G.house.heightAt(at.x, at.z) + 0.85, z: at.z });
   P.yaw = Math.atan2(-(look.x - at.x), -(look.z - at.z)); P.pitch = -0.12;
   __sim(0.3); window.__stage = { at, look }; return true; })()`;
@@ -84,7 +89,8 @@ const LUMA = (b64) => `(async () => { const img = new Image(); img.src = 'data:i
       for (const mode of ['raw', 'post']) {
         // floors=0: this frame band is the theme look of a ground floor (the 2D layout); tools/floors.js gates the extra floors
         const { ctx, page, logs } = await open(br, srv, `house=1&seed=7&floors=0&theme=${theme}&foes=none&${BOTS}${mode === 'raw' ? '&post=0' : EXTRA}`);
-        await page.evaluate(STAGE);
+        { const pp = POSE || PINNED[theme]; await page.evaluate(pp ? `window.__pose = { at: { x: ${pp[0]}, z: ${pp[1]} }, look: { x: ${pp[2]}, z: ${pp[3]} } }` : 'window.__pose = null'); }
+        await page.evaluate(STAGE); if (await page.evaluate('window.__poseFallback')) console.log(`  ${theme}: pinned view blocked, searched a new one`);
         await page.waitForTimeout(600);
         const png = await page.screenshot({ path: path.join(OUT, `look-${theme}-${mode}.png`) });
         lum[mode] = await page.evaluate(LUMA(png.toString('base64')));

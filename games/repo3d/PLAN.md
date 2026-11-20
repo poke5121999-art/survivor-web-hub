@@ -34,7 +34,8 @@ Trên `https://poke5121999-art.github.io/survivor-web-hub/games/repo3d/index.htm
 | 6b | Hiệu ứng scan loot kiểu R.E.P.O. (thiết kế mới) | `node tools/scan.js` (xong 2026-11-19) |
 | 6c | Tầng trên và tầng hầm (thiết kế mới, `js/floors.js`): cầu thang dốc 3 ô, quái và bot qua tầng, ồn qua tầng giảm nửa, minimap theo tầng | `tools/house-check.js` (500 nhà), `tools/house3d.js` (đi lên/xuống), `tools/foes.js` (i), `tools/run.js`, `node tools/floors.js` (ảnh + độ sáng) (xong 2026-11-19) |
 | 6d | Cận chiến "phê", tia kéo và xe đẩy làm kỹ, luật nhảy | `tools/melee.js`, `tools/beam.js`, `tools/jump.js` (xong 2026-11-19) |
-| 6e | Đi hết danh sách ưu tiên `docs/parity.md` | mỗi feature một bài kiểm |
+| 6e | Đi hết danh sách ưu tiên `docs/parity.md` | mỗi feature một bài kiểm (tạm dừng 2026-11-20 sau mục 4 bẫy sàn) |
+| 6f | Cảm giác chơi (chủ dự án chơi a174282 thấy tệ): va chạm decor theo model, bớt decor 40-50 %, xe đẩy không kẹt, đi/nhảy có gia tốc + coyote, tia kéo bắt dễ và chắc, đấm có tầm và luôn có phản ứng; mỗi mục một con số đo trước/sau | clip góc nhìn thứ nhất; số đo trong `trail.tsv` (2026-11-20); mục 1, 2, 4, 5, 6 đạt; mục 3 xe đẩy đạt: 199/199 tuyến tới nơi, 0 lần kẹt, 0 lần đứt tia trên 50 nhà (`tools/cartdrive.js`; ef5723a 121/199, kẹt 90) |
 | 7 | Co-op mạng | để sau, cần quyết riêng |
 
 ## Hợp đồng dữ liệu

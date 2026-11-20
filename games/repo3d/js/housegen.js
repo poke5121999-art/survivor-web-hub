@@ -876,6 +876,7 @@ export function generateHouse({ theme, houseIndex, seed, floors = true }) {
     const s = k ? (seed * 31 + k * 104729) | 0 : seed;
     let h = null; try { h = generateFlat({ theme, houseIndex, seed: s }); } catch (e) { err = e; continue; }
     try { applyFloors(h, houseIndex, s); } catch (e) { err = e; continue; }
+    h.declutter = declutter(h, s, false);   // the stair doors and landings applyFloors cut need room too (before the locks: they keep cart routes)
     lockDoors(h, s, THEME_HOUSE_LEVEL[houseIndex - 1]);
     h.meta.floorTry = k; h.meta.seedUsed = s;
     return h;
@@ -913,6 +914,7 @@ function generateFlat({ theme, houseIndex, seed }) {
   house.start = snapStart(house);
   const { pads: pp, reach } = placePads(house, plan, pool, seed);
   house.pads = pp;
+  house.declutter = declutter(house, seed);   // batch 6f: about 45 % fewer props, open paths between doors, room by pads/doors
   const truckRoom = house.rooms[0];
   house.truck = { x: truckRoom.x, y: truckRoom.y, w: truckRoom.w, h: truckRoom.h, roomId: 0, ram: ['top', 'bottom', 'left', 'right'][plan.trucks[0].ramSide], car: truckRoom.car, template: used.name };
   // loot is dropped in the truck room and in pad rooms; unreachable (walking) spots are dropped (G03_World_a.cs:936)
@@ -926,6 +928,64 @@ function generateFlat({ theme, houseIndex, seed }) {
   delete house.padMarkers;
   return house;
 }
+// ------------------------------------------------------------------ decor thinning (batch 6f, the owner: "too much decor
+// in the houses, it blocks the way"). Keeps cover and theme pieces (big furniture, statues, coffins, pods...), drops small
+// clutter first, until about 45 % of the props are gone; then, whatever it costs: no blocking prop within 2 cells of a pad
+// or 1 cell of a door zone, and in every room a 2-cell (>= 1.5 m) wide path joins all its doors. A prop under a table loot
+// spot stays. Returns { before, after, forced }.
+const DECOR_KEEP = /statue|sarcoph|coffin|tomb|pod|stasis|tank|reactor|fireplace|altar|throne|pillar|column|obelisk|bed|bunk|gurney|sofa|couch|wardrobe|cabinet|bookshelf|shelf|locker|counter|desk|table|^car_|carriage|motorbike|boat|server|fridge|piano|organ|sphinx|anubis|gargoyle|mirror|cage|mannequin|teleporter|decordoor|clock|console|kiosk|machine/i;
+const DECOR_CLUTTER = /jar|urn|pot|vase|bucket|bottle|box|crate|basket|sack|barrel|stool|chair|plant|flower|lamp|candle|book|paper|bin|can_|cup|tray|pillow|cushion|rock|pebble|bone|skull|toy|debris|trash|camera|cone|sign|bench|cart|iv_|stand|divider|cooler|specimen|grass|weed|reed|straw|mat_|towel|bag|bowl|plate|pan|basin|shoe|sword|spear|shield|tool|hat/i;
+const DECOR_CUT = 0.45;
+function declutter(house, seed, cut = true) {
+  const { w, grid, block } = house, rng = mulberry32((seed | 0) ^ 0x5eed1234), before = house.props.length;
+  const tableLoot = new Set(house.loot.filter((l) => l.place === 'table').map((l) => l.y * w + l.x));
+  const covers = (p, i) => { const x = i % w, y = Math.floor(i / w); return x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h; };
+  const holdsLoot = (p) => { for (let y = p.y; y < p.y + p.h; y++) for (let x = p.x; x < p.x + p.w; x++) if (tableLoot.has(y * w + x)) return true; return false; };
+  const removed = new Set();
+  const drop = (p) => { if (removed.has(p)) return; removed.add(p); };
+  // 1. score and cut
+  const scored = house.props.map((p) => { const n = p.name.toLowerCase(); let sc = 0;
+    if (DECOR_KEEP.test(n)) sc += 3; if (DECOR_CLUTTER.test(n)) sc -= 2; sc += Math.min(3, p.w * p.h * 0.4); if (!p.blocks) sc -= 0.5;
+    if (holdsLoot(p)) sc += 100; return { p, sc: sc + rng() * 0.5 }; }).sort((a, b) => a.sc - b.sc);
+  const goal = Math.round(before * DECOR_CUT);
+  if (cut) for (const { p, sc } of scored) { if (removed.size >= goal) break; if (sc >= 50) continue; if (sc >= 3 && removed.size >= goal * 0.8) continue; drop(p); }
+  let forced = 0;
+  const blockedBy = new Map();
+  const rebuild = () => { blockedBy.clear(); for (const p of house.props) { if (removed.has(p) || !p.blocks) continue; for (let y = p.y; y < p.y + p.h; y++) for (let x = p.x; x < p.x + p.w; x++) blockedBy.set(y * w + x, p); } };
+  rebuild();
+  const clearRect = (x0, y0, x1, y1) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const p = blockedBy.get(y * w + x); if (p && !holdsLoot(p)) { drop(p); forced++; } } };
+  // 2. room around pads and doors
+  for (const pd of house.pads || []) clearRect(Math.floor(pd.x) - 2, Math.floor(pd.y) - 2, Math.floor(pd.x) + 2, Math.floor(pd.y) + 2);
+  for (const d of house.doors || []) clearRect(d.x0 - 1, d.y0 - 1, d.x0 + d.zw, d.y0 + d.zh);
+  rebuild();
+  // 3. a 2-cell wide path between the doors of every room (2x2 free squares; a square under props costs more)
+  for (let ri = 0; ri < house.rooms.length; ri++) {
+    const r = house.rooms[ri], inR = (x, y) => x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h && (grid[y * w + x] === 1 || grid[y * w + x] === 3);
+    const sqOk = (x, y) => inR(x, y) && inR(x + 1, y) && inR(x, y + 1) && inR(x + 1, y + 1);
+    const cost = (x, y) => { let c = 1; for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) if (blockedBy.has((y + dy) * w + x + dx)) c += 25; return c; };
+    const doors = (house.doors || []).filter((d) => d.a === ri || d.b === ri);
+    if (doors.length < 2) continue;
+    const entry = (d) => { const out = []; for (let y = d.y0 - 2; y <= d.y0 + d.zh + 1; y++) for (let x = d.x0 - 2; x <= d.x0 + d.zw + 1; x++) if (sqOk(x, y)) out.push(y * w + x); return out; };
+    const src = entry(doors[0]); if (!src.length) continue;
+    const dist = new Map(), prev = new Map(), q = []; for (const i of src) { dist.set(i, 0); q.push([0, i]); }
+    while (q.length) { q.sort((a, b) => a[0] - b[0]); const [dd, i] = q.shift(); if (dd > dist.get(i)) continue; const x = i % w, y = Math.floor(i / w);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (!sqOk(nx, ny)) continue; const j = ny * w + nx, nd = dd + cost(nx, ny); if (nd < (dist.get(j) ?? 1e9)) { dist.set(j, nd); prev.set(j, i); q.push([nd, j]); } } }
+    for (const d of doors.slice(1)) {
+      const ends = entry(d).filter((i) => dist.has(i)); if (!ends.length) continue;
+      let i = ends.sort((a, b) => dist.get(a) - dist.get(b))[0];
+      while (i !== undefined) { const x = i % w, y = Math.floor(i / w); clearRect(x, y, x + 1, y + 1); i = prev.get(i); }
+    }
+    rebuild();
+  }
+  // apply: drop the props, clear their block cells, re-mark what the kept blocking props cover
+  // (only ever unblocks: a kept prop's footprint can be wider than the prefab's 'F' cells, which must stay as they were)
+  const kept = house.props.filter((p) => !removed.has(p)), keptCover = new Set();
+  for (const p of kept) if (p.blocks) for (let y = p.y; y < p.y + p.h; y++) for (let x = p.x; x < p.x + p.w; x++) keptCover.add(y * w + x);
+  for (const p of house.props) if (removed.has(p) && p.blocks) for (let y = p.y; y < p.y + p.h; y++) for (let x = p.x; x < p.x + p.w; x++) if (!keptCover.has(y * w + x)) block[y * w + x] = 0;
+  house.props = kept;
+  return { before: house.declutter?.before ?? before, after: house.props.length, forced: forced + (house.declutter?.forced || 0) };
+}
+
 export function generateFlatHouse(o) { const h = generateFlat(o); lockDoors(h, o.seed, THEME_HOUSE_LEVEL[o.houseIndex - 1]); return h; }
 
 /** Plain-text map for debugging: roomId letters are not used, grid only. # wall, . floor, + connector zone, F blocking prop, J jammed door, T truck car, P pad. */

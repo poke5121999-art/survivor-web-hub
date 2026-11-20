@@ -31,28 +31,28 @@ const HELP = `(() => { const G = __G, nav = G.foes?.nav, P = G.player; window.__
     for (let i = 0; i < 40 && G.melee.log.length === n0; i++) __sim(1 / 60); return G.melee.log[G.melee.log.length - 1] && G.melee.log.length > n0 ? G.melee.log[G.melee.log.length - 1] : null; };
   return true; })()`;
 const PRE = (c) => c.replace('(() => {', '(() => { const G = __G, T = __T, P = G.player, nav = G.foes?.nav, M = G.melee;');
-const K = 106.67 / 24;
+const K = 106.67 / 24, DS = 0.4 / 0.9;   // batch 6f: a jab every 0.4 s at the 2D damage per second (atk x 0.4 / 0.9 a hit)
 
 const CASES = {
-  'fist: one hit = the atk of the character (Flare 9), plain knock 4.44 m/s, hit-stop 50 ms': `(() => { T.fresh('bao'); const pr = T.pair(3); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
+  'fist: one hit = atk x 0.4/0.9 (Flare 9 -> 4, same dps as 2D), plain knock 4.44 m/s, hit-stop 50 ms': `(() => { T.fresh('bao'); const pr = T.pair(3); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
     const f = T.foe('mummy', pr.a.x + pr.dir.x * 1.0, pr.a.z + pr.dir.z * 1.0); const r = T.punch(); const h = r && r.foes[0];
-    return { ok: !!h && Math.abs(h.dmg - 9) < 1e-6 && Math.abs(h.knock - ${K}) < 0.01 && !h.light && Math.abs(M.lastStop - 0.05) < 1e-6 && G.hitStopT > 0, rec: r, stop: M.lastStop }; })()`,
-  'fist: Blink hits for her own atk (18)': `(() => { T.fresh('nga'); const pr = T.pair(3); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
-    T.foe('mummy', pr.a.x + pr.dir.x * 1.0, pr.a.z + pr.dir.z * 1.0); const r = T.punch(); return { ok: !!r && r.foes[0] && Math.abs(r.foes[0].dmg - 18) < 1e-6, rec: r }; })()`,
+    return { ok: !!h && Math.abs(h.dmg - 9 * ${DS}) < 1e-6 && Math.abs(h.knock - ${K}) < 0.01 && !h.light && Math.abs(M.lastStop - 0.05) < 1e-6 && G.hitStopT > 0, rec: r, stop: M.lastStop }; })()`,
+  'fist: Blink hits for her own atk (18 x 0.4/0.9)': `(() => { T.fresh('nga'); const pr = T.pair(3); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
+    T.foe('mummy', pr.a.x + pr.dir.x * 1.0, pr.a.z + pr.dir.z * 1.0); const r = T.punch(); return { ok: !!r && r.foes[0] && Math.abs(r.foes[0].dmg - 18 * ${DS}) < 1e-6, rec: r }; })()`,
   'miss: a foe behind or out of reach takes nothing': `(() => { T.fresh(); const pr = T.pair(4); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
     const back = T.foe('mummy', pr.a.x - pr.dir.x * 1.0, pr.a.z - pr.dir.z * 1.0), far = T.foe('rook', pr.a.x + pr.dir.x * 2.4, pr.a.z + pr.dir.z * 2.4);
     const h0 = back.hp, h1 = far.hp; const r = T.punch(); return { ok: !!r && r.foes.length === 0 && back.hp === h0 && far.hp === h1 && (r.target === 'miss' || r.target === 'wall'), rec: r }; })()`,
-  'cooldown: a second press inside 0.9 s does nothing, after it lands': `(() => { T.fresh(); const pr = T.pair(3); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
+  'cooldown: a second press inside 0.4 s does nothing, after it lands': `(() => { T.fresh(); const pr = T.pair(3); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
     const f = T.foe('mummy', pr.a.x + pr.dir.x * 1.0, pr.a.z + pr.dir.z * 1.0); const n0 = M.log.length;
-    T.punch(); __sim(0.2); T.punch(); const n1 = M.log.length - n0; __sim(0.6); T.punch(); const n2 = M.log.length - n0;
-    return { ok: n1 === 1 && n2 === 2, after03: n1, after09: n2 }; })()`,
+    T.punch(); __sim(0.05); T.punch(); const n1 = M.log.length - n0; __sim(0.4); T.punch(); const n2 = M.log.length - n0;
+    return { ok: n1 === 1 && n2 === 2, early: n1, after: n2 }; })()`,
   'chain: the 3rd hit inside the window lands x1.5': `(() => { T.fresh('bao'); const pr = T.pair(3); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
     const f = T.foe('mummy', pr.a.x + pr.dir.x * 1.0, pr.a.z + pr.dir.z * 1.0), d = [];
     for (let i = 0; i < 3; i++) { f.x = pr.a.x + pr.dir.x * 1.0; f.z = pr.a.z + pr.dir.z * 1.0; f.knock.x = f.knock.z = 0; const r = T.punch(); d.push(r && r.foes[0] ? r.foes[0].dmg : -1); __sim(0.8); }
-    return { ok: Math.abs(d[0] - 9) < 1e-6 && Math.abs(d[1] - 9) < 1e-6 && Math.abs(d[2] - 13.5) < 1e-6, dmg: d }; })()`,
+    return { ok: Math.abs(d[0] - 9 * ${DS}) < 1e-6 && Math.abs(d[1] - 9 * ${DS}) < 1e-6 && Math.abs(d[2] - 13.5 * ${DS}) < 1e-6, dmg: d }; })()`,
   'charge: held 1 s = x2.5 damage, x2.2 knock, hit-stop 90 ms': `(() => { T.fresh('bao'); const pr = T.pair(3); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
     T.foe('mummy', pr.a.x + pr.dir.x * 1.0, pr.a.z + pr.dir.z * 1.0); const r = T.punch(1.05); const h = r && r.foes[0];
-    return { ok: !!h && r.k === 1 && Math.abs(h.dmg - 22.5) < 1e-6 && Math.abs(h.knock - ${K} * 2.2) < 0.01 && Math.abs(M.lastStop - 0.09) < 1e-6, rec: r, stop: M.lastStop }; })()`,
+    return { ok: !!h && r.k === 1 && Math.abs(h.dmg - 22.5 * ${DS}) < 1e-6 && Math.abs(h.knock - ${K} * 2.2) < 0.01 && Math.abs(M.lastStop - 0.09) < 1e-6, rec: r, stop: M.lastStop }; })()`,
   'light foe (gnome): knock x3 and it flies over 1.5 m': `(() => { T.fresh('bao'); const pr = T.pair(4); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
     const f = T.foe('gnome', pr.a.x + pr.dir.x * 1.0, pr.a.z + pr.dir.z * 1.0); f.hp = 999; const x0 = f.x, z0 = f.z;
     const r = T.punch(); let moved = 0; for (let i = 0; i < 40; i++) { __sim(1 / 60); moved = Math.max(moved, Math.hypot(f.x - x0, f.z - z0)); } const h = r && r.foes[0];

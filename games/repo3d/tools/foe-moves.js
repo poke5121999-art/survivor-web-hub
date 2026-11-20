@@ -4,6 +4,8 @@
 // stomps 3 times, charges straight at 8 m/s without steering; hits the player (dmg + shove), a sidestep makes it miss;
 // a wall stops it dazed 1.2 s; it hurts foes in its lane; it charges the last seen spot. Pictures of the line and a charge.
 // Usage: node tools/foe-moves.js [--out <dir>]
+// (batch 6f: the wall test uses a 3 m panel across the line, a 0.6 m post let a gunner walk round it in 3 s once decor was
+// trimmed; the back-off test needs 3.5 m clear behind the gunner, T.pair's 'back')
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -18,10 +20,11 @@ const check = (ok, name, detail) => { results.push({ ok, name, detail }); consol
 const HELP = `(() => { const G = __G, nav = G.foes?.nav, P = G.player; window.__paused = true; __sim(1);
   const T = window.__T = {};
   // a: a spot, b: d m away along a clear, seen line, both flat on one floor; side: a step across the line from b is open too
-  T.pair = (d, skip = 0) => { for (let i = 0; i < nav.W * nav.H; i++) { if (!nav.walk[i] || nav.near[i] < 3) continue; const a = nav.center(i), h = G.house.heightAt(a.x, a.z);
+  T.pair = (d, skip = 0, back = 0) => { for (let i = 0; i < nav.W * nav.H; i++) { if (!nav.walk[i] || nav.near[i] < 3) continue; const a = nav.center(i), h = G.house.heightAt(a.x, a.z);
     for (let k = 0; k < 8; k++) { const an = k * Math.PI / 4, dir = { x: Math.cos(an), z: Math.sin(an) }, b = { x: a.x + dir.x * d, z: a.z + dir.z * d };
       if (!nav.okW(b.x, b.z) || Math.abs(G.house.heightAt(b.x, b.z) - h) > 0.01 || !nav.clear(a.x, a.z, b.x, b.z, 0.7) || !nav.los(a.x, a.z, b.x, b.z)) continue;
       const s = { x: b.x - dir.z * 1.6, z: b.z + dir.x * 1.6 }; if (!nav.okW(s.x, s.z) || !nav.clear(b.x, b.z, s.x, s.z, 0.4)) continue;
+      if (back && (!nav.okW(a.x - dir.x * back, a.z - dir.z * back) || !nav.clear(a.x, a.z, a.x - dir.x * back, a.z - dir.z * back, 0.6) || Math.abs(G.house.heightAt(a.x - dir.x * back, a.z - dir.z * back) - h) > 0.01)) continue;
       if (skip-- > 0) continue; return { a, b, dir, side: s }; } } return null; };
   T.put = (x, z, lx, lz) => { const h = G.house.heightAt(x, z); P.body.setTranslation({ x, y: h + 0.85, z }, true); P.body.setNextKinematicTranslation({ x, y: h + 0.85, z }); P.vy = 0; if (lx !== undefined) P.yaw = Math.atan2(-(lx - x), -(lz - z)); P.pitch = 0; };
   T.fresh = () => { for (const f of [...(G.foes?.list || [])]) G.foes.remove(f); P.hp = 100; P.stamina = 100; P.push = null; };
@@ -44,16 +47,16 @@ const CASES = {
     return { ok: !!shot && shot[2] !== 'player' && P.hp === 100, shot, hp: P.hp }; })()`,
   'gunner: no aim through a wall; a wall that comes between takes the shot': `(() => { T.fresh(); const pr = T.pair(7); T.put(pr.b.x, pr.b.z, pr.a.x, pr.a.z); __sim(0.1);
     const f = T.foe('gunner', pr.a.x, pr.a.z), n0 = F.log.length; T.wait(() => f.state === 'aim', 2); T.wait(() => f.aimT > 0.48, 1);
-    const mx = (pr.a.x + pr.b.x) / 2, mz = (pr.a.z + pr.b.z) / 2, wall = G.phys.fixedBox(mx, G.house.heightAt(mx, mz) + 1.2, mz, 0.3, 1.2, 0.3);
+    const mx = (pr.a.x + pr.b.x) / 2, mz = (pr.a.z + pr.b.z) / 2, wall = G.phys.fixedBox(mx, G.house.heightAt(mx, mz) + 1.2, mz, 1.5, 1.2, 0.15, { rotY: Math.atan2(pr.b.x - pr.a.x, pr.b.z - pr.a.z) });
     T.wait(() => T.logs('shot', n0).length > 0, 1); const shot = T.logs('shot', n0)[0], hp1 = P.hp;
     // a fresh gunner with the wall in the way never aims at you
     F.remove(f); const g = T.foe('gunner', pr.a.x, pr.a.z), n1 = F.log.length; __sim(3); const aims = g.state === 'aim' || T.logs('shot', n1).length;
     G.phys.world.removeRigidBody(wall);
     return { ok: !!shot && shot[2] === 'wall' && hp1 === 100 && !aims && P.hp === 100, shot, hp1, aims }; })()`,
-  'gunner: keeps 6 m (backs off from 3 m), never closes in from 7.5 m': `(() => { T.fresh(); const pr = T.pair(3); T.put(pr.b.x, pr.b.z, pr.a.x, pr.a.z); __sim(0.1);
-    const f = T.foe('gunner', pr.a.x, pr.a.z); let far = 0; for (let i = 0; i < 180; i++) { P.hp = 100; __sim(1 / 60); far = Math.max(far, F.dist(f, P.position)); }
+  'gunner: keeps 6 m (backs off from 3 m), never closes in from 7.5 m': `(() => { T.fresh(); const pr = T.pair(3, 0, 3.5); T.put(pr.b.x, pr.b.z, pr.a.x, pr.a.z); __sim(0.1);
+    const f = T.foe('gunner', pr.a.x, pr.a.z); let far = 0; const tr = []; for (let i = 0; i < 300; i++) { P.hp = 100; __sim(1 / 60); far = Math.max(far, F.dist(f, P.position)); if (i % 30 === 29) tr.push(+F.dist(f, P.position).toFixed(2) + ':' + f.state); }
     T.fresh(); const q = T.pair(7.5); T.put(q.b.x, q.b.z, q.a.x, q.a.z); __sim(0.1); const g = T.foe('gunner', q.a.x, q.a.z); let near = 99; for (let i = 0; i < 240; i++) { P.hp = 100; __sim(1 / 60); near = Math.min(near, F.dist(g, P.position)); }
-    return { ok: far > 4.5 && near > 7.2, backedTo: +far.toFixed(2), closest: +near.toFixed(2) }; })()`,
+    return { ok: far > 4.5 && near > 7.2, backedTo: +far.toFixed(2), closest: +near.toFixed(2), tr }; })()`,
   'gunner: a foe in the line takes the shot (friendly fire)': `(() => { T.fresh(); const pr = T.pair(7); T.put(pr.b.x, pr.b.z, pr.a.x, pr.a.z); __sim(0.1);
     const f = T.foe('gunner', pr.a.x, pr.a.z), n0 = F.log.length; T.wait(() => f.state === 'aim', 2); T.wait(() => f.aimT > 0.48, 1);
     const m = F.spawn('mummy', pr.a.x + pr.dir.x * 3.5, pr.a.z + pr.dir.z * 3.5, { sleep: 99 }), hp0 = m.hp;

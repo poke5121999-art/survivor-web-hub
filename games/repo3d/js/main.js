@@ -46,7 +46,7 @@ async function setupRun(freeHouse) {
   const num = (v) => (v === undefined ? undefined : Number(v));
   const R = new Runner(G, UI, {
     seed: num(params.seed), theme: params.theme || (freeHouse ? 'vampire' : undefined), houseSeed: freeHouse ? (num(params.seed) ?? 7) : undefined,
-    foes: params.foes, foeSleep: num(params.foeSleep), floors: params.floors !== '0', testMode: freeHouse && params.run === undefined,
+    foes: params.foes, foeSleep: num(params.foeSleep), floors: params.floors !== '0', traps: params.traps !== '0', testMode: freeHouse && params.run === undefined,
   });
   G.ui = UI;
   G.events.on('pad:extract', (e) => R.onPadExtract(e));
@@ -114,6 +114,7 @@ async function boot() {
   G.audio = new Audio(G, { audio: !off('audio') });
   G.floorsStep = (i, j) => stepOK(G.house.layout, i, j);
   G.grab.floorAt = (x, z) => (G.house?.heightAt ? G.house.heightAt(x, z) : 0);
+  G.player.groundAt = G.grab.floorAt;   // player.js: stays on a ramp over its crest
   // landing (player.js JUMP): noise by the drop, halved when sneaking, a thump by floor kind
   G.player.landHook = (drop, crouch, at) => {
     const r = Math.min(9, 1 + 2.2 * drop) * (crouch ? 0.5 : 1) * (G.passives?.noiseMul?.() ?? 1);
@@ -172,8 +173,9 @@ function stepSim(dt, cmd) {
   G.bots?.step(dt);
   G.foes?.step(dt);
   G.cart?.step(dt);
+  G.traps?.step(dt);
   if (G.player.down && !G.runLost) { G.runLost = true; G.run && (G.run.downs++); G.events.emit('run:lost', { reason: 'down' }); }
-  G.house?.step(dt, G.player.down ? FAR : G.player.position, (G.foes ? G.foes.list.filter((f) => !f.dead && f.def.beh !== 'ghost') : []).concat(G.bots ? G.bots.alive() : []));
+  G.house?.step(dt, G.player.down ? FAR : G.player.position, (G.foes ? G.foes.list.filter((f) => !f.dead && f.def.beh !== 'ghost') : []).concat(G.bots ? G.bots.alive() : []).concat(G.cart ? [G.cart.body.translation()] : []));   // the cart runs ahead of its pusher: it opens doors too (batch 6f)
   G.phys.snapshotVelocities();
   G.phys.world.step();
   G.loot.afterStep(dt);
@@ -198,6 +200,7 @@ function render() {
     G.scan?.render();
     G.melee?.render(rdt);
     G.cart?.render(rdt);
+    G.traps?.render(rdt);
     robotsFrame(G.scene, G.camera, rdt);
     if (G.post) G.post.render(G.scene, G.camera, G.torch, rdt); else G.renderer.render(G.scene, G.camera);
   }

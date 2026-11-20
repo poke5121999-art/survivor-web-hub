@@ -78,13 +78,14 @@ const SKILL_CASES = {
     return { ok: r.ok && r.n === 1 && still < 0.05 && hp === 100 && forgot && stunEnd === 0 && again.why === 'cooldown', r, still, hp, forgot, again: again.why }; })()`,
   healring: `(() => { T.fresh('hue'); P.hp = 40; const r = S.cast(P); __sim(3); const h3 = P.hp; __sim(3.2); const h6 = P.hp, rings = S.rings.length; __sim(1); const h7 = P.hp;
     return { ok: r.ok && Math.abs(h3 - 67) < 2 && h6 >= 92 && h6 <= 95 && rings === 0 && h7 === h6, h3, h6, h7, rings }; })()`,
-  gong: `(() => { T.fresh('tam'); const it = G.loot.items.filter((i) => !i.dead && i.size === 'big')[0] || G.loot.spawn({ material: 'wood', size: 'big', value: 5000, pos: { x: G.house.spawn.x, y: 0.6, z: G.house.spawn.z } });
+  gong: `(() => { T.fresh('tam'); const nv = G.foes.nav; let o = null; for (const i of nv.cells) { if (nv.near[i] < 3) continue; const c = nv.center(i); let ok = true; for (let u = -1; u <= 4 && ok; u += 0.5) for (const w of [-1, 0, 1]) if (!nv.okW(c.x + u, c.z + w)) ok = false; if (ok) { o = c; break; } }   // its own big item on open floor (the first big one in the house may sit among furniture)
+    const it = G.loot.spawn({ material: 'wood', size: 'big', value: 5000, pos: { x: o.x, y: G.house.heightAt(o.x, o.z) + 0.6, z: o.z } }); __sim(0.8);
     const t = it.body.translation(); T.put(t.x + 1.4, t.z, t.x, t.z); G.grab.attach(it, t, 1.4);
     const walk = (sec, sprint) => { const p0 = { ...P.position }; let n = 0; __sim(sec, () => ({ ...__IDLE, mz: 1, grab: true, sprint })); return T.d(P.position, p0) / sec; };
     __sim(0.3, { ...__IDLE, grab: true }); const loaded = walk(0.6, false), mul = P.speedMul;
     const r = S.cast(P); const free = walk(0.6, false); const held = G.grab.held === it; G.grab.release(false);
     T.put(G.house.spawn.x, G.house.spawn.z, G.house.spawn.x, G.house.spawn.z - 5); P.stamina = 100; S.cd.clear(); S.cast(P);
-    const run = walk(0.5, true), base = 78 / 24 * 1.85;
+    walk(0.2, true); const run = walk(0.5, true), base = 78 / 24 * 1.85;   // up to speed first (0.1 s acceleration, batch 6f)
     return { ok: r.ok && mul < 0.7 && free > loaded * 1.3 && run > base * 1.2, mul: +mul.toFixed(2), loaded: +loaded.toFixed(2), free: +free.toFixed(2), held, run: +run.toFixed(2), base: +base.toFixed(2) }; })()`,
   unlock: `(() => { T.fresh('ky'); const recs = G.house.doorRecs.filter((d) => d.jammed); if (!recs.length) return { ok: false, why: 'no jammed door in this house' };
     const d = recs[0], i = nav.nearest(d.cx + 1.6, d.cz, 3) >= 0 ? nav.nearest(d.cx + 1.6, d.cz, 3) : nav.nearest(d.cx, d.cz + 1.6, 3), c = nav.center(i);

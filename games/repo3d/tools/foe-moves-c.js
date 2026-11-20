@@ -89,7 +89,7 @@ async function open(br, srv, q) {
   const srv = await serve(); const br = await pwLaunch();
   const kill = setTimeout(() => { console.log('FAIL timeout 420 s'); process.exit(2); }, 420000);
   try {
-    let { ctx, page, logs } = await open(br, srv, 'house=5&seed=7&foes=none&bots=0&passives=0');
+    let { ctx, page, logs } = await open(br, srv, 'house=5&seed=7&foes=none&bots=0&passives=0&traps=0');
     for (const [name, code] of Object.entries(CASES)) {
       let r; try { r = await page.evaluate(PRE(code)); } catch (e) { r = { ok: false, err: e.message.slice(0, 300) }; }
       check(!!r.ok, name, r);
@@ -98,7 +98,7 @@ async function open(br, srv, q) {
     check(!err.length && !logs.length, 'cases: no console or page errors', err.concat(logs));
     await ctx.close();
 
-    ({ ctx, page, logs } = await open(br, srv, 'house=5&seed=7&foes=none&bots=0&passives=0&theme=vampire'));
+    ({ ctx, page, logs } = await open(br, srv, 'house=5&seed=7&foes=none&bots=0&passives=0&traps=0&theme=vampire'));
     await page.evaluate(`document.querySelectorAll('.ui-root, .hx, .scanx').forEach((e) => e.style.visibility = 'hidden')`);
     const shots = [];
     const snap = async (tag) => { const f = path.join(OUT, `foe-${tag}.png`); await page.waitForTimeout(80); await page.screenshot({ path: f }); shots.push(f); };

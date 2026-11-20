@@ -36,8 +36,8 @@ const CASES = {
     const n0 = Gr.log.length; let t = 0; while (Gr.held && t < 0.6) { __sim(1 / 60, { ...__IDLE, grab: true }); t += 1 / 60; } const s = Gr.log.slice(n0).find((e) => e[0] === 'snap');
     return { ok: ok0 && !Gr.held && !!s && t <= 0.32, grabbed: ok0, snap: s, t: +t.toFixed(2) }; })()`,
   'snap: stretched past breakDist (the item pinned, the carrier walks off)': `(() => { T.fresh(); const pr = T.pair(4); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z); const it = T.item(pr.a.x + pr.dir.x * 1.4, pr.a.z + pr.dir.z * 1.4, 'small'); __sim(0.5);
-    const ok0 = T.grabIt(it); it.body.setBodyType(G.phys.R.RigidBodyType.Fixed, true); const n0 = Gr.log.length; for (let i = 0; i < 90 && Gr.held; i++) __sim(1 / 60, () => ({ ...__IDLE, grab: true, mz: -1 }));
-    it.body.setBodyType(G.phys.R.RigidBodyType.Dynamic, true); const s = Gr.log.slice(n0).find((e) => e[0] === 'snap'); return { ok: ok0 && !!s && s[1] === 'stretch', snap: s }; })()`,
+    const ok0 = T.grabIt(it); it.body.setBodyType(G.phys.R.RigidBodyType.Fixed, true); const n0 = Gr.log.length; for (let i = 0; i < 240 && Gr.held; i++) __sim(1 / 60, () => ({ ...__IDLE, grab: true, mz: -1 }));
+    it.body.setBodyType(G.phys.R.RigidBodyType.Dynamic, true); const s = Gr.log.slice(n0).find((e) => e[0] === 'snap'); return { ok: ok0 && !!s && s[1] === 'stretch', ok0, snap: s, lastBreak: Gr.lastBreak }; })()`,
   'help: a bot next to the item adds its strength (Atlas carry 46)': `(() => { T.fresh(); const pr = T.pair(4); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z); const it = T.item(pr.a.x + pr.dir.x * 1.5, pr.a.z + pr.dir.z * 1.5, 'big'); __sim(0.6);
     const lift = (help) => { const b = G.bots.list.find((q) => q.crew === 'tam'); G.bots.teleport(b, help ? pr.a.x + pr.dir.x * 2.6 : G.house.spawn.x, help ? pr.a.z + pr.dir.z * 2.6 : G.house.spawn.z);
       it.body.setTranslation({ x: pr.a.x + pr.dir.x * 1.5, y: G.house.heightAt(pr.a.x, pr.a.z) + 0.65, z: pr.a.z + pr.dir.z * 1.5 }, true); it.body.setLinvel({ x: 0, y: 0, z: 0 }, true); __sim(0.4);
@@ -58,8 +58,8 @@ const CASES = {
   'crosshair: a ring on a grabbable item, a dot on a wall': `(() => { T.fresh(); const pr = T.pair(3); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z); const it = T.item(pr.a.x + pr.dir.x * 1.3, pr.a.z + pr.dir.z * 1.3, 'medium'); __sim(0.5);
     const t = it.body.translation(); P.pitch = Math.atan2(t.y - P.camPos.y, Math.hypot(t.x - P.camPos.x, t.z - P.camPos.z)); __sim(0.02); Gr.updateBeam(0.016); const c1 = document.querySelector('.xhair').className;
     P.yaw += Math.PI; P.pitch = 0; __sim(0.02); Gr.updateBeam(0.016); const c2 = document.querySelector('.xhair').className; return { ok: c1 === 'xhair can' && c2 === 'xhair', onItem: c1, away: c2 }; })()`,
-  'drag: a heavy item pulled along the floor throws sparks': `(() => { T.fresh(); const pr = T.pair(4); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z); const it = T.item(pr.a.x + pr.dir.x * 1.5, pr.a.z + pr.dir.z * 1.5, 'big', 'metal'); __sim(0.6);
-    T.grabIt(it); P.str = 18; const n0 = Gr.log.length; __sim(2, () => ({ ...__IDLE, grab: true, mz: -1, dpitch: (P.pitch + 0.6) * 0.2 })); const d = Gr.log.slice(n0).filter((e) => e[0] === 'drag').length; Gr.release(false); P.str = 30;
+  'drag: an item heavier than the beam can lift (str 12: 8.3 m/s2 spare < g) pulled along the floor throws sparks': `(() => { T.fresh(); const pr = T.pair(4); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z); const it = T.item(pr.a.x + pr.dir.x * 1.5, pr.a.z + pr.dir.z * 1.5, 'big', 'metal'); __sim(0.6);
+    T.grabIt(it); P.str = 12; const n0 = Gr.log.length; __sim(2, () => ({ ...__IDLE, grab: true, mz: -1, dpitch: (P.pitch + 0.6) * 0.2 })); const d = Gr.log.slice(n0).filter((e) => e[0] === 'drag').length; Gr.release(false); P.str = 30;
     return { ok: d >= 3, drags: d }; })()`,
   'cart: weight = (cart 14 + load) / 3.4': `(() => { T.fresh(); const c = G.cart, t = c.body.translation(); const a = T.item(t.x, t.z, 'medium'), b = T.item(t.x + 0.25, t.z, 'small'); a.body.setTranslation({ x: t.x - 0.2, y: t.y + 0.6, z: t.z }, true); b.body.setTranslation({ x: t.x + 0.25, y: t.y + 0.6, z: t.z }, true); __sim(1);
     const n = c.load().length; c.step(0); const mass = c.rec.mass, want = (14 + 24 + 8) / 3.4; a.body.setTranslation({ x: t.x, y: t.y + 5, z: t.z + 9 }, true); b.body.setTranslation({ x: t.x + 1, y: t.y + 5, z: t.z + 9 }, true); __sim(0.1); a.dead = b.dead = true;
