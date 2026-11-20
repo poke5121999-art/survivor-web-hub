@@ -342,7 +342,7 @@ export function createActors(H) {
       const z = pool[idx]; const lock = sk.def.lock || 1;
       const kit = z.T.kind === 'boss2';
       if (kit && sk.def.move) G.zombies.kinds.remote({ t: 'bm', i: idx, m: sk.def.move, d: lock });
-      const act = actFor(u, sk, kit); if (act) bossActs.set(e.uid, act);
+      const act = actFor(u, sk, kit, bossActs.get(e.uid)); if (act) bossActs.set(e.uid, act);
     },
     ult(e) { ON.cast(e); },
     dash(e) { const a = heroOf(e.uid); if (a) a.fastT = 0.3; },

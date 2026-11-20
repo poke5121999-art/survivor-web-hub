@@ -218,8 +218,8 @@ try {
 
   if (PARTS.includes('hitstop')) {
     const { ctx, page, problems } = await open(br, srv.base, 's22', 'noaudio=1&seed=9');
-    // a 120 ms hit-stop asked for, and the very next frame stalls for `stall` ms: the sim must lose the asked 120 ms of game
-    // time (the loop's own 100 ms frame cap aside), not less and not the whole stalled frame on top
+    // a hit-stop asked for, and the very next frame stalls for `stall` ms: the stop ends on the wall clock, so the sim loses the
+    // asked time less what the loop's own 100 ms frame cap already cut from the stalled frame (that part never reaches the sim)
     const RUN = async ([stall, ms]) => {
       const G = window.__G; const J = G.juice;
       const sc = G.screens && G.screens[G.screen]; if (sc && sc.hide) sc.hide();
@@ -230,20 +230,22 @@ try {
       last = await raf();
       for (let i = 0; i < 120; i++) {
         const ts = await raf(); if (stallNext) { stallNext = false; const e = performance.now() + stall; while (performance.now() < e) { /* the long frame */ } }
-        game += Math.min(0.1, (ts - last) / 1000); last = ts;
-        rows.push({ game, Bt: B.t, stopped: J.stopped });
+        const raw = (ts - last) / 1000; game += Math.min(0.1, raw); last = ts;
+        rows.push({ game, Bt: B.t, stopped: J.stopped, cut: Math.max(0, raw - 0.1) });
         if (i === 40) { J.hit(ms, { force: true }); hitAt = rows.length - 1; stallNext = stall > 0; }
       }
       G.paused = true;
       // sim clock minus game clock, averaged before the stop and well after it: the drop is the time the stop took
       const off = (a, b) => { let s = 0; for (let i = a; i < b; i++) s += rows[i].Bt - rows[i].game; return s / (b - a); };
       const lost = (off(5, hitAt) - off(hitAt + 30, rows.length)) * 1000;
-      return { lost, frames: rows.filter((r) => r.stopped).length, stops: J.stops.map((s) => [s.ms, Math.round(s.real || 0)]) };
+      const cut = rows.slice(hitAt, hitAt + 10).reduce((a, r) => a + r.cut, 0) * 1000;
+      return { lost, cut, frames: rows.filter((r) => r.stopped).length, stops: J.stops.map((s) => [s.ms, Math.round(s.real || 0)]) };
     };
     for (const [stall, ms] of [[0, 120], [120, 120], [120, 55]]) {
       const r = await page.evaluate(RUN, [stall, ms]);
-      console.log(`  hit-stop ${ms} ms, next frame ${stall} ms: game time lost ${r.lost.toFixed(1)} ms, ${r.frames} stopped frames, stops ${JSON.stringify(r.stops)}`);
-      check(Math.abs(r.lost - ms) <= 34, `hit-stop ${ms} ms with a ${stall} ms frame right after it: the sim loses ${r.lost.toFixed(0)} ms of game time (asked ${ms}, within two 60 Hz frames)`);
+      console.log(`  hit-stop ${ms} ms, next frame ${stall} ms: game time lost ${r.lost.toFixed(1)} ms, frame cap cut ${r.cut.toFixed(1)} ms, ${r.frames} stopped frames, stops ${JSON.stringify(r.stops)}`);
+      const want = ms - r.cut;
+      check(Math.abs(r.lost - want) <= 17, `hit-stop ${ms} ms with a ${stall} ms frame right after it: the sim loses ${r.lost.toFixed(0)} ms of game time (asked ${ms} less ${r.cut.toFixed(0)} cut by the frame cap = ${want.toFixed(0)}, within one 60 Hz frame)`);
     }
     check(problems.length === 0, `hit-stop: no page problems ${problems.slice(0, 3).join(' | ')}`);
     await ctx.close();

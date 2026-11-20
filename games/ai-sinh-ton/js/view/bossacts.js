@@ -131,11 +131,16 @@ export const POSES = {
   sway(b, k, w) { const u = seg(k, 0, 0.5); b.root.rotation.z += w * 0.45 * u * Math.sin(k * 9 + 1); b.root.rotation.x += w * 0.3 * u; }, // a hovering craft tilts and rocks
 };
 
-// the act a boss starts when the sim says it casts skill `sk`; kit bosses (boss2) only lean, and only for some moves
-export function actFor(u, sk, kit) {
+// the act a boss starts when the sim says it casts skill `sk`; kit bosses (boss2) only lean, and only for some moves. An act
+// cut short by the next one hands over its values from before the cast, so the new one does not take its pose as the rest.
+export function actFor(u, sk, kit, prev) {
   const lock = sk.def.lock || 1;
   const pose = kit ? KIT_LEAN[sk.def.move] : (SKILL_POSE[u.kind] || [])[u.def.skills.indexOf(sk.def)] || 'conjure';
-  return pose ? { pose, t: 0, lock, dur: lock + 0.3 } : null;
+  if (!pose) return null;
+  // a kit lean only marks the start of the kit's own move, on a fixed 0.7 s
+  const a = { pose, t: 0, lock: kit ? 0.7 : lock, dur: lock + 0.3 };
+  if (prev && prev.ch) { a.ch = prev.ch; a.rest = prev.rest; a.wrote = prev.wrote; }
+  return a;
 }
 // Every channel a pose may write. The pool sets some of them again each frame and leaves others alone (the chest's pitch, the
 // arms' spread): a pose blended onto one it leaves alone would stay there after the cast, so those go back to their value from
