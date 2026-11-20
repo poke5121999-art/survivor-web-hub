@@ -67,7 +67,7 @@ export function mesher() {
   }
   // light every vertex: ambient by normal (times AO), the key direction, warm falloff from each light
   function bake(theme, lights, mat, C0) {
-    const LK = theme.lightK || 1;
+    const LK = theme.lightK || 1; const LW = theme.lightWhite || 0; // lightWhite: how far the baked torch light is pulled toward white (a theme whose stone must not read orange)
     const col = new Float32Array(pos.length); const kd = theme.key.dir; const kl = Math.hypot(...kd); const K = [kd[0] / kl, kd[1] / kl, kd[2] / kl];
     for (let i = 0; i < pos.length / 3; i++) {
       const x = pos[i * 3]; const y = pos[i * 3 + 1]; const z = pos[i * 3 + 2];
@@ -79,7 +79,7 @@ export function mesher() {
       for (const L of lights) {
         const dx = L.x - x; const dy = L.y - y; const dz = L.z - z; const dd = Math.hypot(dx, dy, dz); if (dd >= L.r) continue;
         const f = (1 - dd / L.r) ** 2 * L.k * LK * (0.3 + 0.7 * Math.max(0, (dx * nx + dy * ny + dz * nz) / Math.max(0.01, dd))) * (0.55 + 0.45 * o);
-        r += L.color[0] * f; g += L.color[1] * f; bl += L.color[2] * f;
+        r += (L.color[0] + (1 - L.color[0]) * LW) * f; g += (L.color[1] + (1 - L.color[1]) * LW) * f; bl += (L.color[2] + (1 - L.color[2]) * LW) * f;
       }
       col[i * 3] = tint[i * 3] * r; col[i * 3 + 1] = tint[i * 3 + 1] * g; col[i * 3 + 2] = tint[i * 3 + 2] * bl;
     }
@@ -260,6 +260,12 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
         if (place(kind, x, z, Math.PI / 4 + rng.int(0, 3) * Math.PI / 2)) break;
       }
     }
+    // the boss pad: braziers all along the far rim and flanks, and tall pillars there too (the near side stays low and open)
+    if (boss && fight) {
+      const brz = LIGHTS.brazier ? 'brazier' : 'torch';
+      for (let k = 0; k < 6; k++) { const a = Math.PI + 0.35 + (k / 5) * (Math.PI - 0.7) + ph[1] * 0.02; for (let t = 0; t < 14; t++) { const kk = rng.range(1.18, 1.4); if (place(brz, cx + Math.cos(a + rng.range(-0.15, 0.15)) * E.x * kk, cz + Math.sin(a + rng.range(-0.15, 0.15)) * E.z * kk, 0)) break; } }
+      for (const a0 of [-0.05, 0.4, 0.9, 1.4, 1.75, 2.2, 2.7, 3.2].map((v) => v + Math.PI)) for (let t = 0; t < 20; t++) { const a = a0 + rng.range(-0.12, 0.12); const kk = rng.range(1.2, 1.5); if (place('pillar', cx + Math.cos(a) * E.x * kk, cz + Math.sin(a) * E.z * kk, 0)) break; }
+    }
     const nOther = fight ? 26 : rng.int(2, 4);
     for (let k = 0, t = 0; k < nOther && t < nOther * 25; t++) {
       const a = rng.range(0, Math.PI * 2); const kk = fight ? rng.range(1.15, 1.55) : rng.range(0, 0.9);
@@ -283,7 +289,7 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
     build(allLights, extra) {
       const t1 = performance.now(); const M = mesher(); const th = theme;
       const pick = (list, i, j, s) => { let t = 0; for (const x of list) t += x[1]; let r = hash2(i, j, s) * t; for (const x of list) { r -= x[1]; if (r < 0) return x[0]; } return list[0][0]; };
-      const tintT = th.top.tint || [1, 1, 1];
+      const tintT = th.top.tint || [1, 1, 1]; const rimT = th.rimTint || [1, 1, 1]; // rimTint: the theme's own multiplier for the terraces, satellites and cliff faces
       // tops
       for (const c of cells.values()) {
         const [x, z] = W(c.i + 0.5, c.j + 0.5); const onFloor = plateau.has(key(c.i, c.j));
@@ -296,7 +302,7 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
           const pk = th.top.patch; const bk = th.top.base;
           tile = pn > 1 - th.top.patchK ? pk[Math.min(pk.length - 1, Math.floor(vnoise(x * 0.09, z * 0.09, seed + 29) * pk.length))][0] : (bk.length > 1 && pn2 > 0.68 ? bk[1][0] : bk[0][0]);
           const v = 1 + (hash2(c.i, c.j, seed + 4) - 0.5) * 0.04; tn = [tintT[0] * v, tintT[1] * v, tintT[2] * v];
-        } else { tile = onFloor ? pick(th.sat.top, c.i, c.j, seed + 2) : pick(th.edge, c.i, c.j, seed + 6); const v = 0.95 + hash2(c.i, c.j, seed + 4) * 0.1; tn = [v, v, v]; }
+        } else { tile = onFloor ? pick(th.sat.top, c.i, c.j, seed + 2) : pick(th.edge, c.i, c.j, seed + 6); const v = 0.95 + hash2(c.i, c.j, seed + 4) * 0.1; tn = [v * rimT[0], v * rimT[1], v * rimT[2]]; }
         // AO at a top corner: lower when a neighbouring column stands higher
         const aoC = (u, v) => { let hi = 0; for (const [a, b] of [[0, 0], [-1, 0], [0, -1], [-1, -1]]) { const q = cells.get(key(u + a, v + b)); if (q && q.top > c.top + 0.01) hi++; } return hi ? 0.62 : 1; };
         const P = [[c.i, c.j], [c.i + 1, c.j], [c.i + 1, c.j + 1], [c.i, c.j + 1]];
@@ -311,7 +317,7 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
             const row = Math.round(c.top - y);
             const tile2 = row === 0 ? (onFloor && !fight ? th.sat.side : pick(th.side.top.map((q) => [q, 1]), c.i + s, c.j, seed + 7)) : pick(th.side.rows, c.i * 3 + s, Math.round(y), seed + 8);
             const dk = Math.max(0.22, 1 - row * 0.16); const ao0 = Math.max(0.2, dk - 0.16); const sh = water && y0 < waterY + 0.8 ? 0.55 : 1;
-            M.quad([[w0[0], y, w0[1]], [w1[0], y, w1[1]], [w1[0], y0, w1[1]], [w0[0], y0, w0[1]]], nrm, tile2, 1, y - y0, [1, 1, 1], [dk, dk, ao0 * sh, ao0 * sh]);
+            M.quad([[w0[0], y, w0[1]], [w1[0], y, w1[1]], [w1[0], y0, w1[1]], [w0[0], y0, w0[1]]], nrm, tile2, 1, y - y0, rimT, [dk, dk, ao0 * sh, ao0 * sh]);
           }
         }
       }
@@ -333,7 +339,7 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
   for (const p of props) {
     const P = PROPS[p.kind]; const L = LIGHTS[p.kind]; if (!L || !P.light) continue;
     const c = Math.cos(p.rot); const s = Math.sin(p.rot); const [lx, ly, lz] = P.light;
-    lights.push({ kind: p.kind, x: p.x + lx * c + lz * s, y: p.y + ly, z: p.z - lx * s + lz * c, ground: p.y, color: L.color, r: L.r, k: L.k * (boss ? 1.1 : 1), warm: L.warm, glow: L.glow, glowC: L.glowC });
+    lights.push({ kind: p.kind, x: p.x + lx * c + lz * s, y: p.y + ly, z: p.z - lx * s + lz * c, ground: p.y, color: boss && L.warm ? [L.color[0], L.color[1] * 0.72, L.color[2] * 0.5] : L.color, r: L.r * (boss ? 1.15 : 1), k: L.k * (boss ? 1.5 : 1), warm: L.warm, glow: L.glow, glowC: L.glowC });
   }
   pad.buildMs = performance.now() - t0;
   return pad;
@@ -349,6 +355,11 @@ export function buildBridge(a, b, theme, { width = 1.3, steps = false } = {}) {
   }
   return {
     a, b, lights, dir: [ux, uz], theme: theme.name,
+    // height of the deck's top at distance t along it: the tread the mesh really has (same rule as emit)
+    deckY(t) {
+      const n = steps ? Math.max(2, Math.round(Math.abs(b.y - a.y) / 0.25)) : Math.ceil(L / 0.5); const f = Math.max(0, Math.min(n - 1, Math.floor(t / L * n)));
+      return steps ? a.y + (b.y - a.y) * ((f + (b.y > a.y ? 1 : 0)) / n) : a.y + (b.y - a.y) * (f + 0.5) / n;
+    },
     emit(M) {
       // planks on a slope, or (steps) flat treads one block deep that climb in equal risers
       const n = steps ? Math.max(2, Math.round(Math.abs(b.y - a.y) / 0.25)) : Math.ceil(L / 0.5);

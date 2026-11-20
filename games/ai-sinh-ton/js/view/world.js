@@ -123,12 +123,14 @@ export function createWorld(H) {
   const delta = (i, j) => { const a = W.map.centres[i]; const b = W.map.centres[j]; return { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z }; };
   const themeAt = (i) => { const th = W.theme; return { ...th, abyss: { ...th.abyss, y: th.abyss.y - W.map.centres[i].y } }; };
 
+  // the boss pad is baked warmer and redder than the wave pads: the climax changes tone, it does not only get brighter
+  const bossTheme = (t) => ({ ...t, amb: { sky: [t.amb.sky[0] * 1.32, t.amb.sky[1] * 0.8, t.amb.sky[2] * 0.62], ground: [t.amb.ground[0] * 1.9, t.amb.ground[1] * 0.8, t.amb.ground[2] * 0.6] }, key: { ...t.key, color: [t.key.color[0] * 1.4, t.key.color[1] * 0.9, t.key.color[2] * 0.6] } });
   // the fight pad of section i (data only; meshed when the section is built)
   function mainOf(i) {
     const S = secs[i]; if (S.main) return S.main;
     const g = []; if (i < SECTIONS - 1) g.push(W.map.gates[i]); if (i > 0) g.push(W.map.gates[i - 1] + Math.PI);
     const boss = i === SECTIONS - 1; const k = boss ? BOSS_K : 1;
-    S.main = buildPad({ theme: themeAt(i), seed: stageN * 17 + 3 + i * 101, centre: { x: 0, y: 0, z: 0 }, ellipse: { x: ARENA.x * k, z: ARENA.z * k }, fight: true, boss, gates: g });
+    S.main = buildPad({ theme: boss ? bossTheme(themeAt(i)) : themeAt(i), seed: stageN * 17 + 3 + i * 101, centre: { x: 0, y: 0, z: 0 }, ellipse: { x: ARENA.x * k, z: ARENA.z * k }, fight: true, boss, gates: g });
     return S.main;
   }
 
@@ -270,12 +272,15 @@ export function createWorld(H) {
   // the height of the ground under a point of the scene's frame (pad floors and the walked bridge), or null over the void
   W.groundAt = (x, z) => {
     const mx = x + W.shift.x; const mz = z + W.shift.z; const S = secs[W.sec];
-    if (S.main.isFloor(mx, mz)) return -W.shift.y;
+    // over the walked bridge the deck counts where it stands above the pad floor it overlaps (the first metres of a climb, the last of a descent)
+    const b = S.walk; let deck = null;
+    if (b) { const L = Math.hypot(b.b.x - b.a.x, b.b.z - b.a.z); const t = (mx - b.a.x) * b.dir[0] + (mz - b.a.z) * b.dir[1]; const o = Math.abs(-(mx - b.a.x) * b.dir[1] + (mz - b.a.z) * b.dir[0]); if (t >= -0.3 && t <= L + 0.3 && o <= WALK_W / 2 + 0.05) deck = b.deckY(Math.max(0, Math.min(L, t))); }
     const T = travel; const j = T ? T.to : W.sec + 1; const N = secs[j];
-    if (N && N.main) { const d = delta(W.sec, j); if (N.main.isFloor(mx - d.x, mz - d.z)) return d.y - W.shift.y; }
-    const b = S.walk;
-    if (b) { const L = Math.hypot(b.b.x - b.a.x, b.b.z - b.a.z); const t = (mx - b.a.x) * b.dir[0] + (mz - b.a.z) * b.dir[1]; const o = Math.abs(-(mx - b.a.x) * b.dir[1] + (mz - b.a.z) * b.dir[0]); if (t >= -0.3 && t <= L + 0.3 && o <= WALK_W / 2 + 0.05) return b.a.y + (b.b.y - b.a.y) * Math.max(0, Math.min(1, t / L)) - W.shift.y; }
-    return null;
+    let y = null;
+    if (S.main.isFloor(mx, mz)) y = 0;
+    else if (N && N.main) { const d = delta(W.sec, j); if (N.main.isFloor(mx - d.x, mz - d.z)) y = d.y; }
+    if (deck !== null && (y === null || deck > y)) y = deck;
+    return y === null ? null : y - W.shift.y;
   };
 
   // where a monster arriving at (x, z) on the rim starts: out over the edge along the ellipse normal (or along a bridge)

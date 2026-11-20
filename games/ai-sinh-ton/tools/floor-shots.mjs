@@ -100,12 +100,13 @@ try {
     check(info.warm >= 4, `${k}: warm light sources in the frame ${info.warm} (>= 4)`);
     // a boss warning circle injected near the centre: centre colour before and while it fills
     const px = 2.2; const pz = -1.5;
-    const at = await page.evaluate(([x, z]) => { const H = window.__G.host; const v = new H.THREE.Vector3(x, 0, z).project(H.camera); return [(v.x + 1) / 2, (1 - v.y) / 2]; }, [px, pz]);
+    // eight points inside the circle: heroes and monsters standing on the single centre point must not decide the check, so the median counts
+    const ats = await page.evaluate(([x, z]) => { const H = window.__G.host; return [[0, 0], ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => [Math.cos(k * 0.785) * 1.4, Math.sin(k * 0.785) * 1.4])].map(([dx, dz]) => { const v = new H.THREE.Vector3(x + dx, 0, z + dz).project(H.camera); return [(v.x + 1) / 2, (1 - v.y) / 2]; }); }, [px, pz]);
     const beforeF = await shot(page, `ours-${tag}-warn0.png`);
     await page.evaluate(([x, z]) => { window.__G.actors.marks.tele({ team: 1, shape: 'circle', x, z, r: 2.2, t: 3 }); window.__step(45); }, [px, pz]);
     const duringF = await shot(page, `ours-${tag}-warn1.png`);
-    const c0 = meanAt(beforeF, at[0], at[1], 10); const c1 = meanAt(duringF, at[0], at[1], 10);
-    check(rb(c1) - rb(c0) > 12, `${k}: boss warning visible at its centre (red-blue ${rb(c0).toFixed(0)} -> ${rb(c1).toFixed(0)}, diff > 12)`);
+    const diffs = ats.map((q) => rb(meanAt(duringF, q[0], q[1], 10)) - rb(meanAt(beforeF, q[0], q[1], 10))).sort((m, n) => m - n); const med = diffs[Math.floor(diffs.length / 2)];
+    check(med > 12, `${k}: boss warning visible inside its circle (red-blue change, median of ${diffs.length} points ${med.toFixed(0)}, range ${diffs[0].toFixed(0)}..${diffs[diffs.length - 1].toFixed(0)}, > 12)`);
     const fl = meanAt(over, info.floorPt[0], info.floorPt[1], 6);
     const rd = Math.max(...info.ringPts.map((q) => dist3(meanAt(over, q[0], q[1], 1.6), fl)));
     check(rd > 40, `${k}: hero ring reads on the floor (colour distance ${rd.toFixed(0)} > 40)`);

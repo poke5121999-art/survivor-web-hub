@@ -76,14 +76,23 @@ for y in range(0, Hh, 2):
         if 15 <= hh * 360 <= 55 and s > 0.35 and v > 0.5: warm += 1
         if min(r, g, b) >= 250: wh += 1
 print(json.dumps({'flat': flat / n, 'warm': warm / tot, 'white': wh / tot}))`;
-// ring pixels from a mask frame (rings alone over black); contrast = mean luminance difference there, rings on vs off
+// ring pixels from a mask frame (rings alone over black); contrast = mean CIE76 colour distance (Lab dE) there, rings on vs off.
+// Luminance alone cannot see a saturated ring on a dark floor; dE counts hue and chroma too, like the eye does
 const RINGDIFF = `
 import sys, json
 from PIL import Image
-a = Image.open(sys.argv[1]).convert('L'); b = Image.open(sys.argv[2]).convert('L'); m = Image.open(sys.argv[3]).convert('L'); pa = a.load(); pb = b.load(); pm = m.load(); s = 0; n = 0
+def lab(c):
+    v = []
+    for q in c:
+        q /= 255.0; v.append(q / 12.92 if q <= 0.04045 else ((q + 0.055) / 1.055) ** 2.4)
+    x = (0.4124 * v[0] + 0.3576 * v[1] + 0.1805 * v[2]) / 0.95047; y = 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; z = (0.0193 * v[0] + 0.1192 * v[1] + 0.9505 * v[2]) / 1.08883
+    f = lambda t: t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+    fx, fy, fz = f(x), f(y), f(z); return (116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz))
+a = Image.open(sys.argv[1]).convert('RGB'); b = Image.open(sys.argv[2]).convert('RGB'); m = Image.open(sys.argv[3]).convert('L'); pa = a.load(); pb = b.load(); pm = m.load(); s = 0; n = 0
 for y in range(0, a.height, 2):
     for x in range(0, a.width, 2):
-        if pm[x, y] > 40: s += abs(pa[x, y] - pb[x, y]); n += 1
+        if pm[x, y] > 40:
+            p, q = lab(pa[x, y]), lab(pb[x, y]); s += sum((p[k] - q[k]) ** 2 for k in range(3)) ** 0.5; n += 1
 print(json.dumps({'c': s / max(1, n), 'n': n}))`;
 // mean luminance and saturation of the bottom and top 15% rows
 const DEPTH = `
@@ -229,9 +238,10 @@ try {
     const t = argv.includes('--ring-only') ? { ...old, ring, at: new Date().toISOString() } : { ...c, ring: ring.length ? ring : old.ring, at: new Date().toISOString() }; fs.writeFileSync(TREE_JSON, JSON.stringify(t, null, 1)); console.log('baseline tree:', JSON.stringify(t));
   } else {
     let before = null; try { before = JSON.parse(fs.readFileSync(BEFORE_JSON, 'utf8')); } catch (e) { before = null; }
-    if (!before || REFRESH) {
+    if (!before || REFRESH || !before.ringDE) {
       const b = await look(br, BEFORE_BASE, 's22p', 1, 1, 'deployed-s22p-c1-w1', false); const c = await cost(br, BEFORE_BASE, 's22p');
-      before = { flat: b.img.flat, warm: b.img.warm, ...c, at: new Date().toISOString() }; fs.writeFileSync(BEFORE_JSON, JSON.stringify(before, null, 1));
+      const ringDE = []; for (const ch of CH) { try { const a = await look(br, BEFORE_BASE, 's22p', stageOf(ch), 1, `deployed-s22p-c${ch}-ring`, true); ringDE.push(a.ring ? a.ring.c : null); } catch (e) { ringDE.push(null); } }
+      before = { flat: b.img.flat, warm: b.img.warm, ringDE, ...c, at: new Date().toISOString() }; fs.writeFileSync(BEFORE_JSON, JSON.stringify(before, null, 1));
     }
     let tree = null; try { tree = JSON.parse(fs.readFileSync(TREE_JSON, 'utf8')); } catch (e) { tree = null; }
     console.log(`BEFORE deployed portrait s22: flat cells ${(100 * before.flat).toFixed(1)}%, warm ${(100 * before.warm).toFixed(2)}%, q=low stage 15 draws ${before.draws} tris ${before.tris} render ${before.cpu.toFixed(2)} ms`);
@@ -270,7 +280,13 @@ try {
           check(p.boxes.length > 0 && inside === 0, `${k}: decoration corners inside 1.08 of the ellipse above y 0.05: ${inside} of ${p.boxes.length} boxes (= 0)`);
           check(tall === 0, `${k}: near-rim decoration taller than 1.2 m: ${tall} (= 0)`);
         }
-        if (a.ring && tree) { const b = tree.ring[Math.min(tree.ring.length - 1, ch - 1)]; const ref = Math.min(...tree.ring); console.log(`${k}: ring contrast ${a.ring.c.toFixed(1)} over ${a.ring.n} px (tree before ${b.toFixed(1)})`); check(a.ring.c >= ref, `${k}: team ring to floor luminance difference ${a.ring.c.toFixed(1)} (>= the flat floor's lowest ${ref.toFixed(1)})`); }
+        if (a.ring) {
+          const dep = (before.ringDE || []).filter((x) => x !== null); const depMin = dep.length ? Math.min(...dep) : null;
+          // floor: the rings must be at least 90% as visible as the weakest chapter of the deployed build (about 6 dE there): the player already reads those rings, and the island floors must not make them harder to read
+          const floor = depMin === null ? 5 : 0.9 * depMin;
+          console.log(`${k}: ring to floor colour distance ${a.ring.c.toFixed(1)} dE over ${a.ring.n} px (deployed per chapter ${(before.ringDE || []).map((x) => (x === null ? '-' : x.toFixed(1))).join('/')})`);
+          check(a.ring.c >= floor, `${k}: team ring to floor colour distance ${a.ring.c.toFixed(1)} dE (>= ${floor.toFixed(1)} = 90% of the deployed weakest chapter ${depMin === null ? 'n/a' : depMin.toFixed(1)})`);
+        }
         if (a.depth) { const dl = Math.abs(a.depth.near[0] - a.depth.far[0]); const ds = Math.abs(a.depth.near[1] - a.depth.far[1]); check(dl >= 4 || ds >= 0.04, `${k}: water/abyss near vs far: luminance ${a.depth.near[0].toFixed(0)} vs ${a.depth.far[0].toFixed(0)}, saturation ${a.depth.near[1].toFixed(2)} vs ${a.depth.far[1].toFixed(2)} (a gradient: >= 4 levels or 0.04)`); }
         if (ch === 1 || ch === CH[0]) {
           const xs = p.rim.map((q) => q[0]); const ys = p.rim.map((q) => q[1]); const Wd = p.w / p.u; const Hd = p.h / p.u;
