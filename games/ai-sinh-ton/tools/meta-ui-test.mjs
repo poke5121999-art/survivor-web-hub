@@ -6,16 +6,17 @@ import fs from 'node:fs';
 import { serve, launch, open, checker, sheet, ROOT } from './pw.mjs';
 import { levelCost } from '../js/data/economy.js';
 
-const OUT = path.join(ROOT, '.chk', 'meta'); fs.mkdirSync(OUT, { recursive: true });
+const OUT = path.join(ROOT, '.chk', 'landscape', 'shots-meta'), LS = path.join(ROOT, '.chk', 'landscape'); fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(LS, { recursive: true });
 const { check, done } = checker();
 const srv = await serve(); const br = await launch();
 const shots = [];
 
+const tapXY = async (page, x, y) => { if (await page.evaluate(() => navigator.maxTouchPoints > 0)) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y); };
 const targets = (page) => page.evaluate(() => __ui.targets());
 async function tap(page, id) {
   const t = (await targets(page)).find((q) => q.id === id);
   if (!t) return false;
-  await page.touchscreen.tap(t.x + t.w / 2, t.y + t.h / 2);
+  await tapXY(page, t.x + t.w / 2, t.y + t.h / 2);
   await page.evaluate(() => __step(8));
   return true;
 }
@@ -31,7 +32,7 @@ async function auditTargets(page, label) {
     const out = [];
     for (const t of __ui.targets()) {
       const cx = t.x + t.w / 2, cy = t.y + t.h / 2, hit = __ui.hitAt(cx, cy);
-      const r = document.getElementById('frame').getBoundingClientRect(), k = r.width / 360;
+      const r = document.getElementById('frame').getBoundingClientRect(), k = r.width / 780;
       if (t.w / k < 47.5 || t.h / k < 47.5) out.push(`${t.id} is ${(t.w / k).toFixed(1)}x${(t.h / k).toFixed(1)}`);
       if (hit !== t.id) out.push(`${t.id} centre hits ${hit}`);
     }
@@ -42,7 +43,7 @@ async function auditTargets(page, label) {
 }
 
 try {
-  for (const phone of ['s22', 'xiaomi']) {
+  for (const phone of (process['env'].PH || 's22,xiaomi,desktop').split(',')) {
     const g = await open(br, srv.base, phone, 'noaudio=1&q=low'); const { page } = g;
     await step(page, 20);
     // 1. fresh account
@@ -123,8 +124,9 @@ try {
     await page.evaluate(() => { const A = __G.meta.acc; A.heroes.thep.shards = 100; A.gold = 5000; });
     await page.evaluate(() => __G.goto('heroes')); await step(page, 10);
     check(await tap(page, 'hero-thep'), `${phone}: hero tile hero-thep can be tapped`); await step(page, 30);
-    check((await screenName(page)) === 'hero', `${phone}: tapping a tile opens the hero page ("${await screenName(page)}")`);
-    await snap(page, phone, 'hero'); await auditTargets(page, `${phone} hero page`);
+    const selA = await page.evaluate(() => ({ s: __G.screen, id: __G.metaUi.heroSel() }));
+    check(selA.s === 'heroes' && selA.id === 'thep', `${phone}: tapping a tile selects the hero on the same screen ("${selA.s}", selected "${selA.id}")`);
+    await snap(page, phone, 'hero'); await auditTargets(page, `${phone} hero detail`);
     const lv0 = (await acc(page)).heroes.thep, gold0 = (await acc(page)).gold, cost = levelCost(lv0.level);
     await tap(page, 'levelup'); await step(page, 20);
     const lv1 = (await acc(page)).heroes.thep, gold1 = (await acc(page)).gold;
@@ -154,7 +156,7 @@ try {
     const t1 = (await acc(page)).team.slice(); await tap(page, 'team-toggle'); await step(page, 10);
     const t2 = (await acc(page)).team.slice();
     check(t0.includes('thep') && !t1.includes('thep') && t1.length === 3 && t2.includes('thep') && t2.length === 4, `${phone}: team-toggle leaves and rejoins (${t0.length} -> ${t1.length} -> ${t2.length})`);
-    await page.evaluate(() => { __G.meta.acc.heroes.bong = { level: 1, shards: 0 }; __G.goto('hero', { id: 'bong' }); }); await step(page, 20);
+    await page.evaluate(() => { __G.meta.acc.heroes.bong = { level: 1, shards: 0 }; __G.goto('heroes', { id: 'bong' }); }); await step(page, 20);
     await tap(page, 'team-toggle'); await step(page, 20);
     await snap(page, phone, 'team-pick');
     const hasPick = (await targets(page)).some((t) => t.id === 'replace-1');
@@ -199,8 +201,11 @@ try {
     check(errs.length === 0 && g.problems.length === 0, `${phone}: no page errors (${[...errs, ...g.problems].slice(0, 3).join(' | ') || 'none'})`);
     await g.ctx.close();
   }
-  const keep = shots.filter((f) => /s22-(home|gacha|heroes|hero|equip|rewards|rates|pull10-1|pull10-3|pull10-summary|pull1-drop|pull1-reveal|team-pick|stage4|rewards-claimed|gacha-empty)\.png$/.test(f));
-  const keepX = keep.map((f) => f.replace('s22-', 'xiaomi-')).filter((f) => fs.existsSync(f));
-  sheet(keep, path.join(OUT, 'review-s22.png'), 6, 300); if (keepX.length) sheet(keepX, path.join(OUT, 'review-xiaomi.png'), 6, 300);
+  for (const phone of (process['env'].PH || 's22,xiaomi,desktop').split(',')) {
+    const pick = (names) => names.map((n) => path.join(OUT, `${phone}-${n}.png`)).filter((f) => fs.existsSync(f));
+    sheet(pick(['hero', 'hero-levelup', 'team-pick']), path.join(LS, `heroes-${phone}.png`), 2, 640);
+    sheet(pick(['gacha', 'rates', 'pull10-1', 'pull10-summary', 'pull1-drop', 'pull1-reveal', 'gacha-empty']), path.join(LS, `gacha-${phone}.png`), 2, 640);
+    sheet(pick(['home', 'heroes', 'equip', 'rewards', 'stage4', 'rewards-claimed']), path.join(OUT, `review-${phone}.png`), 3, 420);
+  }
 } finally { await br.close(); srv.close(); }
 done();

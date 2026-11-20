@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { serve, launch, open, checker, sheet, ROOT } from './pw.mjs';
 
-const OUT = path.join(ROOT, '.chk', 'ui');
+const OUT = path.join(ROOT, '.chk', 'landscape', 'shots-ui');
 fs.mkdirSync(OUT, { recursive: true });
 const DEMO = { path: '/games/ai-sinh-ton/ui-demo.html' };
 const SCREENS = ['home', 'grid', 'hud'];
@@ -72,7 +72,7 @@ try {
       check(y0 - y1 > 1.5 && Buffer.compare(before, during) !== 0, `pressed button sinks ${(y0 - y1).toFixed(1)} design px and its pixels change`);
       // dragging in a scroll scrolls and does not tap a tile
       await page.evaluate(() => { window.__show('grid'); window.__taps.length = 0; window.__demo.scroll.scrollTo(0); }); await wait(page, 500);
-      await page.mouse.move(180, 400); await page.mouse.down(); for (let i = 1; i <= 8; i++) await page.mouse.move(180, 400 - i * 25); await page.mouse.up(); await wait(page, 500);
+      await page.mouse.move(560, 280); await page.mouse.down(); for (let i = 1; i <= 8; i++) await page.mouse.move(560, 280 - i * 22); await page.mouse.up(); await wait(page, 500);
       const sc = await page.evaluate(() => window.__demo.scroll.getScroll());
       check(sc > 80 && !(await page.evaluate(() => window.__taps)).some((t) => t.startsWith('tile')), `dragging the grid scrolls it (${sc.toFixed(0)} px) and taps no tile`);
       await page.evaluate(() => window.__demo.scroll.scrollTo(0)); await wait(page, 300);
@@ -84,7 +84,7 @@ try {
 
     // text crispness and diacritics
     await page.evaluate(() => window.__show('home')); await wait(page, 400);
-    const crisp = await page.evaluate(() => ({ texels: window.__title.texels, need: window.devicePixelRatio * (document.getElementById('frame').clientWidth / 360), w: window.__title.w }));
+    const crisp = await page.evaluate(() => ({ texels: window.__title.texels, need: window.devicePixelRatio * (document.getElementById('frame').clientWidth / 780), w: window.__title.w }));
     check(crisp.texels >= crisp.need * 0.98, `${phone}: title has ${crisp.texels.toFixed(2)} texels per design px, needs ${crisp.need.toFixed(2)}`);
     const dia = await page.evaluate(() => {
       const out = [];
