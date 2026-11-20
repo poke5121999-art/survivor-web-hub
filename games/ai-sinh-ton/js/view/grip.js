@@ -17,7 +17,11 @@ const BLADE = { fwd: [0, 1, 0], up: [0, 0, 1] };
 // yaw - twist, so the weapon keeps pointing at the target while the chest turns. Pistols give `m`, the grip point, and
 // poles give `rh` and `lh`, both hand positions: the shaft runs through them and slides through the hands on a thrust.
 export const GRIP = {
-  katana: { scale: 1.6, type: 'one', ...BLADE, main: [0, 0, 0], support: null, stock: null, tilt: 2.65, carry: [0.6, 0.12, 0.8] },
+  // two hands on the hilt (main near the guard, off hand at the pommel); the sword hangs off the spine and both arms are solved onto it.
+  // Poses are the off hand's position `lh` and the blade direction `d` in spine space; a cut runs wind-up -> cross -> low finish -> guard.
+  katana: { scale: 1.9, type: 'sword2', ...BLADE, main: [0, 0.07, 0], support: [0, -0.12, 0], stock: null, muzzle: [0, 1.1, 0],
+    poses: { guard: { lh: [0.0, 0.3, 0.22], d: [0.34, 0.6, 0.72], u: [0, 1, 0] }, wind: { lh: [0.02, 0.8, 0.34], d: [0.45, 0.8, -0.4], u: [-0.6, 0.3, 0.7] },
+      cross: { lh: [-0.02, 0.5, 0.15], d: [0.3, 0.1, 0.95], u: [0, 1, 0] }, end: { lh: [0.15, 0.43, 0.1], d: [-0.35, -0.1, 0.93], u: [0.3, 1, 0] } } },
   longsword: { scale: 1.5, type: 'one', ...BLADE, main: [0, -0.1, 0], support: null, stock: null, shield: 1.3, tilt: 2.65, carry: [0.6, 0.12, 0.8] },
   hatchet: { scale: 1.8, type: 'one', ...BLADE, main: [0, 0.02, 0], support: null, stock: null, muzzle: [0, 0.7, -0.27], carry: [0.55, 0.2, 0.8] },
   spear: { scale: 1.4, type: 'pole', ...BLADE, main: [0, -0.25, 0], support: null, stock: null,
@@ -89,7 +93,7 @@ export function attachGrip(m, eq, wid) {
       objs.push({ g, side, q0: g.quaternion.clone(), hand });
     }
   }
-  const gunType = row.type === 'two' || row.type === 'shoulder' || row.type === 'dual' || row.type === 'wrist' || row.type === 'pole';
+  const gunType = row.type === 'sword2' || row.type === 'two' || row.type === 'shoulder' || row.type === 'dual' || row.type === 'wrist' || row.type === 'pole';
   for (const o of objs) {
     if (row.muzzle && o.g.userData.tipObj) o.g.userData.tipObj.position.fromArray(row.muzzle);
     if (row.tilt) o.q0.setFromEuler(new THREE.Euler(row.tilt, 0, 0));
@@ -146,6 +150,34 @@ function castHides(st) {
   return !!(c && !c.gun);
 }
 
+// the two-handed sword: the pose follows the swing progress, the off hand and the blade direction are blended between key poses
+const smooth = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+const PA = new THREE.Vector3(); const PB = new THREE.Vector3(); const PD = new THREE.Vector3(); const PU = new THREE.Vector3();
+function swordPose(row, sw, out) {
+  const P = row.poses; let a = P.guard; let b = P.guard; let t = 0;
+  if (sw >= 0) {
+    if (sw < 0.3) { a = P.guard; b = P.wind; t = smooth(sw / 0.3); }
+    else if (sw < 0.5) { a = P.wind; b = P.cross; t = smooth((sw - 0.3) / 0.2); }
+    else if (sw < 0.68) { a = P.cross; b = P.end; t = smooth((sw - 0.5) / 0.18); }
+    else { a = P.end; b = P.guard; t = smooth((sw - 0.68) / 0.32); }
+  }
+  PA.fromArray(a.lh).lerp(PB.fromArray(b.lh), t); out.lh.copy(PA);
+  PD.fromArray(a.d).normalize().lerp(PB.fromArray(b.d).normalize(), t).normalize(); out.d.copy(PD);
+  PU.fromArray(a.u).lerp(PB.fromArray(b.u), t).normalize(); out.u.copy(PU);
+}
+const SP = { lh: new THREE.Vector3(), d: new THREE.Vector3(), u: new THREE.Vector3() };
+function placeSword(gr, o, sw, bob) {
+  const row = gr.row; const s = row.scale * o.k;
+  swordPose(row, sw, SP);
+  SP.lh.y += bob;
+  const f = SP.d; const up = SP.u; up.addScaledVector(f, -up.dot(f)).normalize();
+  basisQ(f, up, Q1);
+  basisQ(WF.fromArray(row.fwd), WU.fromArray(row.up), Q2); Q2.invert();
+  o.g.quaternion.copy(Q1).multiply(Q2); o.g.scale.setScalar(s);
+  posV.fromArray(row.support).multiplyScalar(s).applyQuaternion(o.g.quaternion);
+  o.g.position.copy(SP.lh).sub(posV); o.g.updateMatrix();
+}
+
 const targetV = new THREE.Vector3();
 const spineTarget = (m, g, p) => { g.updateMatrix(); return targetV.fromArray(p).applyMatrix4(g.matrix); };
 
@@ -161,6 +193,16 @@ export function solveGrip(gr, m, st, dt, ctx) {
   for (const o of gr.objs) { o.k = Math.max(0.001, k); o.g.visible = !hide; }
   gr.hidden = hide;
   m.armR.rotation.y = 0;
+  if (row.type === 'sword2') {
+    const o = gr.objs[0]; const dead = st.dead > 0;
+    const sw = dead ? -1 : st.swing; gr.swK = (gr.swK || 0) + ((sw >= 0 ? 1 : 0) - (gr.swK || 0)) * Math.min(1, dt * 20);
+    const bob = Math.sin((st.t || 0) * 2.2) * 0.012 * (1 - gr.swK);
+    placeSword(gr, o, sw, bob);
+    if (hide || dead || st.draw < 1) return;
+    const Rm = spineTarget(m, o.g, row.main).clone(); solveArm(m.armR, m.elbowR, m.handR, 1, Rm, gr.info.R);
+    const Ls = spineTarget(m, o.g, row.support).clone(); solveArm(m.armL, m.elbowL, m.handL, -1, Ls, gr.info.L);
+    return;
+  }
   if (gr.gun) {
     const kickR = Math.min(1, st.kick || 0); const kickL = Math.min(1, st.kickL || 0);
     const dead = st.dead > 0;

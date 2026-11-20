@@ -198,7 +198,7 @@ export function createMarks(H) {
   })();
   const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 20, 1, true).translate(0, 0.5, 0);
   const VCAP = { pillar: 10, wall: 8, flash: 10 };
-  const vpool = { pillar: [], wall: [], flash: [] };
+  const vpool = { pillar: [], wall: [], flash: [], whirl: [] };
   const reduceFlash = () => !!(window.__G && window.__G.settings && window.__G.settings.reduceFlash);
   function vslot(kind) {
     let rec = vpool[kind].find((r) => !r.on);
@@ -253,8 +253,170 @@ export function createMarks(H) {
   }
   const vliveCount = () => ({ pillars: vpool.pillar.filter((r) => r.on).length, walls: vpool.wall.filter((r) => r.on).length, flashes: vpool.flash.filter((r) => r.on).length + (edge.on ? 1 : 0) });
 
+
+  // ---- sword light: pooled ribbons (live blade arcs and static streaks), afterimages, and the whirlwind column ----
+  // A ribbon has three vertices per sample (edge a, centre, edge b), each tinted colour * fade * brightness, drawn additive.
+  const RIB = { cap: 20, n: 22 };
+  const ribs = [];
+  const camV = new THREE.Vector3(); const dirV = new THREE.Vector3(); const nV = new THREE.Vector3();
+  function ribSlot() {
+    let r = ribs.find((q) => !q.on);
+    if (r) return r;
+    if (ribs.length >= RIB.cap) return ribs.reduce((a, b) => (b.t / b.life > a.t / a.life ? b : a));
+    const n = RIB.n; const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 9), 3)); geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 9), 3));
+    const idx = []; for (let i = 0; i < n - 1; i++) { const a = i * 3; const b = (i + 1) * 3; idx.push(a, a + 1, b, a + 1, b + 1, b, a + 1, a + 2, b + 1, a + 2, b + 2, b + 1); }
+    geo.setIndex(idx);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 8; scene.add(mesh);
+    r = { mesh, geo, on: false, t: 0, life: 1, n: 0, pts: new Float32Array(n * 6), ts: new Float32Array(n), col: new THREE.Color(), k: [0.2, 1, 0.2], a: 1, live: false, len: 0, kind: '' };
+    ribs.push(r); return r;
+  }
+  function ribOn(r, color, life, a, k, kind, live) {
+    r.on = true; r.t = 0; r.life = life; r.n = 0; r.col.set(color); r.a = a; r.k = k; r.live = live; r.len = 0; r.kind = kind; r.mesh.visible = true; r.geo.setDrawRange(0, 0);
+    return r;
+  }
+  // a blade arc: push the two edge points every frame while the blow lasts; each sample fades `life` seconds after it was pushed
+  function arc(color, life = 0.16, a = 0.9, k = [0.25, 1, 1]) { return ribOn(ribSlot(), color, life, a, k, 'arc', true); }
+  function arcPush(r, ax, ay, az, bx, by, bz) {
+    if (!r.on || !r.live) return;
+    if (r.n >= RIB.n) { r.pts.copyWithin(0, 6, r.n * 6); r.ts.copyWithin(0, 1, r.n); r.n--; }
+    r.pts.set([ax, ay, az, bx, by, bz], r.n * 6); r.ts[r.n] = r.t; r.n++;
+  }
+  function arcEnd(r) { if (r) r.live = false; }
+  // a straight (slightly bowed) stroke from a to b, facing the camera, drawn on over `sweep` seconds and fading behind its head
+  function streak(ax, ay, az, bx, by, bz, w, color, life = 0.35, a = 0.9, o = {}) {
+    const r = ribOn(ribSlot(), color, life, a, o.k || [0.18, 1, 0.18], o.kind || 'streak', false);
+    const n = RIB.n; const sweep = o.sweep ?? 0.09; const bow = o.bow || 0;
+    camV.set(0, 0, -1).applyQuaternion(H.camera.quaternion);
+    dirV.set(bx - ax, by - ay, bz - az); const len = dirV.length() || 1; dirV.multiplyScalar(1 / len);
+    nV.crossVectors(dirV, camV).normalize();
+    r.len = len; r.n = n;
+    for (let i = 0; i < n; i++) {
+      const f = i / (n - 1); const hw = (w / 2) * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0.04, f))), o.taper ?? 0.45); const off = Math.sin(Math.PI * f) * bow * len;
+      const cx = ax + (bx - ax) * f + nV.x * off; const cy = ay + (by - ay) * f + nV.y * off; const cz = az + (bz - az) * f + nV.z * off;
+      r.pts.set([cx + nV.x * hw, cy + nV.y * hw, cz + nV.z * hw, cx - nV.x * hw, cy - nV.y * hw, cz - nV.z * hw], i * 6); r.ts[i] = f * sweep;
+    }
+    return r;
+  }
+  function updateRibs(dt) {
+    for (const r of ribs) {
+      if (!r.on) continue;
+      r.t += dt; const n = r.n; const g = r.geo; const P = g.attributes.position.array; const C = g.attributes.color.array; let last = 0;
+      for (let i = 0; i < n; i++) {
+        const age = r.t - r.ts[i]; const vis = age >= 0 ? Math.max(0, 1 - age / r.life) : 0; const f = Math.pow(vis, 1.4) * r.a; last = Math.max(last, vis > 0 ? 1 : 0);
+        const ax = r.pts[i * 6]; const ay = r.pts[i * 6 + 1]; const az = r.pts[i * 6 + 2]; const bx = r.pts[i * 6 + 3]; const by = r.pts[i * 6 + 4]; const bz = r.pts[i * 6 + 5];
+        const o = i * 9; P[o] = ax; P[o + 1] = ay; P[o + 2] = az; P[o + 3] = (ax + bx) / 2; P[o + 4] = (ay + by) / 2; P[o + 5] = (az + bz) / 2; P[o + 6] = bx; P[o + 7] = by; P[o + 8] = bz;
+        for (let v = 0; v < 3; v++) { const k = r.k[v] * f; C[o + v * 3] = r.col.r * k; C[o + v * 3 + 1] = r.col.g * k; C[o + v * 3 + 2] = r.col.b * k; }
+      }
+      g.setDrawRange(0, Math.max(0, n - 1) * 12); g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true;
+      const tail = n ? r.ts[n - 1] : 0;
+      if (!r.live && (r.t - tail >= r.life || !last)) { r.on = false; r.mesh.visible = false; }
+      else if (r.live && r.t > 3) { r.on = false; r.mesh.visible = false; }
+    }
+  }
+
+  // afterimages: billboard silhouettes of the hero, tinted, left along a path
+  const GH = { cap: 8 };
+  const ghostTex = (() => {
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 256; const c = cv.getContext('2d');
+    c.fillStyle = '#fff'; c.strokeStyle = '#fff'; c.lineCap = 'round';
+    c.beginPath(); c.arc(64, 44, 24, 0, 6.283); c.fill();
+    c.lineWidth = 36; c.beginPath(); c.moveTo(64, 80); c.lineTo(64, 150); c.stroke();
+    c.lineWidth = 20; c.beginPath(); c.moveTo(58, 150); c.lineTo(40, 238); c.moveTo(70, 150); c.lineTo(96, 226); c.stroke();
+    c.lineWidth = 16; c.beginPath(); c.moveTo(52, 92); c.lineTo(86, 120); c.stroke();
+    c.lineWidth = 7; c.beginPath(); c.moveTo(84, 126); c.lineTo(118, 6); c.stroke();
+    const g = c.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0.35)');
+    c.globalCompositeOperation = 'source-in'; c.fillStyle = g; c.fillRect(0, 0, 128, 256);
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  const ghosts = [];
+  function ghost(x, z, color, o = {}) {
+    let r = ghosts.find((q) => !q.on);
+    if (!r) {
+      if (ghosts.length >= GH.cap) r = ghosts.reduce((a, b) => (b.t / b.life > a.t / a.life ? b : a));
+      else { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: ghostTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); sp.frustumCulled = false; sp.renderOrder = 7; sp.visible = false; scene.add(sp); r = { sp, on: false }; ghosts.push(r); }
+    }
+    r.on = true; r.t = -(o.delay || 0); r.life = o.life || 0.35; r.a = o.a ?? 0.6; r.flip = o.flip || 1; r.drift = o.drift || 0; r.x = x; r.z = z;
+    r.sp.material.color.set(color); r.sp.position.set(x, 1.5, z); r.sp.scale.set(-1.7 * r.flip, 3.2, 1); r.sp.visible = false; r.sp.material.opacity = 0;
+  }
+  function updateGhosts(dt) {
+    for (const r of ghosts) {
+      if (!r.on) continue;
+      r.t += dt; if (r.t < 0) continue;
+      const k = r.t / r.life; if (k >= 1) { r.on = false; r.sp.visible = false; continue; }
+      r.sp.visible = true; r.sp.material.opacity = r.a * Math.min(1, r.t / 0.04) * Math.pow(1 - k, 1.2); r.sp.position.x = r.x - r.flip * r.drift * k;
+    }
+  }
+
+  // the whirlwind: a funnel of spiral light with spinning arcs, leaves carried up, and a swirl on the floor
+  const WH = { cap: 2, H: 5.2, leaves: 34 };
+  const funnelGeo = new THREE.CylinderGeometry(1, 0.34, 1, 36, 8, true).translate(0, 0.5, 0);
+  const arcGeo = new THREE.RingGeometry(0.86, 1, 36, 1, 0, 4.1).rotateX(-Math.PI / 2);
+  const WH_FRAG = `uniform float uT; uniform float uA; uniform vec3 uC1; uniform vec3 uC2; varying vec2 vUv;
+    void main() { float ang = vUv.x * 6.2832; float y = vUv.y;
+      float b1 = smoothstep(0.55, 0.95, sin(ang * 3.0 + y * 9.0 - uT * 11.0) * 0.5 + 0.5);
+      float b2 = smoothstep(0.72, 1.0, sin(ang * 5.0 - y * 15.0 + uT * 8.0) * 0.5 + 0.5);
+      float fade = smoothstep(0.0, 0.07, y) * (1.0 - smoothstep(0.62, 1.0, y));
+      float a = (0.07 + b1 * 0.5 + b2 * 0.32) * fade;
+      gl_FragColor = vec4(mix(uC1, uC2, clamp(b2 + y * 0.5, 0.0, 1.0)), a * uA); }`;
+  const whirls = [];
+  const leafGeo = new THREE.PlaneGeometry(0.32, 0.2);
+  const leafMesh = new THREE.InstancedMesh(leafGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, fog: false }), WH.cap * WH.leaves);
+  leafMesh.frustumCulled = false; leafMesh.count = 0; leafMesh.renderOrder = 6; leafMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(WH.cap * WH.leaves * 3), 3); scene.add(leafMesh);
+  const LEAF_COL = [0x7fb04a, 0xb8c850, 0xd8a840, 0x9a7a3a, 0x5f9a3c].map((c) => new THREE.Color(c));
+  const lM = new THREE.Matrix4(); const lQ = new THREE.Quaternion(); const lE = new THREE.Euler(); const lP = new THREE.Vector3(); const lS = new THREE.Vector3(1, 1, 1);
+  function whirl(x, z, r, color, dur = 1.2) {
+    let w = whirls.find((q) => !q.on);
+    if (!w) {
+      if (whirls.length >= WH.cap) w = whirls.reduce((a, b) => (b.t / b.life > a.t / a.life ? b : a));
+      else {
+        const uni = { uT: { value: 0 }, uA: { value: 0 }, uC1: { value: new THREE.Color() }, uC2: { value: new THREE.Color() } };
+        const mesh = new THREE.Mesh(funnelGeo, new THREE.ShaderMaterial({ uniforms: uni, vertexShader: VERT, fragmentShader: WH_FRAG, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+        mesh.frustumCulled = false; mesh.renderOrder = 6; mesh.visible = false; scene.add(mesh);
+        const arcs = []; for (let i = 0; i < 6; i++) { const am = new THREE.Mesh(arcGeo, new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); am.frustumCulled = false; mesh.add(am); arcs.push(am); }
+        const zu = { uStyle: { value: 2 }, uT: { value: 0 }, uA: { value: 0 }, uHalf: { value: 0 }, uC1: { value: new THREE.Color() }, uC2: { value: new THREE.Color() }, uR: { value: 1 } };
+        const swirl = new THREE.Mesh(planeGeo, new THREE.ShaderMaterial({ uniforms: zu, vertexShader: VERT, fragmentShader: ZONE_FRAG, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+        flat(swirl, 0, 0, 0.06); swirl.renderOrder = 4; swirl.visible = false;
+        w = { kind: 'whirl', mesh, uni, arcs, swirl, zu, on: false, t: 0, life: 1, lf: [] }; whirls.push(w); vpool.whirl.push(w);
+      }
+    }
+    const q = Math.max(0.5, H.quality.particles);
+    w.on = true; w.t = 0; w.life = dur + 0.35; w.dur = dur; w.x = x; w.z = z; w.R = Math.max(1.4, r * 0.62); w.emit = 0;
+    w.uni.uC1.value.set(color); w.uni.uC2.value.set(color).lerp(new THREE.Color(0xdff6ff), 0.55);
+    w.zu.uC1.value.set(color); w.zu.uC2.value.set(color).lerp(new THREE.Color(0xffffff), 0.35); w.zu.uR.value = r;
+    w.mesh.position.set(x, 0.05, z); w.mesh.visible = true; w.swirl.position.set(x, 0.06, z); w.swirl.scale.set(r * 2, r * 2, 1); w.swirl.visible = true;
+    w.arcs.forEach((am, i) => { am.material.color.set(i % 2 ? new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.3) : color); am.userData.y = 0.1 + i * 0.16; am.userData.sp = (i % 2 ? -1 : 1) * (5 + i * 0.7); am.rotation.y = i * 1.3; });
+    w.lf.length = 0; const n = Math.max(10, Math.round(WH.leaves * q * 0.8)); for (let i = 0; i < n; i++) w.lf.push({ a: G.rng.range(0, 6.283), w: G.rng.range(4.5, 8), h: G.rng.next(), v: G.rng.range(0.25, 0.55), rf: G.rng.range(0.7, 1.25), sp: G.rng.range(-9, 9), c: G.rng.int(0, LEAF_COL.length - 1) });
+  }
+  function updateWhirls(dt) {
+    let n = 0;
+    for (const w of whirls) {
+      if (!w.on) continue;
+      w.t += dt; const k = w.t / w.life; if (k >= 1) { w.on = false; w.mesh.visible = false; w.swirl.visible = false; continue; }
+      const rise = 1 - Math.pow(1 - Math.min(1, w.t / 0.22), 3); const out = w.t > w.dur ? Math.max(0, 1 - (w.t - w.dur) / 0.35) : 1; const a = Math.min(1, w.t / 0.08) * out * (reduceFlash() ? 0.6 : 1);
+      w.mesh.scale.set(w.R, Math.max(0.05, WH.H * rise), w.R); w.uni.uT.value = w.t; w.uni.uA.value = a; w.mesh.material.opacity = a;
+      for (const am of w.arcs) { const yy = am.userData.y; const rad = 0.34 + 0.66 * yy; am.position.y = yy; am.scale.set(rad, 1, rad); am.rotation.y += am.userData.sp * dt; am.material.opacity = a * 0.4; }
+      w.zu.uT.value = w.t; w.zu.uA.value = Math.min(1, w.t / 0.15) * out * 0.8;
+      for (const l of w.lf) {
+        if (n >= leafMesh.instanceMatrix.count) break;
+        const hh = ((l.h + l.v * w.t) % 1) * WH.H * rise; const rad = w.R * (0.34 + 0.66 * (hh / WH.H)) * l.rf * 1.05; const an = l.a + l.w * w.t;
+        lP.set(w.x + Math.cos(an) * rad, 0.25 + hh, w.z + Math.sin(an) * rad); lE.set(w.t * l.sp, an, w.t * l.sp * 0.7); lQ.setFromEuler(lE);
+        const sc = out * Math.min(1, w.t / 0.2); lS.set(sc, sc, sc); lM.compose(lP, lQ, lS); leafMesh.setMatrixAt(n, lM); leafMesh.setColorAt(n, LEAF_COL[l.c]); n++;
+      }
+      w.emit += dt * 16 * Math.max(0.5, H.quality.particles);
+      while (w.emit >= 1 && w.t < w.dur) {
+        w.emit -= 1; const an = G.rng.range(0, 6.283); const rr = w.R * G.rng.range(0.5, 1.1);
+        G.fx.puff(new THREE.Vector3(w.x + Math.cos(an) * rr, 0.25, w.z + Math.sin(an) * rr), { vel: new THREE.Vector3(-Math.sin(an) * 4.5, G.rng.range(1.5, 3.2), Math.cos(an) * 4.5), drag: 0.5, s0: 0.5, s1: 1.5, life: 0.8, c0: 0xcbbf9e, c1: 0x9a9078, a0: 0.4 });
+      }
+    }
+    leafMesh.count = n; leafMesh.instanceMatrix.needsUpdate = true; if (leafMesh.instanceColor) leafMesh.instanceColor.needsUpdate = true;
+  }
+  const swordStats = () => ({ ribbons: ribs.filter((r) => r.on).length, streaks: ribs.filter((r) => r.on && r.kind !== 'arc').length, arcs: ribs.filter((r) => r.on && r.kind === 'arc').length, ghosts: ghosts.filter((r) => r.on).length, whirls: whirls.filter((r) => r.on).length, leaves: leafMesh.count });
+
   function update(dt, B) {
-    clock += dt; lastB = B || lastB;
+    clock += dt;
+    updateRibs(dt); updateGhosts(dt); updateWhirls(dt); lastB = B || lastB;
     // a fast-forward moves the sim far ahead of the view clock: decals dry up on the sim clock as well
     if (B) { const extra = lastSimT >= 0 && B.t >= lastSimT ? B.t - lastSimT - dt : 0; if (extra > 0.05 && G.fx.ageDecals) G.fx.ageDecals(extra); lastSimT = B.t; }
     for (const r of strips) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; r.mesh.visible = false; continue; } r.mesh.material.opacity = r.a * (1 - k); }
@@ -299,10 +461,11 @@ export function createMarks(H) {
     for (const r of rings) { r.on = false; r.mesh.visible = false; }
     for (const f of flares) { f.on = false; f.mesh.visible = false; }
     for (const r of strips) { r.on = false; r.mesh.visible = false; }
-    for (const k of Object.keys(vpool)) for (const r of vpool[k]) { r.on = false; r.mesh.visible = false; }
+    for (const k of Object.keys(vpool)) for (const r of vpool[k]) { r.on = false; r.mesh.visible = false; if (r.swirl) r.swirl.visible = false; }
+    for (const r of ribs) { r.on = false; r.mesh.visible = false; } for (const r of ghosts) { r.on = false; r.sp.visible = false; } leafMesh.count = 0;
     if (edge.mesh) { edge.on = false; edge.mesh.visible = false; }
     lastB = null; lastSimT = -1;
   }
   void fades;
-  return { tele, zoneStart, zoneEnd, ring, flare, strip, pillar, wall, flash, wash, update, clear, vertical: vpool, stats: () => ({ teles: teles.length, falls: falls.length, zones: zones.size, rings: rings.filter((r) => r.on).length, flares: flares.filter((r) => r.on).length, strips: strips.filter((r) => r.on).length, ...vliveCount() }), teleRecs: teles };
+  return { tele, zoneStart, zoneEnd, ring, flare, strip, pillar, wall, flash, wash, arc, arcPush, arcEnd, streak, ghost, whirl, swordStats, ribs, update, clear, vertical: vpool, stats: () => ({ teles: teles.length, falls: falls.length, zones: zones.size, rings: rings.filter((r) => r.on).length, flares: flares.filter((r) => r.on).length, strips: strips.filter((r) => r.on).length, ...vliveCount(), ...swordStats() }), teleRecs: teles };
 }

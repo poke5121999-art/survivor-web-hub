@@ -4,13 +4,13 @@ import { CAST_KEY, SWING_HOLDS, FLY_Y } from './keys.js?v=20261120c';
 import { createMarks } from './marks.js?v=20261120c';
 import { createFxMap } from './fxmap.js?v=20261120c';
 import { createHorde } from './horde.js?v=20261120c';
+import { arrive } from './arrival.js?v=20261120c';
 import { attachGrip, solveGrip } from './grip.js?v=20261120c';
 
 const THREE = window.THREE;
 const BZ = window.BZ;
 
 const HERO_SCALE = 1.15;
-const SPAWN_T = 0.6;           // the sim's enemy spawnT
 const HEAD_SCALE = 1.18;
 const ELITE_AFFIX = 2;
 const STATUS_BITS = { burn: 16, slow: 32, freeze: 32, poison: 128, root: 4096, bleed: 8192 };
@@ -93,6 +93,25 @@ export function createActors(H) {
   const marks = createMarks(H);
   const horde = createHorde(H);
   const overflow = new Set();
+  // Lốc Xoáy: enemies in the column are thrown up and spun, visually only; the offsets are zero again when the column ends
+  const lifts = new Map();
+  function startLift(e) {
+    const BB = B || (window.__G && window.__G.B); if (!BB) return;
+    const dur = fx.WHIRL_DUR;
+    for (const f of BB.enemies) {
+      if (!f.alive || f.boss || f.fly || Math.hypot(f.x - e.x, f.z - e.z) > e.r + 0.4) continue;
+      lifts.set(f.uid, { t: 0, dur, h: G.rng.range(1.3, 2.3), spin: G.rng.range(7, 11) * (G.rng.chance(0.5) ? 1 : -1), ang: G.rng.range(0, 6.28), y: 0, ox: 0, oz: 0, yaw: 0, tilt: 0 });
+    }
+  }
+  const smoothK = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+  function stepLifts(dt) {
+    for (const [uid, L] of lifts) {
+      L.t += dt; if (L.t >= L.dur) { lifts.delete(uid); const i = slots.get(uid); if (i !== undefined) { const b = pool[i].body.root; b.rotation.z = 0; } continue; }
+      const env = smoothK(L.t / 0.22) * (1 - smoothK((L.t - (L.dur - 0.3)) / 0.3));
+      L.y = L.h * env + Math.sin(L.t * 9) * 0.12 * env; L.yaw = L.spin * L.t; L.tilt = Math.sin(L.t * 7 + L.ang) * 0.5 * env;
+      L.ox = Math.cos(L.ang + L.t * 8) * 0.4 * env; L.oz = Math.sin(L.ang + L.t * 8) * 0.4 * env;
+    }
+  }
   const fx = createFxMap(H, marks, {
     unit: (uid) => (B ? B.byUid.get(uid) : null), time: () => (B ? B.t : 0),
     colorOf: (uid) => { const u = B && B.byUid.get(uid); const bz = u && BZ.HEROES.find((h) => h.id === u.kind); return bz ? bz.color : 0xffffff; },
@@ -193,8 +212,9 @@ export function createActors(H) {
     }
     BZ.animHero(m, st, dt); BZ.heroGun(m, st, a.eq && a.eq.gun);
     solveGrip(a.grip, m, st, dt, { aim: u.anim === 'attack' || st.swing >= 0 || st.kick > 0.02 || st.kickL > 0.02 });
+    fx.swordArc(a);
     const W = a.W;
-    if (W.melee && !W.noTrail && a.eq && a.eq.tip) {
+    if (W.melee && !W.noTrail && a.eq && a.eq.tip && a.grip.row.type !== 'sword2') {
       if (!a.rib) a.rib = G.fx.ribbon();
       if (st.swing >= 0.15 && st.swing < 0.75) { a.node.updateMatrixWorld(true); a.rib.push(a.eq.tip.getWorldPosition(tip.clone()), m.handR.getWorldPosition(tmp.clone())); }
       a.rib.update(dt, W.trail || 0xffffff, 0.9);
@@ -301,7 +321,8 @@ export function createActors(H) {
       if (e.horde) continue;
       const idx = slotOf(e); if (idx < 0) { overflow.add(e.uid); continue; }
       const y = e.fly ? (FLY_Y[e.kind] || 3) : 0;
-      rows.push([idx, ti, e.x, y, e.z, yawOf(e.face), Math.round(255 * Math.max(0, e.hp) / e.maxHp), flagsOf(e), e.elite ? ELITE_AFFIX : 0]);
+      const L = lifts.get(e.uid);
+      rows.push([idx, ti, e.x + (L ? L.ox : 0), y + (L ? L.y : 0), e.z + (L ? L.oz : 0), yawOf(e.face) + (L ? L.yaw : 0), Math.round(255 * Math.max(0, e.hp) / e.maxHp), flagsOf(e), e.elite ? ELITE_AFFIX : 0]);
     }
     for (const [uid, idx] of slots) { const e = B.byUid.get(uid); if (!e || !e.alive) slots.delete(uid); void idx; }
     return rows;
@@ -356,6 +377,7 @@ export function createActors(H) {
       if (by) dirV.set(u.x - by.x, 0, u.z - by.z).normalize(); else dirV.set(0, 0, 1);
       G.zombies.damage(z, z.maxHp * Math.min(0.5, Math.max(0.03, e.dmg / u.maxHp)), 'body', dirV.clone(), 1, {});
     },
+    fx(e) { if (e.key === 'gust' && e.part === 'burst' && e.team === 0) startLift(e); },
     die(e) {
       const idx = slots.get(e.uid);
       if (idx !== undefined) {
@@ -403,21 +425,23 @@ export function createActors(H) {
         if (!u.alive) { dropSummon(u.uid); continue; }
         let s = summons.get(u.uid); if (!s) s = makeSummon(u); syncSummon(s, dt);
       }
+      stepLifts(dt);
       G.zombies.adopt(enemyRows()); G.zombies.update(dt);
+      for (const [uid, L] of lifts) { const i = slots.get(uid); if (i !== undefined && pool[i].alive) pool[i].body.root.rotation.z = L.tilt; }
       for (const [uid, a] of bossActs) {
         const i = slots.get(uid); const z = i === undefined ? null : pool[i];
         a.t += dt; if (!z || !z.alive || z.dying || a.t > a.dur) { bossActs.delete(uid); continue; }
         POSES[a.pose](z.body, a.t / 0.7, Math.min(1, a.t / 0.12) * (1 - seg(a.t / a.dur, 0.85, 1)), z);
       }
-      // stepping out of the fog: a rim spawn rises and grows over its spawnT (the sim holds it untargetable for the same time)
+      // arriving: a rim spawn climbs over the island's edge (arrival.js) over its spawnT (the sim holds it untargetable for the same time)
       for (const e of B.enemies) {
         if (!e.alive) continue; const idx = slots.get(e.uid); const z = idx === undefined ? null : pool[idx]; if (!z || !z.alive || z.dying) continue;
-        if (e.spawnT > 0) { const g = 1 - Math.pow(Math.max(0, e.spawnT) / SPAWN_T, 2); z.rising = true; z.body.root.scale.setScalar(z.T.scale * (0.35 + 0.65 * g)); z.body.root.position.y -= (1 - g) * 1.1 * z.T.scale; }
+        if (e.spawnT > 0) { const ar = arrive(H, e, z.pos.x, z.pos.z); z.rising = true; z.body.root.scale.setScalar(z.T.scale * ar.s); z.body.root.position.x += ar.ox; z.body.root.position.z += ar.oz; z.body.root.position.y += ar.y * z.T.scale; }
         else if (z.rising) { z.rising = false; z.body.root.scale.setScalar(z.T.scale); }
       }
       for (const z of pool) if (z.alive && !z.dying) addBlob(z.pos.x, z.pos.z, 1.7 * z.T.scale, z.pos.y);
       nRim = 0;
-      horde.sync(B, dt, overflow, { blob: addBlob, rim: (x, z, size) => addRim(x, z, size, RIM_COL.base) });
+      horde.sync(B, dt, overflow, { lift: (uid) => lifts.get(uid), blob: addBlob, rim: (x, z, size) => addRim(x, z, size, RIM_COL.base) });
       blobs.count = nBlob; blobs.instanceMatrix.needsUpdate = true;
       for (const e of B.enemies) {
         if (!e.alive) continue; const idx = slots.get(e.uid); if (idx === undefined) continue; const z = pool[idx]; if (!z || !z.alive || z.dying) continue;
@@ -430,9 +454,9 @@ export function createActors(H) {
       for (const a of [...heroes.values()]) dropHero(a);
       for (const uid of [...summons.keys()]) dropSummon(uid);
       for (const bar of [...enemyBars.values()]) dropBar(bar);
-      enemyBars.clear(); bossActs.clear(); slots.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; horde.clear(); B = null;
+      enemyBars.clear(); bossActs.clear(); slots.clear(); lifts.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; horde.clear(); B = null;
     },
-    fx, marks, horde, bossActs,
+    fx, marks, horde, bossActs, lifts,
     gripOf(uid) { const h = heroes.get(uid); return h ? { m: h.m, eq: h.eq, grip: h.grip, st: h.st } : null; },
     scaleOf(uid) { if (heroes.has(uid)) return HERO_SCALE; const i = slots.get(uid); return i !== undefined ? pool[i].T.scale : horde.scaleOf(uid); },
     nodeOf(uid) {
