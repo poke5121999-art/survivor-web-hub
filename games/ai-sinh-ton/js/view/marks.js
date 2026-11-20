@@ -1,7 +1,7 @@
 // Ground layer: warning marks that fill up before an attack lands (with a falling projectile for `fall` marks),
 // lingering zones animated from the live sim zone, expanding rings and flares. Everything is a flat mesh just above
 // the floor, drawn by a few small shaders, so it stays cheap and reads from above.
-import { ARENA } from '../sim/battle.js?v=20261120d';
+import { ARENA } from '../sim/battle.js?v=20261120e';
 const THREE = window.THREE;
 
 const NOISE = `
@@ -213,17 +213,20 @@ export function createMarks(H) {
     mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 6; scene.add(mesh);
     rec = { kind, mesh, on: false, t: 0, life: 1 }; vpool[kind].push(rec); return rec;
   }
+  // upright additive columns and walls stand about a quarter taller on screen at the 42 to 50 degree overview: dimmed to
+  // keep clipped white under 1% on bright floors (Y Tá and Băng ultimates measured 1.03% and 1.19%)
+  const UP_K = 0.78;
   // o: { h height, r radius, life, a opacity, rise seconds to full height }
   function pillar(x, z, color, o = {}) {
     if (typeof o === 'number') o = { life: o, h: 14, r: 1.1, a: 0.4 };
     const rec = vslot('pillar'); const m = rec.mesh;
-    Object.assign(rec, { on: true, t: 0, life: o.life || 0.7, h: o.h || 6, r: o.r || 1, a: (o.a ?? 0.55) * (reduceFlash() ? 0.6 : 1), rise: o.rise || 0.12, shrink: o.shrink ?? 0.5 });
+    Object.assign(rec, { on: true, t: 0, life: o.life || 0.7, h: o.h || 6, r: o.r || 1, a: (o.a ?? 0.55) * UP_K * (reduceFlash() ? 0.6 : 1), rise: o.rise || 0.12, shrink: o.shrink ?? 0.5 });
     m.material.color.set(color); m.position.set(x, 0.05, z); m.visible = true; m.scale.set(rec.r, 0.01, rec.r);
   }
   // an expanding wall around (x, z): radius r0 to r1 over life, gone (opacity 0) at the end
   function wall(x, z, r0, r1, color, life = 0.4, h = 0.9, a = 0.5) {
     const rec = vslot('wall'); const m = rec.mesh;
-    Object.assign(rec, { on: true, t: 0, life, r0, r1, h, a: a * (reduceFlash() ? 0.6 : 1) });
+    Object.assign(rec, { on: true, t: 0, life, r0, r1, h, a: a * UP_K * (reduceFlash() ? 0.6 : 1) });
     m.material.color.set(color); m.position.set(x, 0.05, z); m.visible = true; m.scale.set(r0, h, r0);
   }
   // a local additive sprite at the point, at most 80 ms; shorter and dimmer with reduceFlash

@@ -1,14 +1,14 @@
 // Boot and loop. States: 'home' (empty arena, the UI kit draws on top) and 'battle'. The sim runs at 30 Hz from an
 // accumulator; the view renders every frame. window.__G and the __sim/__step hooks let the Node tools drive it.
-import { createHost } from './view/host.js?v=20261120d';
-import { createActors } from './view/actors.js?v=20261120d';
-import { createCamera } from './view/camera.js?v=20261120d';
-import { createJuice } from './view/juice.js?v=20261120d';
-import { createBattle, step, DT } from './sim/battle.js?v=20261120d';
-import { stageDef, expectedLevel } from './data/stages.js?v=20261120d';
-import { levelMul } from './data/economy.js?v=20261120d';
-import { attachGame } from './game.js?v=20261120d';
-import { createOrient } from './orient.js?v=20261120d';
+import { createHost } from './view/host.js?v=20261120e';
+import { createActors } from './view/actors.js?v=20261120e';
+import { createCamera } from './view/camera.js?v=20261120e';
+import { createJuice } from './view/juice.js?v=20261120e';
+import { createBattle, step, DT } from './sim/battle.js?v=20261120e';
+import { stageDef, expectedLevel } from './data/stages.js?v=20261120e';
+import { levelMul } from './data/economy.js?v=20261120e';
+import { attachGame } from './game.js?v=20261120e';
+import { createOrient } from './orient.js?v=20261120e';
 
 const DEFAULT_TEAM = ['thep', 'mua', 'yta', 'gio'];
 const MAX_CATCHUP = 8;

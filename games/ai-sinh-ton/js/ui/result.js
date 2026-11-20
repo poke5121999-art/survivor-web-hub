@@ -1,11 +1,11 @@
 // One modal screen with three modes: 'pause' (resume, settings, retry, home), 'result' (win or loss: a reward tab and a
 // per-hero statistics tab, with the next steps always in view) and 'settings' (the same switches, opened from the home screen).
-import { HERO } from '../data/heroes.js?v=20261120d';
-import { ITEM, TIERS } from '../data/equip.js?v=20261120d';
-import { fmt, heroColor, kill } from './hud.js?v=20261120d';
-import { xpNeed } from '../data/unlocks.js?v=20261120d';
-import { ITEM_ICON } from './itemicons.js?v=20261120d';
-import { createStatsPanel } from './stats.js?v=20261120d';
+import { HERO } from '../data/heroes.js?v=20261120e';
+import { ITEM, TIERS } from '../data/equip.js?v=20261120e';
+import { fmt, heroColor, kill } from './hud.js?v=20261120e';
+import { xpNeed } from '../data/unlocks.js?v=20261120e';
+import { ITEM_ICON } from './itemicons.js?v=20261120e';
+import { createStatsPanel } from './stats.js?v=20261120e';
 
 const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Rung màn hình', 'shake', 'set-shake'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
 const FULLSCREEN = ['Toàn màn hình', 'fullscreen', 'set-fullscreen'];
@@ -25,8 +25,8 @@ export function createResult(game) {
   // ---------- pause and settings: a wide, short panel, switches in two columns ----------
   const pause = ui.group({ w: W, h: 360 }); scr.put(pause, 0, 0, 2);
   pause.put(ui.panel({ w: 640, h: 332, r: 26, color: 0x33286a, depth: 6, bevel: 3, gloss: false }), 70, 14, 0);
-  pause.titleText = ui.text('TẠM DỪNG', { size: 24, align: 'center', valign: 'mid' }); pause.put(pause.titleText, W / 2, 42, 14);
-  pause.stageText = ui.text('', { size: 12, align: 'center', valign: 'mid', color: 0xd9ccff, outlineW: 1.3 }); pause.put(pause.stageText, W / 2, 66, 14);
+  pause.titleText = ui.text('TẠM DỪNG', { size: 24, align: 'center', valign: 'mid' }); pause.put(pause.titleText, W / 2, 38, 14);
+  pause.stageText = ui.text('', { size: 12, align: 'center', valign: 'mid', color: 0xd9ccff, outlineW: 1.3 }); pause.put(pause.stageText, W / 2, 69, 14);
   const rows = {}, labels = {};
   const lockMarks = {};
   // the screen-shake switch is on until the player turns it off

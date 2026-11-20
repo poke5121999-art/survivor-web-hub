@@ -1,10 +1,10 @@
 // Battle HUD: top band (pause, wave, timer, kills, speed, boss bar), four hero cards (live portrait, hp, ultimate
 // charge, flame, eye) and the transient pieces (damage numbers, banners, ultimate bursts, spectate controls).
 // Everything is drawn by the 3D UI kit; the sim is only ever read here, the player never steers a unit.
-import { HERO } from '../data/heroes.js?v=20261120d';
-import { ENEMY } from '../data/enemies.js?v=20261120d';
-import { HERO_RARITY } from '../data/economy.js?v=20261120d';
-import { lockButton } from './guide.js?v=20261120d';
+import { HERO } from '../data/heroes.js?v=20261120e';
+import { ENEMY } from '../data/enemies.js?v=20261120e';
+import { HERO_RARITY } from '../data/economy.js?v=20261120e';
+import { lockButton } from './guide.js?v=20261120e';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const easeOut = (t) => 1 - (1 - clamp(t, 0, 1)) ** 3;
@@ -37,7 +37,8 @@ const CX = CARD_W / 2, CY = PY + PW / 2;
 const rowW = (n) => n * CARD_PITCH - (CARD_PITCH - CARD_W);
 const HP_COLORS = { ok: 0x35d65a, mid: 0xff9a1f, low: 0xff3b52 };
 const MERGE = 0.15, MERGE_GROUP = 0.3, NUMBER_LIFE = 0.95, BIG_HIT = 3, STREAK_MIN = 8;
-const BANNER = { wave: { color: 0x4a3a86, y: 80, kind: 'pop' }, boss: { color: 0xc4203a, y: 80, kind: 'pop' }, rage: { color: 0xe2641a, y: 80, kind: 'pop' }, ult: { color: 0x8f4dff, y: 132, kind: 'slide' } };
+const BANNER = { wave: { color: 0x4a3a86, kind: 'pop' }, boss: { color: 0xc4203a, kind: 'pop' }, rage: { color: 0xe2641a, kind: 'pop' }, ult: { color: 0x8f4dff, kind: 'slide' } };
+const BANNER_TOP = 80, BANNER_GAP = 12, BANNER_TEXT_Z = 12; // banners stack downward from here, oldest on top; text clears the panel gloss (depth 5 + bevel 3)
 const BOSS_BAR = { x: 240, w: 300, h: 24, y: 44, hidden: -40 };
 
 export function createHud(game) {
@@ -50,8 +51,8 @@ export function createHud(game) {
   top.pause = ui.button({ id: 'pause', w: 44, h: 34, r: 11, color: 0x5a55a0, icon: 'pause', onTap: () => { game.setPaused(true); game.goto('result', { mode: 'pause', over: true }); } });
   scr.put(top.pause, SAFE, BAR_Y);
   const plate = ui.panel({ w: 400, h: 38, r: 14, color: 0x2a2150, depth: 4, bevel: 2.4 }); scr.put(plate, (W - 400) / 2, BAR_Y - 1);
-  top.wave = ui.text('ĐỢT 1/5', { size: 16, align: 'left', valign: 'mid' }); plate.put(top.wave, 14, 12, 1);
-  top.stage = ui.text('', { size: 11, align: 'left', valign: 'mid', color: 0xd9ccff, outlineW: 1.2 }); plate.put(top.stage, 14, 27, 1);
+  top.wave = ui.text('ĐỢT 1/5', { size: 15, align: 'left', valign: 'mid' }); plate.put(top.wave, 14, 11, 1);
+  top.stage = ui.text('', { size: 11, align: 'left', valign: 'mid', color: 0xd9ccff, outlineW: 1.2 }); plate.put(top.stage, 14, 29.5, 1);
   top.speed = ui.button({ id: 'speed', w: 64, h: 34, r: 11, color: PAL.blue, icon: 'speed', label: 'x1', size: 15, onTap: () => { if (!game.meta.unlocked('speed')) { ui.toast(game.meta.lockText('speed')); return; } game.setSpeed(game.speed === 1 ? 2 : 1); } });
   scr.put(top.speed, W - SAFE - 64, BAR_Y);
   top.speedLock = ui.icon('lock', { size: 22, sway: false }); top.speed.put(top.speedLock, 46, -9, 14);
@@ -146,39 +147,55 @@ export function createHud(game) {
   const banners = [], bursts = [];
   function banner(kind, str, sub) {
     const spec0 = BANNER[kind];
-    for (let k = banners.length - 1; k >= 0; k--) if (banners[k].kind === kind) { kill(banners[k].g); banners.splice(k, 1); }
+    // a newer wave/boss/rage banner replaces the older of its kind; two different ultimates both stack
+    for (let k = banners.length - 1; k >= 0; k--) if (banners[k].kind === kind && (kind !== 'ult' || banners[k].str === str)) { kill(banners[k].g); banners.splice(k, 1); }
     const t = ui.text(str, { size: kind === 'ult' ? 27 : 24, align: 'center', valign: 'mid', upper: true });
     const w = Math.min(430, Math.max(220, t.w + 64)), h = sub ? 56 : 44, g = ui.group({ w, h });
     const p = ui.panel({ w, h, r: 17, color: spec0.color, depth: 5, bevel: 3 }); g.put(p, 0, 0, 0);
-    g.put(t, w / 2, sub ? 21 : 23, 8);
-    if (sub) g.put(ui.text(sub, { size: 11, align: 'center', valign: 'mid', color: 0xfff1b0, outlineW: 1.4 }), w / 2, 43, 8);
-    const cx = (W - w) / 2; scr.put(g, spec0.kind === 'slide' ? W + 20 : cx, spec0.y, 30);
-    banners.push({ g, kind, spec: spec0, t: 0, w, h, cx });
+    g.put(t, w / 2, sub ? 20 : 23, BANNER_TEXT_Z);
+    if (sub) g.put(ui.text(sub, { size: 11, align: 'center', valign: 'mid', color: 0xfff1b0, outlineW: 1.4 }), w / 2, 45, BANNER_TEXT_Z);
+    const cx = (W - w) / 2, y = rowOf(banners.length);
+    scr.put(g, spec0.kind === 'slide' ? W + 20 : cx, y, 30);
+    banners.push({ g, kind, str, spec: spec0, t: 0, w, h, cx, y });
+    // rows stop above the hero cards and their flames: when one more would not fit, the oldest goes
+    const limit = ui.H - BOTTOM - CARD_H - 30;
+    while (banners.length > 1 && rowOf(banners.length - 1) + banners[banners.length - 1].h > limit) { kill(banners[0].g); banners.shift(); }
+    // numbers already flying whose remaining path crosses a banner would hide its text (they draw above it): drop them
+    const rs = bannerRects();
+    for (let i = live.length - 1; i >= 0; i--) {
+      const q = live[i], y0 = q.y - easeOut(q.age / NUMBER_LIFE) * RISE, y1 = q.y - RISE;
+      const path = { x: q.x - q.w / 2, y: y1 - q.h / 2, w: q.w, h: y0 - y1 + q.h };
+      if (rs.some((r) => meets(path, r))) { kill(q.node); live.splice(i, 1); }
+    }
   }
+  // the row of banner i: under every banner before it, whatever their kinds
+  const rowOf = (i) => { let y = BANNER_TOP; for (let k = 0; k < i && k < banners.length; k++) y += banners[k].h + BANNER_GAP; return y; };
   function updateBanners(dt) {
+    for (let i = banners.length - 1; i >= 0; i--) { const b = banners[i]; b.t += dt; if (b.t >= (b.spec.kind === 'slide' ? 1.9 : 1.5)) { kill(b.g); banners.splice(i, 1); } }
     for (let i = banners.length - 1; i >= 0; i--) {
-      const b = banners[i]; b.t += dt; const dur = b.spec.kind === 'slide' ? 1.9 : 1.5, tin = 0.3, tout = 0.26;
-      if (b.t >= dur) { kill(b.g); banners.splice(i, 1); continue; }
+      const b = banners[i]; const dur = b.spec.kind === 'slide' ? 1.9 : 1.5, tin = 0.3, tout = 0.26;
+      const row = rowOf(i); b.y += (row - b.y) * (1 - Math.exp(-dt * 14)); if (Math.abs(row - b.y) < 0.3) b.y = row;
       if (b.spec.kind === 'slide') {
         const x = b.t < tin ? W + 20 + (b.cx - W - 20) * easeBack(b.t / tin) : b.t > dur - tout ? b.cx - (b.cx + b.w + 20) * easeOut((b.t - (dur - tout)) / tout) : b.cx;
-        b.g.pos(x, b.spec.y, 30); b.g.scale.set(1, 1, 1);
+        b.g.pos(x, b.y, 30); b.g.scale.set(1, 1, 1);
       } else {
         const s = b.t < tin ? easeBack(b.t / tin) : b.t > dur - tout ? 1 - easeOut((b.t - (dur - tout)) / tout) : 1, k = Math.max(0.01, s);
-        b.g.pos(b.cx + b.w / 2 * (1 - k), b.spec.y + b.h / 2 * (1 - k), 30); b.g.scale.set(k, k, 1);
+        b.g.pos(b.cx + b.w / 2 * (1 - k), b.y + b.h / 2 * (1 - k), 30); b.g.scale.set(k, k, 1);
       }
     }
   }
   function burst(slot) {
     const c = cards[slot]; if (!c) return;
     const cx = c.col.ux + PX + PW / 2, cy = c.col.uy + CY;
-    for (let k = 0; k < 8; k++) { const f = ui.icon('flame', { size: 26 }); scr.put(f, cx - 13, cy - 13, 40); bursts.push({ f, x: cx - 13, y: cy - 13, a: (k / 8) * 6.283 + 0.3, t: 0 }); }
+    for (let i = bursts.length - 1; i >= 0; i--) if (bursts[i].slot === slot) { kill(bursts[i].f); bursts.splice(i, 1); }
+    const f = ui.icon('flame', { size: 36, sway: false }); const x = cx - 18, y = c.col.uy - FLAME_UP - 4; scr.put(f, x, y, 40); bursts.push({ f, x, y, slot, t: 0 });
   }
   function updateBursts(dt) {
     for (let i = bursts.length - 1; i >= 0; i--) {
-      const b = bursts[i]; b.t += dt; const k = b.t / 0.55;
+      const b = bursts[i]; b.t += dt; const k = b.t / 0.45;
       if (k >= 1) { kill(b.f); bursts.splice(i, 1); continue; }
-      const d = easeOut(k) * 62, s = Math.max(0.01, 1.25 * (1 - k * k));
-      b.f.pos(b.x + Math.cos(b.a) * d - 0, b.y + Math.sin(b.a) * d - 20 * k, 40); b.f.scale.set(s, s, s);
+      const s = 1 + 0.5 * easeOut(k);
+      b.f.pos(b.x - 18 * (s - 1), b.y - 18 * (s - 1) - 14 * easeOut(k), 40); b.f.scale.set(s, s, s); if (b.f.setOpacity) b.f.setOpacity(1 - k * k);
     }
   }
   function clearTransient() {
@@ -210,7 +227,8 @@ export function createHud(game) {
   const RISE = 46, BAND_TOP = 46, EDGE = 4;
   const numStr = (q) => (q.heal ? '+' : '') + fmt(q.sum) + (q.merged && q.n >= 3 ? ' x' + q.n : '');
   function bannerRects() {
-    const out = banners.map((b) => ({ x: b.cx, y: b.spec.y, w: b.w, h: b.h, age: b.t }));
+    // a banner still gliding to its row covers the whole stretch between where it is and where it is going
+    const out = banners.map((b, i) => { const row = rowOf(i); return { x: b.cx, y: Math.min(b.y, row), w: b.w, h: b.h + Math.abs(row - b.y), age: b.t }; });
     if (boss.visible) out.push({ x: BOSS_BAR.x, y: boss.y, w: BOSS_BAR.w, h: BOSS_BAR.h, age: 99 });
     return out;
   }
@@ -223,7 +241,9 @@ export function createHud(game) {
   }
   const sweep = (n) => ({ x: n.x - n.w / 2, y: n.y - RISE - n.h / 2, w: n.w, h: RISE + n.h });
   const meets = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-  const sizeOf = (str, size) => ({ w: str.length * size * 0.62 + 10, h: size + 6 });
+  // a number's box: its measured advance width plus the outline on both sides
+  const NUM_GAP = 2, NUM_OUTLINE = 2.6, NUM_POP = 1.1; // a new number pops to 1.1 of its size for a moment
+  const sizeOf = (str, size) => ({ w: ui.measure(str, size) * NUM_POP + NUM_OUTLINE * 2 + 2, h: size + 6 });
   const shownY = (q) => q.y - easeOut(q.age / NUMBER_LIFE) * RISE;
   // identical text close to another live number is the same number drawn twice: keep the older one
   const twin = (q) => live.find((o) => o !== q && o.text === q.text && Math.abs(o.x - q.x) < 40 && Math.abs(o.y - q.y) < RISE + 40);
@@ -244,13 +264,28 @@ export function createHud(game) {
       drawNumber(q);
     }
   }
+  // two rising numbers must stay apart for the whole life of both: compare their boxes at every moment from now on,
+  // each at the height it will have then (the older one is further along its rise), plus the plain base-position rule
+  function crowds(nx, ny, w, h, age, skip) {
+    return live.some((q) => {
+      if (q === skip) return false;
+      if (Math.abs(q.x - nx) < 38 && Math.abs(q.y - ny) < 18) return true;
+      for (let s = 0; s < NUMBER_LIFE - Math.max(q.age, age); s += 0.05) {
+        const ya = ny - easeOut((age + s) / NUMBER_LIFE) * RISE, yb = q.y - easeOut((q.age + s) / NUMBER_LIFE) * RISE;
+        if (Math.abs(q.x - nx) < (q.w + w) / 2 + NUM_GAP && Math.abs(yb - ya) < (q.h + h) / 2 * 1.1) return true;
+      }
+      return false;
+    });
+  }
+  // an identical number is made young again where it stands, unless dropping back down its rise would land it on another number
+  function rejuvenate(q) { const age = Math.min(q.age, NUMBER_LIFE * 0.4); if (!crowds(q.x, q.y, q.w, q.h, age, q)) q.age = age; }
   function place(key, str, x, y, o) {
     const dup = live.find((q) => q.text === str && Math.abs(q.x - x) < 40 && Math.abs(q.y - y) < RISE + 40);
-    if (dup) { dup.age = Math.min(dup.age, NUMBER_LIFE * 0.4); return true; }
+    if (dup) { rejuvenate(dup); return true; }
     if (live.length >= capOf()) return false;
     const size = o.size ?? 20, { w, h } = sizeOf(str, size), bottom = ui.H - BOTTOM - h / 2, minX = w / 2 + EDGE, maxX = W - w / 2 - EDGE;
     const inBand = (ny) => ny - RISE - h / 2 >= BAND_TOP && ny <= bottom;
-    const hit = (nx, ny) => live.some((q) => Math.abs(q.x - nx) < 38 && Math.abs(q.y - ny) < 18);
+    const hit = (nx, ny) => crowds(nx, ny, w, h, 0, null);
     const rects = [...bannerRects(), ...blockRects()];
     const clash = (nx, ny) => rects.find((r) => meets(sweep({ x: nx, y: ny, w, h }), r));
     const fit = (nx, ny) => {
@@ -267,7 +302,7 @@ export function createHud(game) {
     for (let tries = 0; tries < 5 && inBand(ny) && hit(nx, ny); tries++) [nx, ny] = fit(clamp(nx + (tries % 2 ? -9 : 9), minX, maxX), ny - 19);
     if (!inBand(ny) || hit(nx, ny) || clash(nx, ny)) return false;
     const dup2 = live.find((q) => q.text === str && Math.abs(q.x - nx) < 40 && Math.abs(q.y - ny) < RISE + 40);
-    if (dup2) { dup2.age = Math.min(dup2.age, NUMBER_LIFE * 0.4); return true; }
+    if (dup2) { rejuvenate(dup2); return true; }
     spawn(key, str, nx, ny, o, w, h); return true;
   }
   // later hits of a burst grow the number that is still on screen
@@ -279,7 +314,7 @@ export function createHud(game) {
     // grown or made young again where it stands, it may now reach out of the play band or sit on a banner that came up
     // after it: then it is placed again like a new number
     const s = sweep(q);
-    if (s.y < BAND_TOP || q.y + q.h / 2 > ui.H - BOTTOM || [...bannerRects(), ...blockRects()].some((r) => meets(s, r))) {
+    if (s.y < BAND_TOP || q.y + q.h / 2 > ui.H - BOTTOM || [...bannerRects(), ...blockRects()].some((r) => meets(s, r)) || crowds(q.x, q.y, q.w, q.h, q.age, q)) {
       kill(q.node); live.splice(live.indexOf(q), 1);
       place(q.key, q.text, q.x, q.y, { color: q.color, size: q.size, sum: q.sum, n: q.n, heal: q.heal, merged: q.merged });
     }

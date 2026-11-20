@@ -2,10 +2,10 @@
 // shared bag at the right, the item sheet, merge mode (a wide band across the top with the pieces in a row and the preview
 // at its right, the bag grid below it dims what cannot be fodder) and the Ghép Nhanh preview.
 // All account changes go through meta.*; this screen only reads meta.acc and rebuilds after each command.
-import { SLOTS, TIERS, ITEM, itemStat, upgradeCost, refundOf, autoMergePlan } from '../data/equip.js?v=20261120d';
-import { HERO } from '../data/heroes.js?v=20261120d';
-import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120d';
-import { ITEM_ICON } from './itemicons.js?v=20261120d';
+import { SLOTS, TIERS, ITEM, itemStat, upgradeCost, refundOf, autoMergePlan } from '../data/equip.js?v=20261120e';
+import { HERO } from '../data/heroes.js?v=20261120e';
+import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120e';
+import { ITEM_ICON } from './itemicons.js?v=20261120e';
 
 const SLOT = Object.fromEntries(SLOTS.map((s) => [s.id, s]));
 const LEFT = ['weapon', 'necklace', 'gloves'], RIGHT = ['armor', 'belt', 'boots'];
@@ -254,7 +254,7 @@ export function createEquip(game) {
       p.put(ui.icon(s.id, { size: 28, sway: false }), -6, -1, 4); p.put(ui.text(fmt(n), { size: 12, align: 'right', valign: 'mid', outlineW: 1.8 }), 50, 14, 4);
       bagG.put(p, 354 + k++ * 57.5, 90, 6); matNodes.push(p); U.mats[s.id] = fmt(n);
     });
-    const area = tapArea('mats', 345, 48, () => say('Bản rèn: dùng để nâng cấp món cùng ô')); bagG.put(area, 354, 79, 3); matNodes.push(area);
+    const area = tapArea('mats', 345, 30, () => say('Bản rèn: dùng để nâng cấp món cùng ô')); bagG.put(area, 354, 88, 3); matNodes.push(area);
   }
 
   // ---------- item sheet: wide and short, the item at the left, perks and buttons at the right ----------

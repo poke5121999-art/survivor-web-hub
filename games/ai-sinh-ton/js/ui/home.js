@@ -2,16 +2,16 @@
 // account level top-right, the warm backdrop) and the Ra Trận tab. The other menu screens (heroes.js, gacha.js, soon.js)
 // never draw the chrome: they only name themselves in MENU. Their content lives right of RAIL.right (106) and below the
 // counters (y 48) on the right; the toast sits top-centre (ui.toastAt).
-import { stageDef, expectedLevel } from '../data/stages.js?v=20261120d';
-import { HERO } from '../data/heroes.js?v=20261120d';
-import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261120d';
-import { createDiorama } from './diorama.js?v=20261120d';
-import { lockButton } from './guide.js?v=20261120d';
-import { xpNeed } from '../data/unlocks.js?v=20261120d';
+import { stageDef, expectedLevel } from '../data/stages.js?v=20261120e';
+import { HERO } from '../data/heroes.js?v=20261120e';
+import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261120e';
+import { createDiorama } from './diorama.js?v=20261120e';
+import { lockButton } from './guide.js?v=20261120e';
+import { xpNeed } from '../data/unlocks.js?v=20261120e';
 
 export const MENU = ['home', 'heroes', 'hero', 'gacha', 'equip', 'rewards'];
 // rail geometry in design units: buttons start at x, the backdrop panel ends at right; content starts at right + 8
-export const RAIL = { x: 28, w: 60, right: 98, top: 62, gap: 3, tabH: 52, content: 106 };
+export const RAIL = { x: 28, w: 60, right: 98, top: 62, gap: 6, tabH: 50, content: 106 };
 const TAB_OF = { home: 'tab-battle', heroes: 'tab-heroes', hero: 'tab-heroes', gacha: 'tab-gacha', equip: 'tab-equip', rewards: 'tab-rewards' };
 const GO = { 'tab-gacha': 'gacha', 'tab-equip': 'equip', 'tab-battle': 'home', 'tab-heroes': 'heroes', 'tab-rewards': 'rewards' };
 const DOT_OF = { 'tab-gacha': 'gacha', 'tab-equip': 'equip', 'tab-heroes': 'heroes', 'tab-rewards': 'rewards' };
@@ -193,8 +193,8 @@ export function createHome(game) {
   const CX = 338, COL = 576, COLW = 176;
   let sel = 0, lastMax = 0; mui.stage = () => sel;
   const maxStage = () => meta.acc.cleared + 1;
-  const chapLine = ui.text('CHƯƠNG 1: PHỐ HOANG', { size: 12.5, color: 0xffe9a8, align: 'center', upper: true, outlineW: 2.2 }); home.put(chapLine, CX, 5, 6); mui.regTitle('home', chapLine);
-  const title = ui.text('ẢI 1', { size: 30, color: PAL.gold, align: 'center', upper: true, outlineW: 3.6, shadow: 2.5 }); home.put(title, CX, 19, 6); mui.regTitle('home', title);
+  const chapLine = ui.text('CHƯƠNG 1: PHỐ HOANG', { size: 11.5, color: 0xffe9a8, align: 'center', upper: true, outlineW: 2 }); home.put(chapLine, CX, 2, 6); mui.regTitle('home', chapLine);
+  const title = ui.text('ẢI 1', { size: 30, color: PAL.gold, align: 'center', upper: true, outlineW: 3.6, shadow: 2.5 }); home.put(title, CX, 20, 6); mui.regTitle('home', title);
   const stageName = ui.text('PHỐ HOANG 1', { size: 14, align: 'center', upper: true, outlineW: 2.2 }); home.put(stageName, CX, 57, 6); mui.regTitle('home', stageName);
   const bossPill = ui.panel({ w: 200, h: 26, r: 13, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(bossPill, 238, 78);
   const skull = ui.icon('skull', { size: 28 }); bossPill.put(skull, -6, -1, 4);

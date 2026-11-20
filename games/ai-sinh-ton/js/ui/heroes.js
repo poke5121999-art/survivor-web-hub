@@ -1,9 +1,9 @@
 // Tướng tab, landscape: one screen with the collection grid at the left, the selected hero's live model in the middle and
 // the stats, skills and LÊN CẤP at the right (selecting a tile updates the right side), plus the team chooser modal.
 // Everything is read from meta.acc and rebuilt after each meta command.
-import { HEROES, HERO } from '../data/heroes.js?v=20261120d';
-import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261120d';
-import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120d';
+import { HEROES, HERO } from '../data/heroes.js?v=20261120e';
+import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261120e';
+import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120e';
 
 const ROLE = { tank: 'Đỡ đòn', ranged: 'Bắn xa', healer: 'Hồi máu', melee: 'Cận chiến' };
 const RANK = { SSR: 0, SR: 1, R: 2 };
@@ -40,7 +40,7 @@ export function createHeroes(game) {
       const shade = new THREE.Mesh(new THREE.PlaneGeometry(46, 46), new THREE.MeshBasicMaterial({ color: 0x120a24, transparent: true, opacity: 0.58, depthWrite: false })); p.put(shade, 30, 30, 11);
       p.put(ui.icon('lock', { size: 24 }), 18, 14, 14);
     }
-    c.put(ui.text(h.name, { size: 11, align: 'center', color: own ? 0xffffff : 0xcfd0e0 }), 36, 65);
+    c.put(ui.text(h.name, { size: 11, align: 'center', color: own ? 0xffffff : 0xcfd0e0 }), 36, 65, 3);
     const bar = ui.bar({ w: 66, h: 14, color: own ? PAL.green : PAL.purple, r: 7, value: Math.min(1, st.shards / need) }); c.put(bar, 3, 79);
     bar.put(ui.text(st.shards + '/' + need, { size: 11, align: 'center', valign: 'mid', outlineW: 1.4 }), 33, 7.4, 2);
     return c;
@@ -82,7 +82,7 @@ export function createHeroes(game) {
   for (let i = 0; i < 3; i++) {
     const r = ui.panel({ w: L.rw, h: 42, r: 12, color: 0x3a2d78, depth: 3, bevel: 2.4, shadow: false }); scr.put(r, L.rx, 142 + i * 45, 6);
     r.put(ui.icon(['s1', 's2', 'ult'][i], { size: 30 }), 5, 6, 4);
-    const n = ui.text('', { size: 12, color: i === 2 ? 0xffd860 : 0xffffff }), d = ui.text('', { size: 11, maxW: 196, color: 0xe4def8, lineH: 12 }); r.put(n, 40, 3); r.put(d, 40, 17);
+    const n = ui.text('', { size: 11.5, color: i === 2 ? 0xffd860 : 0xffffff }), d = ui.text('', { size: 10.5, maxW: 198, color: 0xe4def8, lineH: 11.5 }); r.put(n, 40, 1.5); r.put(d, 40, 17.5);
     skillRows.push({ n, d });
   }
   const shBar = ui.bar({ w: L.rw, h: 16, color: PAL.purple, r: 8, ghost: true, value: 0 }); scr.put(shBar, L.rx, 280, 6);

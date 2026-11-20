@@ -1,9 +1,9 @@
 // 3D UI kit: every panel, button, tile and HUD piece is a lit three.js mesh drawn over the battle by its own
 // orthographic scene. Design units are CSS px of a 780 wide landscape frame (780 x 360 at the S22 ratio) (x right, y DOWN, origin top-left). A node's
 // own origin is its top-left corner; world y is the negative of design y.
-import { makeGeo } from './kit-geo.js?v=20261120d';
-import { makeText } from './kit-text.js?v=20261120d';
-import { makeIcons } from './icons.js?v=20261120d';
+import { makeGeo } from './kit-geo.js?v=20261120e';
+import { makeText } from './kit-text.js?v=20261120e';
+import { makeIcons } from './icons.js?v=20261120e';
 
 export const PAL = {
   gold: 0xffc21f, orange: 0xff8a1f, red: 0xff3b52, green: 0x35d65a, blue: 0x2f7bff, purple: 0x8f4dff, teal: 0x20c7c0, pink: 0xff5fa8,
@@ -25,6 +25,7 @@ export function createUI({ THREE, renderer, frame }) {
   const ui = { THREE, PAL, W: 780, H: 360, u: 1, dpr: 1, t: 0, drawCalls: 0 };
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(0, 780, 0, -360, 0.1, 2400); camera.position.z = 1200;
+  ui.scene = scene; ui.camera = camera; // read by tools/text-fit-test.mjs
   const lights = [];
   { // one key light from the top-left, a fill from the lower right, a soft ambient; lights reach every layer
     const key = new THREE.DirectionalLight(0xfff3e0, 2.5); key.position.set(-0.5, 0.75, 1);
@@ -34,6 +35,7 @@ export function createUI({ THREE, renderer, frame }) {
   }
 
   const anims = new Set(); const targets = new Set(); const scrolls = new Set(); const viewports = new Set(); const anchored = new Set(); const screens = new Map(); const timers = [];
+  ui._scrolls = scrolls;
   const anim = (node, fn) => { const a = { node, fn }; anims.add(a); return a; };
   const inScene = (n) => { for (let a = n; a; a = a.parent) if (a === scene) return true; return false; };
   const shown = (n) => { for (let a = n; a; a = a.parent) { if (!a.visible) return false; if (a === scene) return true; } return false; };
@@ -66,6 +68,7 @@ export function createUI({ THREE, renderer, frame }) {
   // ---------- text ----------
   const txt = makeText(THREE, { scale: () => ui.dpr * ui.u, mkNode });
   ui.text = (str, o) => txt.text(str, o);
+  ui.measure = (str, size, weight) => txt.measure(str, size, weight);
   const icons = makeIcons(THREE, geo);
   ui.iconNames = icons.names;
 
@@ -139,7 +142,7 @@ export function createUI({ THREE, renderer, frame }) {
   ui.hitAt = (cx, cy) => { const [dx, dy] = toDesign(cx, cy); const e = pick(dx, dy); return e ? e.t.id : null; };
   ui.targets = () => {
     const r = frame.getBoundingClientRect(), k = r.width / 780;
-    return liveTargets().map((e) => ({ id: e.t.id, x: r.left + e.hb.x * k, y: r.top + e.hb.y * k, w: e.hb.w * k, h: e.hb.h * k, enabled: e.t.enabled, screen: e.s.screenName }));
+    return liveTargets().map((e) => ({ id: e.t.id, x: r.left + e.hb.x * k, y: r.top + e.hb.y * k, w: e.hb.w * k, h: e.hb.h * k, enabled: e.t.enabled, screen: e.s.screenName, vx: r.left + e.vb.x * k, vy: r.top + e.vb.y * k, vw: e.vb.w * k, vh: e.vb.h * k }));  // v*: the visible box, h-box above is grown to 48 px
   };
   ui.node = (id) => { for (const t of targets) if (t.id === id) return t.node; return null; };
   function fire(t) { if (t.enabled && t.onTap) t.onTap(); }
@@ -227,10 +230,10 @@ export function createUI({ THREE, renderer, frame }) {
       const avail = w - 18 - (ic ? iconSize + 5 : 0);
       if (label) { label.scale.setScalar(1); if (label.w > avail) label.scale.setScalar(avail / label.w); }
       const lw = label ? label.w * label.scale.x : 0, total = (ic ? iconSize + (label ? 5 : 0) : 0) + lw, x0 = (w - total) / 2;
-      const ly = sub ? h * 0.37 : h * 0.5;
+      const ly = sub ? h * 0.35 : h * 0.5;
       if (ic) ic.pos(x0, (h - iconSize) / 2 - 1, 11);
       if (label) label.pos(x0 + (ic ? iconSize + 5 : 0), ly + 1, 11);
-      if (sub) sub.pos(w / 2, h * 0.72, 11);
+      if (sub) sub.pos(w / 2, h * 0.76, 11);
     }
     if (o.label != null) { label = ui.text(o.label, { size, valign: 'mid', upper: o.upper, align: o.stack ? 'center' : 'left' }); holder.add(label); }
     if (o.sub) { sub = ui.text(o.sub, { size: Math.max(9, size * 0.58), align: 'center', color: 0xfff1b0, valign: 'mid' }); holder.add(sub); }
