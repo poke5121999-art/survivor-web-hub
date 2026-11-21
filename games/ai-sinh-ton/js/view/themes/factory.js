@@ -1,11 +1,18 @@
-// Nhà Máy Lạnh: a cold factory platform over icy water, blue-white lamps with a few warm braziers
+// Nhà Máy Lạnh: a cold factory platform over icy water, blue-white lamps with a few warm braziers, snow
+// The floor is plate steel with darker worn plates, no ice on it (ice patches read as bright blots under the units); ice
+// and snow stay on the rim. Cold lamps stand among the tall props so most light in the frame is blue-white, the braziers
+// the generator always places first are the few warm points. The boss floor splits in ice-blue seams.
 export const FACTORY = {
-  name: 'factory', centre: [0.04, 0.05, 0.06], lightK: 0.9, rimTint: [0.78, 0.82, 0.9],  rain: 0, snow: 1, fog: 0x1a2a3a, rise: 0x14283a,
-  abyss: { type: 'water', y: -2.6, deep: 0x0a1c2e, shallow: 0x3a7a96, foam: 0xd8f0ff, haze: 0x3a5468, spark: 0xffffff, ice: 1 },
-  amb: { sky: [0.44, 0.52, 0.70], ground: [0.16, 0.19, 0.25] }, key: { dir: [-0.4, 0.8, 0.45], color: [0.28, 0.32, 0.40] },
-  hemi: { sky: 0xb8d0f0, ground: 0x3a4a5a, k: 1.3 }, sun: { color: 0xffc890, k: 1.15 },
-  top: { base: [['frost_metal', 4], ['metal', 1]], patch: [['frost_metal', 2], ['ice', 1]], patchK: 0.28, tint: [0.6, 0.66, 0.78] },
-  edge: [['snow', 1], ['ice', 1], ['frost_metal', 2]], side: { top: ['frost_metal'], rows: [['metal_dark', 2], ['ice', 1], ['rock', 2]] },
-  lights: [['brazier', 3], ['coldlamp', 3], ['barrelfire', 1]], tall: [['tank', 2], ['pipes', 2], ['pillar', 1]], low: [['crate', 2], ['barrel', 2], ['rocks', 2], ['icerock', 2]],
-  sat: { top: [['frost_metal', 3], ['ice', 1]], side: 'metal_dark' }, glow: 0xffb060,
+  name: 'factory', centre: [0.03, 0.06, 0.09], lightK: 0.85, rimTint: [0.8, 0.86, 0.96], rain: 0, snow: 1, fog: 0x16243a, rise: 0x14283a,
+  abyss: { type: 'water', y: -2.6, deep: 0x06142a, shallow: 0x2e6e8e, foam: 0xd8f0ff, haze: 0x2c4660, spark: 0xffffff, ice: 1 },
+  amb: { sky: [0.42, 0.50, 0.68], ground: [0.14, 0.17, 0.24] }, key: { dir: [-0.4, 0.8, 0.45], color: [0.24, 0.30, 0.40] },
+  hemi: { sky: 0xb8d0f0, ground: 0x3a4a5a, k: 1.3 }, sun: { color: 0xffd0a0, k: 1.1 },
+  top: { base: [['frost_metal', 1]], patch: [['metal_dark', 1]], patchK: 0.16, tint: [0.66, 0.72, 0.84] },
+  edge: [['snow', 2], ['ice', 1], ['frost_metal', 1]], side: { top: ['frost_metal', 'metal'], rows: [['metal_dark', 3], ['frost_metal', 1], ['ice', 1]] },
+  lights: [['brazier', 3], ['coldlamp', 4]], tall: [['coldlamp', 2], ['tank', 3], ['pipes', 3], ['pillar', 1]], low: [['crate', 1], ['barrel', 1], ['icerock', 3], ['rocks', 1]],
+  sat: { top: [['snow', 3], ['ice', 1]], side: 'frost_metal' }, glow: 0x9ac8ff,
+  boss: {
+    crack: [0.30, 0.72, 1.0], crackC: 0x4aa8ff, deep: [0.35, 0.62, 1.0], warm: 0, mood: 0x7ab4ff, sun: 0xa8d0ff,
+    pad: { amb: { sky: [0.36, 0.48, 0.74], ground: [0.10, 0.16, 0.28] }, key: { dir: [-0.4, 0.8, 0.45], color: [0.20, 0.30, 0.46] }, centre: [0.02, 0.08, 0.16], top: { base: [['metal_dark', 3], ['frost_metal', 2]], patch: [['ice', 1]], patchK: 0.14, tint: [0.62, 0.7, 0.86] } },
+  },
 };
