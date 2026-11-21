@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { serve, launch, open as openPage, checker, ROOT } from './pw.mjs';
 
 const OUT = path.join(ROOT, '.chk', process['env'].CHK_SUB || '', 'floor');
+const HERO_MIN = 0.10; // share of the frame height a hero (2.7 m) at the arena centre must reach: MCD measures 0.10-0.12
 fs.mkdirSync(OUT, { recursive: true });
 const argv = process.argv.slice(2);
 const chArg = (argv.find((a) => a.startsWith('--ch=')) || '').slice(5);
@@ -94,7 +95,7 @@ try {
       // the hero's floor mark: points along its chevron (actors.markPts), or round the old 0.62..0.8 ring of a build without it
       const ringR = 0.71; const mp = G.actors.markPts ? G.actors.markPts(h0.uid) : null;
       const warm = H.world.lights().filter((L) => { if (!L.warm) return false; a.set(L.x, L.y, L.z).project(H.camera); const y = (1 - a.y) / 2 * H.size.h / H.size.u; return a.z < 1 && Math.abs(a.x) <= 1 && y >= 40 && a.y >= -1; }).length;
-      return { hs, hc, warm, ringPts: mp && mp.length ? mp.map(([x, z]) => pr(x, z)) : [0, 1, 2, 3, 4, 5, 6, 7].map((k) => pr(n0.position.x + Math.cos(k * 0.785) * ringR, n0.position.z + Math.sin(k * 0.785) * ringR)), floorPt: pr(n0.position.x + 2.6, n0.position.z + 1.2), uid: h0.uid, theme: H.world.theme.name };
+      return { hs, hc, fh: H.size.h / H.size.u, warm, ringPts: mp && mp.length ? mp.map(([x, z]) => pr(x, z)) : [0, 1, 2, 3, 4, 5, 6, 7].map((k) => pr(n0.position.x + Math.cos(k * 0.785) * ringR, n0.position.z + Math.sin(k * 0.785) * ringR)), floorPt: pr(n0.position.x + 2.6, n0.position.z + 1.2), uid: h0.uid, theme: H.world.theme.name };
     });
     const over = await shot(page, `ours-${tag}-overview.png`);
     const d = stats(over);
@@ -116,7 +117,9 @@ try {
     const fl = meanAt(over, info.floorPt[0], info.floorPt[1], 6);
     const rd = Math.max(...info.ringPts.map((q) => dist3(meanAt(over, q[0], q[1], 1.6), fl)));
     check(rd > 40, `${k}: hero floor mark reads on the floor (colour distance ${rd.toFixed(0)} > 40)`);
-    check(info.hc >= 40, `${k}: hero height at the arena centre ${info.hc.toFixed(0)} design px (>= 40); heroes now ${Math.min(...info.hs).toFixed(0)}..${Math.max(...info.hs).toFixed(0)}`);
+    // the floor is Minecraft Dungeons' measured hero size, 0.10-0.12 of the frame height (~/handoff/ast-par/cam/mcd-camera.md),
+    // as in view-shots: 0.10 of the 360 px frame = 36 px. It was 40 px for the old porthole framing (hero 0.21 of the height).
+    { const min = HERO_MIN * info.fh; check(info.hc >= min, `${k}: hero height at the arena centre ${info.hc.toFixed(0)} design px (>= ${min.toFixed(0)} = ${HERO_MIN} of the frame height, MCD 0.10-0.12); heroes now ${Math.min(...info.hs).toFixed(0)}..${Math.max(...info.hs).toFixed(0)}`); }
     await page.evaluate(([u]) => { window.__G.paused = false; window.__G.cam.spectate(u); window.__step(80); window.__G.paused = true; }, [info.uid]);
     const close = await shot(page, `ours-${tag}-close.png`);
     const bad = problems.filter((x) => !/Failed to load resource|\/js\/ui\//.test(x));
