@@ -1,14 +1,14 @@
 // Boot and loop. States: 'home' (empty arena, the UI kit draws on top) and 'battle'. The sim runs at 30 Hz from an
 // accumulator; the view renders every frame. window.__G and the __sim/__step hooks let the Node tools drive it.
-import { createHost } from './view/host.js?v=20261120f';
-import { createActors } from './view/actors.js?v=20261120f';
-import { createCamera } from './view/camera.js?v=20261120f';
-import { createJuice } from './view/juice.js?v=20261120f';
-import { createBattle, step, DT } from './sim/battle.js?v=20261120f';
-import { stageDef, expectedLevel } from './data/stages.js?v=20261120f';
-import { levelMul } from './data/economy.js?v=20261120f';
-import { attachGame } from './game.js?v=20261120f';
-import { createOrient } from './orient.js?v=20261120f';
+import { createHost } from './view/host.js?v=20261121a';
+import { createActors } from './view/actors.js?v=20261121a';
+import { createCamera } from './view/camera.js?v=20261121a';
+import { createJuice } from './view/juice.js?v=20261121a';
+import { createBattle, step, DT } from './sim/battle.js?v=20261121a';
+import { stageDef, expectedLevel } from './data/stages.js?v=20261121a';
+import { levelMul } from './data/economy.js?v=20261121a';
+import { attachGame } from './game.js?v=20261121a';
+import { createOrient } from './orient.js?v=20261121a';
 
 const DEFAULT_TEAM = ['thep', 'mua', 'yta', 'gio'];
 const MAX_CATCHUP = 8;
@@ -37,11 +37,11 @@ async function boot() {
         team: opts.teamSpec || ids.map((id) => ({ id, mul: opts.mul || levelMul(L), atkFlat: opts.atkFlat ?? 6 * n, hpFlat: opts.hpFlat ?? 40 * n })),
         onEvent: (e) => { actors.onEvent(e); for (const fn of listeners) fn(e); },
       });
-      host.setStage(game.B.stage); game.state = 'battle'; game.stageN = n; acc = 0; juice.reset();
+      host.B = game.B; host.setStage(game.B.stage, game.B.wave); game.state = 'battle'; game.stageN = n; acc = 0; juice.reset();
       if (opts.spectate !== undefined && game.B.heroes[opts.spectate]) cam.spectate(game.B.heroes[opts.spectate].uid);
       return game.B;
     },
-    stop() { actors.clear(); cam.spectate(0); game.B = null; game.state = 'home'; juice.reset(); },
+    stop() { actors.clear(); cam.spectate(0); host.B = null; host.world.settle(); game.B = null; game.state = 'home'; juice.reset(); },
   };
   const juice = createJuice(game); host.juice = juice.view; game.juice = juice;
   window.__G = game;
@@ -57,7 +57,7 @@ async function boot() {
   }
   function advance(dt) {
     const B = game.B;
-    if (!B || game.paused || game.frozen || B.phase !== 'fight') return;
+    if (!B || game.paused || game.frozen || B.phase !== 'fight' || host.world.busy) return;
     acc += dt * game.speed * juice.scale;
     let n = 0;
     while (acc >= DT && n++ < MAX_CATCHUP && B.phase === 'fight') { step(B); acc -= DT; }
@@ -77,7 +77,9 @@ async function boot() {
     const B = game.B; if (!B) return;
     const ticks = Math.round(secs / DT);
     juice.silent = true;
+    host.world.settle();
     try { for (let i = 0; i < ticks && B.phase === 'fight'; i++) step(B); } finally { juice.silent = false; }
+    host.B = B; host.syncSection(true);
     for (let i = 0; i < 24; i++) { actors.sync(B, 1 / 30); cam.update(B, 1 / 30); }
     host.update(1 / 30); glue.update(1 / 30, 1 / 30); host.render(glue.overlay);
   };

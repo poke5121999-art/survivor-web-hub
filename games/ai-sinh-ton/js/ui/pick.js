@@ -1,9 +1,9 @@
 // Upgrade pick between waves: a modal over the frozen fight. One hero at a time, three rarity-framed card buttons,
 // a progress row of the four heroes and an auto-pick button. The sim decides what is open (B.phase, B.picked);
 // this screen only mirrors it, so an auto pick from anywhere closes it as well.
-import { HERO } from '../data/heroes.js?v=20261120f';
-import { CARD, CARD_RARITY } from '../data/cards.js?v=20261120f';
-import { clamp, easeOut, heroColor, kill, roundPlane } from './hud.js?v=20261120f';
+import { HERO } from '../data/heroes.js?v=20261121a';
+import { CARD, CARD_RARITY } from '../data/cards.js?v=20261121a';
+import { clamp, easeOut, heroColor, kill, roundPlane } from './hud.js?v=20261121a';
 
 // 780 x 360: hero being upgraded at the left, three cards side by side in the middle, the auto button at the right
 const CARD_W = 152, CARD_H = 222, CARD_GAP = 8, CARDS_X = 166, CARDS_Y = 70, OUT_T = 0.34, IN_T = 0.3;
@@ -110,7 +110,8 @@ export function createPick(game) {
     dt = Math.min(dt, 0.05);
     const B = game.B;
     if (!B) { if (open) closeIt(); return; }
-    if (B.phase === 'pick' && !open) openIt(B);
+    const running = !!(game.host.world && game.host.world.busy);
+    if (B.phase === 'pick' && !open && !running) openIt(B);
     if (!open) return;
     if (B.phase !== 'pick') { leaving += dt; if (!anim || anim.kind !== 'out' || leaving > OUT_T + 0.05) closeIt(); else animate(dt); return; }
     const cur = B.picked.findIndex((p) => p < 0);

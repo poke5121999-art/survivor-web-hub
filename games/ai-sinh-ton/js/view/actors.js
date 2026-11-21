@@ -1,12 +1,12 @@
 // Draws the sim's units: four Blockade Z heroes, the zombie pool in puppet mode, and a few code-built summons.
 // sync(B, dt) is called once per rendered frame after the sim ticks; onEvent(e) is called for every sim event.
-import { CAST_KEY, SWING_HOLDS, FLY_Y } from './keys.js?v=20261120f';
-import { createMarks } from './marks.js?v=20261120f';
-import { createFxMap } from './fxmap.js?v=20261120f';
-import { createHorde } from './horde.js?v=20261120f';
-import { arrive } from './arrival.js?v=20261120f';
-import { attachGrip, solveGrip } from './grip.js?v=20261120f';
-import { actFor, stepAct, usePool } from './bossacts.js?v=20261120f';
+import { CAST_KEY, SWING_HOLDS, FLY_Y } from './keys.js?v=20261121a';
+import { createMarks } from './marks.js?v=20261121a';
+import { createFxMap } from './fxmap.js?v=20261121a';
+import { createHorde } from './horde.js?v=20261121a';
+import { arrive } from './arrival.js?v=20261121a';
+import { attachGrip, solveGrip } from './grip.js?v=20261121a';
+import { actFor, stepAct, usePool } from './bossacts.js?v=20261121a';
 
 const THREE = window.THREE;
 const BZ = window.BZ;
@@ -128,14 +128,16 @@ export function createActors(H) {
 
   function syncHero(a, dt) {
     const u = a.u; const st = a.st; const m = a.m;
-    const dx = u.x - a.pos.x; const dz = u.z - a.pos.z; const far = Math.hypot(dx, dz);
-    const lam = far > 2.2 || a.fastT > 0 ? 34 : 16; a.fastT = Math.max(0, a.fastT - dt);
+    const run = H.world && u.alive ? H.world.heroAt(u.slot, u.x, u.z) : null;
+    const dx = (run ? run.x : u.x) - a.pos.x; const dz = (run ? run.z : u.z) - a.pos.z; const far = Math.hypot(dx, dz);
+    const lam = run ? 14 : far > 2.2 || a.fastT > 0 ? 34 : 16; a.fastT = Math.max(0, a.fastT - dt);
     const k = 1 - Math.exp(-lam * dt); const bx = a.pos.x; const bz = a.pos.z;
     a.pos.x += dx * k; a.pos.z += dz * k;
     const sp = dt > 1e-4 ? Math.min(9, Math.hypot(a.pos.x - bx, a.pos.z - bz) / dt) : 0;
-    a.yaw += wrap(yawOf(u.face) - a.yaw) * Math.min(1, dt * 12);
-    a.node.position.set(a.pos.x, 0, a.pos.z); m.root.rotation.y = a.yaw;
-    a.disc.position.x = a.pos.x; a.disc.position.z = a.pos.z; a.disc.visible = u.alive;
+    const lift = run ? run.y : 0; a.lift = (a.lift || 0) + (lift - (a.lift || 0)) * Math.min(1, dt * 14);
+    a.yaw += wrap((run && run.w > 0.3 ? yawOf(Math.atan2(run.dz, run.dx)) : yawOf(u.face)) - a.yaw) * Math.min(1, dt * 12);
+    a.node.position.set(a.pos.x, a.lift, a.pos.z); m.root.rotation.y = a.yaw;
+    a.disc.position.x = a.pos.x; a.disc.position.z = a.pos.z; a.disc.position.y = 0.03 + a.lift; a.disc.visible = u.alive;
     if (!u.alive) {
       addBlob(a.pos.x, a.pos.z, 2.3);
       a.deadT = Math.max(0.001, a.deadT + dt); st.dead = a.deadT; st.speed = 0; st.swing = -1; st.kick = 0; st.kickL = 0;
@@ -162,7 +164,7 @@ export function createActors(H) {
     a.bubble.visible = u.state.invuln > 0 || u.shield > 0;
     if (a.bubble.visible) { a.bubble.material.color.setHex(u.state.invuln > 0 ? 0xffd860 : 0xa8dcff); a.bubble.position.set(a.pos.x, 1.2, a.pos.z); a.bubble.scale.setScalar(1 + Math.sin(performance.now() / 160) * 0.03); }
     skin(a, u.state.stealth > 0 ? 0.35 : 1, u.status && u.status.freeze ? 0x2a6a9a : 0);
-    if (H.spectateUid === u.uid) a.bar.visible = false; else setBar(a.bar, a.pos.x, 3.05, a.pos.z, u.hp / u.maxHp, u.shield > 0 ? u.shield / u.maxHp : 0);
+    if (H.spectateUid === u.uid) a.bar.visible = false; else setBar(a.bar, a.pos.x, 3.05 + a.lift, a.pos.z, u.hp / u.maxHp, u.shield > 0 ? u.shield / u.maxHp : 0);
     addBlob(a.pos.x, a.pos.z, 2.3);
   }
 

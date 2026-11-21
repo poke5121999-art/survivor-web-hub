@@ -4,8 +4,8 @@
 // count, the cost is a fixed handful of draw calls: torso, head (skin + face), arms, legs, wings, death cubes, ground splats.
 // Deaths are pooled: a corpse record plays out through the same meshes, a few cubes fly from a ring buffer, a splat every
 // few deaths. No per-unit object, no per-death allocation.
-import { FLY_Y } from './keys.js?v=20261120f';
-import { arrive } from './arrival.js?v=20261120f';
+import { FLY_Y } from './keys.js?v=20261121a';
+import { arrive } from './arrival.js?v=20261121a';
 
 const THREE = window.THREE;
 const BZ = window.BZ;

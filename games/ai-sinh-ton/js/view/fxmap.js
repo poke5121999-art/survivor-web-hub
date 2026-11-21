@@ -1,8 +1,8 @@
 // Maps every effect key the sim emits (sim `fx`, `attack`, projectile, zone, dash, buff, state keys) to a look, and
 // plays it with Blockade Z's G.fx calls, own ground marks and sounds. A key missing from KEYS plays a generic burst
 // and is logged once. counters[key] counts the effects played per key (the view-shots tool reads it).
-import { arenaNorm } from '../sim/battle.js?v=20261120f';
-import { HEROES } from '../data/heroes.js?v=20261120f';
+import { arenaNorm } from '../sim/battle.js?v=20261121a';
+import { HEROES } from '../data/heroes.js?v=20261121a';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -28,7 +28,7 @@ export const KEYS = {
   revive: K('holy', { self: true, ult: true }), dash: K('shock', { trail: true }), gust: K('ice', { n: 1.2, snd: 'swipe' }), blades: K('steel', { bolt: 'slash', ult: true }),
   airstrike: K('fire', { boom: true, fall: 'shell' }), mines: K('steel', { boom: true, fall: 'bomb' }), artillery: K('fire', { boom: true, fall: 'shell', ult: true }),
   blink: K('void', { bolt: 'slash', trail: true }), pierce_star: K('metal', { n: 1.2 }), vanish: K('void', { self: true, ult: true }), ice_wave: K('ice', { n: 1.2 }),
-  ice_spike: K('ice', { n: 1.4 }), blizzard: K('ice', { ult: true, z: [2, 0x2f7fe0, 0xe8f6ff, 7] }), molotov: K('fire', { z: [0, 0xc02808, 0xffc030, 14] }),
+  ice_spike: K('ice', { n: 1.4 }), blizzard: K('ice', { ult: true, z: [2, 0x2f7fe0, 0x9fd4ff, 7] }), molotov: K('fire', { z: [0, 0xc02808, 0xffc030, 14] }),
   rocket_jump: K('fire', { boom: true, trail: true }), dragon_breath: K('fire', { ult: true, z: [0, 0xc02808, 0xffd040, 20] }),
   poison_cloud: K('poison', { z: [1, 0x3a8a18, 0xb8f050, 5] }), drain: K('blood', { bolt: 'drain' }), plague: K('poison', { ult: true, mark: true }),
   turret: K('metal', { self: true }), armor_up: K('metal', { self: true }), fortress: K('metal', { self: true, ult: true }),

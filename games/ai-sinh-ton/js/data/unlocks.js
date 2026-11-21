@@ -1,6 +1,6 @@
 // Account level, the unlock table and the first-session guide (FTUE). Pure rules: meta.js stores the state,
 // the screens ask isUnlocked() and show lockText() on a padlock, tools/pacing.mjs reports when each thing opens.
-import { SLOTS, TIERS } from './equip.js?v=20261120f';
+import { SLOTS, TIERS } from './equip.js?v=20261121a';
 
 // ---- account level (separate from hero levels) ----
 export const XP = { wave: 10, clear: 30, first: 60 };

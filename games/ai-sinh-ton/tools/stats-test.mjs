@@ -125,7 +125,7 @@ try {
     // formatting rules against literal cases, using the screen's own functions
     if (phone === 's22') {
       const g0 = await open(br, srv.base, phone, BASE + '&stage=1'); const p0 = g0.page;
-      const f = await p0.evaluate(async () => { const m = await import('./js/ui/stats.js?v=20261120f'); return { a: m.fmtNum(12345), b: m.fmtNum(1234567), c: m.fmtNum(999999), d: m.fmtNum(0), e: m.fmtTime(112), f: m.fmtTime(7), g: m.sharePcts([{ share: 0.004 }, { share: 0.5 }, { share: 0.496 }]), h: m.sharePcts([{ share: 1 }]), i: m.fmtDec(1.116), j: m.fmtNum(2500000000) }; });
+      const f = await p0.evaluate(async () => { const m = await import('./js/ui/stats.js?v=20261121a'); return { a: m.fmtNum(12345), b: m.fmtNum(1234567), c: m.fmtNum(999999), d: m.fmtNum(0), e: m.fmtTime(112), f: m.fmtTime(7), g: m.sharePcts([{ share: 0.004 }, { share: 0.5 }, { share: 0.496 }]), h: m.sharePcts([{ share: 1 }]), i: m.fmtDec(1.116), j: m.fmtNum(2500000000) }; });
       check(f.a === '12.345' && f.b === '1,2 Tr' && f.c === '999.999' && f.d === '0' && f.e === '1:52' && f.f === '0:07' && f.g.join() === '<1%,50%,50%' && f.h.join() === '100%' && f.i === '1,12' && f.j === '2,5 Tỷ', `formatting: ${JSON.stringify(f)}`);
       await g0.ctx.close();
     }

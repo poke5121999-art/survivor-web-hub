@@ -2,10 +2,10 @@
 // shared bag at the right, the item sheet, merge mode (a wide band across the top with the pieces in a row and the preview
 // at its right, the bag grid below it dims what cannot be fodder) and the Ghép Nhanh preview.
 // All account changes go through meta.*; this screen only reads meta.acc and rebuilds after each command.
-import { SLOTS, TIERS, ITEM, itemStat, upgradeCost, refundOf, autoMergePlan } from '../data/equip.js?v=20261120f';
-import { HERO } from '../data/heroes.js?v=20261120f';
-import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120f';
-import { ITEM_ICON } from './itemicons.js?v=20261120f';
+import { SLOTS, TIERS, ITEM, itemStat, upgradeCost, refundOf, autoMergePlan } from '../data/equip.js?v=20261121a';
+import { HERO } from '../data/heroes.js?v=20261121a';
+import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261121a';
+import { ITEM_ICON } from './itemicons.js?v=20261121a';
 
 const SLOT = Object.fromEntries(SLOTS.map((s) => [s.id, s]));
 const LEFT = ['weapon', 'necklace', 'gloves'], RIGHT = ['armor', 'belt', 'boots'];
