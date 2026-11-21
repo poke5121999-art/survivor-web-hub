@@ -12,10 +12,12 @@
 // Env: PHONES=s22,xiaomi,desktop (default all three). Shots and the issue list go to .chk/textfit/.
 import path from 'node:path';
 import fs from 'node:fs';
-import { serve, launch, open, checker, ROOT } from './pw.mjs';
+import { serve, launch, open as openPage, checker, ROOT } from './pw.mjs';
+// every case runs with the page's frame loop stopped: only __sim and __step move time, so each run measures the same moment
+const open = (br, base, phone, q, o = {}) => openPage(br, base, phone, q, { ...o, freeze: true });
 import { HERO } from '../js/data/heroes.js';
 
-const OUT = path.join(ROOT, '.chk', 'textfit'); fs.mkdirSync(OUT, { recursive: true });
+const OUT = path.join(ROOT, '.chk', process['env'].CHK_SUB || '', 'textfit'); fs.mkdirSync(OUT, { recursive: true });
 const ARGS = process.argv.slice(2);
 const SELFTEST = ARGS.includes('--selftest');
 const ONLY = (ARGS.find((a) => a.startsWith('--only=')) || '').slice(7);
@@ -397,8 +399,6 @@ async function crowded(br, srv, phone) {
 }
 async function crowdedSeed(br, srv, phone, seed) {
   const c = await open(br, srv.base, phone, BASE_Q + `&autostart=1&stage=15&seed=${seed}&autoult=1&autopick=1`);
-  await c.page.evaluate(() => { window.requestAnimationFrame = () => 0; });
-  await c.page.evaluate(() => new Promise((r) => setTimeout(r, 60)));
   let nums = 0, tries = 0;
   while (tries++ < 14) { await c.page.evaluate(() => __sim(1.5)); nums = await c.page.evaluate(() => __G.screens.hud.dbg().numbers); if (nums >= 4) break; }
   console.log(`${phone} crowded fight seed ${seed}: ${nums} damage numbers up after ${tries} tries`);

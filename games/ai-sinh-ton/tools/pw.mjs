@@ -79,6 +79,24 @@ export async function open(br, base, phone, query = '', opts = {}) {
       if (!keep && !sessionStorage.getItem('__fresh')) { localStorage.removeItem('aisinhton.save.v1'); localStorage.removeItem('aisinhton.settings.v1'); sessionStorage.setItem('__fresh', '1'); }
     } catch (e) {}
   }, !!opts.keepSave);
+  // freeze: the game's own frame loop (main.js `loop`) never gets its first frame, so nothing moves in real time between
+  // the tool's calls; the tool drives the fight with __sim(seconds) and the HUD/animation clocks with __step(frames).
+  // Done from the start (not after ready) because a loop that already ran has advanced the fight by a random amount.
+  if (opts.freeze) await ctx.addInitScript(() => {
+    const raf = window.requestAnimationFrame.bind(window);
+    // js/feedback-capture.js re-wraps requestAnimationFrame with an anonymous callback, which would hide the name: keep ours
+    const gate = (cb) => (cb && cb.name === 'loop' ? 0 : raf(cb));
+    Object.defineProperty(window, 'requestAnimationFrame', { configurable: true, get: () => gate, set: () => {} });
+    // the view also reads performance.now (actor animation clocks, hit-stop) and Math.random (particles): a virtual clock
+    // that only __step/__sim advance and a fixed-seed generator make those the same on every run too
+    let vt = 1000; let seed = 12345;
+    performance.now = () => vt;
+    Math.random = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    for (const [name, ms] of [['__step', (n) => (n === undefined ? 1 : n) * 1000 / 60], ['__sim', (n) => n * 1000]]) {
+      let fn;
+      Object.defineProperty(window, name, { configurable: true, get: () => fn, set: (f) => { fn = (n) => { vt += ms(n); return f(n); }; } });
+    }
+  });
   const page = await ctx.newPage();
   const problems = [];
   page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
