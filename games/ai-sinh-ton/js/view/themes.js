@@ -5,12 +5,12 @@
 //   edge: top of the terraces and satellites; side: first row under a top, then deeper rows
 //   abyss: water (a plane `y` below the floor) or mist (sheets over a deep pit); `rise` is what climbing monsters fade from
 //   lights: the light-giving props placed on the rim (warm ones count for the look test); tall / low: other rim props
-import { STREET } from './themes/street.js?v=20261121b';
-import { PARKING } from './themes/parking.js?v=20261121b';
-import { FACTORY } from './themes/factory.js?v=20261121b';
-import { CRYPT } from './themes/crypt.js?v=20261121b';
-import { LANDING } from './themes/landing.js?v=20261121b';
-import { VOID } from './themes/void.js?v=20261121b';
+import { STREET } from './themes/street.js?v=20261121c';
+import { PARKING } from './themes/parking.js?v=20261121c';
+import { FACTORY } from './themes/factory.js?v=20261121c';
+import { CRYPT } from './themes/crypt.js?v=20261121c';
+import { LANDING } from './themes/landing.js?v=20261121c';
+import { VOID } from './themes/void.js?v=20261121c';
 export const THEMES = [STREET, PARKING, FACTORY, CRYPT, LANDING, VOID];
 
 // light-giving props: colour (linear), radius (m), strength, height of the flame or lamp, whether it reads as warm

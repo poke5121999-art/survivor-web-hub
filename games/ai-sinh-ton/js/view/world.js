@@ -6,11 +6,11 @@
 // A stage is a map of five sections, one per wave, each a fight pad with its own satellites and lights on its own height;
 // a bridge or a stair of planks joins each pad to the next. When a wave is cleared the scene slides along that bridge to
 // the next pad while the heroes run over it (the sim waits). Two or three sections are meshed at a time.
-import { ARENA } from '../sim/battle.js?v=20261121b';
-import { THEMES } from './themes.js?v=20261121b';
-import { buildPad, buildBridge, rngOf, voxMaterial } from './pad.js?v=20261121b';
-import { createAbyss } from './abyss.js?v=20261121b';
-import { voxAtlas } from './voxtex.js?v=20261121b';
+import { ARENA } from '../sim/battle.js?v=20261121c';
+import { THEMES } from './themes.js?v=20261121c';
+import { buildPad, buildBridge, rngOf, voxMaterial } from './pad.js?v=20261121c';
+import { createAbyss } from './abyss.js?v=20261121c';
+import { voxAtlas } from './voxtex.js?v=20261121c';
 const THREE = window.THREE;
 
 // satellites at the frame's corners (world x, z of the pad centre; the frame is about 21 m wide at the fight's depth)

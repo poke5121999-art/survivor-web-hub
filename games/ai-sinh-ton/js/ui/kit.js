@@ -1,9 +1,9 @@
 // 3D UI kit: every panel, button, tile and HUD piece is a lit three.js mesh drawn over the battle by its own
 // orthographic scene. Design units are CSS px of a 780 wide landscape frame (780 x 360 at the S22 ratio) (x right, y DOWN, origin top-left). A node's
 // own origin is its top-left corner; world y is the negative of design y.
-import { makeGeo } from './kit-geo.js?v=20261121b';
-import { makeText } from './kit-text.js?v=20261121b';
-import { makeIcons } from './icons.js?v=20261121b';
+import { makeGeo } from './kit-geo.js?v=20261121c';
+import { makeText } from './kit-text.js?v=20261121c';
+import { makeIcons } from './icons.js?v=20261121c';
 
 export const PAL = {
   gold: 0xffc21f, orange: 0xff8a1f, red: 0xff3b52, green: 0x35d65a, blue: 0x2f7bff, purple: 0x8f4dff, teal: 0x20c7c0, pink: 0xff5fa8,
@@ -25,7 +25,7 @@ export function createUI({ THREE, renderer, frame }) {
   const ui = { THREE, PAL, W: 780, H: 360, u: 1, dpr: 1, t: 0, drawCalls: 0 };
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(0, 780, 0, -360, 0.1, 2400); camera.position.z = 1200;
-  ui.scene = scene; ui.camera = camera; // read by tools/text-fit-test.mjs
+  ui.scene = scene; ui.camera = camera; ui.renderer = renderer; // read by tools/text-fit-test.mjs and tools/ui-shots.mjs
   const lights = [];
   { // one key light from the top-left, a fill from the lower right, a soft ambient; lights reach every layer
     const key = new THREE.DirectionalLight(0xfff3e0, 2.5); key.position.set(-0.5, 0.75, 1);
@@ -54,11 +54,17 @@ export function createUI({ THREE, renderer, frame }) {
       for (const t of [...targets]) if (t.node === g) targets.delete(t);
       scrolls.delete(g); anchored.delete(g);
       // a kit node removes itself from its parent and disposes its own subtree: walk a copy of the child list and stop at each kit node
-      const sweep = (n) => { for (const c of [...n.children]) { if (c.dispose) c.dispose(); else sweep(c); } };
+      const sweep = (n) => { for (const c of [...n.children]) { if (c.dispose) c.dispose(); else { sweep(c); free(c); } } };
       sweep(g);
       g.parent && g.parent.remove(g);
     };
     return g;
+  }
+  // a plain mesh owns what the kit's caches did not hand it: its geometry, material and canvas texture
+  const owned = (r) => r && !r.userData.shared;
+  function free(o) {
+    if (owned(o.geometry)) o.geometry.dispose();
+    for (const m of [].concat(o.material || [])) { if (!owned(m)) continue; if (owned(m.map) && !m.map.isRenderTargetTexture) m.map.dispose(); m.dispose(); }
   }
   function placeAnchored(g) {
     const { x, mode, dy } = g.anch; g.pos(x, mode === 'bottom' ? ui.H + dy : mode === 'center' ? ui.H / 2 + dy : dy);
@@ -76,7 +82,7 @@ export function createUI({ THREE, renderer, frame }) {
   const shadowMats = new Map();
   function addShadow(g, w, h, r, offY = 4, strength = 0.42) {
     const tex = geo.shadow(w, h, r, 7); let m = shadowMats.get(tex);
-    if (!m) { m = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: strength, depthWrite: false, toneMapped: false }); shadowMats.set(tex, m); }
+    if (!m) { m = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: strength, depthWrite: false, toneMapped: false }); m.userData.shared = true; shadowMats.set(tex, m); }
     const pad = tex.userData.pad, mesh = new THREE.Mesh(geo.quad(w + pad * 2, h + pad * 2), m);
     mesh.position.set(w / 2, -h / 2 - offY, -14); g.add(mesh); return mesh;
   }

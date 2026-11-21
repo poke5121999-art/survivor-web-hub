@@ -134,7 +134,7 @@ function canvasPath(g, cmds) {
 export function makeIcons(THREE, geo) {
   const built = new Map(), warned = new Set();
   const vcMat = geo.std(0xffffff, { vc: true, rough: 0.34 });
-  const plane = new THREE.PlaneGeometry(1, 1);
+  const plane = new THREE.PlaneGeometry(1, 1); plane.userData.shared = true;
   const SC = 2.2, MARGIN = 14, OW = 5, CS = Math.ceil((100 + MARGIN * 2) * SC);
 
   function build(name, color) {
@@ -161,6 +161,7 @@ export function makeIcons(THREE, geo) {
     }
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     const olMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false });
+    geom.userData.shared = olMat.userData.shared = tex.userData.shared = true;
     return { geom, olMat };
   }
 

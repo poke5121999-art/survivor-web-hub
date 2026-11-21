@@ -2,9 +2,9 @@
 // detail card (damage by source, cards picked, stats then and now, support numbers). The numbers come from the sim's
 // battleReport; this file only formats and draws them. Every drawn string is also written to game.statsUi so the
 // tools can compare what the screen says with the report.
-import { HERO } from '../data/heroes.js?v=20261121b';
-import { CARD, CARD_RARITY } from '../data/cards.js?v=20261121b';
-import { heroColor, kill } from './hud.js?v=20261121b';
+import { HERO } from '../data/heroes.js?v=20261121c';
+import { CARD, CARD_RARITY } from '../data/cards.js?v=20261121c';
+import { heroColor } from './hud.js?v=20261121c';
 
 // ---------- formatting ----------
 const nf = (n, d = 0) => { try { return n.toLocaleString('vi-VN', { maximumFractionDigits: d }); } catch (e) { return String(n); } };
@@ -80,7 +80,7 @@ export function createStatsPanel(game) {
   const label = (parent, s, x, y) => T(parent, s, { size: 11, color: 0xffd23f, outlineW: 1.3 }, x, y);
 
   function clear() {
-    if (listG) { kill(listG); listG = null; } if (detailG) { kill(detailG); detailG = null; }
+    if (listG) { listG.dispose(); listG = null; } if (detailG) { detailG.dispose(); detailG = null; }
     reg.texts = []; reg.rows = []; reg.detail = null; reg.header = null;
   }
 
@@ -208,7 +208,7 @@ export function createStatsPanel(game) {
       d.stats.push({ key: s.key, label: s.label, then, now, gain, line });
     });
   }
-  function closeDetail() { if (detailG) { kill(detailG); detailG = null; } reg.detail = null; reg.texts = reg.texts.filter((t) => t.node.parent); if (listG) listG.setVisible(true); if (api.onDetail) api.onDetail(false); }
+  function closeDetail() { if (detailG) { detailG.dispose(); detailG = null; } reg.detail = null; reg.texts = reg.texts.filter((t) => t.node.parent); if (listG) listG.setVisible(true); if (api.onDetail) api.onDetail(false); }
 
   // text ink against its panel, in the panel's own frame: returns the strings that stick out
   const _v = new THREE.Vector3();

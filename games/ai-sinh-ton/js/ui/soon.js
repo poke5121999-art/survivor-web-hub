@@ -1,11 +1,11 @@
 // Thưởng tab in landscape: the daily chest and its receipt in the left column, the list of chapter chests (meta.claimChapter)
 // in the right column. Trang Bị lives in equip.js.
-import { makeBackdrop, makeBurst, fmt, kill, RAIL } from './home.js?v=20261121b';
-import { HERO } from '../data/heroes.js?v=20261121b';
-import { lockButton } from './guide.js?v=20261121b';
-import { CHAPTERS } from '../data/stages.js?v=20261121b';
-import { TIERS } from '../data/equip.js?v=20261121b';
-import { ITEM_ICON } from './itemicons.js?v=20261121b';
+import { makeBackdrop, makeBurst, fmt, RAIL } from './home.js?v=20261121c';
+import { HERO } from '../data/heroes.js?v=20261121c';
+import { lockButton } from './guide.js?v=20261121c';
+import { CHAPTERS } from '../data/stages.js?v=20261121c';
+import { TIERS } from '../data/equip.js?v=20261121c';
+import { ITEM_ICON } from './itemicons.js?v=20261121c';
 
 const CHEST_ROW = 70, COLA = RAIL.content + 2, COLB = 388, LIST = { x: COLB, y: 66, w: 364, h: 282 };
 const ROW_COLOR = { locked: 0x453a78, ready: 0xd8892a, claimed: 0x2f7a62 };
@@ -118,7 +118,7 @@ export function createSoon(game) {
     mui.dailyText = done ? 'Quay lại vào ngày mai' : 'Rương ngày: ngọc, vàng và mảnh'; lidT = done ? 1 : 0; if (done) lid = 1;
   }
   let chips = [];
-  const clearChips = () => { for (const c of chips) kill(c); chips = []; };
+  const clearChips = () => { for (const c of chips) c.dispose(); chips = []; };
   const chip = (ic, str, w, x) => {
     const p = ui.panel({ w, h: 34, r: 17, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); chipRow.put(p, x, 5);
     p.put(ui.icon(ic, { size: 34 }), -7, -1, 4); p.put(ui.text(str, { size: 13, valign: 'mid' }), 30, 18); chips.push(p); return p;

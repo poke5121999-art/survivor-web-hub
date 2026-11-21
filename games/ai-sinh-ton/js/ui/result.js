@@ -1,11 +1,11 @@
 // One modal screen with three modes: 'pause' (resume, settings, retry, home), 'result' (win or loss: a reward tab and a
 // per-hero statistics tab, with the next steps always in view) and 'settings' (the same switches, opened from the home screen).
-import { HERO } from '../data/heroes.js?v=20261121b';
-import { ITEM, TIERS } from '../data/equip.js?v=20261121b';
-import { fmt, heroColor, kill } from './hud.js?v=20261121b';
-import { xpNeed } from '../data/unlocks.js?v=20261121b';
-import { ITEM_ICON } from './itemicons.js?v=20261121b';
-import { createStatsPanel } from './stats.js?v=20261121b';
+import { HERO } from '../data/heroes.js?v=20261121c';
+import { ITEM, TIERS } from '../data/equip.js?v=20261121c';
+import { fmt, heroColor } from './hud.js?v=20261121c';
+import { xpNeed } from '../data/unlocks.js?v=20261121c';
+import { ITEM_ICON } from './itemicons.js?v=20261121c';
+import { createStatsPanel } from './stats.js?v=20261121c';
 
 const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Rung màn hình', 'shake', 'set-shake'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
 const FULLSCREEN = ['Toàn màn hình', 'fullscreen', 'set-fullscreen'];
@@ -75,7 +75,7 @@ export function createResult(game) {
   // ---------- result ----------
   let res = null, xpAnim = null, xpText = '', lvUp = '', gifts = [], tab = '', stats = null, tabBtns = null, leftG = null;
   function buildResult(r) {
-    if (res) { kill(res); res = null; stats = null; }
+    if (res) { res.dispose(); res = null; stats = null; }
     xpAnim = null; xpText = ''; lvUp = ''; gifts = [];
     const g = ui.group({ w: W, h: 360 }); scr.put(g, 0, 0, 2); res = g;
     g.put(ui.panel({ w: 748, h: 336, r: 26, color: 0x33286a, depth: 6, bevel: 3, gloss: false }), 16, 12, 0);

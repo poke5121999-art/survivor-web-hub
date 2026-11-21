@@ -4,8 +4,8 @@
 //              (id "guide-block") cover everything outside the spotlight.
 //   'reveal' - the padlock pops open and the new feature flies in; tap to continue.
 // meta.ftueNext() says what to show, game.events says when; pressing the target (a pointer press on it) completes a step.
-import { UNLOCK } from '../data/unlocks.js?v=20261121b';
-import { kill, clamp, easeOut, easeBack } from './hud.js?v=20261121b';
+import { UNLOCK } from '../data/unlocks.js?v=20261121c';
+import { clamp, easeOut, easeBack } from './hud.js?v=20261121c';
 
 const GIVE_UP = 8;
 const HAND_LEN = 86, HAND_HALF = 30, HAND_GAP = 3, HAND_BOB = 9;
@@ -113,7 +113,7 @@ export function createGuide(game) {
   // ---- the speech panel: short and wide, the skip button sits inside it at the right ----
   function buildPanel(text, hint) {
     const withSkip = !!meta.acc.ftue.session, key = text + '|' + hint + '|' + withSkip + '|' + narrow; if (key === panelKey) return; panelKey = key;
-    if (panel) { kill(panel); panel = null; }
+    if (panel) { panel.dispose(); panel = null; }
     const t = ui.text(text, { size: 17, align: 'center', maxW: narrow ? 150 : 320, lineH: 22 });
     const h2 = hint ? ui.text(hint, { size: 11, align: 'center', color: 0xffe9a8, outlineW: 1.4 }) : null;
     const skipW = withSkip ? 108 : 0, tw = Math.max(narrow ? 150 : 210, Math.round(t.w) + 36), w = tw + skipW, h = Math.max(Math.round(t.h + 24 + (h2 ? 16 : 0)), withSkip ? 62 : 0);
@@ -213,9 +213,14 @@ export function createGuide(game) {
     if (!panel) return;
     const H = ui.H, w = panelW, h = panelH, battle = S.step && S.step.where === 'battle';
     let best = null;
-    if (!rect) best = { x: 390 - w / 2, y: battle ? 148 : H - 12 - h };
-    else {
-      const avoid = [grow(rect, 8), grow(hh.box, 4), BANNER_ZONE], tc = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
+    // the banners really up in the HUD (a stack of two reaches below BANNER_ZONE) are avoided too
+    const hudB = battle && game.screens && game.screens.hud && game.screens.hud.bannerRects ? game.screens.hud.bannerRects().map((q) => grow(q, 4)) : [];
+    if (!rect) {
+      best = { x: 390 - w / 2, y: battle ? 148 : H - 12 - h };
+      const below = Math.max(0, ...hudB.filter((q) => inter({ x: best.x, y: best.y, w, h }, q)).map((q) => q.y + q.h + 2));
+      if (below) best.y = Math.min(H - 12 - h, below);
+    } else {
+      const avoid = [grow(rect, 8), grow(hh.box, 4), BANNER_ZONE, ...hudB], tc = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
       const corners = battle ? [{ x: 0, y: H - 100, w: 190, h: 100 }, { x: 590, y: H - 100, w: 190, h: 100 }] : [];
       let bs = -1e9;
       for (const hard of [avoid, avoid.slice(0, 2)]) {
@@ -324,7 +329,7 @@ function createReveal(game, { onDone, blocked }) {
   const R = { ids: [], cur: '', t: 0, nodes: [], wait: 0, icon: null, head: null, name: null, hint: null };
 
   const fit = () => { tap.scale.set(7.8, ui.H / 111, 1); };
-  function clearNodes() { for (const n of R.nodes) kill(n); R.nodes = []; R.icon = R.head = R.name = R.hint = null; }
+  function clearNodes() { for (const n of R.nodes) n.dispose(); R.nodes = []; R.icon = R.head = R.name = R.hint = null; }
   function setup(id) {
     clearNodes(); R.cur = id; R.t = 0;
     const u = UNLOCK[id], ic = FEATURE_ICON[id] || 'star';

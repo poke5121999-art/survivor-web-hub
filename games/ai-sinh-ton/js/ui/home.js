@@ -2,12 +2,12 @@
 // account level top-right, the warm backdrop) and the Ra Trận tab. The other menu screens (heroes.js, gacha.js, soon.js)
 // never draw the chrome: they only name themselves in MENU. Their content lives right of RAIL.right (106) and below the
 // counters (y 48) on the right; the toast sits top-centre (ui.toastAt).
-import { stageDef, expectedLevel } from '../data/stages.js?v=20261121b';
-import { HERO } from '../data/heroes.js?v=20261121b';
-import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261121b';
-import { createDiorama } from './diorama.js?v=20261121b';
-import { lockButton } from './guide.js?v=20261121b';
-import { xpNeed } from '../data/unlocks.js?v=20261121b';
+import { stageDef, expectedLevel } from '../data/stages.js?v=20261121c';
+import { HERO } from '../data/heroes.js?v=20261121c';
+import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261121c';
+import { createDiorama } from './diorama.js?v=20261121c';
+import { lockButton } from './guide.js?v=20261121c';
+import { xpNeed } from '../data/unlocks.js?v=20261121c';
 
 export const MENU = ['home', 'heroes', 'hero', 'gacha', 'equip', 'rewards'];
 // rail geometry in design units: buttons start at x, the backdrop panel ends at right; content starts at right + 8
@@ -69,8 +69,6 @@ const STAGES_PER_CHAPTER = 5, CAMPAIGN_CHAPTERS = 6;
 const chapterOf = (n) => Math.floor((n - 1) / STAGES_PER_CHAPTER);
 const chapterStart = (k) => k * STAGES_PER_CHAPTER + 1;
 
-// kit dispose() mutates the tree while it walks it: release the deepest nodes first
-export function kill(n) { const list = []; n.traverse((o) => list.push(o)); for (let i = list.length - 1; i >= 0; i--) if (list[i].dispose) list[i].dispose(); n.parent && n.parent.remove(n); }
 export const fmt = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 export const rarityColor = (id) => HERO_RARITY[HERO[id].rarity].color;
 const hex = (n) => '#' + (n & 0xffffff).toString(16).padStart(6, '0');
@@ -232,7 +230,7 @@ export function createHome(game) {
   home.put(start, COL, 268, 6);
 
   function buildSlots() {
-    for (const s of slotNodes) kill(s); slotNodes = [];
+    for (const s of slotNodes) s.dispose(); slotNodes = [];
     const S = 66, G = 8, X0 = COL + (COLW - 2 * S - G) / 2;
     for (let i = 0; i < 4; i++) {
       const id = meta.acc.team[i], px = X0 + (i % 2) * (S + G), py = 82 + Math.floor(i / 2) * (S + 6), need = SLOT_UNLOCK[i];

@@ -1,7 +1,7 @@
 // Upgrade cards: after waves 1-4 every hero is offered three and keeps one until the stage ends.
 // rar: 0 Thường (60%), 1 Hiếm (30%), 2 Sử Thi (10%). `max` caps how often one hero can take the card.
 // `hero` limits a card to one hero; s1Dmg / s2Dmg / ultDmg scale that skill (damage, heal, shield, summon time).
-import { HEROES } from './heroes.js?v=20261121b';
+import { HEROES } from './heroes.js?v=20261121c';
 
 const GENERIC = [
   { id: 'atk1', name: 'Mài Vũ Khí', desc: 'Công +15%', rar: 0, mods: { atk: 0.15 }, icon: 'atk' },
