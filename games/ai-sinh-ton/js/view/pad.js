@@ -26,6 +26,20 @@ function vnoise(x, z, s) {
   return (a + (b - a) * fx) * (1 - fz) + (c + (d - c) * fx) * fz;
 }
 
+// Boxes [min, max, ...rest] laid in order: where a later box shares a face plane with an earlier one it overlaps (a crate on a
+// crate, a cap on a post), that face of the later box moves LIFT out of the plane, so the two never z-fight. Copies; the input stays.
+const LIFT = 0.004;
+export function liftCoplanar(list) {
+  const out = list.map(([a, b, ...rest]) => [a.slice(), b.slice(), ...rest]);
+  for (let i = 1; i < out.length; i++) for (let j = 0; j < i; j++) for (let ax = 0; ax < 3; ax++) {
+    const p = out[i]; const q = out[j]; const u = (ax + 1) % 3; const v = (ax + 2) % 3;
+    if (!(p[0][u] < q[1][u] && q[0][u] < p[1][u] && p[0][v] < q[1][v] && q[0][v] < p[1][v])) continue;
+    if (Math.abs(p[1][ax] - q[1][ax]) < LIFT / 2) p[1][ax] = Math.max(p[1][ax], q[1][ax]) + LIFT;
+    if (Math.abs(p[0][ax] - q[0][ax]) < LIFT / 2) p[0][ax] = Math.min(p[0][ax], q[0][ax]) - LIFT;
+  }
+  return out;
+}
+
 // ---- the mesher: quads with atlas uvs, a tint, an AO value per corner and an emissive flag; lit in bake() ----
 export function mesher() {
   const A = voxAtlas();
@@ -324,11 +338,13 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
       // props
       for (const p of props) {
         const r = propRng(p.x, p.z);
-        const Bx = (lx, ly, lz, sx, sy, sz, tiles, t, e) => {
-          const c = Math.cos(p.rot); const s = Math.sin(p.rot);
-          const bb = M.box(p.x + lx * c + lz * s, p.y + ly, p.z - lx * s + lz * c, sx, sy, sz, p.rot, tiles, t, e); boxes.push(bb);
-        };
-        PROPS[p.kind].b(Bx, th2, r);
+        // the prop's boxes are gathered first: one laid over another with a face in the same plane is lifted clear of it
+        const L = []; PROPS[p.kind].b((lx, ly, lz, sx, sy, sz, tiles, t, e) => L.push([[lx - sx / 2, ly, lz - sz / 2], [lx + sx / 2, ly + sy, lz + sz / 2], tiles, t, e]), th2, r);
+        const c = Math.cos(p.rot); const s = Math.sin(p.rot);
+        for (const [a, b, tiles, t, e] of liftCoplanar(L)) {
+          const lx = (a[0] + b[0]) / 2; const lz = (a[2] + b[2]) / 2;
+          boxes.push(M.box(p.x + lx * c + lz * s, p.y + a[1], p.z - lx * s + lz * c, b[0] - a[0], b[1] - a[1], b[2] - a[2], p.rot, tiles, t, e));
+        }
       }
       for (const b of this.bridges) b.emit(M);
       if (extra) extra(M);
@@ -346,6 +362,9 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
 }
 
 // a plank bridge (or a ramp of planks) from a to b ({x,y,z}); posts with torches at both ends. Returns data with emit(M).
+// the planks lie this far above the line from a to b: where the deck runs onto a pad its top sat in the pad floor's plane and
+// z-fought with it (the end tread of every step bridge, the ends of a level bridge)
+const DECK = 0.03;
 export function buildBridge(a, b, theme, { width = 1.3, steps = false } = {}) {
   const dx = b.x - a.x; const dz = b.z - a.z; const L = Math.hypot(dx, dz); const rot = -Math.atan2(dz, dx); const ux = dx / L; const uz = dz / L;
   const lights = []; const tLight = LIGHTS.torch; const HW = width / 2 + 0.15;
@@ -358,14 +377,14 @@ export function buildBridge(a, b, theme, { width = 1.3, steps = false } = {}) {
     // height of the deck's top at distance t along it: the tread the mesh really has (same rule as emit)
     deckY(t) {
       const n = steps ? Math.max(2, Math.round(Math.abs(b.y - a.y) / 0.25)) : Math.ceil(L / 0.5); const f = Math.max(0, Math.min(n - 1, Math.floor(t / L * n)));
-      return steps ? a.y + (b.y - a.y) * ((f + (b.y > a.y ? 1 : 0)) / n) : a.y + (b.y - a.y) * (f + 0.5) / n;
+      return DECK + (steps ? a.y + (b.y - a.y) * ((f + (b.y > a.y ? 1 : 0)) / n) : a.y + (b.y - a.y) * (f + 0.5) / n);
     },
     emit(M) {
       // planks on a slope, or (steps) flat treads one block deep that climb in equal risers
       const n = steps ? Math.max(2, Math.round(Math.abs(b.y - a.y) / 0.25)) : Math.ceil(L / 0.5);
       for (let i = 0; i < n; i++) {
         const t = (i + 0.5) / n; const y = steps ? a.y + (b.y - a.y) * ((i + (b.y > a.y ? 1 : 0)) / n) : a.y + (b.y - a.y) * t;
-        M.box(a.x + dx * t, y - 0.2, a.z + dz * t, L / n * (steps ? 1.02 : 0.92), 0.2, width, rot, { side: 'plank_dark', top: 'plank' }, [0.7, 0.62, 0.56]);
+        M.box(a.x + dx * t, y - 0.2 + DECK, a.z + dz * t, L / n * (steps ? 1.02 : 0.92), 0.2, width, rot, { side: 'plank_dark', top: 'plank' }, [0.7, 0.62, 0.56]);
       }
       for (const k of [0.5, L / 2, L - 0.5]) for (const side of [-1, 1]) {
         const t = k / L; const y = a.y + (b.y - a.y) * t; const px = a.x + ux * k - uz * side * HW; const pz = a.z + uz * k + ux * side * HW;

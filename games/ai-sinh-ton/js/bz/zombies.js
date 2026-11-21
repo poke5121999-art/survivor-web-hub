@@ -40,7 +40,16 @@
     if (g.attributes.color || !ms.some((m) => m && m.vertexColors)) return; g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(1), 3)); });
   function multi(boxes) {
     const P = []; const N = []; const U = []; const C = []; const I = []; const groups = [];
-    const order = boxes.map((b, i) => [b, i]).sort((x, y) => (x[0][3] || 0) - (y[0][3] || 0));
+    // a box laid over an earlier one with a face in the same plane (the hair at the back of the skull, its top flush with the
+    // crown) z-fought with it: that face of the later box stands 4 mm proud of the plane instead
+    const lifted = boxes.map(([a, b, k, grp]) => [a.slice(), b.slice(), k, grp]);
+    for (let i = 1; i < lifted.length; i++) for (let j = 0; j < i; j++) for (let ax = 0; ax < 3; ax++) {
+      const p = lifted[i]; const q = lifted[j]; const u = (ax + 1) % 3; const v = (ax + 2) % 3;
+      if (!(p[0][u] < q[1][u] && q[0][u] < p[1][u] && p[0][v] < q[1][v] && q[0][v] < p[1][v])) continue;
+      if (Math.abs(p[1][ax] - q[1][ax]) < 0.002) p[1][ax] = Math.max(p[1][ax], q[1][ax]) + 0.004;
+      if (Math.abs(p[0][ax] - q[0][ax]) < 0.002) p[0][ax] = Math.min(p[0][ax], q[0][ax]) - 0.004;
+    }
+    const order = lifted.map((b, i) => [b, i]).sort((x, y) => (x[0][3] || 0) - (y[0][3] || 0));
     for (const [[a, b, k = 1, grp = 0]] of order) {
       const start = I.length;
       const F = [[[b[0], a[1], b[2]], [0, 0, -1], [0, 1, 0], b[2] - a[2], b[1] - a[1], [1, 0, 0]], [[a[0], a[1], a[2]], [0, 0, 1], [0, 1, 0], b[2] - a[2], b[1] - a[1], [-1, 0, 0]],

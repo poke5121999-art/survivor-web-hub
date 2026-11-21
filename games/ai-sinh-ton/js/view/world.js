@@ -8,7 +8,7 @@
 // the next pad while the heroes run over it (the sim waits). Two or three sections are meshed at a time.
 import { ARENA } from '../sim/battle.js?v=20261121c';
 import { THEMES } from './themes.js?v=20261121c';
-import { buildPad, buildBridge, rngOf, voxMaterial } from './pad.js?v=20261121c';
+import { buildPad, buildBridge, rngOf, voxMaterial, mesher } from './pad.js?v=20261121c';
 import { createAbyss } from './abyss.js?v=20261121c';
 import { voxAtlas } from './voxtex.js?v=20261121c';
 const THREE = window.THREE;
@@ -104,6 +104,9 @@ export function createWorld(H) {
   const W = {
     pad: null, pads: [], bridges: [], theme: THEMES[0], all: [], buildMs: 0, spawnTint: new THREE.Color(0x1a2430), boss: 0, key: '',
     sec: 0, busy: false, map: null, shift: { x: 0, y: 0, z: 0 }, runs: 0,
+    // how fast the scene slides under the heroes during a run (m/s, scene frame): the ground moves by -vel, so a hero's speed over
+    // the ground is its own motion in the scene plus this (actors.js drives the run cycle from it)
+    vel: { x: 0, z: 0 },
     lights() { return W.all; },
     motesAlive() {
       const pos = moteGeo.attributes.position; let n = 0; const cam = H.camera;
@@ -129,6 +132,7 @@ export function createWorld(H) {
   const bossTheme = (t) => ({ ...t, amb: { sky: [t.amb.sky[0] * 1.32, t.amb.sky[1] * 0.8, t.amb.sky[2] * 0.62], ground: [t.amb.ground[0] * 1.9, t.amb.ground[1] * 0.8, t.amb.ground[2] * 0.6] }, key: { ...t.key, color: [t.key.color[0] * 1.4, t.key.color[1] * 0.9, t.key.color[2] * 0.6] }, ...t.boss });
   // a theme's `boss.crack` splits the boss floor in glowing seams of that colour (pad 4 shows the first, fainter ones):
   // emissive strips along block edges, with a few small lights on them so the floor around them catches the glow
+  let seamMat = null;
   function seams(main, B, k, n, seed) {
     const r = rngOf(seed); const E = main.ellipse; const segs = []; const lights = []; const D = [[1, 0], [0, 1], [-1, 0], [0, -1]];
     const P = (u, v) => [(u - v) * Math.SQRT1_2, (u + v) * Math.SQRT1_2]; const warm = B.crack[0] > B.crack[2] ? 1 : 0;
@@ -144,13 +148,20 @@ export function createWorld(H) {
         u += D[d][0]; v += D[d][1];
       }
     }
+    // the strips cross and overlap at their joints: drawn in one mesh of their own that writes no depth (pulled a little toward
+    // the camera), overlapping strips resolve by draw order every frame instead of z-fighting in the pad mesh
+    const mesh = (th) => {
+      if (!segs.length) return null; const M = mesher(); emit(M);
+      if (!seamMat) { seamMat = voxMaterial().clone(); seamMat.depthWrite = false; seamMat.polygonOffset = true; seamMat.polygonOffsetFactor = -1; seamMat.polygonOffsetUnits = -2; }
+      const m = M.bake(th, [], seamMat, null); m.name = 'seams'; m.renderOrder = 1; return m;
+    };
     const emit = (M) => {
       for (const [p, p2, f] of segs) {
         const w = 0.05 + 0.06 * f; const dx = p2[0] - p[0]; const dz = p2[1] - p[1]; const ox = -dz * w; const oz = dx * w; const t = [B.crack[0] * k * f, B.crack[1] * k * f, B.crack[2] * k * f];
         M.quad([[p[0] + ox, 0.015, p[1] + oz], [p2[0] + ox, 0.015, p2[1] + oz], [p2[0] - ox, 0.015, p2[1] - oz], [p[0] - ox, 0.015, p[1] - oz]], [0, 1, 0], 'white', 0.1, 0.1, t, null, true);
       }
     };
-    return { lights, emit };
+    return { lights, mesh };
   }
   // the fight pad of section i (data only; meshed when the section is built)
   function mainOf(i) {
@@ -198,7 +209,8 @@ export function createWorld(H) {
     const deep = (th.boss && th.boss.deep) || { color: [1.0, 0.36, 0.12], glowC: 0xff5a20 };
     if (boss) for (let k = 0; k < 7; k++) { const a = Math.PI + (k / 6) * Math.PI; const e = main.edgeAt(a); all.push({ kind: 'deep', x: e.x + Math.cos(a) * 1.6, y: -2.6, z: e.z + Math.sin(a) * 1.6, ground: -3.2, color: deep.color, r: 7, k: 1.3, warm: deep.color[0] > deep.color[2] ? 1 : 0, glow: 3.0, glowC: deep.glowC }); }
     const B = th.boss || {}; const sm = B.crack && i >= SECTIONS - 2 ? seams(main, B, boss ? 1 : 0.5, boss ? 14 : 5, stageN * 71 + i) : null; if (sm) all.push(...sm.lights);
-    const g = new THREE.Group(); g.name = 'section' + i; g.add(main.build(all, sm && sm.emit)); for (const s of sats) g.add(s.build(all));
+    const g = new THREE.Group(); g.name = 'section' + i; g.add(main.build(all)); for (const s of sats) g.add(s.build(all));
+    const sk = sm && sm.mesh(th); if (sk) g.add(sk);
     for (const m of g.children) { m.matrixAutoUpdate = true; }
     root.add(g); S.group = g; S.sats = sats; S.lights = all; S.buildMs = performance.now() - t0; W.buildMs += S.buildMs;
     return S;
@@ -245,7 +257,7 @@ export function createWorld(H) {
 
   // make section i the current one: it and its neighbour ahead are built, what lies two pads back is dropped
   function enter(i) {
-    W.sec = i; W.shift.x = W.shift.y = W.shift.z = 0; travel = null; W.busy = false;
+    W.sec = i; W.shift.x = W.shift.y = W.shift.z = 0; W.vel.x = W.vel.z = 0; travel = null; W.busy = false;
     build(i); if (i + 1 < SECTIONS) build(i + 1);
     for (let j = 0; j < SECTIONS; j++) if (j < i - 1 || j > i + 1) drop(j);
     dress(); place();
@@ -347,7 +359,11 @@ export function createWorld(H) {
     if (travel) {
       const T = travel; T.t += dt; const u = Math.max(0, T.t / T.T);
       if (u >= 1) enter(T.to);
-      else { T.s = T.P.L * smooth(0, 1, u); T.w = smooth(0, 0.2, u) * (1 - smooth(0.82, 1, u)); sample(T.P, T.s, smp); W.shift.x = smp.x; W.shift.y = smp.y; W.shift.z = smp.z; place(); }
+      else {
+        const x0 = W.shift.x; const z0 = W.shift.z;
+        T.s = T.P.L * smooth(0, 1, u); T.w = smooth(0, 0.2, u) * (1 - smooth(0.82, 1, u)); sample(T.P, T.s, smp); W.shift.x = smp.x; W.shift.y = smp.y; W.shift.z = smp.z; place();
+        if (dt > 1e-4) { W.vel.x = (W.shift.x - x0) / dt; W.vel.z = (W.shift.z - z0) / dt; }
+      }
     }
     let n = 0;
     for (let i = bits.length - 1; i >= 0; i--) { const b = bits[i]; b.t += dt; b.vy -= 14 * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.r += dt * 5; if (b.y < -9 || b.t > 2.5) bits.splice(i, 1); }

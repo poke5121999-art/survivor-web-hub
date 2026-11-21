@@ -3,7 +3,11 @@
 //  - layout: 5 centres, at least 3 different heights, every bridge at least 2 m long with both ends on a pad floor
 //  - run: for each of the 4 runs of a stage, every hero stays over a pad floor or the bridge deck (feet within 0.6 m of it)
 //    on every drawn frame, the run takes 2.4 to 5 s, ends on the next pad with the heroes back where the sim has them, and
-//    no more than 10% of the sampled hero sight lines from the camera are blocked by world blocks
+//    no more than 10% of the sampled hero sight lines from the camera are blocked by world blocks, and a hero covering ground
+//    (over 2 m/s past the bridge, the scene slides under the group) plays the run cycle: animator speed over 1.2 and the legs
+//    swinging on at least 95% of those frames (the run used to glide with the legs still)
+//  - z-fighting: on every pad and mid-run no surface flickers (tools/zfight.mjs: stable pixels whose colour depends on
+//    draw order, at most ZMAX), and a team of every hero shows none on its body
 //  - spawns: on every pad the spawn ring (1.04 to 1.07 of the fight ellipse) is pad floor, and no prop box reaches above the
 //    floor inside 1.08 of the ellipse
 //  - in view: on every pad the spawn rim projects inside the frame under the top bar
@@ -16,6 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { serve, launch, open as openPage, checker, sheet, ROOT } from './pw.mjs';
+import { ZFIGHT } from './zfight.mjs';
 
 const OUT = path.join(ROOT, '.chk', 'maps'); fs.mkdirSync(OUT, { recursive: true });
 const REFS = path.join(os.homedir(), 'handoff', 'ai-sinh-ton-refs');
@@ -23,7 +28,10 @@ const REF_OF = { street: 'look-7.webp', parking: 'look-5.webp', factory: 'look-6
 const argv = process.argv.slice(2); const arg = (k) => (argv.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.length + 3);
 const QUICK = argv.includes('--quick'); const SHOTS = !argv.includes('--noshots');
 const STAGES = arg('stages') ? arg('stages').split(',').map(Number) : (QUICK ? [1, 6] : [1, 6, 11, 16, 21, 26]);
-const DRAWS_MAX = +(arg('draws') || 340); const BUILD_MAX = 250;
+const DRAWS_MAX = +(arg('draws') || 340); const BUILD_MAX = 250; const ZMAX = +(arg('zmax') || 40);
+const ZOUT = path.join(ROOT, '.chk', 'maps', 'z'); fs.mkdirSync(ZOUT, { recursive: true });
+const zshot = (res, name) => { if (res.nz + res.nd > ZMAX) fs.writeFileSync(path.join(ZOUT, name + '.png'), Buffer.from(res.img.split(',')[1], 'base64')); };
+const zwhere = (res) => Object.entries(res.groups).sort((a, b) => b[1].n - a[1].n).slice(0, 2).map(([k, v]) => `${k} at y ${v.y[0]}`).join('; ');
 const { check, done } = checker();
 
 const HIDE_HUD = () => { const H = window.__G.host; if (!H.__r) { H.__r = H.render; H.render = () => H.__r(null); } };
@@ -33,6 +41,7 @@ const RUN = ([to, prior]) => {
   const G = window.__G; const H = G.host; const W = H.world; const T = H.THREE; H.sectionLock = true;
   const ray = new T.Raycaster(); const from = new T.Vector3(); const at = new T.Vector3(); const dir = new T.Vector3();
   const started = W.travelTo(to); let steps = prior || 0; let miss = 0; let samples = 0; let worst = ''; let sight = 0; let blocked = 0; let maxLift = 0; let minLift = 0;
+  const was = new Map(); let moving = 0; let posed = 0;
   const meshes = []; H.scene.traverse((o) => { if (o.isMesh && o.name === 'pad') meshes.push(o); });
   const d0 = W.map.centres[to].y - W.map.centres[to - 1].y;
   while (W.busy && steps < 600) {
@@ -42,6 +51,10 @@ const RUN = ([to, prior]) => {
       const g = W.groundAt(n.position.x, n.position.z);
       if (g === null || Math.abs(n.position.y - g) > 0.6) { miss++; if (!worst) worst = `step ${steps} hero ${u.slot} at ${n.position.x.toFixed(1)}, ${n.position.y.toFixed(1)}, ${n.position.z.toFixed(1)} ground ${g === null ? 'none' : g.toFixed(1)}`; }
       const my = n.position.y + W.shift.y; maxLift = Math.max(maxLift, my); minLift = Math.min(minLift, my);
+      // the run cycle: speed over the pad and bridge (the scene's own motion plus the slide), against the animator's speed and the legs
+      const gi = G.actors.gripOf(u.uid); const gx = n.position.x + W.shift.x; const gz = n.position.z + W.shift.z; const leg = gi.m.legL.rotation.x; const p = was.get(u.uid);
+      if (p && W.sec === p.sec && Math.hypot(gx - p.gx, gz - p.gz) * 60 > 2) { moving++; if (gi.st.speed > 1.2 && Math.abs(leg - p.leg) > 0.004) posed++; }
+      was.set(u.uid, { gx, gz, leg, sec: W.sec });
       if (steps % 6 === 0) {
         H.scene.updateMatrixWorld(true); from.copy(H.camera.position); at.set(n.position.x, n.position.y + 1.0, n.position.z); dir.copy(at).sub(from); const far = dir.length(); dir.normalize();
         ray.set(from, dir); ray.far = far - 0.6; sight++; if (ray.intersectObjects(meshes, false).length) blocked++;
@@ -50,7 +63,7 @@ const RUN = ([to, prior]) => {
   }
   for (let i = 0; i < 40; i++) window.__step(1);
   let off = 0; for (const u of G.B.heroes) { const n = G.actors.nodeOf(u.uid); if (n && u.alive) off = Math.max(off, Math.hypot(n.position.x - u.x, n.position.z - u.z), Math.abs(n.position.y)); }
-  return { started, steps, secs: steps / 60, miss, samples, worst, sight, blocked, off, sec: W.sec, shift: Math.hypot(W.shift.x, W.shift.y, W.shift.z), dy: d0, maxLift, minLift };
+  return { started, steps, secs: steps / 60, miss, samples, worst, sight, blocked, off, moving, posed, sec: W.sec, shift: Math.hypot(W.shift.x, W.shift.y, W.shift.z), dy: d0, maxLift, minLift };
 };
 
 // the pad the fight is on: spawn ring, props, rim in the frame, cost
@@ -94,6 +107,7 @@ try {
       check(P.boxes > 0 && P.inside === 0, `${t}: prop boxes above the floor inside 1.08 of the ellipse: ${P.inside} of ${P.boxes} (= 0)`);
       check(P.out === 0, `${t}: spawn rim points outside the frame or under the top bar: ${P.out} of 96 (= 0)`);
       check(P.draws <= DRAWS_MAX, `${t}: ${P.draws} draws at q=low (<= ${DRAWS_MAX}), ${P.tris} triangles, ${P.lights} lights (${P.warm} warm)`);
+      { const Z = await page.evaluate(ZFIGHT); zshot(Z, `s${st}-pad${k + 1}`); check(Z.nz + Z.nd <= ZMAX, `${t}: flickering (z-fighting) pixels ${Z.nz} + ${Z.nd} on decals (<= ${ZMAX})${Z.nz + Z.nd > ZMAX ? ': ' + zwhere(Z) : ''}`); }
       if (SHOTS) { const f = path.join(OUT, `s${st}-pad${k + 1}.png`); await page.locator('#frame').screenshot({ path: f }); shots.push(f); }
       if (k === 4) break;
       const B = await page.evaluate(BRIDGE);
@@ -102,16 +116,31 @@ try {
         pre = await page.evaluate(([to]) => { const W = window.__G.host.world; W.travelTo(to); let n = 0; while (W.busy && n < 600 && Math.hypot(W.shift.x, W.shift.z) < W.walkBridge().midAt) { window.__step(1); n++; } return n; }, [k + 1]);
         const f = path.join(OUT, `s${st}-run.png`); await page.locator('#frame').screenshot({ path: f }); shots.push(f);
       }
+      if (k === 1) {
+        if (!pre) pre = await page.evaluate(([to]) => { const W = window.__G.host.world; W.travelTo(to); let n = 0; while (W.busy && n < 600 && Math.hypot(W.shift.x, W.shift.z) < W.walkBridge().midAt) { window.__step(1); n++; } return n; }, [k + 1]);
+        const Z = await page.evaluate(ZFIGHT); zshot(Z, `s${st}-run`); check(Z.nz + Z.nd <= ZMAX, `${t}: flickering (z-fighting) pixels mid-run on the bridge ${Z.nz} + ${Z.nd} on decals (<= ${ZMAX})${Z.nz + Z.nd > ZMAX ? ': ' + zwhere(Z) : ''}`);
+      }
       const R = await page.evaluate(RUN, [k + 1, pre]); pre = 0;
       check(R.sec === k + 1 && R.shift < 1e-6, `${t}: the run ends on pad ${R.sec + 1} with the scene at rest (shift ${R.shift.toFixed(3)})`);
       check(R.samples > 0 && R.miss === 0, `${t}: hero frames off the floor or the bridge during the run: ${R.miss} of ${R.samples} (= 0)${R.worst ? ' first: ' + R.worst : ''}`);
       check(R.secs >= 2.0 && R.secs <= 5.2, `${t}: the run takes ${R.secs.toFixed(1)} s (2.0 to 5.2)`);
       check(R.off < 0.3, `${t}: after the run heroes stand where the sim has them (largest gap ${R.off.toFixed(2)} m, < 0.3)`);
+      check(R.moving > 60 && R.posed >= R.moving * 0.95, `${t}: heroes play the run cycle while they cover ground: ${R.posed} of ${R.moving} moving frames (>= 95%)`);
       check(R.sight > 0 && R.blocked / R.sight <= 0.1, `${t}: hero sight lines blocked by blocks during the run: ${R.blocked} of ${R.sight} (<= 10%)`);
       check(Math.abs(R.dy) < 0.5 || (R.dy > 0 ? R.maxLift > R.dy * 0.7 : R.minLift < R.dy * 0.7), `${t}: heroes follow the ${R.dy > 0 ? 'climb' : 'drop'} of ${R.dy} m (height in the stage frame ${R.minLift.toFixed(1)} to ${R.maxLift.toFixed(1)} m)`);
     }
     check(r.problems.length === 0, `${tag}: no page errors (${r.problems.slice(0, 2).join(' | ') || 'none'})`);
     if (SHOTS && shots.length) { const ref = path.join(REFS, REF_OF[theme] || ''); const files = fs.existsSync(ref) && REF_OF[theme] ? [...shots, ref] : shots; sheet(files, path.join(OUT, `${theme}.png`), 3, 780); for (const f of shots) fs.unlinkSync(f); }
+    await r.ctx.close();
+  }
+
+  // every hero's body: three more teams on pad 2 of stage 1, mid-fight
+  for (const team of ['phao,bong,bang,hoa', 'doc,ky,sam,soi', 'nhen,yta,gio,mua']) {
+    const r = await openPage(br, srv.base, 's22', `autostart=1&stage=1&wave=2&noaudio=1&seed=2&q=low&autopick=1&team=${team}`, { freeze: true });
+    await r.page.evaluate(() => { window.__sim(2.5); window.__G.paused = true; window.__step(3); });
+    const Z = await r.page.evaluate(ZFIGHT); zshot(Z, 'team-' + team.replace(/,/g, '-'));
+    check(Z.nz + Z.nd <= ZMAX, `heroes ${team}: flickering (z-fighting) pixels ${Z.nz} + ${Z.nd} on decals (<= ${ZMAX})${Z.nz + Z.nd > ZMAX ? ': ' + zwhere(Z) : ''}`);
+    check(r.problems.length === 0, `heroes ${team}: no page errors (${r.problems.slice(0, 2).join(' | ') || 'none'})`);
     await r.ctx.close();
   }
 
