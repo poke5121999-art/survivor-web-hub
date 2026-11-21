@@ -8,6 +8,7 @@ import { HERO, SUMMONS } from '../data/heroes.js?v=20261121c';
 import { ENEMY } from '../data/enemies.js?v=20261121c';
 import { stageDef, MAX_ALIVE, BASE } from '../data/stages.js?v=20261121c';
 import { CARD, offerCards } from '../data/cards.js?v=20261121c';
+import { roomPlan } from './rooms.js?v=20261121c';
 
 export const DT = 1 / 30;
 // The arena is an ellipse sized to a portrait phone frame: x is across the screen, z is up the screen. The whole
@@ -20,6 +21,8 @@ export const arenaNorm = (x, z) => Math.hypot(x / ARENA.x, z / ARENA.z);
 const DOT_EVERY = 0.5;
 const ENRAGE_AT = 75;
 const WAVE_LIMIT = 200;
+// a pack walks out of its gate across this much of the rim (param angle, radians)
+const GATE_SPREAD = 0.14;
 
 export function makeRng(seed) {
   let a = (seed >>> 0) || 1;
@@ -411,9 +414,13 @@ const OPS = {
   spawn(B, u, op) {
     for (let i = 0; i < op.n; i++) {
       const a = B.rng() * 6.283; const d = 2 + B.rng() * 2;
-      const p = op.near ? clampR(u.x + Math.cos(a) * d, u.z + Math.sin(a) * d, 1) : rimPoint(a, SPAWN_K);
-      const e = makeEnemy(B, op.kind, p.x, p.z); addUnit(B, e);
-      B.emit({ e: 'spawn', uid: e.uid, kind: e.kind, x: e.x, z: e.z });
+      const gates = op.near ? null : roomOf(B).gates; let gi;
+      let p;
+      if (op.near) p = clampR(u.x + Math.cos(a) * d, u.z + Math.sin(a) * d, 1);
+      else if (gates.length) { gi = Math.floor((a / 6.283) * gates.length) % gates.length; p = rimPoint(gates[gi].t + (d - 3) * GATE_SPREAD * 0.5, SPAWN_K); }
+      else p = rimPoint(a, SPAWN_K);
+      const e = makeEnemy(B, op.kind, p.x, p.z); e.room = B.wave - 1; if (gi !== undefined) e.gate = gi; addUnit(B, e);
+      B.emit({ e: 'spawn', uid: e.uid, kind: e.kind, x: e.x, z: e.z, gate: gi, by: u.uid });
     }
   },
 };
@@ -667,13 +674,64 @@ function addUnit(B, u) {
   (u.team === 0 ? B.allies : B.enemies).push(u);
 }
 
+// ---------- rooms ----------
+// Every wave is fought in its own room (a pad of the map). The team comes in on the room's entry side; the wave's first
+// horde pack is already there, standing in one or two camps (made when the battle is created, idle and facing the camp,
+// drawn in their room before the team arrives); every later pack, and anything a skill calls from the rim, walks out of
+// one of the room's spawn gates on the far rim (rooms.js).
+const roomOf = (B) => B.plan.rooms[Math.max(0, Math.min(B.plan.rooms.length - 1, B.wave - 1))];
+// the packs of wave w that stand in camps: the ones there from the start, ordinary horde bodies, not on the boss pad
+const campable = (W, g) => !W.boss && g.at === 0 && !g.elite && g.hpK > 0 && g.hpK < 1 && !ENEMY[g.kind].boss;
+// only the rooms from `first` on (a battle begun at a later wave never meets the earlier camps)
+function makeCamps(B, first = 0) {
+  const r = makeRng((B.seed * 7919 + 17) >>> 0);
+  B.camp = []; B.campN = 0;
+  B.stage.waves.forEach((W, w) => {
+    const room = B.plan.rooms[w]; if (!room || !room.camps.length || w < first) return;
+    for (const g of W.groups) {
+      if (!campable(W, g)) continue;
+      const split = g.n > 12 && room.camps.length > 1 ? Math.ceil(g.n / 2) : g.n;
+      for (let j = 0; j < g.n; j++) {
+        const c = j < split ? room.camps[0] : room.camps[1]; const q = j < split ? j : j - split;
+        const rr = 0.7 * Math.sqrt(q + 0.8); const a = q * 2.39996 + r() * 0.5;
+        let x = c.x + Math.cos(a) * rr * 1.25; let z = c.z + Math.sin(a) * rr * 0.8;
+        const k = arenaNorm(x, z); if (k > 0.93) { x *= 0.93 / k; z *= 0.93 / k; }
+        const e = makeEnemy(B, g.kind, x, z, { elite: g.elite, hpK: g.hpK, atkK: g.atkK, ccK: g.ccK });
+        e.spawnT = 0; e.camp = true; e.room = w; e.face = Math.atan2(c.z - z, c.x - x);
+        e.wake = 0.2 + r() * 0.45; // seconds it takes to notice the team and turn on it
+        B.camp.push(e); B.campN++;
+      }
+    }
+  });
+}
+// the team comes in on the entry side of room n: moved there as soon as the room before is cleared (the page draws the run
+// over the bridge from u.from; B.placeN counts the moves)
+function placeTeam(B, n) {
+  const h = B.plan.rooms[n - 1].home; const N = Math.max(1, B.heroes.length);
+  for (const u of B.heroes) { const a = (u.slot / N) * Math.PI * 2 + 0.6; u.from = { x: u.x, z: u.z }; u.x = h.x + Math.cos(a) * 1.7; u.z = h.z + Math.sin(a) * 1.3; u.target = 0; }
+  B.placeN = (B.placeN || 0) + 1;
+}
+function gateOf(gates, g) {
+  if (!gates.length) return undefined;
+  if (ENEMY[g.kind].boss) return 0;
+  const f = (((g.ang % 6.283) + 6.283) % 6.283) / 6.283;
+  return Math.floor(f * gates.length) % gates.length;
+}
+
 // ---------- waves ----------
 function startWave(B, n) {
   B.wave = n; B.waveT = 0; B.enrage = 0;
   const W = B.stage.waves[n - 1];
-  B.queue = W.groups.map((g) => ({ ...g })).sort((a, b) => a.at - b.at);
+  const gates = roomOf(B).gates;
+  B.queue = W.groups.filter((g) => !campable(W, g)).map((g) => ({ ...g, gate: g.ang !== undefined ? gateOf(gates, g) : undefined })).sort((a, b) => a.at - b.at);
   B.spawnsLeft = B.queue.reduce((s, g) => s + g.n, 0);
   B.emit({ e: 'wave', n, boss: !!W.boss, name: W.boss ? ENEMY[W.boss].name : '' });
+  // the camp of this room joins the fight: each body notices the team after its own beat
+  for (let i = B.camp.length - 1; i >= 0; i--) {
+    const e = B.camp[i]; if (e.room !== n - 1) continue;
+    B.camp.splice(i, 1); e.lockT = e.wake; addUnit(B, e);
+    B.emit({ e: 'wake', uid: e.uid, kind: e.kind, x: e.x, z: e.z });
+  }
   for (const u of B.heroes) {
     if (!u.alive) continue;
     const sw = M(u, 'shieldWave'); if (sw > 0) { u.shield = u.maxHp * sw; u.shieldT = 12; }
@@ -685,12 +743,15 @@ function spawnDue(B) {
     if (B.enemies.reduce((n, e) => n + (e.alive ? 1 : 0), 0) + B.queue[0].n > MAX_ALIVE && B.enemies.some((e) => e.alive)) return;
     const g = B.queue.shift();
     const a0 = g.ang !== undefined ? g.ang : B.rng() * 6.283;
+    const gates = roomOf(B).gates;
+    const gi = g.gate !== undefined ? g.gate : gateOf(gates, { ...g, ang: a0 });
     for (let i = 0; i < g.n; i++) {
-      const a = a0 + (B.rng() - 0.5) * (g.spread !== undefined ? g.spread : 0.9);
+      const a = gi !== undefined ? gates[gi].t + (B.rng() - 0.5) * GATE_SPREAD : a0 + (B.rng() - 0.5) * (g.spread !== undefined ? g.spread : 0.9);
       const p = rimPoint(a, SPAWN_K + B.rng() * 0.03);
       const e = makeEnemy(B, g.kind, p.x, p.z, { elite: g.elite, hpK: g.hpK, atkK: g.atkK, ccK: g.ccK });
+      e.room = B.wave - 1; e.gate = gi;
       addUnit(B, e); B.spawnsLeft--;
-      B.emit({ e: 'spawn', uid: e.uid, kind: e.kind, x: e.x, z: e.z, boss: e.boss, elite: e.elite });
+      B.emit({ e: 'spawn', uid: e.uid, kind: e.kind, x: e.x, z: e.z, boss: e.boss, elite: e.elite, gate: gi });
       if (e.boss) { B.boss = e.uid; B.emit({ e: 'boss', uid: e.uid, kind: e.kind, name: e.def.name }); }
     }
   }
@@ -712,6 +773,7 @@ function endWave(B) {
   B.picked = B.heroes.map(() => -1);
   const join = B.stage.waves[B.wave - 1].join;
   if (join && B.joinSpec) joinHero(B, B.joinSpec(join));
+  placeTeam(B, B.wave + 1);
   B.emit({ e: 'pick', wave: B.wave });
   if (B.auto.pick) for (let i = 0; i < B.heroes.length; i++) pickCard(B, i, B.auto.pick === 'best' ? bestOffer(B.offers[i]) : Math.floor(B.rng() * 3) % B.offers[i].length);
 }
@@ -814,7 +876,10 @@ export function createBattle(opts) {
   // every event carries the game time it happened at
   if (opts.onEvent) B.emit = (e) => { e.t = B.t; opts.onEvent(e, B); };
   opts.team.slice(0, 4).forEach((spec, i) => { const u = makeHero(B, i, spec); B.heroes.push(u); addUnit(B, u); });
+  B.plan = roomPlan(stage.n || 1, ARENA);
   const wave = clamp(opts.wave || 1, 1, stage.waves.length);
+  makeCamps(B, wave - 1);
+  placeTeam(B, wave);
   startWave(B, wave);
   return B;
 }

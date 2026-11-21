@@ -4,6 +4,9 @@
 // count, the cost is a fixed handful of draw calls: torso, head (skin + face), arms, legs, wings, death cubes, ground splats.
 // Deaths are pooled: a corpse record plays out through the same meshes, a few cubes fly from a ring buffer, a splat every
 // few deaths. No per-unit object, no per-death allocation.
+// A monster belongs to a room (its pad, e.room): one in a room the team has not reached yet, a camp still waiting (B.camp) or
+// a pack woken while the run is on, is drawn on that room's pad through world.roomOffset, and not at all while that pad is
+// not built.
 import { FLY_Y } from './keys.js?v=20261121c';
 import { arrive } from './arrival.js?v=20261121c';
 
@@ -96,6 +99,7 @@ export function createHorde(H) {
   const legs = inst(legGeo, mats.pants, CAP * 2);
   const wings = inst(proto.wingL.geometry, wingMat, CAP * 2);
   const meshes = [torso, head, arms, legs, wings];
+  const F = torso.position; // where the world has moved the horde's frame (world.follow)
 
   // death cubes
   const cubes = inst(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({}), CUBES);
@@ -177,13 +181,14 @@ export function createHorde(H) {
   function stateOf(e) {
     let st = states.get(e.uid);
     if (!st) {
-      st = { uid: e.uid, sty: ST[e.kind] || DEFAULT, x: e.x, z: e.z, yaw: yawOf(e.face), ph: hash(e.uid) * 6.28, spd: 0, swing: -1, hit: 0, seen: 0, node: null };
+      st = { uid: e.uid, sty: ST[e.kind] || DEFAULT, x: e.x, z: e.z, px: e.x, pz: e.z, py: 0, yaw: yawOf(e.face), ph: hash(e.uid) * 6.28, spd: 0, swing: -1, hit: 0, seen: 0, node: null };
       look(st); states.set(e.uid, st);
     }
     return st;
   }
 
-  function drawLive(st, e, dt) {
+  const NO_OFF = { x: 0, y: 0, z: 0 }; let followed = false;
+  function drawLive(st, e, dt, off) {
     const sty = st.sty;
     if (dt > 0.002) {
       const k = 1 - Math.exp(-26 * dt); const bx = st.x; const bz = st.z;
@@ -194,17 +199,18 @@ export function createHorde(H) {
       if (st.swing >= 0) { st.swing += dt / 0.34; if (st.swing >= 1) st.swing = -1; }
       st.hit = Math.max(0, st.hit - dt * 8);
     }
-    let rise = 1; let sink = 0; let ax = 0; let az = 0;
-    if (e.spawnT > 0) { const ar = arrive(H, e, st.x, st.z); rise = ar.s; sink = ar.y / sty.s; ax = ar.ox; az = ar.oz; }
+    let rise = 1; let sink = 0; let ax = 0; let az = 0; let up = 1;
+    if (e.spawnT > 0) { const ar = arrive(H, e, st.x, st.z); rise = ar.s; sink = ar.y / sty.s; ax = ar.ox; az = ar.oz; up = ar.g; }
     const L = hk && hk.lift ? hk.lift(st.uid) : null;
-    const y = (e.fly ? (FLY_Y[e.kind] || 3) : 0) + sink * sty.s + (L ? L.y : 0);
+    // a flyer leaves its gate low and climbs to its height on the way out
+    const y = (e.fly ? (FLY_Y[e.kind] || 3) * up : 0) + sink * sty.s + (L ? L.y : 0) + off.y;
     let tint = ONE;
     if (e.status) { for (const k in e.status) { if (STATUS_TINT[k]) { tint = STATUS_TINT[k]; break; } } }
     // climbing out of the abyss: dark toward the abyss colour while the rise runs
     let fk = 0;
     if (e.spawnT > 0 && H.world) { fk = Math.pow(Math.max(0, e.spawnT) / SPAWN_T, 1.2) * 0.6; const c = H.world.spawnTint; tint = [tint[0] + (Math.min(1.8, c.r * 1.6) - tint[0]) * fk, tint[1] + (Math.min(1.8, c.g * 1.6) - tint[1]) * fk, tint[2] + (Math.min(1.8, c.b * 1.6) - tint[2]) * fk]; }
-    put({ x: st.x + ax + (L ? L.ox : 0), y, z: st.z + az + (L ? L.oz : 0), yaw: st.yaw + (L ? L.yaw : 0), sty, sc: st.sc * rise, ph: st.ph, lean: -st.hit * 0.28, nod: st.hit * 0.3, armA: 0, swing: st.swing, fall: L ? L.tilt : 0, tint, k: (sty.glow || 1) * (1 + st.hit * 1.4 + fk * 0.5), sh: st.sh, pa: st.pa, sk: st.sk });
-    st.sc2 = rise; st.px = st.x; st.pz = st.z; st.py = y; st.tint = tint;
+    put({ x: st.x + ax + off.x + (L ? L.ox : 0), y, z: st.z + az + off.z + (L ? L.oz : 0), yaw: st.yaw + (L ? L.yaw : 0), sty, sc: st.sc * rise, ph: st.ph, lean: -st.hit * 0.28, nod: st.hit * 0.3, armA: 0, swing: st.swing, fall: L ? L.tilt : 0, tint, k: (sty.glow || 1) * (1 + st.hit * 1.4 + fk * 0.5), sh: st.sh, pa: st.pa, sk: st.sk });
+    st.sc2 = rise; st.px = st.x + ax + off.x; st.pz = st.z + az + off.z; st.py = y; st.tint = tint;
   }
 
   function drawCorpse(c, dt) {
@@ -278,13 +284,17 @@ export function createHorde(H) {
     sync(batl, dt, overflow, hooks) {
       B = batl; hk = hooks; frame++; clock += dt; cubeBudget = 36;
       while (deathsWin.length && clock - deathsWin[0] > 0.5) deathsWin.shift();
-      nTorso = 0; nWing = 0; nArm = 0; let units = 0;
-      for (const e of B.enemies) {
+      nTorso = 0; nWing = 0; nArm = 0; let units = 0; let camp = 0;
+      const W = H.world;
+      if (W && W.follow && !followed) { followed = true; for (const m of [...meshes, cubes, splats]) W.follow(m); }
+      if (W && W.syncFrame) W.syncFrame();
+      for (const list of [B.enemies, B.camp || []]) for (const e of list) {
         if (!e.alive || !(e.horde || overflow.has(e.uid))) continue;
-        const st = stateOf(e); st.seen = frame; drawLive(st, e, dt); units++;
-        if (st.node) st.node.position.set(st.x, 0, st.z);
-        hooks.blob(st.x, st.z, 1.7 * st.sty.s * st.sc, st.py);
-        hooks.rim(st.x, st.z, 0.9 * st.sty.s);
+        const off = W && W.roomBase ? W.roomBase(e.room) : NO_OFF; if (!off) continue;
+        const st = stateOf(e); st.seen = frame; drawLive(st, e, dt, off); if (list === B.enemies) units++; else camp++;
+        if (st.node) st.node.position.set(st.px + F.x, off.y + F.y, st.pz + F.z);
+        hooks.blob(st.px + F.x, st.pz + F.z, 1.7 * st.sty.s * st.sc, st.py + F.y);
+        hooks.rim(st.px + F.x, st.pz + F.z, 0.9 * st.sty.s);
       }
       for (const [uid, st] of states) if (st.seen !== frame) states.delete(uid);
       for (const w of showcase) { w.st.ph += dt * 4 * w.st.sty.sw; put({ x: w.x, y: w.y, z: w.z, yaw: w.yaw, sty: w.st.sty, sc: w.st.sc, ph: w.st.ph, lean: 0, nod: 0, armA: 0, swing: -1, fall: 0, tint: ONE, k: w.st.sty.glow || 1, sh: w.st.sh, pa: w.st.pa, sk: w.st.sk }); }
@@ -292,17 +302,19 @@ export function createHorde(H) {
       torso.count = head.count = nTorso; arms.count = legs.count = nTorso * 2; wings.count = nWing;
       for (const m of [torso, head, arms, legs, wings]) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }
       tickCubes(dt); tickSplats(dt);
-      stats.units = units; stats.corpses = corpses.length;
+      // units: the enemies of the fight; camp: bodies waiting in rooms ahead
+      stats.units = units; stats.camp = camp; stats.corpses = corpses.length;
     },
     onEvent(e) {
-      if (e.e === 'die') die(e);
+      if (e.e === 'spawn') { if (e.gate !== undefined && H.world && H.world.gateFlash && B) H.world.gateFlash(B.wave - 1, e.gate); }
+      else if (e.e === 'die') die(e);
       else if (e.e === 'hit') { if (e.dot || !e.dmg) return; const st = states.get(e.uid); if (st && st.hit <= 0.05) st.hit = 1; }
       else if (e.e === 'attack') { const st = states.get(e.uid); if (st && st.swing < 0) st.swing = 0; }
     },
     has: (uid) => states.has(uid),
     scaleOf: (uid) => { const st = states.get(uid); return st ? st.sty.s : 1; },
-    nodeOf(uid) { const st = states.get(uid); if (!st) return null; if (!st.node) { st.node = new THREE.Object3D(); st.node.position.set(st.x, 0, st.z); } return st.node; },
-    headPos(uid, out) { const st = states.get(uid); return st ? out.set(st.x, st.py + 2 * st.sty.s, st.z) : null; },
+    nodeOf(uid) { const st = states.get(uid); if (!st) return null; if (!st.node) { st.node = new THREE.Object3D(); st.node.position.set(st.px + F.x, F.y, st.pz + F.z); } return st.node; },
+    headPos(uid, out) { const st = states.get(uid); return st ? out.set(st.px + F.x, st.py + 2 * st.sty.s + F.y, st.pz + F.z) : null; },
     // test hook: a static pack of one kind, drawn through the same meshes
     showcase(kind, n, cx, cz, cols = 4) {
       showcase = [];

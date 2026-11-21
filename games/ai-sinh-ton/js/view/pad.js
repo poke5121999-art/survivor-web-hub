@@ -149,8 +149,10 @@ const PROPS = {
 // ---- the pad ----
 // theme: a THEMES entry; seed: number; centre {x,y,z}: the floor's centre; ellipse {x,z}: the fight ellipse (or a small one
 // for a satellite); fight: true for a pad heroes fight on (its floor covers 1.12 of the ellipse, props stay outside 1.1);
-// boss: true for a boss arena (more lights). Returns data plus build(lights) -> Mesh.
-export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, boss = false, fight = true, decor = true, avoid = null, gates = [] }) {
+// boss: true for a boss arena (more lights); keep: [{x, z, r}] spots no prop may cover (the spawn gates); embers: [{x, z}] camp
+// spots on the floor that glow with the embers of a fire (light only, no box); solid: [{x, z, r}] floor that must be there.
+// Returns data plus build(lights) -> Mesh.
+export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, boss = false, fight = true, decor = true, avoid = null, gates = [], keep = [], embers = [], solid = [] }) {
   const t0 = performance.now();
   const rng = rngOf(seed * 7919 + 101); const E = ellipse; const cx = centre.x; const cy = centre.y; const cz = centre.z;
   const water = theme.abyss.type === 'water'; const waterY = theme.abyss.y;
@@ -179,6 +181,10 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
       const [x, z] = W(i + 0.5, j + 0.5); const t = (x - cx) * ux + (z - cz) * uz; const o = Math.abs(-(x - cx) * uz + (z - cz) * ux);
       if (t > 0 && t < sMax + 0.4 && o < GATE_STRIP) { const k = key(i, j); if (!cells.has(k)) cells.set(k, { i, j, top: cy, lvl: 0 }); }
     }
+  }
+  // solid ground under the spawn gates past the rim, so a gate never hangs over a terrace
+  for (const q of solid) for (let i = -R; i <= R; i++) for (let j = -R; j <= R; j++) {
+    const [x, z] = W(i + 0.5, j + 0.5); if (Math.hypot(x - q.x, z - q.z) > q.r) continue; const k = key(i, j); if (!cells.has(k)) cells.set(k, { i, j, top: cy, lvl: 0 });
   }
   // keep the piece connected to the centre
   { const keep = new Set(); const st = [[...G(cx, cz)].map(Math.floor)]; while (st.length) { const [i, j] = st.pop(); const k = key(i, j); if (keep.has(k) || !cells.has(k)) continue; keep.add(k); for (const [a, b] of DIRS) st.push([i + a, j + b]); } for (const k of [...cells.keys()]) if (!keep.has(k)) cells.delete(k); }
@@ -256,6 +262,7 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
     const X = extent(kind, x, z); const r = Math.max(0.5, X.r);
     if (!free(x, z, r)) return false; const c = spotOk(x, z, r, X.r + 0.05); if (!c) return false;
     if (inGate(x, z, r)) return false;
+    if (keep.some((k) => Math.hypot(k.x - x, k.z - z) < k.r + r)) return false;
     if (fight && near(x, z) && c.top - cy + X.h > 1.2) return false;
     props.push({ kind, x, z, y: c.top, rot, r, h: X.h }); return true;
   };
@@ -357,6 +364,8 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
     const c = Math.cos(p.rot); const s = Math.sin(p.rot); const [lx, ly, lz] = P.light;
     lights.push({ kind: p.kind, x: p.x + lx * c + lz * s, y: p.y + ly, z: p.z - lx * s + lz * c, ground: p.y, color: boss && L.warm ? [L.color[0], L.color[1] * 0.72, L.color[2] * 0.5] : L.color, r: L.r * (boss ? 1.15 : 1), k: L.k * (boss ? 1.5 : 1), warm: L.warm, glow: L.glow, glowC: L.glowC });
   }
+  // a camp's fire burnt down to embers: warm light on the floor where the pack stood, no prop in the fight area
+  for (const e of embers) lights.push({ kind: 'embers', x: e.x, y: cy + 0.35, z: e.z, ground: cy, color: [1.0, 0.5, 0.18], r: 4.2, k: 0.85, warm: 1, glow: 0 });
   pad.buildMs = performance.now() - t0;
   return pad;
 }

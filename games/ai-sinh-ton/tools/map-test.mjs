@@ -1,5 +1,7 @@
 // The stage map (js/view/world.js): five pads per stage, one per wave, on different heights, joined by bridges the heroes
-// run over when a wave is cleared.
+// run over when a wave is cleared, and a start room before pad 1 the team runs out of when the stage begins.
+//  - start: every stage opens in the start room (no monster on its floor), and the run from it to pad 1 passes the same
+//    run checks as the runs between pads
 //  - layout: 5 centres, at least 3 different heights, every bridge at least 2 m long with both ends on a pad floor
 //  - run: for each of the 4 runs of a stage, every hero stays over a pad floor or the bridge deck (feet within 0.6 m of it)
 //    on every drawn frame, the run takes 2.4 to 5 s, ends on the next pad with the heroes back where the sim has them, and
@@ -11,8 +13,10 @@
 //  - spawns: on every pad the spawn ring (1.04 to 1.07 of the fight ellipse) is pad floor, and no prop box reaches above the
 //    floor inside 1.08 of the ellipse
 //  - in view: on every pad the spawn rim projects inside the frame under the top bar
-//  - the real flow (stage 1, cards picked by hand): the run starts when the wave is cleared, the sim clock and the spawns
-//    wait for it, the card pick opens only on the new pad, and picking does not start a second run
+//  - the real flow (stage 1, cards picked by hand): the stage opens with the run out of the start room while the sim clock
+//    waits and the camp of pad 1 stands still; the run starts when the wave is cleared, the sim clock and the spawns
+//    wait for it, no monster is left in the room being left, the card pick opens only on the new pad, and picking does not
+//    start a second run
 //  - cost at q=low on s22: draws and triangles per pad at rest, world build time
 // Sheets: .chk/maps/<theme>.png (the five pads and one frame of a run, beside an owner reference).
 // Usage: PLAYWRIGHT_PATH=... timeout 900 node games/ai-sinh-ton/tools/map-test.mjs [--quick] [--stages=1,6] [--noshots]
@@ -43,7 +47,7 @@ const RUN = ([to, prior]) => {
   const started = W.travelTo(to); let steps = prior || 0; let miss = 0; let samples = 0; let worst = ''; let sight = 0; let blocked = 0; let maxLift = 0; let minLift = 0;
   const was = new Map(); let moving = 0; let posed = 0;
   const meshes = []; H.scene.traverse((o) => { if (o.isMesh && o.name === 'pad') meshes.push(o); });
-  const d0 = W.map.centres[to].y - W.map.centres[to - 1].y;
+  const d0 = W.map.centres[to].y - (to > 0 ? W.map.centres[to - 1] : W.map.start).y;
   while (W.busy && steps < 600) {
     window.__step(1); steps++;
     for (const u of G.B.heroes) {
@@ -93,9 +97,28 @@ const srv = await serve(); const br = await launch();
 try {
   for (const st of STAGES) {
     const r = await openPage(br, srv.base, 's22', `autostart=1&stage=${st}&noaudio=1&seed=${st}&q=low&autopick=1`);
-    const page = r.page; await page.evaluate(HIDE_HUD);
+    const page = r.page; await page.evaluate(HIDE_HUD); await page.evaluate(`window.__RUN = ${RUN.toString()}`);
     await page.evaluate(() => { window.__G.host.sectionLock = true; window.__G.paused = true; window.__step(3); });
     const L = await page.evaluate(LAYOUT); const tag = `stage ${st}`;
+    {
+      // the start room, then the run out of it to pad 1
+      const S0 = await page.evaluate(() => {
+        const G = window.__G; const W = G.host.world; W.settle(); const sec = W.toStart(); window.__step(3); const V = new G.host.THREE.Vector3(); let on = 0;
+        for (const e of [...G.B.enemies, ...(G.B.camp || [])]) if (e.alive && G.actors.headPos(e.uid, V) && W.onStartFloor(V.x, V.z)) on++;
+        return { sec, on, start: !!W.map.start };
+      });
+      check(S0.start && S0.sec === -1 && S0.on === 0, `${tag}: the stage opens in the start room (section ${S0.sec}) with ${S0.on} monsters on its floor (= 0)`);
+      { const Z = await page.evaluate(ZFIGHT); zshot(Z, `s${st}-start`); check(Z.nz + Z.nd <= ZMAX, `${tag} start room: flickering (z-fighting) pixels ${Z.nz} + ${Z.nd} on decals (<= ${ZMAX})${Z.nz + Z.nd > ZMAX ? ': ' + zwhere(Z) : ''}`); }
+      if (SHOTS) { const f = path.join(OUT, `s${st}-start.png`); await page.locator('#frame').screenshot({ path: f }); }
+      // the start room holds the team while the game is paused: this run is played unpaused (RUN steps synchronously)
+      const R = await page.evaluate(([a, b]) => { const G = window.__G; G.paused = false; try { return window.__RUN([a, b]); } finally { G.paused = true; } }, [0, 0]); const t = `${tag} start room`;
+      check(R.sec === 0 && R.shift < 1e-6, `${t}: the run ends on pad ${R.sec + 1} with the scene at rest (shift ${R.shift.toFixed(3)})`);
+      check(R.samples > 0 && R.miss === 0, `${t}: hero frames off the floor or the bridge during the run: ${R.miss} of ${R.samples} (= 0)${R.worst ? ' first: ' + R.worst : ''}`);
+      check(R.secs >= 2.0 && R.secs <= 5.2, `${t}: the run takes ${R.secs.toFixed(1)} s (2.0 to 5.2)`);
+      check(R.off < 0.3, `${t}: after the run heroes stand where the sim has them (largest gap ${R.off.toFixed(2)} m, < 0.3)`);
+      check(R.moving > 60 && R.posed >= R.moving * 0.95, `${t}: heroes play the run cycle while they cover ground: ${R.posed} of ${R.moving} moving frames (>= 95%)`);
+      check(R.sight > 0 && R.blocked / R.sight <= 0.1, `${t}: hero sight lines blocked by blocks during the run: ${R.blocked} of ${R.sight} (<= 10%)`);
+    }
     check(L.n === 5, `${tag}: the map has ${L.n} pads (5)`);
     check(new Set(L.ys).size >= 3, `${tag}: pad heights ${L.ys.join(', ')} m: ${new Set(L.ys).size} different (>= 3)`);
     check(L.buildMs <= BUILD_MAX, `${tag}: the first two sections build in ${L.buildMs} ms (<= ${BUILD_MAX})`);
@@ -150,12 +173,14 @@ try {
     const F = await r.page.evaluate(async () => {
       const G = window.__G; const H = G.host; const W = H.world; G.setSpeed(4);
       const frame = () => new Promise((res) => requestAnimationFrame(res));
-      const out = { cleared: false, runSeen: false, simMoved: 0, enemiesInRun: 0, pickOpenInRun: 0, secAtPick: -1, pickOpened: false, runsAfterPick: -1, wave: 0, sec: -1, t: 0 };
-      const t0 = performance.now(); let tBusy = null;
+      const out = { cleared: false, runSeen: false, simMoved: 0, enemiesInRun: 0, pickOpenInRun: 0, secAtPick: -1, pickOpened: false, runsAfterPick: -1, wave: 0, sec: -1, t: 0, startRun: false, startSec: W.sec, startClock: 0, campMoved: 0, campN: 0 };
+      const t0 = performance.now(); let tBusy = null; const camp0 = new Map(G.B.enemies.filter((e) => e.alive).map((e) => [e.uid, [e.x, e.z]])); out.campN = camp0.size;
       while (performance.now() - t0 < 90000) {
         await frame(); const B = G.B; if (!B) break;
         if (B.phase === 'pick' || B.wave > 1) out.cleared = true;
-        if (W.busy) { if (tBusy === null) tBusy = B.t; out.runSeen = true; out.simMoved = Math.max(out.simMoved, B.t - tBusy); out.enemiesInRun = Math.max(out.enemiesInRun, B.enemies.filter((e) => e.alive).length); if (window.__ui && window.__ui.isOpen && window.__ui.isOpen('pick')) out.pickOpenInRun++; }
+        // the run out of the start room: the sim waits, pad 1's camp stands where it was put
+        if (W.busy && !out.cleared) { out.startRun = true; out.startClock = Math.max(out.startClock, B.t); for (const e of B.enemies) { const p = camp0.get(e.uid); if (p) out.campMoved = Math.max(out.campMoved, Math.hypot(e.x - p[0], e.z - p[1])); } }
+        if (W.busy && out.cleared) { if (tBusy === null) tBusy = B.t; out.runSeen = true; out.simMoved = Math.max(out.simMoved, B.t - tBusy); out.enemiesInRun = Math.max(out.enemiesInRun, B.enemies.filter((e) => e.alive && (e.room === undefined || e.room <= W.sec)).length); if (window.__ui && window.__ui.isOpen && window.__ui.isOpen('pick')) out.pickOpenInRun++; }
         if (out.runSeen && !W.busy && B.phase === 'pick') {
           out.secAtPick = W.sec; for (let i = 0; i < 30; i++) await frame();
           out.pickOpened = !!(window.__ui && window.__ui.isOpen ? window.__ui.isOpen('pick') : true);
@@ -164,8 +189,9 @@ try {
       }
       return out;
     });
+    check(F.startSec === -1 && F.startRun && F.startClock < 0.05 && F.campN > 0 && F.campMoved < 1e-6, `flow: the stage opens in the start room (section ${F.startSec}) and runs to pad 1 while the sim clock stays at ${F.startClock.toFixed(2)} s and pad 1's ${F.campN} waiting monsters move ${F.campMoved.toFixed(2)} m (0, 0)`);
     check(F.cleared && F.runSeen, `flow: wave 1 is cleared and the run starts (cleared ${F.cleared}, run ${F.runSeen})`);
-    check(F.simMoved < 0.05 && F.enemiesInRun === 0, `flow: during the run the sim clock moves ${F.simMoved.toFixed(2)} s and ${F.enemiesInRun} monsters are alive (0, 0)`);
+    check(F.simMoved < 0.05 && F.enemiesInRun === 0, `flow: during the run the sim clock moves ${F.simMoved.toFixed(2)} s and ${F.enemiesInRun} monsters are alive in the room being left (0, 0)`);
     check(F.pickOpenInRun === 0 && F.secAtPick === 1 && F.pickOpened, `flow: the card pick opens on pad ${F.secAtPick + 1} after the run (frames open during the run: ${F.pickOpenInRun}, open after: ${F.pickOpened})`);
     check(F.runsAfterPick === 0 && F.wave === 2 && F.sec === 1, `flow: picking starts wave ${F.wave} on pad ${F.sec + 1} without a second run (${F.runsAfterPick})`);
     check(r.problems.length === 0, `flow: no page errors (${r.problems.slice(0, 2).join(' | ') || 'none'})`);

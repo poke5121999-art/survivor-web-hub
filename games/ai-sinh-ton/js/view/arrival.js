@@ -1,4 +1,5 @@
-// How a monster arrives while the sim holds it in spawnT: one spawned on the rim climbs up over the island's edge from
+// How a monster arrives while the sim holds it in spawnT: one that came out of a spawn gate (e.gate, world.js) walks out of the
+// gate's mouth, or climbs up out of a gate laid in the floor; otherwise one spawned on the rim climbs up over the island's edge from
 // the abyss (it starts out past the edge and below the surface, rises and walks in to where the sim has it), or walks in
 // along a bridge when one lands near; one a skill spawns inside the arena just rises out of the floor. Shared by the
 // instanced horde (horde.js) and the Blockade Z puppets (actors.js). H.arrivalLog (a Map, set by a test) records the
@@ -15,7 +16,7 @@ export function arrive(H, e, x, z) {
   let p = paths.get(e.uid);
   if (!p) {
     if (paths.size > 600) paths.clear();
-    p = arenaNorm(e.x, e.z) < 0.98 || !H.world ? { inside: true } : H.world.arrival(e.x, e.z) || { inside: true };
+    p = (e.gate === undefined && arenaNorm(e.x, e.z) < 0.98) || !H.world ? { inside: true } : H.world.arrival(e.x, e.z, e) || { inside: true };
     paths.set(e.uid, p);
   }
   if (p.inside) { out.ox = 0; out.oz = 0; out.y = -(1 - g) * 1.1; out.s = 0.35 + 0.65 * g; }
