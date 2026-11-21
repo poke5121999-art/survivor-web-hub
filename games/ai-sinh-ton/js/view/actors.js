@@ -133,7 +133,10 @@ export function createActors(H) {
     const lam = run ? 14 : far > 2.2 || a.fastT > 0 ? 34 : 16; a.fastT = Math.max(0, a.fastT - dt);
     const k = 1 - Math.exp(-lam * dt); const bx = a.pos.x; const bz = a.pos.z;
     a.pos.x += dx * k; a.pos.z += dz * k;
-    const sp = dt > 1e-4 ? Math.min(9, Math.hypot(a.pos.x - bx, a.pos.z - bz) / dt) : 0;
+    // speed over the ground: during a run between pads the scene slides under the group (world.js `vel`), so the drawn
+    // position barely moves while the hero covers 8 to 12 m/s of bridge; the run cycle follows the ground, not the scene
+    const wv = H.world && H.world.vel; const gx = a.pos.x - bx + (wv ? wv.x * dt : 0); const gz = a.pos.z - bz + (wv ? wv.z * dt : 0);
+    const sp = dt > 1e-4 ? Math.min(12, Math.hypot(gx, gz) / dt) : 0;
     const lift = run ? run.y : 0; a.lift = (a.lift || 0) + (lift - (a.lift || 0)) * Math.min(1, dt * 14);
     a.yaw += wrap((run && run.w > 0.3 ? yawOf(Math.atan2(run.dz, run.dx)) : yawOf(u.face)) - a.yaw) * Math.min(1, dt * 12);
     a.node.position.set(a.pos.x, a.lift, a.pos.z); m.root.rotation.y = a.yaw;
@@ -145,7 +148,7 @@ export function createActors(H) {
     }
     if (a.deadT) { a.deadT = 0; st.dead = 0; m.root.rotation.x = 0; m.root.position.y = 0; }
     const stunned = u.status && (u.status.stun || u.status.freeze);
-    st.speed = stunned ? 0 : sp;
+    st.speed = stunned ? 0 : sp; st.sprint = run && sp > 6 ? 1 : 0;
     a.swingT = Math.max(0, a.swingT - dt); st.swing = a.swingT > 0 ? 1 - a.swingT / a.swingDur : -1;
     st.kick = Math.max(0, st.kick - dt * 30); st.kickL = Math.max(0, st.kickL - dt * 30); a.sndT -= dt;
     if (a.eq && a.eq.gun) {

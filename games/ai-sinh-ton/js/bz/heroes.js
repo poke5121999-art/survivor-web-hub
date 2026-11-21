@@ -276,7 +276,16 @@
       if (BZ.vox && BZ.vox.on && BZ.vox.heroPart) return BZ.vox.heroPart(id, name, boxes); // voxel look (default; ?vox=0 keeps the boxes)
       const B = new BZ.Builder('hero:' + id + ':' + name);
       // a box may carry a 4th entry: a brightness (same material, darker or lighter through vertex colour, so no extra draw call) or { k, rect }
-      for (const [a, b, m, o] of boxes) { const k = typeof o === 'number' ? o : o && o.k ? o.k : 1; B.box(a, b, m, { uv: 'fit', vary: 0, tint: [k, k, k], rect: o && o.rect }); }
+      // a box laid over an earlier one of the same part with a face in the same plane (a hair band on the crown, a trim on a
+      // shoulder pad, a badge on a cap) z-fought with it: that face of the later box stands 4 mm proud of the plane instead
+      const lb = boxes.map(([a, b, m, o]) => [a.slice(), b.slice(), m, o]);
+      for (let i = 1; i < lb.length; i++) for (let j = 0; j < i; j++) for (let ax = 0; ax < 3; ax++) {
+        const p = lb[i]; const q = lb[j]; const u = (ax + 1) % 3; const v = (ax + 2) % 3;
+        if (!(p[0][u] < q[1][u] && q[0][u] < p[1][u] && p[0][v] < q[1][v] && q[0][v] < p[1][v])) continue;
+        if (Math.abs(p[1][ax] - q[1][ax]) < 0.002) p[1][ax] = Math.max(p[1][ax], q[1][ax]) + 0.004;
+        if (Math.abs(p[0][ax] - q[0][ax]) < 0.002) p[0][ax] = Math.min(p[0][ax], q[0][ax]) - 0.004;
+      }
+      for (const [a, b, m, o] of lb) { const k = typeof o === 'number' ? o : o && o.k ? o.k : 1; B.box(a, b, m, { uv: 'fit', vary: 0, tint: [k, k, k], rect: o && o.rect }); }
       const matOpts = {}; matOpts[C(0x60e8ff)] = { emissive: 0x40c8ff }; matOpts[C(0xc080ff)] = { emissive: 0x9040ff }; matOpts[C(0xffa020)] = { emissive: 0xff8010 };
       matOpts[C(0x9ad8ff)] = { emissive: 0x4080ff }; matOpts[C(0x9aff40)] = { emissive: 0x40a010 }; matOpts[C(0xff8a20)] = { emissive: 0xff5a10 };
       matOpts[C(0xffb040)] = { emissive: 0xff9010 };
