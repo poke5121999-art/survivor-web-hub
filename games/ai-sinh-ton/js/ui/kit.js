@@ -364,7 +364,7 @@ export function createUI({ THREE, renderer, frame }) {
       v.acc += dt; v.dt += dt; if (v.acc < v.period || !shown(v.node)) continue; v.acc = 0;
       if (!any) { any = true; v.keep = [r.getClearColor(new THREE.Color()).getHex(), r.getClearAlpha(), r.toneMapping, r.autoClear]; vp.keep = v.keep; }
       if (v.onRefresh) { try { v.onRefresh(v.dt); } catch (e) { v.onRefresh = null; console.warn('[ui] viewport update failed: ' + e.message); } } v.dt = 0;
-      r.toneMapping = THREE.NoToneMapping; r.autoClear = true; r.setClearColor(v.bg, 1); r.setRenderTarget(v.rt); r.render(v.scene, v.cam); r.setRenderTarget(null);
+      r.toneMapping = THREE.NoToneMapping; r.autoClear = true; r.setClearColor(v.bg, 1); r.setRenderTarget(v.rt); r.state.buffers.depth.setMask(true); r.render(v.scene, v.cam); r.setRenderTarget(null);
     }
     if (any) { const k = vp.keep; r.setClearColor(k[0], k[1]); r.toneMapping = k[2]; r.autoClear = k[3]; }
   }
@@ -511,7 +511,9 @@ export function createUI({ THREE, renderer, frame }) {
   ui.render = () => {
     const r = renderer, prev = { ac: r.autoClear, tm: r.toneMapping, lc: r.localClippingEnabled, ar: r.info.autoReset, st: r.getScissorTest() };
     r.autoClear = false; r.toneMapping = THREE.NoToneMapping; r.localClippingEnabled = true; r.info.autoReset = false;
-    const c0 = r.info.render.calls; r.clearDepth(); scene.updateMatrixWorld();
+    // three's clear() leaves the depth mask as the last material set it: after a depthWrite:false mesh the clear is a no-op
+    // and the next frame's back layers fail the depth test against the previous frame (seen as panels losing their bodies)
+    const c0 = r.info.render.calls; r.state.buffers.depth.setMask(true); r.clearDepth(); scene.updateMatrixWorld();
     const live = [...scrolls].filter((s) => shown(s)).slice(0, 28);
     live.forEach((s, i) => s.slot.traverse((o) => o.layers.set(i + 1)));
     camera.layers.set(0); r.render(scene, camera);
