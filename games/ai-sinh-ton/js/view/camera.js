@@ -1,33 +1,46 @@
-// Camera director. Overview: one fixed framing of the whole arena ellipse (ARENA from the sim, plus the spawn rim), world x to
-// screen right and world z down the screen, a narrow lens at about 45 to 50 degrees so the block world reads isometric (the
-// diagonal comes from the world's 45-degree block grid, not from turning the fight). Pulled back until the spawn rim spans
-// the frame width; the lens shift puts the far rim just under the top bar; the pitch is the steepest one (up to 50) that
-// keeps heroes (0.9 of the ellipse) above the hero card block at the bottom centre and the rim's corners above the bottom
-// edge. No follow and no zoom, so everything the sim does happens inside the picture. Spectate: a chase camera behind and
-// above one unit, blended in and out.
+// Camera director. Overview: the Minecraft Dungeons camera, measured on the owner's clip (~/handoff/ast-par/cam/mcd-camera.md):
+// a fixed diagonal view at 47 degrees of pitch through a 27-degree lens, no rotation and no zoom. The diagonal comes from the
+// world's 45-degree block grid (the camera looks straight down -z), so block edges run at about 36 degrees on screen as in the
+// clip. The distance is the one that fits the whole fight ellipse (spawn rim at 1.04, a body standing on its far half) into the
+// play band: under the top HUD band (top bar and boss bar, 20% of the height) and over the hero cards at the bottom centre;
+// that comes out at MCD's scale (a 2.7 m hero is about 0.11 of the frame height) and never closer. The world around the pad,
+// the bridge and the next pad fill the rest of the frame. The camera follows the team's centre by panning (the world slides
+// under it), clamped so the whole rim stays inside the frame and the band; between pads the world slides along the bridge.
+// A boss gets its own framing while it lives (pulled back just enough for its height at the far rim and the heroes' area,
+// blended in while it rises), and the picture slides up or down (the lift) when a tall body or a flyer would reach a band.
+// Spectate: a chase camera behind and above one unit, blended in and out.
 import { ARENA } from '../sim/battle.js?v=20261121c';
 import { FLY_Y } from './keys.js?v=20261121c';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
-const PITCH_MIN = 42 * Math.PI / 180;
-const PITCH_MAX = 50 * Math.PI / 180;
-const FOV_OVER = 19;
-const FOV_CHASE = 58;
-const BAND_TOP = 40;    // design px (frame 780 wide) the top HUD bar takes
-const TOP_GAP = 4;      // the far rim (heads included) sits this far under the bar
-const BLOCK = { x0: 240, x1: 540, h: 80 }; // the hero cards: bottom centre, this tall from the bottom edge
-const BLOCK_PAD = 2;    // heroes' feet (and their ring) stay this far above the block
-const MARGIN_BOT = 8;   // the spawn rim outside the block stays this far above the bottom edge
-const SIDE_FRAC = 0.042; // the spawn rim's left and right points sit this share of the frame width from the edges
+// ---- the overview (MCD) ----
+const PITCH = 47 * Math.PI / 180; // MCD: block edges at 34-38 degrees on screen = sin(pitch) 0.73 at a 45-degree yaw
+const FOV_OVER = 27;              // MCD: vertical lens from the lean of upright posts at the frame side (26-28 degrees)
+const MCD_FILL = 0.107;           // MCD: the hero stands 0.10-0.12 of the frame height; a 2.7 m hero never gets bigger than this
+const HERO_H = 2.7;
+export const PLAY = {             // the play band in design px (frame 780 wide): what the HUD leaves to the fight
+  top: 46,                        // the top bar (0-41) and a margin
+  topBoss: 72,                    // while a boss lives: its bar (44-68) too, 20% of the 360 height
+  cards: { x0: 236, x1: 544, y: 252 }, // the hero card block with the flame headroom, bottom centre
+  side: 10,                       // rim points stay this far from the left and right edges
+  bottom: 6,                      // and outside the card block, this far above the bottom edge
+};
+const GAP = 3;          // design px between the band edges and the fitted rim
 const FIT_K = 1.04;     // the spawn rim is at 1.04 of the ellipse
 const HERO_K = 0.9;     // heroes stay inside this share of the ellipse
-const HERO_RING = 0.3;  // metres around a hero's foot point that must clear the block too
-const HEAD = 0.5;       // height at the far rim that still clears the top bar: a monster killed as it arrives shows from the waist up
+const HEAD_FAR = 2.3;   // metres of body at the far rim that must stay under the top band (a monster at 1.05 scale)
+const SINK = 1.7;       // metres under the floor a monster climbing over the near rim is drawn at: it stays over the cards too
+const BOSS_BLEND = 1.2; // 1/s: the pull back to the boss framing while the boss rises (under its intro)
 const PTS = 48;
+const FOLLOW = 1.6;     // 1/s: how fast the pan catches the team's centre
+const RUN_Y = 0.5;       // MCD: the hero's feet at 0.49-0.53 of the frame height
+const LIFT = 5;         // 1/s: how fast the picture slides up or down to keep a tall boss or a flyer under the top band
 const PUSH = 0.028;      // push-in on an ultimate: 2.8% scale about the casting hero, clamped so the rim stays in the frame
 const RIM_PAD = 0.012;   // NDC margin kept between the rim and the frame edge while pushing
 const SHAKE_PAD = 0.003;
+// ---- the chase view ----
+const FOV_CHASE = 58;
 const CHASE_FILL = 0.26; // share of the frame height the followed unit stands tall
 const CHASE_FILL_MIN = 0.15; // never pull back so far that the unit gets small, whatever its width
 const CHASE_PITCH = 22 * Math.PI / 180;
@@ -37,94 +50,175 @@ export function createCamera(H) {
   const fit = new THREE.PerspectiveCamera(FOV_OVER, 780 / 360, 1, 500);
   const focus = new THREE.Vector3();
   const v = new THREE.Vector3(); const look = new THREE.Vector3(); const pos = new THREE.Vector3();
-  let dist = 20; let pitch = 50 * Math.PI / 180; let shift = 0; let vis = 0; let rim = { x: 0.95, y0: -0.5, y1: 0.7 }; let key = ''; let blend = 0; let want = 0; let target = 0; let fov = FOV_OVER;
-  const C = { focus, get R() { return ARENA.z * FIT_K; }, get dist() { return dist; }, get shift() { return shift; }, get pitch() { return pitch; }, mode: 'overview', spectate(uid) { target = uid || 0; want = target ? 1 : 0; H.spectateUid = target; }, update };
+  let dist = 36; const pitch = PITCH; let shift = 0; let rim = { x0: -0.95, x1: 0.95, y0: -0.5, y1: 0.7 }; let key = ''; let blend = 0; let want = 0; let target = 0; let fov = FOV_OVER;
+  const pan = { x: 0, z: 0, lo: { x: 0, z: 0 }, hi: { x: 0, z: 0 }, init: false, lift: 0 };
+  const C = { focus, pan, PLAY, get bossK() { return bossK; }, get R() { return ARENA.z * FIT_K; }, get dist() { return dist; }, get shift() { return shift; }, get pitch() { return pitch; }, get fovOver() { return FOV_OVER; }, mode: 'overview', spectate(uid) { target = uid || 0; want = target ? 1 : 0; H.spectateUid = target; }, update };
   Object.defineProperty(C, 'mode', { get: () => (target ? 'spectate' : 'overview') });
 
-  // NDC bounding box of the ellipse scaled by k (bodies head high when head > 0) seen from distance d at pitch p, no lens shift
-  function bbox(d, p, k, head) {
-    fit.position.set(0, Math.sin(p) * d, Math.cos(p) * d); fit.lookAt(0, 0, 0); fit.updateMatrixWorld(true);
-    let x1 = -9; let y0 = 9; let y1 = -9;
+  // the fit camera at distance d panned to (px, pz), lens shift sh; design px of a world point
+  function place(d, px, pz) { fit.position.set(px, Math.sin(pitch) * d, pz + Math.cos(pitch) * d); fit.lookAt(px, 0, pz); fit.updateMatrixWorld(true); }
+  function toPx(x, y, z, sh, out) {
+    const u = H.size.u || 1; v.set(x, y, z).project(fit);
+    out[0] = (v.x + 1) / 2 * H.size.w / u; out[1] = (1 - (v.y + sh)) / 2 * H.size.h / u; return out;
+  }
+  const q = [0, 0];
+  // the rim's box in design px: top of the far half with heads, bottom split into the card column and the rest
+  // F: the framing being fitted, { head: metres of body on the far half, top: the band's top, side: metres of body
+  // sticking out sideways at the left and right points, near: the share of the ellipse whose near half must clear the
+  // cards, sink: metres under the floor there }
+  function rimBox(sh, F) {
+    const wd = H.size.w / (H.size.u || 1); let top = 1e9; let botC = -1e9; let botS = -1e9; let x0 = 1e9; let x1 = -1e9;
     for (let i = 0; i < PTS; i++) {
-      const a = (i / PTS) * Math.PI * 2;
-      for (const h of head && Math.sin(a) < 0 ? [0, head] : [0]) {  // heads only matter at the far side, under the top bar
-        v.set(Math.cos(a) * ARENA.x * k, h, Math.sin(a) * ARENA.z * k).project(fit);
-        x1 = Math.max(x1, Math.abs(v.x)); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
-      }
+      const a = (i / PTS) * Math.PI * 2; const nk = Math.sin(a) > 0 ? F.near / FIT_K : 1;
+      const x = Math.cos(a) * (ARENA.x * FIT_K * nk + F.side); const z = Math.sin(a) * ARENA.z * FIT_K * nk;
+      toPx(x, 0, z, sh, q); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]);
+      top = Math.min(top, q[1]);
+      if (z > 0) toPx(x, -F.sink, z, sh, q);
+      if (q[0] > PLAY.cards.x0 - 4 && q[0] < PLAY.cards.x1 + 4) botC = Math.max(botC, q[1]); else botS = Math.max(botS, q[1]);
+      if (z < 0) { toPx(x, F.head, z, sh, q); top = Math.min(top, q[1]); }
     }
-    return { x1, y0, y1 };
+    return { top, botC, botS, x0, x1, wd };
+  }
+  // how far the box clears the band (design px; >= 0 fits)
+  function clear(b, F) {
+    const hd = H.size.h / (H.size.u || 1);
+    return Math.min(b.top - F.top - GAP, PLAY.cards.y - GAP - b.botC, hd - PLAY.bottom - b.botS, b.x0 - PLAY.side, b.wd - PLAY.side - b.x1);
+  }
+  // lens shift that centres the rim's box in the band (the far heads to the top band, the near rim to the cards)
+  function centreShift(d, px, pz, F) {
+    place(d, px, pz); const b = rimBox(0, F); const hd = H.size.h / (H.size.u || 1);
+    const want = (F.top + Math.min(PLAY.cards.y, hd)) / 2; const have = (b.top + Math.max(b.botC, b.botS - (hd - PLAY.cards.y))) / 2;
+    return (have - want) * 2 / hd;
   }
 
-  // distance that makes the spawn rim fill halfX of the half width, and its box
-  function fitAt(p, halfX) {
-    let lo = 4; let hi = 300;
-    for (let i = 0; i < 40; i++) { const d = (lo + hi) / 2; const b = bbox(d, p, FIT_K, HEAD); if (b.x1 / halfX > 1) lo = d; else hi = d; }
-    return { d: hi, b: bbox(hi, p, FIT_K, HEAD) };
-  }
-
-  // with the far rim pinned under the top bar: how far the heroes' area and the rim corners clear the bottom (design px; >= 0 fits)
-  function clearance(p, d, sh) {
-    const { w, h } = H.size; const u = H.size.u || 1; const hd = h / u; const wd = w / u;
-    fit.position.set(0, Math.sin(p) * d, Math.cos(p) * d); fit.lookAt(0, 0, 0); fit.updateMatrixWorld(true);
-    const px = (x, z) => { v.set(x, 0, z).project(fit); return [(v.x + 1) / 2 * wd, (1 - (v.y + sh)) / 2 * hd]; };
-    let hero = 1e9; let rimc = 1e9;
-    for (let i = 0; i < PTS * 2; i++) {
-      const a = (i / (PTS * 2)) * Math.PI * 2; const c = Math.cos(a); const s = Math.sin(a);
-      const q = px(c * (ARENA.x * HERO_K + HERO_RING), s * (ARENA.z * HERO_K + HERO_RING));
-      if (q[0] > BLOCK.x0 - 4 && q[0] < BLOCK.x1 + 4) hero = Math.min(hero, hd - BLOCK.h - BLOCK_PAD - q[1]);
-      const r = px(c * ARENA.x * FIT_K, s * ARENA.z * FIT_K);
-      if (r[0] < BLOCK.x0 || r[0] > BLOCK.x1) rimc = Math.min(rimc, hd - MARGIN_BOT - r[1]);
-    }
-    return Math.min(hero, rimc);
-  }
-
-  function solve() {
+  // the framing for F: the closest distance (never closer than MCD's scale) where the rim fits the band, the lens shift
+  // that centres it, and how far the pan may go each way before the rim leaves the frame or the band
+  function solve(F) {
     const { w, h } = H.size; const u = H.size.u || 1;
-    const topY = 1 - 2 * (BAND_TOP + TOP_GAP) * u / h; const halfX = 1 - 2 * SIDE_FRAC;
-    fit.aspect = w / h; fit.updateProjectionMatrix();
-    let best = null;
-    for (let p = PITCH_MAX; p >= PITCH_MIN - 1e-6; p -= 0.25 * Math.PI / 180) {
-      const f = fitAt(p, halfX); const sh = topY - f.b.y1; const c = clearance(p, f.d, sh);
-      if (!best || c > best.c) best = { p, d: f.d, sh, c };
-      if (c >= 0) { best = { p, d: f.d, sh, c }; break; }
+    fit.fov = FOV_OVER; fit.aspect = w / h; fit.updateProjectionMatrix();
+    // MCD's scale: the distance where a hero at the centre stands MCD_FILL of the frame height
+    let lo = 4; let hi = 400;
+    for (let i = 0; i < 40; i++) { const d = (lo + hi) / 2; place(d, 0, 0); toPx(0, 0, 0, 0, q); const y0 = q[1]; toPx(0, HERO_H, 0, 0, q); if ((y0 - q[1]) / (h / u) > MCD_FILL) lo = d; else hi = d; }
+    const S = { dist: hi, shift: 0, lo: { x: 0, z: 0 }, hi: { x: 0, z: 0 }, clear: 0, mcd: hi };
+    lo = S.mcd; hi = 400;
+    const fits = (d) => { const sh = centreShift(d, 0, 0, F); place(d, 0, 0); return clear(rimBox(sh, F), F) >= 0; };
+    if (!fits(lo)) { for (let i = 0; i < 40; i++) { const d = (lo + hi) / 2; if (fits(d)) hi = d; else lo = d; } S.dist = hi; } else S.dist = lo;
+    S.shift = centreShift(S.dist, 0, 0, F); place(S.dist, 0, 0); S.clear = clear(rimBox(S.shift, F), F);
+    for (const ax of ['x', 'z']) for (const s of [-1, 1]) {
+      let a = 0; let b = 30;
+      for (let i = 0; i < 24; i++) { const m = (a + b) / 2; place(S.dist, ax === 'x' ? m * s : 0, ax === 'z' ? m * s : 0); if (clear(rimBox(S.shift, F), F) >= Math.min(0, S.clear)) a = m; else b = m; }
+      (s < 0 ? S.lo : S.hi)[ax] = a * s;
     }
-    pitch = best.p; dist = best.d; shift = best.sh; C.fitClear = best.c;
-    const hb = bbox(dist, pitch, HERO_K, 0);
-    rim = { x: hb.x1, y0: hb.y0 + shift, y1: hb.y1 + shift };
+    return S;
+  }
+  // the wave pads' framing (fixed per frame size) and the boss framing (per boss: its height, flight and width)
+  let base = null; let bossF = null; let bossKey = ''; let bossK = 0;
+  function framings(B) {
+    const k = H.size.w + 'x' + H.size.h;
+    if (k !== key) { key = k; base = solve({ head: HEAD_FAR, top: PLAY.top, side: 0, near: FIT_K, sink: SINK }); bossKey = ''; C.fitClear = base.clear; C.mcdDist = base.mcd; }
+    const bu = B && B.boss ? B.byUid.get(B.boss) : null;
+    if (bu && bu.alive && H.heightOf) {
+      const bk = k + ':' + bu.uid;
+      if (bk !== bossKey) {
+        const fly = bu.fly ? (FLY_Y[bu.kind] || 3.2) : 0; const wide = H.widthOf ? H.widthOf(bu.uid) : 0;
+        if (wide > 0) { bossKey = bk; bossF = solve({ head: Math.max(HEAD_FAR, fly + H.heightOf(bu.uid)), top: PLAY.topBoss, side: Math.min(2, Math.max(0, wide / 2 - 0.5)), near: HERO_K, sink: 0 }); C.bossFit = { head: +(fly + H.heightOf(bu.uid)).toFixed(2), wide: +wide.toFixed(2), dist: +bossF.dist.toFixed(1) }; }
+      }
+      return 1;
+    }
+    return 0;
   }
 
   function unitOf(B, uid) { return B && B.byUid && B.byUid.get(uid); }
 
+  // the team's centre in the scene's frame (during a run, where the heroes are drawn on the bridge)
+  function teamCentre(B, out) {
+    let n = 0; let x = 0; let y = 0; let z = 0;
+    if (B && B.heroes) for (const u of B.heroes) {
+      if (!u.alive) continue; const r = H.world && H.world.heroAt ? H.world.heroAt(u.slot, u.x, u.z) : null;
+      x += r ? r.x : u.x; y += r ? r.y : 0; z += r ? r.z : u.z; n++;
+    }
+    out.x = n ? x / n : 0; out.y = n ? y / n : 0; out.z = n ? z / n : 0; return n;
+  }
+  const tc = { x: 0, y: 0, z: 0 };
+  // during a run: slide the picture so the team's feet (up or down a stair) sit at RUN_Y of the height, where MCD keeps
+  // its hero while the world slides under it; more of the next area shows above
+  function runLift() {
+    const hd = H.size.h / (H.size.u || 1);
+    v.set(tc.x, tc.y, tc.z).project(camera); return (1 - v.y) / 2 * hd - RUN_Y * hd;
+  }
+
+  // the heroes' area in NDC at the current pan, for the juice clamps
+  function heroRim() {
+    let x0 = 9; let x1 = -9; let y0 = 9; let y1 = -9;
+    for (let i = 0; i < PTS; i++) {
+      const a = (i / PTS) * Math.PI * 2;
+      v.set(pan.x + Math.cos(a) * ARENA.x * HERO_K, 0, Math.sin(a) * ARENA.z * HERO_K).project(camera);
+      x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+    }
+    rim = { x0, x1, y0, y1 };
+  }
+
   // push-in about the casting hero and screen shake, applied to the projection after the lens shift: ndc' = s * ndc + t.
-  // The push and pull are clamped so the fit ring of the arena stays inside the frame; a chase view only gets the shake.
+  // The push and pull are clamped so the heroes' area stays inside the frame; a chase view only gets the shake.
   function juiceView(chase) {
     const j = H.juice; if (!j) return;
     const el = camera.projectionMatrix.elements; const { w, h } = H.size;
     let s = 1; let tx = 0; let ty = 0;
+    const clampT = (pad) => { tx = Math.max(-(1 - pad) - s * rim.x0, Math.min((1 - pad) - s * rim.x1, tx)); ty = Math.max(-(1 - pad) - s * rim.y0, Math.min((1 - pad) - s * rim.y1, ty)); };
+    if (!chase && (j.push > 0 || j.shake.px > 0)) heroRim();
     if (!chase && j.push > 0) {
-      s = Math.min(1 + PUSH * j.push, (1 - RIM_PAD) / Math.max(rim.x, Math.abs(rim.y0), Math.abs(rim.y1)));
+      s = Math.min(1 + PUSH * j.push, (1 - RIM_PAD) / Math.max(Math.abs(rim.x0), Math.abs(rim.x1), Math.abs(rim.y0), Math.abs(rim.y1)));
       let hx = 0; let hy = 0;
       if (j.pull.k > 0) { v.set(j.pull.x, 0, j.pull.z).project(camera); hx = v.x; hy = v.y; }
-      tx = (1 - s) * hx; ty = (1 - s) * hy;
-      tx = Math.max(-(1 - RIM_PAD) + s * rim.x, Math.min((1 - RIM_PAD) - s * rim.x, tx));
-      ty = Math.max(-(1 - RIM_PAD) - s * rim.y0, Math.min((1 - RIM_PAD) - s * rim.y1, ty));
+      tx = (1 - s) * hx; ty = (1 - s) * hy; clampT(RIM_PAD);
     }
-    if (j.shake.px > 0) {
-      tx += j.shake.x * 2 / w; ty += j.shake.y * 2 / h;
-      if (!chase) { tx = Math.max(-(1 - SHAKE_PAD) + s * rim.x, Math.min((1 - SHAKE_PAD) - s * rim.x, tx)); ty = Math.max(-(1 - SHAKE_PAD) - s * rim.y0, Math.min((1 - SHAKE_PAD) - s * rim.y1, ty)); }
-    }
+    if (j.shake.px > 0) { tx += j.shake.x * 2 / w; ty += j.shake.y * 2 / h; if (!chase) clampT(SHAKE_PAD); }
     if (s === 1 && tx === 0 && ty === 0) return;
     el[0] *= s; el[5] *= s; el[8] = s * el[8] - tx; el[9] = s * el[9] - ty;
   }
 
+  // Vertical follow: how far (NDC) to slide the picture so every living unit's box, feet to head, sits in the play band.
+  // The static fit covers the whole ellipse with bodies up to HEAD_FAR; this only moves for what sticks out (a boss of
+  // 4-9 m, a flyer, the boss bar). When everything cannot fit at once the boss wins, then the middle of the spread.
+  const span = { lo: 0, hi: 0 };
+  function unitSpan(u, out) {
+    const h = H.heightOf ? H.heightOf(u.uid) : 2.2; const y0 = u.fly ? (FLY_Y[u.kind] || 3.2) : 0; const hd = H.size.h / (H.size.u || 1); const wd = H.size.w / (H.size.u || 1);
+    v.set(u.x, y0 + h, u.z).project(camera); const top = (1 - v.y) / 2 * hd; const tx = (v.x + 1) / 2 * wd;
+    // a monster at the near rim may still be climbing over it, drawn up to SINK under the floor
+    const yb = !u.fly && u.z > 0 && Math.hypot(u.x / ARENA.x, u.z / ARENA.z) > 0.95 ? y0 - SINK : y0;
+    v.set(u.x, yb, u.z).project(camera); const bot = (1 - v.y) / 2 * hd; const bx = (v.x + 1) / 2 * wd;
+    const inCards = Math.max(tx, bx) > PLAY.cards.x0 && Math.min(tx, bx) < PLAY.cards.x1;
+    // offset o (design px, content moves up by o): top - o >= band top, bot - o <= floor
+    out.hi = top - topBand; out.lo = bot - (inCards ? PLAY.cards.y : hd - PLAY.bottom); return out;
+  }
+  let topBand = PLAY.top;
+  function liftWant(B) {
+    if (!B || !B.units) return 0;
+    const bu = B.boss ? B.byUid.get(B.boss) : null; topBand = bu && bu.alive ? PLAY.topBoss : PLAY.top;
+    let lo = -1e9; let hi = 1e9;
+    for (const u of B.units) { if (!u.alive) continue; unitSpan(u, span); lo = Math.max(lo, span.lo); hi = Math.min(hi, span.hi); }
+    if (lo <= hi) return Math.max(lo, Math.min(hi, 0));
+    const mid = (lo + hi) / 2;
+    if (bu && bu.alive) { unitSpan(bu, span); return Math.max(span.lo, Math.min(span.hi, mid)); }
+    return mid;
+  }
+
   function update(B, dt) {
-    const k = H.size.w + 'x' + H.size.h;
-    if (k !== key) { key = k; solve(); }
+    const bossWant = framings(B) && bossF ? 1 : 0; bossK += (bossWant - bossK) * Math.min(1, dt * BOSS_BLEND); if (Math.abs(bossWant - bossK) < 0.002) bossK = bossWant;
+    const F = bossK > 0 && bossF ? bossF : base; const mix = (a, b) => a + (b - a) * (F === base ? 0 : bossK);
+    dist = mix(base.dist, F.dist); shift = mix(base.shift, F.shift);
+    pan.lo.x = mix(base.lo.x, F.lo.x); pan.hi.x = mix(base.hi.x, F.hi.x); pan.lo.z = mix(base.lo.z, F.lo.z); pan.hi.z = mix(base.hi.z, F.hi.z);
     H.B = B;
     blend += (want - blend) * Math.min(1, dt * 3.5); if (Math.abs(want - blend) < 0.001) blend = want;
+    // follow: pan toward the team's centre, inside the slack that keeps the whole rim in the band
+    if (teamCentre(B, tc)) {
+      const gx = Math.max(pan.lo.x, Math.min(pan.hi.x, tc.x)); const gz = Math.max(pan.lo.z, Math.min(pan.hi.z, tc.z));
+      const f = pan.init ? Math.min(1, dt * FOLLOW) : 1; pan.x += (gx - pan.x) * f; pan.z += (gz - pan.z) * f; pan.init = true;
+    } else pan.init = false;
+    pan.x = Math.max(pan.lo.x, Math.min(pan.hi.x, pan.x)); pan.z = Math.max(pan.lo.z, Math.min(pan.hi.z, pan.z));
     const aspect = H.size.w / H.size.h;
-    pos.set(0, Math.sin(pitch) * dist, Math.cos(pitch) * dist);
-    look.set(0, 0, 0);
+    pos.set(pan.x, Math.sin(pitch) * dist, pan.z + Math.cos(pitch) * dist);
+    look.set(pan.x, 0, pan.z); focus.set(pan.x, 0, pan.z);
     let lens = shift; let fv = FOV_OVER; let fogBase = dist;
     const u = target ? unitOf(B, target) : null;
     if (blend > 0 && u) {
@@ -151,6 +245,10 @@ export function createCamera(H) {
     camera.fov = fov; camera.aspect = aspect; camera.position.copy(pos); camera.lookAt(look); camera.updateMatrixWorld(true);
     camera.updateProjectionMatrix();
     camera.projectionMatrix.elements[9] = -lens;
+    // the vertical follow (the team's height during a run between pads), off in the chase view
+    const run = H.world && H.world.busy;
+    const lw = blend > 0 ? 0 : run ? runLift() : liftWant(B); pan.lift += (lw - pan.lift) * Math.min(1, dt * LIFT);
+    if (pan.lift !== 0) { lens += pan.lift * 2 / (H.size.h / (H.size.u || 1)); camera.projectionMatrix.elements[9] = -lens; }
     juiceView(blend > 0 && u);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     // haze starts just past the fight: the far rim softens a little, what lies far below fades into the abyss colour

@@ -10,7 +10,7 @@
 //    draw order, at most ZMAX), and a team of every hero shows none on its body
 //  - spawns: on every pad the spawn ring (1.04 to 1.07 of the fight ellipse) is pad floor, and no prop box reaches above the
 //    floor inside 1.08 of the ellipse
-//  - in view: on every pad the spawn rim projects inside the frame under the top bar
+//  - in view: on every pad the spawn rim projects inside the frame under the top bar and off the hero card block
 //  - the real flow (stage 1, cards picked by hand): the run starts when the wave is cleared, the sim clock and the spawns
 //    wait for it, the card pick opens only on the new pad, and picking does not start a second run
 //  - cost at q=low on s22: draws and triangles per pad at rest, world build time
@@ -74,7 +74,7 @@ const PAD = () => {
   let inside = 0;
   for (const b of pad.boxes) { const c = b.corners || b; for (const p of c) { const x = p[0] !== undefined ? p[0] : p.x; const y = p[1] !== undefined ? p[1] : p.y; const z = p[2] !== undefined ? p[2] : p.z; if (y > 0.05 && Math.hypot(x / E.x, z / E.z) < 1.08) { inside++; break; } } }
   let out = 0;
-  for (let i = 0; i < 96; i++) { const a = i / 96 * Math.PI * 2; V.set(Math.cos(a) * E.x * 1.04, 0, Math.sin(a) * E.z * 1.04).project(H.camera); const x = (V.x + 1) / 2 * w / u; const y = (1 - V.y) / 2 * h / u; if (x < 0 || x > 780 || y < 40 || y > h / u) out++; }
+  for (let i = 0; i < 96; i++) { const a = i / 96 * Math.PI * 2; V.set(Math.cos(a) * E.x * 1.04, 0, Math.sin(a) * E.z * 1.04).project(H.camera); const x = (V.x + 1) / 2 * w / u; const y = (1 - V.y) / 2 * h / u; if (x < 0 || x > 780 || y < 40 || y > h / u || (x > 236 && x < 544 && y > 252)) out++; }
   window.__step(2);
   return { off, ringN, inside, boxes: pad.boxes.length, out, draws: window.__stats.draws, tris: window.__stats.tris, sec: W.sec, lights: W.all.length, warm: W.all.filter((L) => L.warm).length, theme: W.theme.name };
 };
@@ -105,7 +105,7 @@ try {
       check(P.sec === k, `${t}: the fight is on pad ${P.sec + 1}`);
       check(P.off === 0, `${t}: spawn ring points off the floor: ${P.off} of ${P.ringN} (= 0)`);
       check(P.boxes > 0 && P.inside === 0, `${t}: prop boxes above the floor inside 1.08 of the ellipse: ${P.inside} of ${P.boxes} (= 0)`);
-      check(P.out === 0, `${t}: spawn rim points outside the frame or under the top bar: ${P.out} of 96 (= 0)`);
+      check(P.out === 0, `${t}: spawn rim points outside the frame, under the top bar or the hero cards: ${P.out} of 96 (= 0)`);
       check(P.draws <= DRAWS_MAX, `${t}: ${P.draws} draws at q=low (<= ${DRAWS_MAX}), ${P.tris} triangles, ${P.lights} lights (${P.warm} warm)`);
       { const Z = await page.evaluate(ZFIGHT); zshot(Z, `s${st}-pad${k + 1}`); check(Z.nz + Z.nd <= ZMAX, `${t}: flickering (z-fighting) pixels ${Z.nz} + ${Z.nd} on decals (<= ${ZMAX})${Z.nz + Z.nd > ZMAX ? ': ' + zwhere(Z) : ''}`); }
       if (SHOTS) { const f = path.join(OUT, `s${st}-pad${k + 1}.png`); await page.locator('#frame').screenshot({ path: f }); shots.push(f); }
