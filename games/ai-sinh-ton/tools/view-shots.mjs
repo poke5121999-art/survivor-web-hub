@@ -6,15 +6,15 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { serve, launch, open as openPage, checker, sheet, ROOT } from './pw.mjs';
 
-const OUT = path.join(ROOT, '.chk', 'view');
+const OUT = path.join(ROOT, '.chk', process['env'].CHK_SUB || '', 'view');
 fs.mkdirSync(OUT, { recursive: true });
 const QUICK = process.argv.includes('--quick');
 const ONLYNEW = process.argv.includes('--only-new');
 const T0 = Date.now();
 const { check, done } = checker();
 // the view is judged without the UI kit on top: hide whatever screen the game opened at boot
-const open = async (...a) => {
-  const r = await openPage(...a);
+const open = async (br, base, phone, q, o = {}) => {
+  const r = await openPage(br, base, phone, q, { ...o, freeze: true });
   await r.page.evaluate(() => { const G = window.__G; const sc = G && G.screens && G.screens[G.screen]; if (sc && sc.hide) sc.hide(); });
   return r;
 };
@@ -74,15 +74,16 @@ print(json.dumps(out))`;
 }
 const FOG = { 3: '1a2634' }; // the scene background of chapter 1 (js/view/themes.js, street)
 
-// resolves with the first sim event matching `pred` (source text), running the sim fast until then and at 1x after it
+// resolves with the first sim event matching `pred` (source text), advancing the sim in 0.05 s slices (no real time);
+// `limit` is sim seconds. The slice that holds the event runs on to its end, the same way on every run.
 const WAIT = () => {
-  window.__wait = (kind, predSrc, speed, limitMs) => new Promise((res) => {
-    const G = window.__G; const pred = new Function('e', 'return (' + predSrc + ')'); let live = true;
-    G.speed = speed; const t0 = performance.now();
-    G.on((e) => { if (live && e.e === kind && pred(e)) { live = false; G.speed = 1; res(e); } });
-    const tick = () => { if (!live) return; if (performance.now() - t0 > limitMs) { live = false; G.speed = 1; res(null); } else requestAnimationFrame(tick); };
-    tick();
-  });
+  window.__wait = (kind, predSrc, limit) => {
+    const G = window.__G; const pred = new Function('e', 'return (' + predSrc + ')'); let hit = null;
+    const off = G.on((e) => { if (!hit && e.e === kind && pred(e)) hit = e; });
+    for (let t = 0; t < limit && !hit && G.B && G.B.phase === 'fight'; t += 0.05) window.__sim(0.05);
+    if (typeof off === 'function') off();
+    return hit;
+  };
 };
 const projFrac = (page, x, z) => page.evaluate(([px, pz]) => { const H = window.__G.host; const v = new H.THREE.Vector3(px, 0, pz).project(H.camera); return [(v.x + 1) / 2, (1 - v.y) / 2]; }, [x, z]);
 
@@ -217,11 +218,17 @@ try {
       await page.evaluate(WAIT); const ults = [];
       for (const id of HEROES) {
         await page.evaluate((i) => { const B = window.__G.start(2, { seed: 9, team: [i, 'thep', 'yta', 'mua'], auto: { ult: true, pick: 'best' }, hpFlat: 3000 }); B.heroes[0].ult = 1; }, id);
-        const e = await page.evaluate(([i]) => window.__wait('ult', `e.hero === '${i}'`, 8, 60000), [id]);
+        const e = await page.evaluate(([i]) => window.__wait('ult', `e.hero === '${i}'`, 60), [id]);
         if (!e) { check(false, `hero ${id}: ultimate never cast`); continue; }
-        await page.waitForTimeout(420); // 380 ms of play plus the 40 ms hit-stop the ultimate takes at the fast-forward speed
-        const f = await shot(page, `ult-${id}.png`); ults.push(f); sheets.ults.push(f);
-        const w = pix(f, FOG[3], null).white;
+        // the old real-time wait landed on a different moment every run: take the brightest of 12 fixed moments over the next
+        // 0.8 s (sim and frames advanced together), so the check judges the flash peak, not one lucky frame
+        let f = ''; let w = -1;
+        for (let k = 0; k < 12; k++) {
+          await page.evaluate(() => { window.__sim(0.05); window.__step(4); });
+          const fk = await shot(page, `ult-${id}-${k}.png`); const wk = pix(fk, FOG[3], null).white;
+          if (wk > w) { w = wk; f = fk; }
+        }
+        fs.copyFileSync(f, path.join(OUT, `ult-${id}.png`)); f = path.join(OUT, `ult-${id}.png`); ults.push(f); sheets.ults.push(f);
         check(w < 0.01, `ultimate ${id}: clipped white ${(w * 100).toFixed(2)}% (< 1%)`);
       }
       await ctx.close();
@@ -234,11 +241,11 @@ try {
       await page.evaluate(WAIT);
       for (const [stage, shape] of [[2, 'circle'], [10, 'line'], [20, 'cone']]) {
         await page.evaluate((n) => { window.__G.start(n, { seed: 5, wave: 5, auto: { ult: true, pick: 'best' } }); }, stage);
-        const e = await page.evaluate((sh) => window.__wait('tele', `e.team === 1 && e.shape === '${sh}' && (e.shape !== 'circle' || e.fall)`, 6, 90000), shape);
+        const e = await page.evaluate((sh) => window.__wait('tele', `e.team === 1 && e.shape === '${sh}' && (e.shape !== 'circle' || e.fall)`, 90), shape);
         if (!e) { check(false, `boss stage ${stage}: no ${shape} warning seen`); continue; }
         const cx = e.shape === 'line' ? (e.x + e.x2) / 2 : e.shape === 'cone' ? e.x + Math.cos(e.ang) * e.r * 0.5 : e.x;
         const cz = e.shape === 'line' ? (e.z + e.z2) / 2 : e.shape === 'cone' ? e.z + Math.sin(e.ang) * e.r * 0.5 : e.z;
-        await page.waitForTimeout(Math.max(100, e.t * 600));
+        await page.evaluate((n) => window.__step(n), Math.max(6, Math.round(e.t * 600 * 0.06)));
         // same frozen frame with and without the warning meshes: nothing else (camera, fire left behind) can differ
         await page.evaluate(() => { window.__G.paused = true; window.__step(1); });
         const at = await projFrac(page, cx, cz); const during = await shot(page, `tele-s${stage}-${shape}.png`); sheets.tele.push(during);

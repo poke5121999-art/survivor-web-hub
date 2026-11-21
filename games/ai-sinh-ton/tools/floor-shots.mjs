@@ -3,19 +3,23 @@
 // height at the arena centre, and the look checks of the island (flat 24 px cells <= 3%, warm pixels 0.5..12%, at least
 // 4 warm sources in the frame). The deeper look checks (outline, depth, spawns, cost) live in arena-look-test.mjs.
 // Sheet: .chk/floor/chapters.png (overview and close-up per chapter).
-// Usage: PLAYWRIGHT_PATH=... timeout 600 node games/ai-sinh-ton/tools/floor-shots.mjs [--ch=1,3]
+// Usage: PLAYWRIGHT_PATH=... timeout 600 node games/ai-sinh-ton/tools/floor-shots.mjs [--ch=1,3]  (GL=swiftshader unless GL is set)
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { serve, launch, open as openPage, checker, ROOT } from './pw.mjs';
 
-const OUT = path.join(ROOT, '.chk', 'floor');
+const OUT = path.join(ROOT, '.chk', process['env'].CHK_SUB || '', 'floor');
 fs.mkdirSync(OUT, { recursive: true });
 const argv = process.argv.slice(2);
 const chArg = (argv.find((a) => a.startsWith('--ch=')) || '').slice(5);
 const CHAPTERS = chArg ? chArg.split(',').map(Number) : [1, 2, 3, 4, 5, 6];
 const { check, done } = checker();
 const T0 = Date.now();
+// GL defaults to the software path here: the GPU (EGL) draws the same frozen scene with a few hundred edge pixels
+// different from one browser context to the next (two variants alternating; scene, uniforms and ids measured equal), which
+// moved the warning-circle range by 1 between runs. SwiftShader gives the same pixels every time. GL=egl still overrides.
+if (!process['env'].GL) process['env'].GL = 'swiftshader';
 
 function py(src, ...args) { return execFileSync('python3', ['-c', src, ...args]).toString(); }
 
@@ -77,7 +81,7 @@ try {
   const rows = []; const rb = (c) => c[0] - c[2]; const dist3 = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
   for (const ch of CHAPTERS) {
     const stage = (ch - 1) * 5 + 2; const tag = `c${ch}`;
-    const { ctx, page, problems } = await openPage(br, srv.base, 's22', `autostart=1&stage=${stage}&autoult=1&autopick=1&noaudio=1&seed=3`);
+    const { ctx, page, problems } = await openPage(br, srv.base, 's22', `autostart=1&stage=${stage}&autoult=1&autopick=1&noaudio=1&seed=3`, { freeze: true });
     await page.evaluate(() => { const H = window.__G.host; if (!H.__r) { H.__r = H.render; H.render = () => H.__r(null); } });
     await page.evaluate(() => window.__sim(8)); await page.evaluate(() => window.__step(4));
     await page.evaluate(() => { window.__G.paused = true; });
