@@ -483,6 +483,15 @@ export function createFxMap(H, marks, ctx) {
 
   // ---- projectiles drawn from B.projs ----
   const projs = new Map();
+  // one group per projectile on screen, kept per look and reused: a volley does not build geometry and materials anew
+  const projFree = new Map();
+  const PROJ_BLOB = { mesh: 'blob', c: 0xfff0b0, size: 0.9, arc: 0 };
+  function takeProj(def) {
+    const free = projFree.get(def); const g = free && free.pop();
+    if (g) { g.visible = true; g.rotation.set(0, 0, 0); return g; }
+    return buildProj(def);
+  }
+  function dropProj(r) { r.g.visible = false; let free = projFree.get(r.def); if (!free) { free = []; projFree.set(r.def, free); } free.push(r.g); }
   function buildProj(def) {
     const g = new THREE.Group();
     const col = (c) => new THREE.MeshBasicMaterial({ color: c });
@@ -497,7 +506,7 @@ export function createFxMap(H, marks, ctx) {
     const seen = new Set();
     for (const p of B.projs) {
       seen.add(p); let r = projs.get(p);
-      if (!r) { const def = PROJ[p.key] || { mesh: 'blob', c: 0xfff0b0, size: 0.9, arc: 0 }; r = { g: buildProj(def), def, d0: Math.hypot(p.tx - p.x, p.tz - p.z) + 0.01, x: p.x, z: p.z }; projs.set(p, r); }
+      if (!r) { const def = PROJ[p.key] || PROJ_BLOB; r = { g: takeProj(def), def, d0: Math.hypot(p.tx - p.x, p.tz - p.z) + 0.01, x: p.x, z: p.z }; projs.set(p, r); }
       const k = 1 - Math.exp(-30 * dt); r.x += (p.x - r.x) * k; r.z += (p.z - r.z) * k;
       const left = Math.hypot(p.tx - r.x, p.tz - r.z); const prog = Math.min(1, Math.max(0, 1 - left / r.d0));
       const y = 1.2 + Math.sin(Math.PI * prog) * r.def.arc; r.g.position.set(r.x, y, r.z);
@@ -505,7 +514,7 @@ export function createFxMap(H, marks, ctx) {
       if (r.def.trail && budget.puff > 0) G.fx.trail(r.g.position);
       else if (r.def.mesh === 'blob' && budget.puff-- > 0 && G.rng.chance(0.5)) G.fx.puff(r.g.position.clone(), { glow: true, s0: 0.5, s1: 0.1, life: 0.25, c0: r.def.c, c1: r.def.c, a0: 0.6, spin: 0 });
     }
-    for (const [p, r] of projs) if (!seen.has(p)) { scene.remove(r.g); projs.delete(p); }
+    for (const [p, r] of projs) if (!seen.has(p)) { dropProj(r); projs.delete(p); }
   }
 
   // ---- lingering effects on units ----
@@ -525,7 +534,7 @@ export function createFxMap(H, marks, ctx) {
     onEvent(e) { const h = ON[e.e]; if (h) h(e); },
     attack, swordArc, WHIRL_DUR,
     update(B, dt) { budget = { pop: 8, boom: 2, puff: 60 }; vb = 28; if (B) { syncProjs(B, dt); unitsFx(B, dt); updateCuts(B); } marks.update(dt, B); },
-    clear() { for (const r of projs.values()) scene.remove(r.g); projs.clear(); marks.clear(); cuts = null; dashWin.uid = 0; },
+    clear() { for (const r of projs.values()) dropProj(r); projs.clear(); marks.clear(); cuts = null; dashWin.uid = 0; },
     wrapA,
   };
 }
