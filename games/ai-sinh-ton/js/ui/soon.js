@@ -1,11 +1,11 @@
 // Thưởng tab in landscape: the daily chest and its receipt in the left column, the list of chapter chests (meta.claimChapter)
 // in the right column. Trang Bị lives in equip.js.
-import { makeBackdrop, makeBurst, fmt, kill, RAIL } from './home.js?v=20261120e';
-import { HERO } from '../data/heroes.js?v=20261120e';
-import { lockButton } from './guide.js?v=20261120e';
-import { CHAPTERS } from '../data/stages.js?v=20261120e';
-import { TIERS } from '../data/equip.js?v=20261120e';
-import { ITEM_ICON } from './itemicons.js?v=20261120e';
+import { makeBackdrop, makeBurst, fmt, kill, RAIL } from './home.js?v=20261120f';
+import { HERO } from '../data/heroes.js?v=20261120f';
+import { lockButton } from './guide.js?v=20261120f';
+import { CHAPTERS } from '../data/stages.js?v=20261120f';
+import { TIERS } from '../data/equip.js?v=20261120f';
+import { ITEM_ICON } from './itemicons.js?v=20261120f';
 
 const CHEST_ROW = 70, COLA = RAIL.content + 2, COLB = 388, LIST = { x: COLB, y: 66, w: 364, h: 282 };
 const ROW_COLOR = { locked: 0x453a78, ready: 0xd8892a, claimed: 0x2f7a62 };

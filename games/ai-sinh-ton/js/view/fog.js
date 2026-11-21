@@ -5,7 +5,7 @@
 //   2. props: dim box-built silhouettes (wrecks, lamp posts, crates, pillars, dead trees) standing between r = 1.3 and 2.2,
 //      merged into one mesh plus one mesh of soft blob shadows, placed deterministically from the stage number and only
 //      where the fixed overview camera can see them (camera.js calls layout() once per frame size and per stage).
-import { ARENA } from '../sim/battle.js?v=20261120e';
+import { ARENA } from '../sim/battle.js?v=20261120f';
 const THREE = window.THREE;
 const BZ = window.BZ;
 

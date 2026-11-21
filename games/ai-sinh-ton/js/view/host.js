@@ -1,9 +1,9 @@
 // The view host: renderer, scene, lights, the arena floor (floor.js) with its fog wall, rain, and the small `G` object
 // that Blockade Z's fx, audio, zombie and boss code expects. The sim never touches it; actors.js and camera.js
 // read H and draw the battle on top.
-import { createFloor } from './floor.js?v=20261120e';
-import { createFog } from './fog.js?v=20261120e';
-import { ARENA } from '../sim/battle.js?v=20261120e';
+import { createFloor } from './floor.js?v=20261120f';
+import { createFog } from './fog.js?v=20261120f';
+import { ARENA } from '../sim/battle.js?v=20261120f';
 const THREE = window.THREE;
 const BZ = window.BZ;
 

@@ -1,11 +1,11 @@
 // Triệu Hồi tab: a 3D gacha machine (own design: purple drum, gold trim, glass dome of two-tone pills), the pull
 // animation driven by update(dt), the reveal cards, the ten-pull summary and the rates panel.
 // The account changes at the moment of the pull (meta.pull); everything after that only shows what was paid out.
-import { GACHA, HERO_RARITY } from '../data/economy.js?v=20261120e';
-import { HERO } from '../data/heroes.js?v=20261120e';
-import { ITEM as ITEM_DEF, TIERS } from '../data/equip.js?v=20261120e';
-import { ITEM_ICON } from './itemicons.js?v=20261120e';
-import { makeBackdrop, makeBurst, capsule3d, fmt, kill } from './home.js?v=20261120e';
+import { GACHA, HERO_RARITY } from '../data/economy.js?v=20261120f';
+import { HERO } from '../data/heroes.js?v=20261120f';
+import { ITEM as ITEM_DEF, TIERS } from '../data/equip.js?v=20261120f';
+import { ITEM_ICON } from './itemicons.js?v=20261120f';
+import { makeBackdrop, makeBurst, capsule3d, fmt, kill } from './home.js?v=20261120f';
 
 const GOLD = 0xffc21f, ITEM = 0x98a6c4;
 const PILLS = [[0xff8ad0, 0x6ad8ff], [0xffd21f, 0x8f4dff], [0x8aff9a, 0xff9a5a], [0xb48aff, 0xffe27a], [0x5ad0ff, 0xff6a8a], [0xff9a5a, 0x4af0c8]];
