@@ -171,15 +171,15 @@ async function openPage(br, srv, query) {
       T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z, -0.3);
       const it = G.loot.items.find((i) => !i.dead && i.size === 'medium' && (i.material === 'wood' || i.material === 'metal'));
       const fw = P.forward(new (P.camPos.constructor)());
-      it.body.setTranslation({ x: P.camPos.x + fw.x * 1.3, y: 0.4, z: P.camPos.z + fw.z * 1.3 }, true); it.body.setLinvel({ x: 0, y: 0, z: 0 }, true); it.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      it.body.setTranslation({ x: P.camPos.x + fw.x * 1.3, y: G.house.heightAt(pr.a.x, pr.a.z) + 0.4, z: P.camPos.z + fw.z * 1.3 }, true);   // floor-relative: the pair can be in a basement it.body.setLinvel({ x: 0, y: 0, z: 0 }, true); it.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
       __sim(0.6);
       T.aimAt(it.body.translation()); __sim(0.02);
       const grabbed = G.grab.tryGrab();
       const g = FS.spawn('gnome', pr.b.x, pr.b.z, { sleep: 99 }); T.face(g, pr.a.x, pr.a.z);
       const hp0 = g.hp;
       // lift and aim at the gnome's middle
-      __sim(0.6, (i) => { T.aimAt({ x: g.x, y: 0.9, z: g.z }); return { ...__IDLE, grab: true }; });
-      T.aimAt({ x: g.x, y: 0.55, z: g.z });
+      __sim(0.6, (i) => { T.aimAt({ x: g.x, y: (g.gy || 0) + 0.9, z: g.z }); return { ...__IDLE, grab: true }; });
+      T.aimAt({ x: g.x, y: (g.gy || 0) + 0.55, z: g.z });
       __sim(1 / 60, { ...__IDLE, grab: true, throwIt: true });
       const x0 = g.x, z0 = g.z;
       const t = T.until(1.5, () => g.hp < hp0 || g.dead);

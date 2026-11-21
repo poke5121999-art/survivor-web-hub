@@ -14,7 +14,13 @@ import { CREW } from './skills.js';
 import { GEAR } from './gear.js';
 
 export const MELEE = {
-  fist: { reach: 1.15, cd: 0.9, cone: 0.62, knock: 106.67 / 24, noise: 3 },
+  // 3D feel (batch 6f, owner: "đấm như đấm vào không khí"): reach from the eye 1.6 m + the foe's radius, a 0.9 rad cone, a
+  // jab every 0.4 s; the 2D game's damage per second is kept (a hit = atk x 0.4 / 0.9, atkCd 0.9 in the source), every blow
+  // answers: foe, loot, cart, door, decor (light things on it jump), wall, and a miss swings through with a whoosh
+  fist: { reach: 1.6, cd: 0.4, cone: 0.9, knock: 106.67 / 24, noise: 3, srcCd: 0.9, ball: 0.12 },
+  // a punched item leaves at lootLaunch / sqrt(kg) m/s along the floor (small 2 kg: 6 m/s, medium 6 kg: 3.5, big 14.5 kg: 2.2)
+  // plus a hop up (0.45 x that + lootHop): light things fly, heavy ones bounce (R.E.P.O.-like)
+  lootLaunch: 8.5, lootMinH: 1.6, lootMaxH: 7, lootHop: 1.8,
   bat: { cone: 0.7 },                     // reach, damage, knock come from GEAR.bat (gear.js)
   lightKnockMul: 3, lightHp: 50,
   chainWindow: 1.4, chainMul: 1.5,       // the 3rd hit of a chain inside the window
@@ -121,7 +127,7 @@ export class Melee {
     const h = Math.hypot(fw.x, fw.z) || 1, dx = fw.x / h, dz = fw.z / h;
     const bat = s.w === 'bat', gd = s.gd;
     const reach = bat ? gd.reach : MELEE.fist.reach, cone = bat ? MELEE.bat.cone : MELEE.fist.cone;
-    const atk = bat ? gd.dmg : (CREW[P.crewId]?.atk ?? 9);
+    const atk = bat ? gd.dmg : (CREW[P.crewId]?.atk ?? 9) * MELEE.fist.cd / MELEE.fist.srcCd;   // same damage per second as the 2D fist
     const mul = (s.third ? MELEE.chainMul : 1) * (1 + MELEE.chargeDmg * s.k);
     const knock0 = (bat ? gd.knock : MELEE.fist.knock) * (1 + MELEE.chargeKnock * s.k) * (s.third ? 1.25 : 1);
     G.noise?.emit({ x: p.x, z: p.z, r: bat ? 4 : MELEE.fist.noise, str: 1.2, src: 'swing', mine: true });
@@ -131,10 +137,14 @@ export class Melee {
       const rc = { w: s.w, k: +s.k.toFixed(2), third: s.third, foes: [], target: 'cage' }; this.log.push(rc); G.events.emit('melee:hit', rc); return;
     }
     // foes in the cone (fists: the nearest one, the bat: all of them)
+    const R0 = G.phys.R, world0 = G.phys.world;
+    const behindWall = (f) => { const tx = f.x - cam.x, ty = (f.gy || 0) + f.h * 0.5 - cam.y, tz = f.z - cam.z, tl = Math.hypot(tx, ty, tz) || 1;
+      const h = world0.castRay(new R0.Ray(cam, { x: tx / tl, y: ty / tl, z: tz / tl }), Math.max(0, tl - f.r - 0.05), true, R0.QueryFilterFlags.EXCLUDE_SENSORS | R0.QueryFilterFlags.EXCLUDE_DYNAMIC | R0.QueryFilterFlags.EXCLUDE_KINEMATIC, undefined, P.col);
+      return !!h; };
     const hits = (G.foes?.list || []).filter((f) => {
       if (f.dead) return false; const rx = f.x - p.x, rz = f.z - p.z, d = Math.hypot(rx, rz);
-      return d < reach + f.r && (rx * dx + rz * dz) / (d || 1) > Math.cos(cone) && G.foes.reachY(f, P);
-    }).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z));
+      return d < reach + f.r && (d < f.r + 0.2 || (rx * dx + rz * dz) / (d || 1) > Math.cos(cone)) && G.foes.reachY(f, P) && !behindWall(f);
+    }).sort((a, b) => { const sc = (f) => { const rx = f.x - p.x, rz = f.z - p.z, d = Math.hypot(rx, rz) || 1; return d * (2 - (rx * dx + rz * dz) / d); }; return sc(a) - sc(b); });   // nearest to the aim first
     const struck = bat ? hits : hits.slice(0, 1);
     const rec = { w: s.w, k: +s.k.toFixed(2), third: s.third, foes: [], target: null };
     if (struck.length) {
@@ -158,29 +168,46 @@ export class Melee {
       rec.target = 'foe'; rec.stop = +stop.toFixed(3);
     } else {
       // nothing alive in reach: what is in front of the fist (loot, a door leaf, a wall)
-      const R = G.phys.R, ray = new R.Ray(cam, fw), hit = G.phys.world.castRay(ray, reach + 0.35, true, R.QueryFilterFlags.EXCLUDE_SENSORS, undefined, P.col);
+      const R = G.phys.R, ball = bat ? 0.15 : MELEE.fist.ball, sc = G.phys.world.castShape(cam, { x: 0, y: 0, z: 0, w: 1 }, fw, new R.Ball(ball), 0, reach + 0.2, true, R.QueryFilterFlags.EXCLUDE_SENSORS, undefined, P.col);
+      const hit = sc ? { collider: sc.collider, toi: sc.time_of_impact ?? sc.timeOfImpact } : null;
       if (hit) {
-        const pt = ray.pointAt(hit.timeOfImpact), at = new THREE.Vector3(pt.x, pt.y, pt.z), body = hit.collider.parent();
-        const item = G.phys.props.find((q) => q.col === hit.collider);
-        const door = G.house?.doorRecs?.find((d) => d.leaves.some((l) => l.body === body));
-        if (item && item.grabbable) {
-          const v = (bat ? 7 : 4.5) * (1 + 0.8 * s.k), m = item.kg;
-          item.body.applyImpulseAtPoint({ x: fw.x * v * m, y: (fw.y + 0.25) * v * m, z: fw.z * v * m }, pt, true);
-          G.audio?.play('punch_wall', at, 0.5, 1.4);
-          this.fx.burst(at, fw.clone().negate(), 6, 2); this.feel(MELEE.stop[0] * 0.6, 0.5, s.side);
-          rec.target = 'loot'; rec.item = item.material;
-        } else if (door) {
-          if (!door.jammed) { door.target = 1; door.side = ((door.door.dir === 0 ? fw.x : fw.z) >= 0) ? 1 : -1; G.events.emit('door:open', { x: door.cx, z: door.cz }); }
+        const pt = { x: cam.x + fw.x * (hit.toi + ball), y: cam.y + fw.y * (hit.toi + ball), z: cam.z + fw.z * (hit.toi + ball) }, at = new THREE.Vector3(pt.x, pt.y, pt.z), body = hit.collider.parent();
+        const item = G.phys.props.find((q) => q.col === hit.collider || (q.cols && q.cols.some((c) => c.handle === hit.collider.handle)));
+        const door = G.house?.doorRecs?.find((d) => d.leaves.some((l) => l.body.handle === body.handle));
+        const prop = !item && !door && G.house?.props?.find((q) => q.bodies.some((b) => b.handle === body.handle));
+        if (item && item.isCart) {   // the cart rolls off the blow
+          const v = (bat ? 3.2 : 2.2) * (1 + 0.8 * s.k), m = item.kg; item.body.applyImpulseAtPoint({ x: fw.x * v * m, y: 0, z: fw.z * v * m }, pt, true);
+          G.audio?.play('punch_door', at, 0.8, 1.35); this.fx.burst(at, fw.clone().negate(), 8, 3); this.feel(MELEE.stop[0] * 0.8, 0.7, s.side);
+          rec.target = 'cart';
+        } else if (item && item.grabbable) {   // loot flies off the blow (light items far, heavy ones hop), spinning, with the item's own knock
+          const kg = item.kg, fl = Math.hypot(fw.x, fw.z) || 1, hx = fw.x / fl, hz = fw.z / fl, pw = (bat ? 1.5 : 1) * (1 + 0.8 * s.k);
+          const vh = THREE.MathUtils.clamp(MELEE.lootLaunch / Math.sqrt(kg), MELEE.lootMinH, MELEE.lootMaxH) * pw, vu = (0.45 * vh + MELEE.lootHop) * Math.min(1.4, pw);
+          const v0 = item.body.linvel(); item.body.setLinvel({ x: v0.x + hx * vh, y: Math.max(v0.y, 0) + vu, z: v0.z + hz * vh }, true);
+          item.body.setAngvel({ x: (Math.random() - 0.5) * 12 / Math.sqrt(kg), y: (s.side ? -1 : 1) * 8 / Math.sqrt(kg), z: (Math.random() - 0.5) * 12 / Math.sqrt(kg) }, true);
+          G.audio?.play('hit_' + (item.material || 'wood'), at, 0.9, 1); G.audio?.play('punch_wall', at, 0.45, 1.4);
+          this.fx.burst(at, fw.clone().negate(), 8, 3); this.feel(MELEE.stop[0] * 0.7, 0.6, s.side);
+          rec.target = 'loot'; rec.item = item.material; rec.launch = { h: +vh.toFixed(2), up: +vu.toFixed(2), kg: +kg.toFixed(2) };
+        } else if (door) {   // a door bangs open away from the blow; a jammed one rattles (only a bat breaks it, design-inventory: force)
+          const side = ((door.door.dir === 0 ? fw.x : fw.z) >= 0) ? 1 : -1;
+          if (door.jammed && bat) { G.house.unjam(door.cx, door.cz, 0.5); G.events.emit('door:slam', { x: door.cx, z: door.cz }); G.noise?.emit({ x: door.cx, z: door.cz, r: 11, str: 1.5, src: 'door', mine: true }); }
+          if (!door.jammed) { if (door.open < 0.2) door.side = side; door.target = 1; door.slamT = 0.35; G.events.emit('door:open', { x: door.cx, z: door.cz }); }
+          else door.rattleT = 0.35;
           G.noise?.emit({ x: door.cx, z: door.cz, r: 6, str: 1.2, src: 'door', mine: true });
-          G.audio?.play('punch_door', at, 0.9, 1);
-          this.fx.burst(at, fw.clone().negate(), 5, 3); this.feel(MELEE.stop[0], 0.7, s.side);
+          G.audio?.play('punch_door', at, 1, door.jammed ? 1 : 0.85);
+          this.fx.burst(at, fw.clone().negate(), 8, 3); this.feel(MELEE.stop[0], 0.8, s.side);
           rec.target = door.jammed ? 'door-jammed' : 'door';
+        } else if (G.traps?.hitVent(at.x, at.z)) {   // a smoke trap's vent hole: the blow switches it off
+          this.fx.burst(at, fw.clone().negate(), 8, 2); this.feel(MELEE.stop[0], 0.7, s.side); rec.target = 'vent';
+        } else if (prop) {   // furniture: a hollow thump, dust, a kick; light loot resting on or by it jumps
+          G.audio?.play('punch_door', at, 0.75, 0.8); this.fx.burst(at, fw.clone().negate(), 10, 3); this.feel(MELEE.stop[0] * 0.8, 0.65, s.side);
+          let n = 0; for (const it of G.loot?.items || []) { if (it.dead || it.held || it.mass > 30) continue; const q = it.body.translation(); if (Math.hypot(q.x - pt.x, q.z - pt.z) > 0.9 || Math.abs(q.y - pt.y) > 0.9) continue; it.body.applyImpulse({ x: fw.x * 0.6 * it.kg, y: 1.6 * it.kg, z: fw.z * 0.6 * it.kg }, true); n++; }
+          rec.target = 'decor'; rec.prop = prop.n; rec.jolted = n;
         } else {
           G.audio?.play('punch_wall', at, 0.8, bat ? 0.8 : 1);
           this.fx.burst(at, fw.clone().negate(), 8, 2); this.feel(MELEE.stop[0] * 0.7, 0.6, s.side);
           rec.target = 'wall';
         }
-      } else { rec.target = 'miss'; G.audio?.play('whiff', null, 0.25, 1.2); }
+      } else { rec.target = 'miss'; G.audio?.play('whiff', null, 0.4, 1.2); this.feel(0, 0.25, s.side); }   // a miss: the swing goes through, a whoosh tail and a small sway
     }
     this.log.push(rec);
     G.events.emit('melee:hit', rec);

@@ -1,6 +1,0 @@
-{
-  "_comment": "kind -> argv template + timeout. Placeholders: {python} {here} {job_json} {job_dir} {in_dir} {out_dir} {parent_glb} {view_front} {view_back} {view_left} {view_right} {work_dir} {kind}. Real pipelines on the office PC: each adapter runs in the venv of its CLI. --fake on the worker ignores this file. See README.md.",
-  "shape": { "argv": ["D:/gen3d/venv/Scripts/python.exe", "{here}/pipe_shape.py", "{job_json}", "{out_dir}", "--cli", "D:/gen3d/gen3d/cli.py", "--timeout", "3300"], "timeout_s": 3600 },
-  "texture": { "argv": ["D:/gen3d-spike/tools/venv/Scripts/python.exe", "{here}/pipe_texture.py", "{job_json}", "{out_dir}", "--tex", "D:/gen3d-spike/tex/tex.py", "--timeout", "3300"], "timeout_s": 3600 },
-  "rig": { "argv": ["D:/gen3d-spike/rig/venv/Scripts/python.exe", "{here}/pipe_rig.py", "{job_json}", "{out_dir}", "--rig", "D:/gen3d-spike/rig/rig.py", "--timeout", "1500"], "timeout_s": 1800 }
-}

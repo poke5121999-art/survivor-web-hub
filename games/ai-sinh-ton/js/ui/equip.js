@@ -254,7 +254,7 @@ export function createEquip(game) {
       p.put(ui.icon(s.id, { size: 28, sway: false }), -6, -1, 4); p.put(ui.text(fmt(n), { size: 12, align: 'right', valign: 'mid', outlineW: 1.8 }), 50, 14, 4);
       bagG.put(p, 354 + k++ * 57.5, 90, 6); matNodes.push(p); U.mats[s.id] = fmt(n);
     });
-    const area = tapArea('mats', 345, 48, () => say('Bản rèn: dùng để nâng cấp món cùng ô')); bagG.put(area, 354, 79, 3); matNodes.push(area);
+    const area = tapArea('mats', 345, 30, () => say('Bản rèn: dùng để nâng cấp món cùng ô')); bagG.put(area, 354, 88, 3); matNodes.push(area);
   }
 
   // ---------- item sheet: wide and short, the item at the left, perks and buttons at the right ----------

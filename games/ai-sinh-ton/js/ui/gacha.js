@@ -125,7 +125,7 @@ export function createGacha(game) {
   const rays = new THREE.Mesh(new THREE.PlaneGeometry(520, 520), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(rayCan), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); ov.add(rays); rays.position.set(390, -170, 1);
   const skip = ui.button({ id: 'skip', w: 140, h: 48, r: 14, color: PAL.disabled, label: 'BỎ QUA', size: 17, shadow: false, onTap: doSkip }); scr.put(skip, 612, 296, 60); skip.setVisible(false);
   const done = ui.button({ id: 'done', w: 180, h: 52, r: 16, color: PAL.green, label: 'XONG', size: 24, pulse: true, onTap: doDone }); scr.put(done, 572, 292, 60); done.setVisible(false);
-  const burst = makeBurst(ui); scr.put(burst.node, 0, 0, 55);
+  const burst = makeBurst(ui); scr.put(burst.node, 0, 0, 32); // above the scrim, below the reveal card: sparks never cover its labels
   let S = null, card = null, cardT = 0, sumNodes = [];
 
   function startPull(n) {
@@ -238,6 +238,7 @@ export function createGacha(game) {
     hide() { ui.hide('gacha', { transition: 'none' }); ui.hide('rates', { transition: 'none' }); if (S) { clearCard(); clearCap(); for (const n of sumNodes) kill(n); sumNodes = []; S = null; done.setVisible(false); skip.setVisible(false); idleG.setVisible(true); } },
     update(dt) {
       if (!ui.isShown('gacha')) return;
+      title.visible = scrim.material.opacity < 0.05; // the reveal scrim would dim it into a half-covered title
       bd.tick(ui.t); burst.update(dt); if (S) updateSeq(dt); else refreshIdle();
     },
   };

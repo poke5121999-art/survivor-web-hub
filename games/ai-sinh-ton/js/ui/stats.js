@@ -44,7 +44,7 @@ const STAT_ROWS = [
 ];
 const LAV = 0xd9ccff, GOLD = 0xffe14a, GREEN = 0x7dffa0, BLUE = 0x7fd0ff, RED = 0xff7b8c;
 // landscape: the overview is a table of compact rows in the middle column; the detail takes the wide area with three columns
-const ROW = { x: 226, y0: 100, w: 378, h: 54, pitch: 60 };
+const ROW = { x: 226, y0: 112, w: 378, h: 54, pitch: 60 };
 const CARD_ROW = { x: 22, y: 58, w: 584, h: 288, pad: 10, colW: 180, gap: 12 };
 
 export function createStatsPanel(game) {
@@ -96,7 +96,7 @@ export function createStatsPanel(game) {
     let hx = ROW.x + 4;
     for (const [icon, key] of [['cdr', 'time'], ['sword', 'dmg'], ['skull', 'kills']]) { g.put(ui.icon(icon, { size: 20, sway: false }), hx, 68, 4); const n = T(g, hdr[key], { size: 13 }, hx + 22, 78, 12); hx += 22 + n.w + 10; }
     const sortBtn = ui.button({ id: 'stats-sort', w: 100, h: 32, r: 12, color: PAL.teal, label: SORTS[sortI].label, size: 12, onTap: () => { sortI = (sortI + 1) % SORTS.length; reg.sortId = SORTS[sortI].id; sortBtn.setLabel(SORTS[sortI].label); reg.sortLabel = SORTS[sortI].label; place(); } });
-    reg.sortLabel = SORTS[sortI].label; g.put(sortBtn, ROW.x + ROW.w - 100, 62, 14);
+    reg.sortLabel = SORTS[sortI].label; g.put(sortBtn, ROW.x + ROW.w - 100, 70, 14);
     report.forEach((h, i) => g.put(makeRow(h, i, pct[i], top), 0, 0, 0));
     place();
   }

@@ -6,6 +6,11 @@ const P = CFG.player;
 // by the same factor as the carry slow-down (height x speedMul); landing makes noise by the drop (sneaking halves it),
 // dips the camera and thumps by floor kind; a drop of a floor (3 m: off a stair landing) hurts, 8 hp + 15 per metre over 2.5.
 export const JUMP = { cost: 8, fallSafe: 2.5, fallBase: 8, fallPerM: 15, minDrop: 0.3 };
+// Feel (batch 6f, owner: "đi đứng, nhảy rất khó thao tác"; R.E.P.O.-like): up to speed in about 0.1 s, stop in about 0.08 s
+// (no slide), a jump still counts 0.1 s after walking off a ledge (coyote) and a press 0.12 s before landing is kept (buffer),
+// 60 % control in the air (the air push is 60 % of the ground's), the camera eases over steps the
+// capsule pops up or down (autostep 0.36 m: anything lower is stepped over, decor parts under 0.35 m included).
+export const MOVE = { accelT: 0.1, decelT: 0.08, coyote: 0.1, buffer: 0.12, air: 0.6, step: 0.36, stepEase: 12 };
 
 export class Player {
   constructor(phys, spawn) {
@@ -14,7 +19,7 @@ export class Player {
     this.body = world.createRigidBody(R.RigidBodyDesc.kinematicPositionBased().setTranslation(spawn.x, P.halfHeight + P.radius + 0.02, spawn.z));
     this.col = world.createCollider(R.ColliderDesc.capsule(P.halfHeight, P.radius), this.body);
     this.kcc = world.createCharacterController(0.02);
-    this.kcc.enableAutostep(0.32, 0.25, false);
+    this.kcc.enableAutostep(MOVE.step, 0.2, false);
     this.kcc.enableSnapToGround(0.3);
     this.kcc.setMaxSlopeClimbAngle(50 * Math.PI / 180);
     this.kcc.setApplyImpulsesToDynamicBodies(true);
@@ -41,6 +46,7 @@ export class Player {
     this.runMul = 1;   // sprint potion
     this.invisT = 0; this.noDownT = 0; this.gongT = 0;
     this.landDip = 0; this.airT = 0; this.peak = null;
+    this.hv = { x: 0, z: 0 }; this.offGround = 99; this.jumpBuf = 0; this.stepOff = 0;
   }
 
   /** Take damage. At 0 hp the player goes down: the capsule stops, the camera rides a grabbable head (mass 9). */
@@ -125,21 +131,35 @@ export class Player {
     if (this.heavyT > 0) { this.heavyT = Math.max(0, this.heavyT - dt); speed *= 0.5; }   // the angel's swipe: heavy legs (foe-moves-c.js)
     if (this.torchOffT > 0) this.torchOffT = Math.max(0, this.torchOffT - dt);
     if (this.slowT > 0) { this.slowT = Math.max(0, this.slowT - dt); speed *= 0.6; }   // the nurse's syringe (bosses.js)
+    // floor traps (traps.js): ice freezes then slows, mud slows while you wade in it
+    if (this.freezeT > 0) { this.freezeT = Math.max(0, this.freezeT - dt); speed = 0; }
+    if (this.iceSlowT > 0) { this.iceSlowT = Math.max(0, this.iceSlowT - dt); speed *= 0.6; }
+    if (this.inMud) speed *= 0.5;
     if (this.inkT > 0) this.inkT = Math.max(0, this.inkT - dt);
 
     const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
     const nx = moving ? mx / Math.max(1, len) : 0, nz = moving ? mz / Math.max(1, len) : 0;
-    const pu = this.push; let wx = (nx * c - nz * s) * speed, wz = (-nx * s - nz * c) * speed;
+    const pu = this.push; let tx = (nx * c - nz * s) * speed, tz = (-nx * s - nz * c) * speed;
     if (this.heldBy) {   // held (wall hand, gacha): no walking; left/right alternately counts toward breaking free
-      wx = 0; wz = 0; const sd = Math.abs(cmd.mx) > 0.5 ? Math.sign(cmd.mx) : 0;
+      tx = 0; tz = 0; this.hv.x = this.hv.z = 0; const sd = Math.abs(cmd.mx) > 0.5 ? Math.sign(cmd.mx) : 0;
       if (sd && sd !== this.mashSide) { this.mashSide = sd; this.mash = (this.mash || 0) + 1; }
     }
+    // the body's own velocity chases the wanted one: on the ground at speed/accelT (or speed/decelT to stop), in the air at
+    // 60 % of that rate in the air (no braking there: momentum carries a jump)
+    { const hv = this.hv, dx = tx - hv.x, dz = tz - hv.z, dl = Math.hypot(dx, dz), want = Math.hypot(tx, tz), have = Math.hypot(hv.x, hv.z);
+      const air = !this.grounded && this.offGround > MOVE.coyote;
+      const ground = want > 0.01 ? Math.max(want, P.walk * 0.5) / MOVE.accelT : Math.max(have, P.walk) / MOVE.decelT, rate = air ? (want > 0.01 ? MOVE.air * ground : 0) : ground;   // air: 60 % of the ground's push, no braking
+      const k = dl > rate * dt ? rate * dt / dl : 1; hv.x += dx * k; hv.z += dz * k; }
+    let wx = this.hv.x, wz = this.hv.z;
     if (pu) { wx += pu.x; wz += pu.z; const k = Math.exp(-dt * 5); pu.x *= k; pu.z *= k; if (Math.abs(pu.x) + Math.abs(pu.z) < 0.05) this.push = null; }   // a shove (rook charge)
 
-    if (this.grounded && cmd.jump) {
+    // jump: the press is kept MOVE.buffer s; it fires on the ground or within MOVE.coyote s of leaving it (not mid-jump)
+    if (cmd.jump) this.jumpBuf = MOVE.buffer; else this.jumpBuf = Math.max(0, this.jumpBuf - dt);
+    if (this.jumpBuf > 0 && (this.grounded || (this.offGround <= MOVE.coyote && this.vy <= 0.01))) {
+      this.jumpBuf = 0;
       if (this.stamina >= JUMP.cost) {
         this.vy = P.jump * Math.sqrt(Math.min(1, this.speedMul));   // carrying: height x speedMul
-        this.stamina -= JUMP.cost; this.staminaWait = P.staminaDelay; this.jumps = (this.jumps || 0) + 1;
+        this.stamina -= JUMP.cost; this.staminaWait = P.staminaDelay; this.jumps = (this.jumps || 0) + 1; this.offGround = 99;
       } else this.jumpDenied = (this.jumpDenied || 0) + 1;
     }
     this.vy -= CFG.gravity * dt;
@@ -149,6 +169,20 @@ export class Player {
     const m = this.kcc.computedMovement();
     const wasAir = !this.grounded;
     this.grounded = this.kcc.computedGrounded();
+    // stay on the ground over a crest (a landing's edge onto a ramp at a run): the controller's own snap misses it on some
+    // frames, which threw the runner off the stair as a 1.8 m fall (tools/jump.js ramps); a floor within 0.4 m under the
+    // feet (the house's floor height map: ramps and floors, not furniture or doors) after a grounded frame, not jumping,
+    // pulls the body down onto it
+    if (!wasAir && !this.grounded && this.vy <= 0 && this.offGround < MOVE.coyote && this.groundAt) {
+      const t0 = this.body.translation(), x = t0.x + m.x, z = t0.z + m.z, feet = t0.y + m.y - P.halfHeight - P.radius, drop = feet - this.groundAt(x, z);
+      if (drop > 0.02 && drop < 0.4) { m.y -= drop - 0.01; this.grounded = true; this.vy = 0; this.crestSnaps = (this.crestSnaps || 0) + 1; }
+    }
+    this.offGround = this.grounded ? 0 : this.offGround + dt;
+    // on the ground the camera rides a smoothed copy of the feet height (steps, kerbs, the snap down off one); in the air it
+    // follows the body exactly (jumps and falls are not softened)
+    if (this.grounded && !wasAir) { this.stepOff = THREE.MathUtils.clamp(this.stepOff - m.y, -0.45, 0.45); this.stepOff *= Math.exp(-dt * MOVE.stepEase); }
+    else this.stepOff = 0;
+
     if (this.grounded && this.vy < 0) this.vy = 0;
     const t = this.body.translation();
     // falls: the highest feet height in the air, the drop on landing (a teleport, i.e. a jump the KCC did not make, resets it)
@@ -179,7 +213,7 @@ export class Player {
     }
     const t = this.body.translation();
     const bobY = Math.sin(this.bob * 2) * 0.035 * Math.min(1, this.horizSpeed / 3);
-    this.camPos.set(t.x, t.y - P.halfHeight - P.radius + this.eye + bobY - (this.landDip || 0), t.z);
+    this.camPos.set(t.x, t.y - P.halfHeight - P.radius + this.eye + bobY - (this.landDip || 0) + (this.stepOff || 0), t.z);
     cam.position.copy(this.camPos);
     cam.rotation.set(this.pitch, this.yaw, Math.sin(this.bob) * 0.006 * Math.min(1, this.horizSpeed / 3), 'YXZ');
   }

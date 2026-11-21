@@ -709,7 +709,8 @@ export class Foes {
         const t = it.body.translation();
         const half = CFG.loot.sizes[it.size]?.half || 0.2;
         const dx = f.x - t.x, dz = f.z - t.z, d = Math.hypot(dx, dz);
-        if (d > f.r + half * 1.2 + 0.25 || t.y > f.h + 0.3 || t.y < -0.2) continue;
+        const ry = t.y - (f.gy || 0);   // above the foe's own floor (was absolute y: thrown loot never hit on a basement or upper floor)
+        if (d > f.r + half * 1.2 + 0.25 || ry > f.h + 0.3 || ry < -0.2) continue;
         if ((dx * pv.x + dz * pv.z) <= 0) continue;   // moving away
         it.foeHitT = it.foeHitT || new Map();
         if (this.time - (it.foeHitT.get(f.id) ?? -9) < 0.5) continue;

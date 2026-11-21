@@ -89,6 +89,7 @@ export function makeText(THREE, { scale, mkNode }) {
       const cx = st.align === 'left' ? -e.padX + qw / 2 : st.align === 'right' ? e.padX - qw / 2 : 0;
       const cy = e.padT - qh / 2 + (mid ? e.innerH / 2 : 0);
       mesh.position.set(cx, cy, 0);
+      n.str = shown; // read by tools/text-fit-test.mjs
       n.w = e.innerW; n.h = e.innerH; n.canvas = e.canvas; n.quadW = qw; n.texels = e.texelsPerUnit; n.padT = e.padT; n.padB = e.padB;
     }
     n.set = (s) => { if (String(s) !== text0) apply(s); return n; };
@@ -99,5 +100,7 @@ export function makeText(THREE, { scale, mkNode }) {
     return n;
   }
   const reraster = () => { for (const r of live) r.redo(); };
-  return { text, reraster, stats: () => ({ cached: cache.size, live: live.size }) };
+  // advance width of a string in design units at the kit's font, without rasterising it
+  const measure = (str, size, weight = 900) => { meas.font = `${weight} ${size}px ${FAMILY}`; return meas.measureText(String(str)).width; };
+  return { text, reraster, measure, stats: () => ({ cached: cache.size, live: live.size }) };
 }

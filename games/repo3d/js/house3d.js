@@ -345,19 +345,22 @@ class Frame {
   constructor(b, cx, cz, q) { this.b = b; this.cx = cx; this.cz = cz; this.q = ((q % 4) + 4) % 4; const a = this.q * Math.PI / 2; this.cs = Math.round(Math.cos(a)); this.sn = Math.round(Math.sin(a)); }
   wx(lx, lz) { return this.cx + lx * this.cs + lz * this.sn; }
   wz(lx, lz) { return this.cz - lx * this.sn + lz * this.cs; }
+  // every primitive is also recorded (world x/z, floor-relative y) so the prop's colliders follow its real shape
   box(lx, y, lz, sx, sy, sz, col) {
     const odd = this.q & 1, w = odd ? sz : sx, d = odd ? sx : sz;
     const x = this.wx(lx, lz), z = this.wz(lx, lz);
     aabb(this.b, x - w / 2, y, z - d / 2, x + w / 2, y + sy, z + d / 2, col);
+    this.parts?.push({ t: 'box', x0: x - w / 2, y0: y, z0: z - d / 2, x1: x + w / 2, y1: y + sy, z1: z + d / 2 });
   }
   bev(lx, y, lz, sx, sy, sz, c, col) {
     const odd = this.q & 1, w = odd ? sz : sx, d = odd ? sx : sz;
     const x = this.wx(lx, lz), z = this.wz(lx, lz);
     bevel(this.b, x - w / 2, y, z - d / 2, x + w / 2, y + sy, z + d / 2, c, col);
+    this.parts?.push({ t: 'box', x0: x - w / 2, y0: y, z0: z - d / 2, x1: x + w / 2, y1: y + sy, z1: z + d / 2, bev: c });
   }
-  rock(lx, y, lz, rx, ry, rz, col, rnd, moss) { const odd = this.q & 1; rock(this.b, this.wx(lx, lz), y, this.wz(lx, lz), odd ? rz : rx, ry, odd ? rx : rz, col, rnd, moss); }
-  cyl(lx, y, lz, r0, r1, h, col, seg = 10) { cylinder(this.b, this.wx(lx, lz), y, this.wz(lx, lz), r0, r1, h, col, seg); }
-  ell(lx, y, lz, rx, ry, rz, col, seg = 8, rings = 5) { const odd = this.q & 1; ellipsoid(this.b, this.wx(lx, lz), y, this.wz(lx, lz), odd ? rz : rx, ry, odd ? rx : rz, col, seg, rings); }
+  rock(lx, y, lz, rx, ry, rz, col, rnd, moss) { const odd = this.q & 1, x = this.wx(lx, lz), z = this.wz(lx, lz); rock(this.b, x, y, z, odd ? rz : rx, ry, odd ? rx : rz, col, rnd, moss); this.parts?.push({ t: 'ell', x, y, z, rx: (odd ? rz : rx) * 0.85, ry: ry * 0.85, rz: (odd ? rx : rz) * 0.85, rock: true }); }
+  cyl(lx, y, lz, r0, r1, h, col, seg = 10) { const x = this.wx(lx, lz), z = this.wz(lx, lz); cylinder(this.b, x, y, z, r0, r1, h, col, seg); this.parts?.push({ t: 'cyl', x, y, z, r0, r1, h, seg }); }
+  ell(lx, y, lz, rx, ry, rz, col, seg = 8, rings = 5) { const odd = this.q & 1, x = this.wx(lx, lz), z = this.wz(lx, lz); ellipsoid(this.b, x, y, z, odd ? rz : rx, ry, odd ? rx : rz, col, seg, rings); this.parts?.push({ t: 'ell', x, y, z, rx: odd ? rz : rx, ry, rz: odd ? rx : rz }); }
 }
 
 // ------------------------------------------------------------------ prop classification and furniture
@@ -747,6 +750,32 @@ export function buildHouse(G, layout, theme) {
   const stairCols = new Set();   // ramp and landing colliders: foes and bots follow the height map instead
   const addBox = (x, y, z, hx, hy, hz, tag) => { const b = phys.fixedBox(x, y + curY, z, hx, hy, hz); bodies.push(b); stats.colliders++; if (tag === 'stair') stairCols.add(b); return b; };
   const walk = (x, y) => x >= 0 && y >= 0 && x < W && y < Hh && (grid[y * W + x] === 1 || grid[y * W + x] === 3);
+  // A prop's colliders from the primitives furnish() drew (Frame parts): boxes as rounded boxes (2.5 cm edges, so robots
+  // and carts slide off corners), cylinders and frustums as hulls of their rings, ellipsoids and rocks as hulls. Thin trim
+  // (under 3.5 cm) and flat bits (under 6 cm high) get none. One fixed body per prop.
+  const propBody = (parts, y0) => {
+    const R = phys.R, world = phys.world; if (!parts || !parts.length) return null;
+    const body = world.createRigidBody(R.RigidBodyDesc.fixed()); let n = 0;
+    const hull = (pts, x, y, z) => { const d = R.ColliderDesc.convexHull(new Float32Array(pts)); if (d) { world.createCollider(d.setTranslation(x, y, z), body); n++; } };
+    for (const p of parts) {
+      if (p.t === 'box') {
+        const w = p.x1 - p.x0, h = p.y1 - p.y0, d = p.z1 - p.z0; if (Math.min(w, h, d) < 0.035 || p.y1 < 0.06) continue;
+        const r = Math.min(0.025, w * 0.2, h * 0.2, d * 0.2);
+        world.createCollider(R.ColliderDesc.roundCuboid(w / 2 - r, h / 2 - r, d / 2 - r, r).setTranslation((p.x0 + p.x1) / 2, y0 + (p.y0 + p.y1) / 2, (p.z0 + p.z1) / 2), body); n++;
+      } else if (p.t === 'cyl') {
+        if (p.h < 0.035 || Math.max(p.r0, p.r1) < 0.02 || p.y + p.h < 0.06) continue;
+        const seg = Math.max(8, p.seg || 10), pts = [];
+        for (let i = 0; i < seg; i++) { const a = i / seg * Math.PI * 2; pts.push(Math.cos(a) * p.r0, 0, Math.sin(a) * p.r0, Math.cos(a) * p.r1, p.h, Math.sin(a) * p.r1); }
+        hull(pts, p.x, y0 + p.y, p.z);
+      } else {
+        if (Math.min(p.rx, p.ry, p.rz) < 0.02 || p.y + p.ry < 0.06) continue;
+        const pts = []; for (let i = 0; i < 10; i++) for (let j = 1; j < 6; j++) { const a = i / 10 * Math.PI * 2, b = j / 6 * Math.PI; pts.push(Math.cos(a) * Math.sin(b) * p.rx, Math.cos(b) * p.ry, Math.sin(a) * Math.sin(b) * p.rz); }
+        pts.push(0, p.ry, 0, 0, -p.ry, 0); hull(pts, p.x, y0 + p.y, p.z);
+      }
+    }
+    if (!n) { world.removeRigidBody(body); return null; }
+    bodies.push(body); stats.colliders += n; return body;
+  };
   const isWall = (x, y) => x >= 0 && y >= 0 && x < W && y < Hh && grid[y * W + x] === 2;
 
   // ---- materials
@@ -951,12 +980,13 @@ export function buildHouse(G, layout, theme) {
       if (/backview/.test(nm)) q += 2;
     }
     rec.q = q;
-    const F = new Frame(pb, rec.cx, rec.cz, q);
+    const F = new Frame(pb, rec.cx, rec.cz, q); F.parts = rec.parts = [];
     furnish(F, G, { ...cls, h: hh }, L, D, { ...pal, theme }, r);
     if (cls.cat === 'lamp' || cls.cat === 'fireplace' || /portal/.test(nm)) lampPush({ x: rec.cx, z: rec.cz, y: hh + 0.1, color: lampColorFor(nm), i: 10, d: 11 });
     const trim = cls.cat === 'fence' ? 0.12 : 0.04;
     const fw = cls.cat === 'fence' ? (p.w >= p.h ? p.w : 0.2) : p.w, fd = cls.cat === 'fence' ? (p.w >= p.h ? 0.2 : p.h) : p.h;
-    if (cls.cat !== 'water') { addBox(rec.cx, hh / 2, rec.cz, fw / 2 - trim / 2, hh / 2, fd / 2 - trim / 2); stats.propColliders++; }
+    if (cls.cat !== 'water') { const b = propBody(rec.parts, curY); if (b) { rec.bodies = [b]; stats.propColliders++; } }   // its own shape, not its grid cells (tools/decor.js)
+    rec.y0 = curY;
     // a stair room is two floors tall: a robot dropped from the landing could stand on a tall prop out of a foe's reach
     // (1.6 m up; tools/jump.js). Its air is closed off up to the stair ceiling, as a normal room's ceiling does at H.
     const stR = stairOfRoom.get(roomOf[Math.floor(rec.cz) * W + Math.floor(rec.cx)]);
@@ -1221,6 +1251,8 @@ export function buildHouse(G, layout, theme) {
   let tNow = 0;
   function step(dt, pos, others = []) {
     for (const d of doorList) {
+      // a blow on a jammed door rattles its leaves (melee.js); it stays shut
+      if (d.rattleT > 0) { d.rattleT = Math.max(0, d.rattleT - dt); const w = Math.sin(tNow * 70) * 0.05 * d.rattleT / 0.35; for (const lf of d.leaves) lf.pivot.rotation.y = (lf.theta || 0) + w; }
       if (d.jammed) continue;
       // nearest opener of THIS door; a local, so the next door measures from the player again
       let who = pos, dist = Math.hypot(pos.x - d.cx, pos.z - d.cz);
@@ -1239,7 +1271,8 @@ export function buildHouse(G, layout, theme) {
       } else if (dist > 3.4 && d.target === 1) d.target = 0;
       const goal = d.target ? 1.75 : 0;
       if (d.open !== goal) {
-        const sp = 3.2 * dt;
+        const sp = 3.2 * dt * (d.slamT > 0 ? 6 : 1);   // a punched door bangs open six times as fast (melee.js slamT)
+        if (d.slamT > 0) d.slamT = Math.max(0, d.slamT - dt);
         d.open = d.open < goal ? Math.min(goal, d.open + sp) : Math.max(goal, d.open - sp);
         for (const lf of d.leaves) {
           // rotating the leaf direction e by theta about Y gives derivative (ez, -ex); choose the sign that moves it along n
@@ -1318,7 +1351,7 @@ export function buildHouse(G, layout, theme) {
 
   return {
     unjam, jammedNear, doorRecs: doorList,
-    props: propRecs.map((r) => ({ cat: r.cls.cat, n: r.cls.n, x: r.cx, z: r.cz, w: r.p.w, d: r.p.h, h: r.cls.h, blocks: !!r.p.blocks, q: r.q ?? 0 })),
+    props: propRecs.map((r) => ({ cat: r.cls.cat, n: r.cls.n, x: r.cx, z: r.cz, w: r.p.w, d: r.p.h, h: r.cls.h, parts: r.parts || [], bodies: r.bodies || [], y0: r.y0 || 0, blocks: !!r.p.blocks, q: r.q ?? 0 })),
     spawn, pads, rooms: roomInfo, doors: doorList.map((d) => ({ x: d.cx, z: d.cz, dir: d.door.dir, jammed: d.jammed, a: d.door.a, b: d.door.b })),
     step, update, dispose, stats, layout, theme, lamps, setDim, root,
     levels, stairCols, heightAt: (x, z) => floorHeightAt(layout, x, z), floorAt: (x, z) => (FL ? FL[Math.floor(z) * W + Math.floor(x)] || 0 : 0),

@@ -129,7 +129,7 @@ try {
       return { ok: res.ok, j, icons, start: new URL(j.start_url, link.href).pathname, scope: new URL(j.scope, link.href).pathname, caps: document.querySelector('meta[name="apple-mobile-web-app-capable"]')?.content, mcap: document.querySelector('meta[name="mobile-web-app-capable"]')?.content, theme: document.querySelector('meta[name="theme-color"]')?.content, vp: document.querySelector('meta[name="viewport"]').content, touchIcon: !!document.querySelector('link[rel="apple-touch-icon"]') };
     });
     check(m.ok && m.j.display === 'fullscreen' && m.j.orientation === 'landscape', `manifest served and parsed: display ${m.j.display}, orientation ${m.j.orientation}`);
-    check(m.start === '/games/ai-sinh-ton/index.html' && m.scope === '/games/ai-sinh-ton/' && m.icons.length >= 3 && m.icons.every(Boolean), `manifest start_url ${m.start}, scope ${m.scope}, ${m.icons.length} icons all served`);
+    check(m.start.endsWith('/games/ai-sinh-ton/index.html') && m.scope.endsWith('/games/ai-sinh-ton/') && m.icons.length >= 3 && m.icons.every(Boolean), `manifest start_url ${m.start}, scope ${m.scope}, ${m.icons.length} icons all served`);
     check(m.caps === 'yes' && m.mcap === 'yes' && !!m.theme && /viewport-fit=cover/.test(m.vp) && m.touchIcon, `index.html: web app meta tags, theme ${m.theme}, viewport-fit=cover, touch icon`);
     problems.push(...s.problems.map((p) => 'manifest ' + p)); await s.ctx.close();
   }

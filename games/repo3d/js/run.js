@@ -4,6 +4,7 @@ import { generateHouse } from './housegen.js';
 import { buildHouse } from './house3d.js';
 import { Foes } from './foes.js';
 import { buildTruck } from './truck.js';
+import { Traps } from './traps.js';
 import { buildStation } from './station.js';
 import { navFor } from './nav.js';
 import { HudX, Ring } from './hudx.js';
@@ -113,6 +114,7 @@ export class Runner {
     G.bots?.dispose(); G.bots = null;
     G.scan?.reset();
     G.cart?.dispose(); G.cart = null;
+    G.traps?.dispose(); G.traps = null;
     G.skills?.clear();
     G.foes?.dispose(); G.foes = null;
     G.truck?.dispose(); G.truck = null;
@@ -168,6 +170,7 @@ export class Runner {
       }
       if (R.mates?.length) G.bots = new Bots(G, R.mates);
       G.cart = this.parkCart(house);   // one push cart by the truck (design-inventory 3)
+      if (this.opts.traps !== false) G.traps = new Traps(G, house);   // floor traps from the room prefabs (traps.js)
       // quota: sum of value0 of the floor loot, split equally per pad
       const items = G.loot.items.filter((i) => !i.dead);
       const lootSum = items.reduce((s, i) => s + i.value0, 0);

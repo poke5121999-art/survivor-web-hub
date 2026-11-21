@@ -43,3 +43,12 @@ Hai action `guard` (đọc `cd_cost_guard` và `cd_cost_meter` tháng này, thá
 ## Phát hành & bảo trì
 
 Hai action `gate` (đọc doc `default` của `cd_client_gate`; chưa có doc hay thiếu trường thì trả giá trị tắt cổng, kèm `exists`) và `gate_save` (kiểm cả doc: `maintenance.on` boolean, `message` chuỗi tối đa 300 ký tự, `until` null hoặc giờ UTC ISO-8601 có `Z`, `netMaintenance.eos` và `netMaintenance.utp` (bảo trì mạng EOS và Netcode, mỗi mục đúng ba trường on, message, until như maintenance; doc cũ thiếu trường này thì đọc ra tắt), `minBuild.webgl/android/ios` số nguyên 0..10^9, `storeUrls.android/ios` trống hoặc link https; thừa hay thiếu trường là 400; rồi `/data/update`, chưa có doc thì `/data/insert`). Trang chặn thêm bản web tối thiểu lớn hơn `build` trong `games/repo2d-unity/version.json` (chưa có file thì bỏ qua); proxy không kiểm điều này.
+
+## Đẩy LIVE
+
+Ba action `live`, `live_push`, `live_clear` (không mang tên bảng). Bảng `md_*` nằm trong snapshot nên đổi số trên LIVE cần snapshot mới; server cloudcode có lớp ghi đè cho một danh sách ngắn "trường nóng" (collection runtime `cd_live_tune`). Hai sự kiện `LIVE_TUNE_GET` và `LIVE_TUNE_SET` (quyền `server`, gọi `POST <base>/rpc/<project>`) được ký bằng khoá SERVER của project LIVE, khác khoá admin/MCP; ký đúng chuỗi byte gửi đi (`signRpc` trong `core.js`, có vector kiểm trong `test/design-live-tune.js`).
+
+- `live`: gọi `LIVE_TUNE_GET`, đọc các bảng DEV tương ứng bằng khoá admin, trả `rows[]` gồm `dev`, `live` (số người chơi đang nhận), `md`, `override`, `differs`.
+- `live_push { keys }`: số ghi lên LIVE luôn là số đọc lại từ DEV, không tin số từ trình duyệt; `by` = email designer. `live_clear { keys }`: bỏ ghi đè, về số snapshot. Khoá lạ hoặc `dev` null là 400 INVALID. Lỗi từ server LIVE (TUNE_NOT_HOT, ...) trả 502 GAMESPARK kèm mã.
+
+Biến môi trường (tuỳ chọn; thiếu thì ba action trả 503 `LIVE_NOT_CONFIGURED`, các action khác vẫn chạy): `GS_LIVE_BASE`, `GS_LIVE_PROJECT`, `GS_LIVE_SERVER_KEY`, `GS_LIVE_SERVER_SECRET`. Dev server đọc cùng bốn biến này, email gửi làm `by` lấy từ `DESIGNER_EMAIL`.

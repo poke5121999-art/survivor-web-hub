@@ -44,7 +44,7 @@ const CASES = {
     const linh = walk('linh'), bao = walk('bao');
     return { ok: linh > 0 && Math.abs(linh / bao - 0.5) < 0.01, linh: +linh.toFixed(2), bao: +bao.toFixed(2) }; })()`,
   'dung: a foe blow does not cut the carried value': `(() => { const hit = (lead) => { T.fresh(lead); const pr = T.pair(3); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
-      const it = G.loot.spawn({ material: 'ceramic', size: 'small', value: 1000, pos: { x: pr.a.x + pr.dir.x * 1.2, y: 1.2, z: pr.a.z + pr.dir.z * 1.2 } }); G.grab.attach(it, it.body.translation(), 1.2);
+      const it = G.loot.spawn({ material: 'ceramic', size: 'small', value: 1000, pos: { x: pr.a.x + pr.dir.x * 1.2, y: G.house.heightAt(pr.a.x, pr.a.z) + 1.2, z: pr.a.z + pr.dir.z * 1.2 } }); G.grab.attach(it, it.body.translation(), 1.2);
       const f = G.foes.spawn('gunner', pr.a.x + pr.dir.x * 0.9, pr.a.z + pr.dir.z * 0.9, { state: 'chase' }); f.yaw = Math.atan2(pr.a.x - f.x, pr.a.z - f.z); f.aware = 1; f.lastSeen = { x: pr.a.x, z: pr.a.z };
       let n = 0; while (n++ < 180 && P.hp >= 100) __sim(1 / 60, { ...__IDLE, grab: true }); const v = it.dead ? 0 : it.value; G.grab.release(false); return { v, hp: P.hp }; };
     const d = hit('dung'), b = hit('bao');
@@ -67,8 +67,8 @@ const CASES = {
   'khoi: the torch reaches 15 % further': `(() => { T.fresh('khoi'); __sim(0.1); const k = G.torch.distance; T.fresh('bao'); __sim(0.1); const b = G.torch.distance;
     return { ok: Math.abs(k / b - 1.15) < 0.001, khoi: k, bao: b }; })()`,
   'van: a foe hit by your throw is slowed 25 % for 2 s': `(() => { const hit = (lead) => { T.fresh(lead); const pr = T.pair(6); T.put(pr.a.x, pr.a.z, pr.b.x, pr.b.z);
-      const f = G.foes.spawn('mummy', pr.b.x, pr.b.z, { state: 'patrol' }); f.yaw = Math.atan2(pr.a.x - f.x, pr.a.z - f.z);
-      const it = G.loot.spawn({ material: 'wood', size: 'medium', value: 2000, pos: { x: f.x - pr.dir.x * 0.9, y: 0.7, z: f.z - pr.dir.z * 0.9 } });
+      const f = G.foes.spawn('mummy', pr.b.x, pr.b.z, { state: 'patrol' }); f.yaw = Math.atan2(pr.a.x - f.x, pr.a.z - f.z); f.cdT = 99;   // cdT: no tether throw (foe-moves-b.js), it just walks
+      const it = G.loot.spawn({ material: 'wood', size: 'medium', value: 2000, pos: { x: f.x - pr.dir.x * 0.9, y: G.house.heightAt(f.x, f.z) + 0.7, z: f.z - pr.dir.z * 0.9 } });
       it.body.setLinvel({ x: pr.dir.x * 9, y: 0, z: pr.dir.z * 9 }, true); __sim(0.25);
       const slow = f.slowT || 0; f.aware = 1; f.lastSeen = { x: pr.a.x, z: pr.a.z }; f.seen = true; G.foes.setState(f, 'chase');
       __sim(0.5); return { slow: +slow.toFixed(2), speed: +f.moveSpeed.toFixed(2) }; };
@@ -96,7 +96,7 @@ const CASES = {
       const page = await ctx.newPage(); const logs = [];
       page.on('console', (m) => { if (m.type() === 'error') logs.push(m.text()); });
       page.on('pageerror', (e) => logs.push('pageerror: ' + e.message));
-      await page.goto(srv.base + '/games/repo3d/index.html?house=1&seed=7&foes=none&bots=tam:loot' + q);
+      await page.goto(srv.base + '/games/repo3d/index.html?house=1&seed=7&foes=none&traps=0&bots=tam:loot' + q);
       await page.waitForFunction('window.__ready === true || window.__fatal', null, { timeout: 60000 });
       const fatal = await page.evaluate('window.__fatal || null'); if (fatal) throw new Error('fatal: ' + fatal);
       await page.evaluate(HELP);

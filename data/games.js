@@ -967,7 +967,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/ai-sinh-ton.png",
     // three.js r160, không asset: xem games/ai-sinh-ton/README.md. Kiểm: sh games/ai-sinh-ton/tools/all.sh
     path: "games/ai-sinh-ton/index.html",
-    rev: "20261120d",
+    rev: "20261120f",
     status: "available",
     tags: ["Đấu tự động", "Zombie", "Màn ngang"]
   },
@@ -1162,9 +1162,9 @@ window.HUB_GAMES = [
     accent: "#ff3a2a",
     en: { title: "Night Shift 3D", tagline: "Sneak into dark houses and beam the loot to the pad before the zombie robots grab you.", desc: "A first-person 3D take on Night Shift: Squad, built entirely in code. A crew of worker robots clears 5 multi-storey houses, hauling loot to the pad with a grab beam or a cart to meet the quota; knocks cost value. Red-eyed zombie robots each have their own moves, with bosses from house 3. Punching, jumping, station gear, 14 characters and bot mates." },
     thumbnail: "assets/thumbnails/repo3d.png",
-    // Nguồn làm việc: repo private poke5121999-art/repo3d (Windows D:/repo3d, linux ~/repo3d). Bản thử để chủ dự án xem, còn đang làm tiếp (docs/parity.md).
+    // Nguồn làm việc: repo private poke5121999-art/repo3d (Windows D:/repo3d, linux ~/repo3d). Bản thử để chủ dự án xem (repo3d 7e5adc2), còn đang làm tiếp (docs/parity.md).
     path: "games/repo3d/index.html",
-    rev: "20261119d",
+    rev: "20261120e",
     status: "available",
     tags: ["Dựng thử", "Kinh dị", "Góc nhìn thứ nhất"]
   }

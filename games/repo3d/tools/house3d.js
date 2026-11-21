@@ -93,7 +93,7 @@ const STAIRS = `(() => {
 (async () => {
   const srv = await serve();
   const br = await pwLaunch();
-  const kill = setTimeout(() => { console.log('FAIL timeout 180 s'); process.exit(2); }, 180000);
+  const kill = setTimeout(() => { console.log('FAIL timeout 300 s'); process.exit(2); }, 300000);   // 25 houses ran 175-181 s once decor got per-part colliders; fps is gated per house
   const rows = [];
   try {
     for (const theme of THEMES) for (const hi of HOUSES) {
