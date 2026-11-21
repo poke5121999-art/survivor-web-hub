@@ -41,11 +41,13 @@ const py = (src, ...args) => execFileSync('python3', ['-c', src, ...args], { max
 const PREP = () => { const H = window.__G.host; if (!H.__r) { H.__r = H.render; H.render = () => H.__r(null); } const sc = window.__G.screens && window.__G.screens[window.__G.screen]; void sc; for (let i = 0; i < 4; i++) window.__step(2); };
 const ONLY = ([names]) => { const H = window.__G.host; H.scene.children.forEach((o) => { if (o.isLight || o.isCamera) return; if (o.__vis === undefined) o.__vis = o.visible; o.visible = names ? names.includes(o.name) : o.__vis; }); window.__step(1); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); };
 // rings over the bare floor: everything but the floor (island or old floor), its surroundings and the team rings is hidden,
-// so the with/without difference is the rings alone (no rain, particles or flicker between the two frames)
+// so the with/without difference is the rings alone (no rain, particles or flicker between the two frames).
+// The frame is drawn with the host's render alone, not __step: a view step (actors.sync) sets each hero disc back to
+// visible = alive, so a stepped "off" frame still showed the hero discs and only the enemy rims were measured
 const RINGS = ([on]) => { const H = window.__G.host; const isRing = (o) => { const p = o.geometry && o.geometry.type === 'RingGeometry' && o.geometry.parameters; return !!p && (Math.abs(p.innerRadius - 0.5) < 1e-3 || Math.abs(p.innerRadius - 0.62) < 1e-3); };
   if (H.__bg === undefined) H.__bg = H.scene.background;
   H.scene.background = on === 'mask' ? new H.THREE.Color(0) : H.__bg; if (on === 'mask') H.renderer.setClearColor(0, 1); else if (H.__bg && H.__bg.isColor) H.renderer.setClearColor(H.__bg, 1);
-  window.__G.paused = true; H.scene.children.forEach((o) => { if (o.isLight || o.isCamera) return; if (o.__vis === undefined) o.__vis = o.visible; o.visible = on === null ? o.__vis : (isRing(o) ? on !== 'off' : on !== 'mask' && ['island', 'abyss', 'floor', 'fog'].includes(o.name)); }); window.__step(1); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); };
+  window.__G.paused = true; H.scene.children.forEach((o) => { if (o.isLight || o.isCamera) return; if (o.__vis === undefined) o.__vis = o.visible; o.visible = on === null ? o.__vis : (isRing(o) ? on !== 'off' : on !== 'mask' && ['island', 'abyss', 'floor', 'fog'].includes(o.name)); }); if (on === null) window.__step(1); else H.render(); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); };
 
 // world data seen through the game's own camera
 const PROBE = () => {
@@ -127,7 +129,9 @@ function shapeOf(outline, ell) {
 }
 
 async function look(br, base, phone, stage, wave, tag, deep) {
-  const r = await openPage(br, base, phone, `autostart=1&stage=${stage}&wave=${wave}&noaudio=1&seed=${stage}`, { path: base === BEFORE_BASE ? undefined : GPATH });
+  // frozen (pw.mjs): the game's own loop never runs, so __sim(3) starts from the fight's first tick on every run; before,
+  // the fight had played in real time for a load-dependent stretch first and the enemy count under the rings varied
+  const r = await openPage(br, base, phone, `autostart=1&stage=${stage}&wave=${wave}&noaudio=1&seed=${stage}`, { path: base === BEFORE_BASE ? undefined : GPATH, freeze: true });
   const { page } = r; await page.evaluate(([s]) => window.__sim(s), [wave === 5 ? 7 : 3]);
   await page.evaluate(PREP); await page.evaluate(() => { window.__G.paused = true; window.__step(2); });
   const f = path.join(OUT, `${tag}.png`); await page.locator('#frame').screenshot({ path: f });
