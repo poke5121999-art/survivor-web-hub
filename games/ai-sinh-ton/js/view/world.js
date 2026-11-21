@@ -117,20 +117,22 @@ export function createWorld(H) {
     if (!H.hemi) return;
     H.hemi.color.set(th.hemi.sky); H.hemi.groundColor.set(th.hemi.ground); H.hemi.intensity = th.hemi.k;
     H.sun.color.set(th.sun.color); H.sun.intensity = th.sun.k;
-    if (boss) { H.hemi.color.lerp(new THREE.Color(0xff6a50), 0.22); H.sun.color.lerp(new THREE.Color(0xff5a30), 0.3); }
+    if (boss) { const B = th.boss || {}; H.hemi.color.lerp(new THREE.Color(B.hemi || 0xff6a50), 0.22); H.sun.color.lerp(new THREE.Color(B.sun || 0xff5a30), 0.3); }
   }
 
   const delta = (i, j) => { const a = W.map.centres[i]; const b = W.map.centres[j]; return { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z }; };
   const themeAt = (i) => { const th = W.theme; return { ...th, abyss: { ...th.abyss, y: th.abyss.y - W.map.centres[i].y } }; };
 
   // the boss pad is baked warmer and redder than the wave pads: the climax changes tone, it does not only get brighter
-  const bossTheme = (t) => ({ ...t, amb: { sky: [t.amb.sky[0] * 1.32, t.amb.sky[1] * 0.8, t.amb.sky[2] * 0.62], ground: [t.amb.ground[0] * 1.9, t.amb.ground[1] * 0.8, t.amb.ground[2] * 0.6] }, key: { ...t.key, color: [t.key.color[0] * 1.4, t.key.color[1] * 0.9, t.key.color[2] * 0.6] } });
+  // a theme's `boss` table overrides any of this (top, centre, amb, key) and sets the glow from below (deep {color, glowC}) and the
+  // units' light (hemi, sun); its `pre` table overrides the same fields on pad 4, which leans toward the boss look
+  const bossTheme = (t) => ({ ...t, amb: { sky: [t.amb.sky[0] * 1.32, t.amb.sky[1] * 0.8, t.amb.sky[2] * 0.62], ground: [t.amb.ground[0] * 1.9, t.amb.ground[1] * 0.8, t.amb.ground[2] * 0.6] }, key: { ...t.key, color: [t.key.color[0] * 1.4, t.key.color[1] * 0.9, t.key.color[2] * 0.6] }, ...t.boss });
   // the fight pad of section i (data only; meshed when the section is built)
   function mainOf(i) {
     const S = secs[i]; if (S.main) return S.main;
     const g = []; if (i < SECTIONS - 1) g.push(W.map.gates[i]); if (i > 0) g.push(W.map.gates[i - 1] + Math.PI);
     const boss = i === SECTIONS - 1; const k = boss ? BOSS_K : 1;
-    S.main = buildPad({ theme: boss ? bossTheme(themeAt(i)) : themeAt(i), seed: stageN * 17 + 3 + i * 101, centre: { x: 0, y: 0, z: 0 }, ellipse: { x: ARENA.x * k, z: ARENA.z * k }, fight: true, boss, gates: g });
+    S.main = buildPad({ theme: boss ? bossTheme(themeAt(i)) : i === SECTIONS - 2 ? { ...themeAt(i), ...W.theme.pre } : themeAt(i), seed: stageN * 17 + 3 + i * 101, centre: { x: 0, y: 0, z: 0 }, ellipse: { x: ARENA.x * k, z: ARENA.z * k }, fight: true, boss, gates: g });
     return S.main;
   }
 
@@ -167,8 +169,9 @@ export function createWorld(H) {
       S.bridges.push(b); main.bridges.push(b);
     }
     const all = [...main.lights, ...sats.flatMap((s) => s.lights), ...S.bridges.flatMap((b) => b.lights)];
-    // the boss pad glows from below: warm light climbing its cliffs on the far side and both flanks
-    if (boss) for (let k = 0; k < 7; k++) { const a = Math.PI + (k / 6) * Math.PI; const e = main.edgeAt(a); all.push({ kind: 'deep', x: e.x + Math.cos(a) * 1.6, y: -2.6, z: e.z + Math.sin(a) * 1.6, ground: -3.2, color: [1.0, 0.36, 0.12], r: 7, k: 1.3, warm: 1, glow: 3.0, glowC: 0xff5a20 }); }
+    // the boss pad glows from below: light (warm unless the theme's boss.deep says otherwise) climbing its cliffs on the far side and both flanks
+    const deep = (th.boss && th.boss.deep) || { color: [1.0, 0.36, 0.12], glowC: 0xff5a20 };
+    if (boss) for (let k = 0; k < 7; k++) { const a = Math.PI + (k / 6) * Math.PI; const e = main.edgeAt(a); all.push({ kind: 'deep', x: e.x + Math.cos(a) * 1.6, y: -2.6, z: e.z + Math.sin(a) * 1.6, ground: -3.2, color: deep.color, r: 7, k: 1.3, warm: deep.color[0] > deep.color[2] ? 1 : 0, glow: 3.0, glowC: deep.glowC }); }
     const g = new THREE.Group(); g.name = 'section' + i; g.add(main.build(all)); for (const s of sats) g.add(s.build(all));
     for (const m of g.children) { m.matrixAutoUpdate = true; }
     root.add(g); S.group = g; S.sats = sats; S.lights = all; S.buildMs = performance.now() - t0; W.buildMs += S.buildMs;
