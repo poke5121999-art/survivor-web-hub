@@ -2,12 +2,12 @@
 // account level top-right, the warm backdrop) and the Ra Trận tab. The other menu screens (heroes.js, gacha.js, soon.js)
 // never draw the chrome: they only name themselves in MENU. Their content lives right of RAIL.right (106) and below the
 // counters (y 48) on the right; the toast sits top-centre (ui.toastAt).
-import { stageDef, expectedLevel } from '../data/stages.js?v=20261120e';
-import { HERO } from '../data/heroes.js?v=20261120e';
-import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261120e';
-import { createDiorama } from './diorama.js?v=20261120e';
-import { lockButton } from './guide.js?v=20261120e';
-import { xpNeed } from '../data/unlocks.js?v=20261120e';
+import { stageDef, expectedLevel } from '../data/stages.js?v=20261120f';
+import { HERO } from '../data/heroes.js?v=20261120f';
+import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261120f';
+import { createDiorama } from './diorama.js?v=20261120f';
+import { lockButton } from './guide.js?v=20261120f';
+import { xpNeed } from '../data/unlocks.js?v=20261120f';
 
 export const MENU = ['home', 'heroes', 'hero', 'gacha', 'equip', 'rewards'];
 // rail geometry in design units: buttons start at x, the backdrop panel ends at right; content starts at right + 8

@@ -1,11 +1,12 @@
 // Draws the sim's units: four Blockade Z heroes, the zombie pool in puppet mode, and a few code-built summons.
 // sync(B, dt) is called once per rendered frame after the sim ticks; onEvent(e) is called for every sim event.
-import { CAST_KEY, SWING_HOLDS, FLY_Y } from './keys.js?v=20261120e';
-import { createMarks } from './marks.js?v=20261120e';
-import { createFxMap } from './fxmap.js?v=20261120e';
-import { createHorde } from './horde.js?v=20261120e';
-import { arrive } from './arrival.js?v=20261120e';
-import { attachGrip, solveGrip } from './grip.js?v=20261120e';
+import { CAST_KEY, SWING_HOLDS, FLY_Y } from './keys.js?v=20261120f';
+import { createMarks } from './marks.js?v=20261120f';
+import { createFxMap } from './fxmap.js?v=20261120f';
+import { createHorde } from './horde.js?v=20261120f';
+import { arrive } from './arrival.js?v=20261120f';
+import { attachGrip, solveGrip } from './grip.js?v=20261120f';
+import { actFor, stepAct, usePool } from './bossacts.js?v=20261120f';
 
 const THREE = window.THREE;
 const BZ = window.BZ;
@@ -18,74 +19,13 @@ const SUMMON_LOOK = { drone: 2.1, turret: 0.9, cannon: 0.9, wolf: 0.5 };
 
 const wrap = BZ.wrapAngle;
 
-// ---- skill poses of the five older bosses (plain zombie bodies and the spider rig: the pool's own poser knows no skills) ----
-// Data shape: BOSS_POSE['<enemy kind>:<skill fx>'] names a pose; POSES[name](body, k, w) edits the limbs the pool just posed,
-// k is the progress 0..1 of the cast and w the blend weight (ramps in fast, out slowly). `lean` pitches the whole body.
-const BOSS_POSE = {
-  'giant:boss_slam': 'slam', 'giant:roar': 'roar', 'giant:rockfall': 'stomp',
-  'thrower:rockfall': 'throw', 'thrower:roar': 'roar', 'thrower:boulder_roll': 'throw',
-  'phantom:phase': 'conjure', 'phantom:shards': 'conjure', 'phantom:wail': 'screech',
-  'queen:screech': 'screech', 'queen:dive': 'lunge', 'queen:sonic': 'screech', 'queen:drain': 'conjure',
-  'brood:eggs': 'rear', 'brood:web_spit': 'rear', 'brood:boss_slam': 'rear', 'brood:acid_sea': 'rear',
-};
-// the six kit bosses play their own moves; these moves are mostly a glow or a shot with little body motion, so they get a body lean on top
-const KIT_LEAN = { plasma: 'brace', laser: 'brace', eyebeam: 'brace', breath: 'brace', tractor: 'brace', blooddash: 'surge', charge: 'surge', dive: 'surge', bomb: 'sway', invade: 'sway', emp: 'sway' };
-const mix = (a, b, w) => a + (b - a) * w;
-const seg = (k, a, b) => BZ.smooth(Math.min(1, Math.max(0, (k - a) / (b - a))));
-const POSES = {
-  slam(b, k, w) { // both arms overhead, then down onto the ground in front
-    const up = seg(k, 0, 0.5), dn = seg(k, 0.5, 0.65), a = mix(mix(-1.5, -2.9, up), -0.5, dn);
-    b.armL.rotation.x = mix(b.armL.rotation.x, a, w); b.armR.rotation.x = mix(b.armR.rotation.x, a, w);
-    b.torso.rotation.x = mix(b.torso.rotation.x, mix(-0.3 * up, 0.55, dn), w); b.hips.rotation.x += w * 0.2 * dn;
-  },
-  stomp(b, k, w) { // a knee up, the foot down hard, the arms thrown low
-    const up = seg(k, 0, 0.45), dn = seg(k, 0.45, 0.6);
-    b.legL.rotation.x = mix(b.legL.rotation.x, mix(-1.1 * up, 0.1, dn), w);
-    b.armL.rotation.x = mix(b.armL.rotation.x, -1.6 * up + 0.4 * dn, w); b.armR.rotation.x = mix(b.armR.rotation.x, -1.6 * up + 0.4 * dn, w);
-    b.torso.rotation.x = mix(b.torso.rotation.x, -0.2 * up + 0.35 * dn, w);
-  },
-  roar(b, k, w) { // head back, chest out, arms flung wide and shaking
-    const s = Math.sin(k * 60) * 0.05;
-    b.head.rotation.x = mix(b.head.rotation.x, -0.8, w); b.torso.rotation.x = mix(b.torso.rotation.x, -0.3, w);
-    b.armL.rotation.x = mix(b.armL.rotation.x, -0.5 + s, w); b.armR.rotation.x = mix(b.armR.rotation.x, -0.5 - s, w);
-    b.armL.rotation.z = mix(b.armL.rotation.z, -1.3, w); b.armR.rotation.z = mix(b.armR.rotation.z, 1.3, w);
-  },
-  throw(b, k, w) { // the right arm cocked far back, whipped forward, the body twisting through
-    const back = seg(k, 0, 0.5), fwd = seg(k, 0.5, 0.65);
-    b.armR.rotation.x = mix(b.armR.rotation.x, mix(mix(-1.5, -3.0, back), -0.5, fwd), w); b.armL.rotation.x = mix(b.armL.rotation.x, -1.5, w);
-    b.torso.rotation.y = mix(b.torso.rotation.y, mix(0.6 * back, -0.5, fwd), w); b.torso.rotation.x = mix(b.torso.rotation.x, 0.4 * fwd - 0.2 * back, w);
-  },
-  conjure(b, k, w) { // both arms raised, hands shaking, the head tipped up
-    const sh = Math.sin(k * 50) * 0.08;
-    b.armL.rotation.x = mix(b.armL.rotation.x, -2.5 + sh, w); b.armR.rotation.x = mix(b.armR.rotation.x, -2.5 - sh, w);
-    b.armL.rotation.z = mix(b.armL.rotation.z, -0.4, w); b.armR.rotation.z = mix(b.armR.rotation.z, 0.4, w);
-    b.head.rotation.x = mix(b.head.rotation.x, -0.5, w); b.torso.rotation.x = mix(b.torso.rotation.x, -0.2, w);
-  },
-  screech(b, k, w) { // the head thrown back, the wings of the arms spread, the whole body shuddering
-    const sh = Math.sin(k * 70);
-    b.head.rotation.x = mix(b.head.rotation.x, -0.9, w); b.torso.rotation.x = mix(b.torso.rotation.x, -0.45, w);
-    b.armL.rotation.z = mix(b.armL.rotation.z, -1.5, w); b.armR.rotation.z = mix(b.armR.rotation.z, 1.5, w);
-    b.armL.rotation.x = mix(b.armL.rotation.x, -0.4, w); b.armR.rotation.x = mix(b.armR.rotation.x, -0.4, w); b.torso.rotation.z = mix(b.torso.rotation.z, sh * 0.08, w);
-  },
-  lunge(b, k, w) { // the body pitched down and forward, both arms reaching, the legs trailing
-    const d = seg(k, 0, 0.4);
-    b.root.rotation.x += w * 0.5 * d; b.armL.rotation.x = mix(b.armL.rotation.x, -2.0, w); b.armR.rotation.x = mix(b.armR.rotation.x, -2.0, w);
-    b.legL.rotation.x = mix(b.legL.rotation.x, 0.6, w); b.legR.rotation.x = mix(b.legR.rotation.x, 0.6, w);
-  },
-  brace(b, k, w) { b.root.rotation.x += w * -0.3 * seg(k, 0, 0.5) * (1 - seg(k, 0.6, 1)); }, // a beam charging: the whole body leans back
-  surge(b, k, w) { b.root.rotation.x += w * 0.42 * seg(k, 0, 0.5); }, // a dash: the body pitches into it
-  sway(b, k, w) { const u = seg(k, 0, 0.5); b.root.rotation.z += w * 0.45 * u * Math.sin(k * 9 + 1); b.root.rotation.x += w * 0.3 * u; }, // a hovering craft tilts and rocks
-  rear(b, k, w, z) { // the spider rig rears up on its back legs, then drops with a bounce
-    const g = b.x && b.x.spider; if (!g) return; const up = seg(k, 0, 0.45), dn = seg(k, 0.45, 0.6);
-    g.rotation.x = mix(g.rotation.x, mix(-0.55 * up, 0.18, dn), w); g.position.y += w * (0.35 * up * (1 - dn)); void z;
-  },
-};
 const yawOf = (face) => Math.PI / 2 - face;
 
 export function createActors(H) {
   const { G, scene, camera } = H;
   const heroes = new Map(); const summons = new Map(); const slots = new Map();
   const pool = G.zombies.list;
+  usePool(G.zombies);
   const bars = new Set();
   let B = null; let hitBudget = 0; let fxBudget = 0;
   const tmp = new THREE.Vector3(); const tip = new THREE.Vector3(); const dirV = new THREE.Vector3();
@@ -400,12 +340,9 @@ export function createActors(H) {
       if (!u.boss) return;
       const sk = u.skills.find((s) => s.slot === e.slot); if (!sk) return;
       const z = pool[idx]; const lock = sk.def.lock || 1;
-      if (z.T.kind === 'boss2') {
-        if (sk.def.move) G.zombies.kinds.remote({ t: 'bm', i: idx, m: sk.def.move, d: lock });
-        const lean = KIT_LEAN[sk.def.move]; if (lean) bossActs.set(e.uid, { pose: lean, t: 0, dur: lock + 0.3 });
-        return;
-      }
-      bossActs.set(e.uid, { pose: BOSS_POSE[u.kind + ':' + sk.def.fx] || 'conjure', t: 0, dur: lock + 0.3 });
+      const kit = z.T.kind === 'boss2';
+      if (kit && sk.def.move) G.zombies.kinds.remote({ t: 'bm', i: idx, m: sk.def.move, d: lock });
+      const act = actFor(u, sk, kit, bossActs.get(e.uid)); if (act) bossActs.set(e.uid, act);
     },
     ult(e) { ON.cast(e); },
     dash(e) { const a = heroOf(e.uid); if (a) a.fastT = 0.3; },
@@ -430,8 +367,7 @@ export function createActors(H) {
       for (const [uid, L] of lifts) { const i = slots.get(uid); if (i !== undefined && pool[i].alive) pool[i].body.root.rotation.z = L.tilt; }
       for (const [uid, a] of bossActs) {
         const i = slots.get(uid); const z = i === undefined ? null : pool[i];
-        a.t += dt; if (!z || !z.alive || z.dying || a.t > a.dur) { bossActs.delete(uid); continue; }
-        POSES[a.pose](z.body, a.t / 0.7, Math.min(1, a.t / 0.12) * (1 - seg(a.t / a.dur, 0.85, 1)), z);
+        if (!z || !z.alive || z.dying || !stepAct(a, z.body, dt)) bossActs.delete(uid);
       }
       // arriving: a rim spawn climbs over the island's edge (arrival.js) over its spawnT (the sim holds it untargetable for the same time)
       for (const e of B.enemies) {

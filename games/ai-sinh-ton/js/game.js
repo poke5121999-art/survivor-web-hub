@@ -3,10 +3,10 @@
 // Screen contract: a module in js/ui/ exports create<Name>(game) and returns { name, show(args), hide(), update(dt) }.
 // It builds its nodes once inside game.ui.screen(name). Screens never touch each other: they call game.goto(),
 // the commands below, and listen on game.events.
-import { createMeta } from './meta.js?v=20261120e';
-import { castUlt, pickCard, battleReport } from './sim/battle.js?v=20261120e';
-import { stageDef } from './data/stages.js?v=20261120e';
-import { tutorialStage } from './data/unlocks.js?v=20261120e';
+import { createMeta } from './meta.js?v=20261120f';
+import { castUlt, pickCard, battleReport } from './sim/battle.js?v=20261120f';
+import { stageDef } from './data/stages.js?v=20261120f';
+import { tutorialStage } from './data/unlocks.js?v=20261120f';
 
 const SETTINGS_KEY = 'aisinhton.settings.v1';
 const SAVE_KEY = 'aisinhton.save.v1';
@@ -47,7 +47,7 @@ export async function attachGame(game, { params }) {
   game.screens = {}; game.screen = ''; game.lastReward = null; game.stageN = 1;
 
   let ui = null;
-  try { const kit = await import('./ui/kit.js?v=20261120e'); ui = kit.createUI({ THREE: host.THREE, renderer: host.renderer, frame }); } catch (e) { console.error('ui kit not loaded: ' + (e && e.message)); }
+  try { const kit = await import('./ui/kit.js?v=20261120f'); ui = kit.createUI({ THREE: host.THREE, renderer: host.renderer, frame }); } catch (e) { console.error('ui kit not loaded: ' + (e && e.message)); }
   game.ui = ui; window.__ui = ui;
 
   // Wipes every key this game owns on the device and reloads as a brand-new account. The hub login keys, the shared
