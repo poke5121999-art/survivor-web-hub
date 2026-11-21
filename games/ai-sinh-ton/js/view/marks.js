@@ -88,7 +88,7 @@ export function createMarks(H) {
   const planeGeo = new THREE.PlaneGeometry(1, 1);
   const ringGeo = new THREE.RingGeometry(0.86, 1, 56);
   const discGeo = new THREE.CircleGeometry(1, 40);
-  const teles = []; const falls = []; const zones = new Map(); const fades = []; const rings = [];
+  const teles = []; const falls = []; const zones = new Map(); const fades = [];
   let clock = 0; let lastB = null; let lastSimT = -1;
   const flat = (mesh, x, z, y = 0.05) => { mesh.rotation.order = 'YXZ'; mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, y, z); mesh.renderOrder = 3; mesh.frustumCulled = false; scene.add(mesh); return mesh; };
   const col3 = (hex) => new THREE.Color(hex);
@@ -159,38 +159,65 @@ export function createMarks(H) {
   // the 42 to 50 degree overview draws a ground ring about a quarter larger than a steeper one: dimmed so a white ring on a
   // bright floor stays under the clipped-white limit
   const RING_K = 0.8;
+  // Rings, flares and strips are drawn in three instanced batches, one draw call each, rebuilt every frame from their
+  // records: a burst of thirty rings costs what one did. Per-instance colour rides instanceColor, opacity its own attribute.
+  const bM = new THREE.Matrix4(); const bS = new THREE.Vector3();
+  // one instanced mesh: flush(items, write) writes each item's matrix and colour through write(item, M, C), which returns the
+  // item's opacity (0 skips it)
+  function batch(geo, opt, cap, order) {
+    const g = geo.clone();
+    const alpha = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1); alpha.setUsage(THREE.DynamicDrawUsage); g.setAttribute('iA', alpha);
+    const mat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, fog: false, ...opt });
+    mat.onBeforeCompile = (sh) => {
+      sh.vertexShader = 'attribute float iA;\nvarying float vA;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvA = iA;');
+      sh.fragmentShader = 'varying float vA;\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * vA );');
+    };
+    mat.customProgramCacheKey = () => 'marks-batch';
+    const mesh = new THREE.InstancedMesh(g, mat, cap); mesh.frustumCulled = false; mesh.renderOrder = order; mesh.count = 0;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3); mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    scene.add(mesh);
+    const C = new THREE.Color();
+    return {
+      mesh,
+      flush(items, write) {
+        let n = 0;
+        for (const it of items) {
+          if (n >= cap) break;
+          const op = write(it, bM, C); if (!(op > 0.001)) continue;
+          mesh.setMatrixAt(n, bM); mesh.instanceColor.setXYZ(n, C.r, C.g, C.b); alpha.setX(n, op); n++;
+        }
+        mesh.count = n; mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true; alpha.needsUpdate = true;
+      },
+      clear() { mesh.count = 0; },
+    };
+  }
+  // flat decals on the floor: records with x z, scale sx sz, yaw rot, colour col, opacity op
+  function decals(geo, opt, cap, y, order) {
+    const B = batch(geo.clone().rotateX(-Math.PI / 2), opt, cap, order); const recs = [];
+    const write = (r, M, C) => { if (!r.on) return 0; M.makeRotationY(r.rot || 0); M.scale(bS.set(r.sx, 1, r.sz)); M.setPosition(r.x, y, r.z); C.copy(r.col); return r.op; };
+    return {
+      recs,
+      take() { let r = recs.find((q) => !q.on); if (!r) { if (recs.length >= cap) return null; r = { on: false, col: new THREE.Color() }; recs.push(r); } return r; },
+      flush() { B.flush(recs, write); },
+      clear() { for (const r of recs) r.on = false; B.clear(); },
+    };
+  }
+  const ringB = decals(ringGeo, { side: THREE.DoubleSide }, 28, 0.08, 5);
+  const flareB = decals(discGeo, { blending: THREE.AdditiveBlending, map: BZtex('glow') }, 12, 0.07, 4);
+  const stripB = decals(planeGeo, { map: BZtex('glow') }, 16, 0.09, 5);
+  const rings = ringB.recs; const flares = flareB.recs; const strips = stripB.recs;
   function ring(x, z, r0, r1, color, life = 0.5, alpha = 0.9) {
-    let rec = rings.find((r) => !r.on);
-    if (!rec) {
-      if (rings.length >= 28) return;
-      const mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide }));
-      flat(mesh, 0, 0, 0.08); mesh.renderOrder = 5; rec = { mesh, on: false }; rings.push(rec);
-    }
-    rec.on = true; rec.t = 0; rec.life = life; rec.r0 = r0; rec.r1 = r1; rec.a = alpha; rec.mesh.material.color.set(color); rec.mesh.position.set(x, 0.08, z); rec.mesh.visible = true; rec.mesh.scale.setScalar(r0);
+    const rec = ringB.take(); if (!rec) return;
+    Object.assign(rec, { on: true, t: 0, life, r0, r1, a: alpha, x, z, sx: r0, sz: r0, rot: 0, op: alpha * RING_K }); rec.col.set(color);
   }
-  let discGeoMat = null; const flares = [];
   function flare(x, z, r, color, life = 0.6, alpha = 0.55) {
-    let rec = flares.find((f) => !f.on);
-    if (!rec) {
-      if (flares.length >= 12) return;
-      if (!discGeoMat) discGeoMat = true;
-      const mesh = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, map: BZtex('glow') }));
-      flat(mesh, 0, 0, 0.07); mesh.renderOrder = 4; rec = { mesh, on: false }; flares.push(rec);
-    }
-    rec.on = true; rec.t = 0; rec.life = life; rec.r = r; rec.a = alpha * FLARE_K; rec.mesh.material.color.set(color); rec.mesh.position.set(x, 0.07, z); rec.mesh.visible = true;
+    const rec = flareB.take(); if (!rec) return;
+    Object.assign(rec, { on: true, t: 0, life, r, a: alpha * FLARE_K, x, z, sx: r * 0.7, sz: r * 0.7, rot: 0, op: 0 }); rec.col.set(color);
   }
-
-  const strips = [];
   function strip(x, z, x2, z2, w, color, life = 0.4, alpha = 0.8) {
-    let rec = strips.find((r) => !r.on);
-    if (!rec) {
-      if (strips.length >= 16) return;
-      const mesh = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, fog: false, map: BZtex('glow') }));
-      flat(mesh, 0, 0, 0.09); mesh.renderOrder = 5; rec = { mesh, on: false }; strips.push(rec);
-    }
+    const rec = stripB.take(); if (!rec) return;
     const dx = x2 - x; const dz = z2 - z; const len = Math.hypot(dx, dz) || 0.1;
-    rec.on = true; rec.t = 0; rec.life = life; rec.a = alpha; rec.mesh.material.color.set(color); rec.mesh.visible = true;
-    rec.mesh.position.set((x + x2) / 2, 0.09, (z + z2) / 2); rec.mesh.rotation.y = -Math.atan2(dz, dx); rec.mesh.scale.set(len + w, w * 1.6, 1);
+    Object.assign(rec, { on: true, t: 0, life, a: alpha, x: (x + x2) / 2, z: (z + z2) / 2, sx: len + w, sz: w * 1.6, rot: -Math.atan2(dz, dx), op: alpha }); rec.col.set(color);
   }
   // ---- vertical layer: pooled light pillars, shock walls, local flashes and the arena-edge wash ----
   // a base-on-the-floor open cylinder with a gradient that fades toward the top, tinted per use
@@ -210,9 +237,17 @@ export function createMarks(H) {
     let mesh;
     if (kind === 'flash') mesh = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZtex('glow'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     else mesh = new THREE.Mesh(cylGeo, new THREE.MeshBasicMaterial({ map: gradTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
-    mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 6; scene.add(mesh);
+    mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 6;
     rec = { kind, mesh, on: false, t: 0, life: 1 }; vpool[kind].push(rec); return rec;
   }
+  // Pillars, walls and flashes are drawn by two instanced batches; each record's mesh is a stand-in outside the scene that
+  // holds its position, scale, colour and opacity (the tools read those), copied into the batch every frame.
+  const colB = batch(cylGeo, { map: gradTex, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }, VCAP.pillar + VCAP.wall, 6);
+  const flashB = batch(planeGeo, { map: BZtex('glow'), blending: THREE.AdditiveBlending }, VCAP.flash, 6);
+  const writeCol = (r, M, C) => { if (!r.on || !r.mesh.visible) return 0; const m = r.mesh; M.makeScale(m.scale.x, m.scale.y, m.scale.z); M.setPosition(m.position); C.copy(m.material.color); return m.material.opacity; };
+    const writeFlash = (r, M, C) => { if (!r.on || !r.mesh.visible) return 0; const m = r.mesh; M.makeRotationFromQuaternion(H.camera.quaternion); M.scale(bS.set(m.scale.x, m.scale.y, 1)); M.setPosition(m.position); C.copy(m.material.color); return m.material.opacity; };
+  const colItems = [];
+  function flushVertical() { colItems.length = 0; colItems.push(...vpool.pillar, ...vpool.wall); colB.flush(colItems, writeCol); flashB.flush(vpool.flash, writeFlash); }
   // upright additive columns and walls stand about a quarter taller on screen at the 42 to 50 degree overview: dimmed to
   // keep clipped white under 1% on bright floors (Y Tá and Băng ultimates measured 1.03% and 1.19%)
   const UP_K = 0.78;
@@ -263,23 +298,30 @@ export function createMarks(H) {
   // ---- sword light: pooled ribbons (live blade arcs and static streaks), afterimages, and the whirlwind column ----
   // A ribbon has three vertices per sample (edge a, centre, edge b), each tinted colour * fade * brightness, drawn additive.
   const RIB = { cap: 20, n: 22 };
+  // All ribbons share one additive mesh (one draw call): slot k owns vertices k*n*3 .. (k+1)*n*3; an idle slot, and the samples
+  // past a ribbon's current length, collapse onto one point so their triangles have no area.
   const ribs = [];
   const camV = new THREE.Vector3(); const dirV = new THREE.Vector3(); const nV = new THREE.Vector3();
+  const ribGeo = (() => {
+    const n = RIB.n; const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(RIB.cap * n * 9), 3)); geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(RIB.cap * n * 9), 3));
+    geo.attributes.position.setUsage(THREE.DynamicDrawUsage); geo.attributes.color.setUsage(THREE.DynamicDrawUsage);
+    const idx = [];
+    for (let k = 0; k < RIB.cap; k++) for (let i = 0; i < n - 1; i++) { const a = (k * n + i) * 3; const b = a + 3; idx.push(a, a + 1, b, a + 1, b + 1, b, a + 1, a + 2, b + 1, a + 2, b + 2, b + 1); }
+    geo.setIndex(idx); return geo;
+  })();
+  const ribMesh = new THREE.Mesh(ribGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+  ribMesh.frustumCulled = false; ribMesh.renderOrder = 8; ribMesh.visible = false; scene.add(ribMesh);
   function ribSlot() {
     let r = ribs.find((q) => !q.on);
     if (r) return r;
     if (ribs.length >= RIB.cap) return ribs.reduce((a, b) => (b.t / b.life > a.t / a.life ? b : a));
-    const n = RIB.n; const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 9), 3)); geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 9), 3));
-    const idx = []; for (let i = 0; i < n - 1; i++) { const a = i * 3; const b = (i + 1) * 3; idx.push(a, a + 1, b, a + 1, b + 1, b, a + 1, a + 2, b + 1, a + 2, b + 2, b + 1); }
-    geo.setIndex(idx);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
-    mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 8; scene.add(mesh);
-    r = { mesh, geo, on: false, t: 0, life: 1, n: 0, pts: new Float32Array(n * 6), ts: new Float32Array(n), col: new THREE.Color(), k: [0.2, 1, 0.2], a: 1, live: false, len: 0, kind: '' };
+    const n = RIB.n;
+    r = { slot: ribs.length, on: false, t: 0, life: 1, n: 0, pts: new Float32Array(n * 6), ts: new Float32Array(n), col: new THREE.Color(), k: [0.2, 1, 0.2], a: 1, live: false, len: 0, kind: '' };
     ribs.push(r); return r;
   }
   function ribOn(r, color, life, a, k, kind, live) {
-    r.on = true; r.t = 0; r.life = life; r.n = 0; r.col.set(color); r.a = a; r.k = k; r.live = live; r.len = 0; r.kind = kind; r.mesh.visible = true; r.geo.setDrawRange(0, 0);
+    r.on = true; r.t = 0; r.life = life; r.n = 0; r.col.set(color); r.a = a; r.k = k; r.live = live; r.len = 0; r.kind = kind;
     return r;
   }
   // a blade arc: push the two edge points every frame while the blow lasts; each sample fades `life` seconds after it was pushed
@@ -306,20 +348,25 @@ export function createMarks(H) {
     return r;
   }
   function updateRibs(dt) {
+    const P = ribGeo.attributes.position.array; const C = ribGeo.attributes.color.array; const N = RIB.n; let any = false;
     for (const r of ribs) {
-      if (!r.on) continue;
-      r.t += dt; const n = r.n; const g = r.geo; const P = g.attributes.position.array; const C = g.attributes.color.array; let last = 0;
+      const base = r.slot * N * 9;
+      if (!r.on) { if (r.dirty) { P.fill(0, base, base + N * 9); r.dirty = false; any = true; } continue; }
+      r.t += dt; const n = r.n; let last = 0; r.dirty = true; any = true;
       for (let i = 0; i < n; i++) {
         const age = r.t - r.ts[i]; const vis = age >= 0 ? Math.max(0, 1 - age / r.life) : 0; const f = Math.pow(vis, 1.4) * r.a; last = Math.max(last, vis > 0 ? 1 : 0);
         const ax = r.pts[i * 6]; const ay = r.pts[i * 6 + 1]; const az = r.pts[i * 6 + 2]; const bx = r.pts[i * 6 + 3]; const by = r.pts[i * 6 + 4]; const bz = r.pts[i * 6 + 5];
-        const o = i * 9; P[o] = ax; P[o + 1] = ay; P[o + 2] = az; P[o + 3] = (ax + bx) / 2; P[o + 4] = (ay + by) / 2; P[o + 5] = (az + bz) / 2; P[o + 6] = bx; P[o + 7] = by; P[o + 8] = bz;
+        const o = base + i * 9; P[o] = ax; P[o + 1] = ay; P[o + 2] = az; P[o + 3] = (ax + bx) / 2; P[o + 4] = (ay + by) / 2; P[o + 5] = (az + bz) / 2; P[o + 6] = bx; P[o + 7] = by; P[o + 8] = bz;
         for (let v = 0; v < 3; v++) { const k = r.k[v] * f; C[o + v * 3] = r.col.r * k; C[o + v * 3 + 1] = r.col.g * k; C[o + v * 3 + 2] = r.col.b * k; }
       }
-      g.setDrawRange(0, Math.max(0, n - 1) * 12); g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true;
+      // samples not pushed yet repeat the last one (or the origin): the segments into them have no area
+      for (let i = Math.max(n, 1); i < N; i++) { const o = base + i * 9; const src = n ? base + (n - 1) * 9 : -1; for (let j = 0; j < 9; j++) P[o + j] = src >= 0 ? P[src + j] : 0; }
+      if (!n) P.fill(0, base, base + 9);
       const tail = n ? r.ts[n - 1] : 0;
-      if (!r.live && (r.t - tail >= r.life || !last)) { r.on = false; r.mesh.visible = false; }
-      else if (r.live && r.t > 3) { r.on = false; r.mesh.visible = false; }
+      if ((!r.live && (r.t - tail >= r.life || !last)) || (r.live && r.t > 3)) { r.on = false; r.dirty = false; P.fill(0, base, base + N * 9); }
     }
+    if (any) { ribGeo.attributes.position.needsUpdate = true; ribGeo.attributes.color.needsUpdate = true; }
+    ribMesh.visible = ribs.some((r) => r.on || r.dirty);
   }
 
   // afterimages: billboard silhouettes of the hero, tinted, left along a path
@@ -425,8 +472,8 @@ export function createMarks(H) {
     updateRibs(dt); updateGhosts(dt); updateWhirls(dt); lastB = B || lastB;
     // a fast-forward moves the sim far ahead of the view clock: decals dry up on the sim clock as well
     if (B) { const extra = lastSimT >= 0 && B.t >= lastSimT ? B.t - lastSimT - dt : 0; if (extra > 0.05 && G.fx.ageDecals) G.fx.ageDecals(extra); lastSimT = B.t; }
-    for (const r of strips) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; r.mesh.visible = false; continue; } r.mesh.material.opacity = r.a * (1 - k); }
-    updateVertical(dt);
+    for (const r of strips) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; continue; } r.op = r.a * (1 - k); }
+    updateVertical(dt); flushVertical();
     for (let i = teles.length - 1; i >= 0; i--) {
       const t = teles[i]; t.t += dt; const k = Math.min(1, t.t / t.T);
       t.uni.uK.value = k; t.uni.uTime.value = clock;
@@ -456,19 +503,18 @@ export function createMarks(H) {
       if (z.extra) { z.extra.position.x = z.x; z.extra.position.z = z.z; if (z.extra.isSprite) { z.extra.scale.setScalar(2.8 + Math.sin(clock * 20) * 0.35); if (G.rng.chance(dt * 14)) { const aa = G.rng.range(0, 6.28); G.fx.arc(new THREE.Vector3(z.x, 1.3, z.z), new THREE.Vector3(z.x + Math.cos(aa) * 2.4, 0.3, z.z + Math.sin(aa) * 2.4), 0xbfe8ff); } } else z.extra.material.opacity = 0.2 * a; }
       if (z.end < 0) zoneFx(z, dt);
     }
-    for (const r of rings) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; r.mesh.visible = false; continue; } const e = 1 - Math.pow(1 - k, 3); r.mesh.scale.setScalar(r.r0 + (r.r1 - r.r0) * e); r.mesh.material.opacity = r.a * (1 - k) * RING_K; }
-    for (const f of flares) if (f.on) { f.t += dt; const k = f.t / f.life; if (k >= 1) { f.on = false; f.mesh.visible = false; continue; } f.mesh.scale.setScalar(f.r * (0.7 + 0.5 * k)); f.mesh.material.opacity = f.a * (1 - k) * Math.min(1, k * 8); }
+    for (const r of rings) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; continue; } const e = 1 - Math.pow(1 - k, 3); r.sx = r.sz = r.r0 + (r.r1 - r.r0) * e; r.op = r.a * (1 - k) * RING_K; }
+    for (const f of flares) if (f.on) { f.t += dt; const k = f.t / f.life; if (k >= 1) { f.on = false; continue; } f.sx = f.sz = f.r * (0.7 + 0.5 * k); f.op = f.a * (1 - k) * Math.min(1, k * 8); }
+    ringB.flush(); flareB.flush(); stripB.flush();
   }
 
   function clear() {
     for (const t of teles) dropTele(t); teles.length = 0;
     for (const f of falls) scene.remove(f.obj); falls.length = 0;
     for (const z of [...zones.values()]) dropZone(z);
-    for (const r of rings) { r.on = false; r.mesh.visible = false; }
-    for (const f of flares) { f.on = false; f.mesh.visible = false; }
-    for (const r of strips) { r.on = false; r.mesh.visible = false; }
-    for (const k of Object.keys(vpool)) for (const r of vpool[k]) { r.on = false; r.mesh.visible = false; if (r.swirl) r.swirl.visible = false; }
-    for (const r of ribs) { r.on = false; r.mesh.visible = false; } for (const r of ghosts) { r.on = false; r.sp.visible = false; } leafMesh.count = 0;
+    ringB.clear(); flareB.clear(); stripB.clear();
+    for (const k of Object.keys(vpool)) for (const r of vpool[k]) { r.on = false; r.mesh.visible = false; if (r.swirl) r.swirl.visible = false; } colB.clear(); flashB.clear();
+    for (const r of ribs) r.on = false; ribGeo.attributes.position.array.fill(0); ribGeo.attributes.position.needsUpdate = true; ribMesh.visible = false; for (const r of ghosts) { r.on = false; r.sp.visible = false; } leafMesh.count = 0;
     if (edge.mesh) { edge.on = false; edge.mesh.visible = false; }
     lastB = null; lastSimT = -1;
   }
