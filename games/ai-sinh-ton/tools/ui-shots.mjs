@@ -130,34 +130,59 @@ try {
       const dg = dis.after.geometries - dis.before.geometries, dt = dis.after.textures - dis.before.textures;
       check(dg <= 2 && dt <= 0, `nested dispose gives back GPU memory: geometries ${dis.before.geometries} -> ${dis.built.geometries} built -> ${dis.after.geometries}, textures ${dis.before.textures} -> ${dis.built.textures} -> ${dis.after.textures} (shared cache allowance: 2 geometries)`);
 
-      // no one-frame vanishing: 300 free-running frames per demo screen, the non-background pixel count of three panels against its median
+      // no one-frame vanishing, measured two ways, neither of which reads the multisampled canvas back on every frame:
+      //   (1) draws: on 600 free-running frames the kit draws exactly the same meshes of three known panels every frame
+      //       (a fault in layers, scissor passes, visibility or render order would skip one); this runs on the normal page;
+      //   (2) pixels: on a page without canvas antialiasing (?aa=0), the panels' pixels read on every one of 600 frames never
+      //       drop more than 2% under their median.
+      // Measured 21/11/2026 with CDP screencast frames (no readback in the page, 3000 frames, a second Chrome running stage 15):
+      // on the antialiased canvas panels lose their lit layers on 46 to 786 of 3000 composited frames while the kit issues the
+      // same 142 draws on every frame; with antialias off 0 of 3000. preserveDrawingBuffer, the depth mask before clearDepth
+      // and depth testing change nothing. The loss is in this box's GPU stack (multisampled canvas, two GPU processes), not
+      // in the kit, so the pixel half runs without antialiasing and the draw half guards the kit's own render.
+      const ab = await open(br, srv.base, 's22', 'screen=home&aa=0', DEMO);
       for (const s of SCREENS) {
         await page.evaluate((n) => window.__show(n), s); await wait(page, 900);
-        await page.evaluate(([n, ids]) => {
+        const d = await page.evaluate((ids) => new Promise((resolve) => {
+          const ui = window.__ui, r = ui.renderer, nodes = ids.map((id) => ui.node(id)).filter(Boolean);
+          const own = new Map(); nodes.forEach((n, i) => n.traverse((o) => { if (o.isMesh) own.set(o, i); }));
+          const orig = ui.render, rbd = r.renderBufferDirect; let cur = null; const rows = [];
+          r.renderBufferDirect = function (cam, sc, g, m, o) { if (cur && own.has(o)) cur[own.get(o)]++; return rbd.apply(this, arguments); };
+          ui.render = function () {
+            cur = nodes.map(() => 0); orig.apply(this, arguments); rows.push(cur); cur = null;
+            if (rows.length >= 600) { ui.render = orig; r.renderBufferDirect = rbd; resolve({ n: nodes.length, rows }); }
+          };
+        }), KNOWN[s]);
+        const dr = KNOWN[s].map((id, i) => { const c = d.rows.map((x) => x[i]); const first = c[0]; return { id, first, off: c.filter((x) => x !== first).length }; });
+        check(d.n === 3 && dr.every((x) => x.first > 0 && x.off === 0), `${s}: 600 frames, the kit draws the same meshes of ${KNOWN[s].join(', ')} on every frame (${dr.map((x) => `${x.id} ${x.first} draws, ${x.off} frames differ`).join('; ')})`);
+
+        const q = ab.page;
+        await q.evaluate((n) => window.__show(n), s); await wait(q, 900);
+        await q.evaluate(([n, ids]) => {
           const ui = window.__ui; const cv = document.querySelector('canvas'); const gl = cv.getContext('webgl2') || cv.getContext('webgl'); const Hh = gl.drawingBufferHeight; const k = ui.u * ui.dpr;
           const ts = ids.map((id) => ui.targets().find((t) => t.id === id)).filter(Boolean);
           const rects = ts.map((t) => ({ id: t.id, x: Math.max(0, Math.round(t.x * k)), y: Math.round(Hh - (t.y + t.h) * k), w: Math.round(t.w * k), h: Math.round(t.h * k) }));
-          window.__vz = { ui, gl, rects, n, orig: ui.render, grab: () => rects.map((q) => { const b = new Uint8Array(q.w * q.h * 4); gl.readPixels(q.x, q.y, q.w, q.h, gl.RGBA, gl.UNSIGNED_BYTE, b); return b; }) };
+          window.__vz = { ui, gl, rects, n, orig: ui.render, grab: () => rects.map((r) => { const b = new Uint8Array(r.w * r.h * 4); gl.readPixels(r.x, r.y, r.w, r.h, gl.RGBA, gl.UNSIGNED_BYTE, b); return b; }) };
           window.__ref = null; ui.hide(n, { transition: 'none' });
           ui.render = function () { window.__vz.orig.apply(this, arguments); if (!window.__ref) window.__ref = window.__vz.grab(); };
         }, [s, KNOWN[s]]);
-        await wait(page, 400);
-        const r = await page.evaluate((n) => new Promise((resolve) => {
+        await wait(q, 400);
+        const r = await q.evaluate((n) => new Promise((resolve) => {
           const { ui, grab, rects, orig } = window.__vz; ui.render = orig; ui.show(n, { transition: 'none' });
           setTimeout(() => {
-            const ref = window.__ref; const rows = []; let cnt = 0; let fr = 0;
+            const ref = window.__ref; const rows = [];
             ui.render = function () {
-              // a readback on every frame makes the canvas itself drop the lowest layers of lit meshes for a frame (measured: about 2% of
-              // frames, none in 3000 reads taken every other frame, same renderer calls either way), so only even frames are read
-              orig.apply(this, arguments); if (fr++ & 1) return; const g = grab();
+              orig.apply(this, arguments); const g = grab();
               rows.push(g.map((b, i) => { let c = 0; const R = ref[i]; for (let p = 0; p < b.length; p += 4) if (Math.abs(b[p] - R[p]) + Math.abs(b[p + 1] - R[p + 1]) + Math.abs(b[p + 2] - R[p + 2]) > 30) c++; return c; }));
-              if (++cnt >= 300) { ui.render = orig; resolve({ rects, rows }); }
+              if (rows.length >= 600) { ui.render = orig; resolve({ rects, rows }); }
             };
           }, 900);
         }), s);
-        const worst = r.rects.map((q, i) => { const c = r.rows.map((x) => x[i]).sort((a, b) => a - b); const med = c[150]; const lowAt = r.rows.map((x, f) => (x[i] < med * 0.98 ? f : -1)).filter((f) => f >= 0); return { id: q.id, med, drop: med ? (med - c[0]) / med : 1, lowAt }; });
-        check(worst.length === 3 && worst.every((x) => x.med > 500 && x.drop <= 0.02), `${s}: 300 sampled frames (every other frame of 600), no frame loses more than 2% of a panel's pixels (${worst.map((x) => `${x.id} median ${x.med} worst -${(x.drop * 100).toFixed(1)}%${x.lowAt.length ? ' at frames ' + x.lowAt.slice(0, 6).join(',') : ''}`).join(', ')})`);
+        const worst = r.rects.map((x, i) => { const c = r.rows.map((y) => y[i]).sort((a, b) => a - b); const med = c[300]; const lowAt = r.rows.map((y, f) => (y[i] < med * 0.98 ? f : -1)).filter((f) => f >= 0); return { id: x.id, med, drop: med ? (med - c[0]) / med : 1, lowAt }; });
+        check(worst.length === 3 && worst.every((x) => x.med > 500 && x.drop <= 0.02), `${s}: 600 frames read on every frame (canvas without antialiasing), no frame loses more than 2% of a panel's pixels (${worst.map((x) => `${x.id} median ${x.med} worst -${(x.drop * 100).toFixed(1)}%${x.lowAt.length ? ' at frames ' + x.lowAt.slice(0, 6).join(',') : ''}`).join(', ')})`);
       }
+      check(ab.problems.length === 0, 'aa=0 demo page: no page problems' + (ab.problems.length ? ' ' + ab.problems.slice(0, 2).join(' | ') : ''));
+      await ab.ctx.close();
     }
     await ctx.close();
   }
@@ -171,14 +196,19 @@ try {
       let last = -1, still = 0; for (let f = 0; f < 3000 && still < 400; f += 50) { window.__step(50); const g = ui.memory().geometries; still = g === last ? still + 50 : 0; last = g; }
       for (const name of Object.keys(G.screens).filter((n) => !['home', 'hud', 'result', 'stats', 'pick', 'battle'].includes(n))) {
         let err = '';
-        try { cycle(name); const m0 = ui.memory(); for (let k = 0; k < 5; k++) cycle(name); const m1 = ui.memory(); out.push({ name, m0, m1 }); } catch (e) { err = String(e && e.message); out.push({ name, err }); }
+        try { G.goto(name); window.__step(20); const dc = ui.drawCalls; G.goto('home'); window.__step(20); const m0 = ui.memory(), g = [], t = []; for (let k = 0; k < 20; k++) { cycle(name); const m = ui.memory(); g.push(m.geometries); t.push(m.textures); } out.push({ name, m0, g, t, dc }); } catch (e) { err = String(e && e.message); out.push({ name, err }); }
       }
       return out;
     });
+    console.log('draw calls game s22 (UI only, screen just opened): ' + JSON.stringify(Object.fromEntries(res.filter((r) => !r.err).map((r) => [r.name, r.dc]))));
     for (const r of res) {
       if (r.err) { check(false, `open/close ${r.name} x5: threw ${r.err}`); continue; }
-      const dg = r.m1.geometries - r.m0.geometries, dt = r.m1.textures - r.m0.textures;
-      check(dg <= 0 && dt <= 0, `open/close ${r.name} x5 after one warm cycle: geometries ${r.m0.geometries} -> ${r.m1.geometries}, textures ${r.m0.textures} -> ${r.m1.textures} (allowance 0)`);
+      // a leak grows with every cycle (the old kill() workaround left about 9 geometries per cycle). The heroes screen's count
+      // wobbles without a trend (measured 21/11 over 40 cycles: 661..666, idle 664), so a fixed allowance is either flaky or blind:
+      // the mean of the counts after cycles 11-20 minus the mean after cycles 1-10 must stay under 1.5 (0.15 per cycle)
+      const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length, trend = (a) => mean(a.slice(10)) - mean(a.slice(0, 10));
+      const dg = trend(r.g), dt = trend(r.t), rng = (a) => `${Math.min(...a)}..${Math.max(...a)}`;
+      check(dg < 1.5 && dt < 1.5, `open/close ${r.name} x20 after one warm cycle: geometries ${r.m0.geometries} then ${rng(r.g)}, trend ${dg.toFixed(1)}; textures ${r.m0.textures} then ${rng(r.t)}, trend ${dt.toFixed(1)} (second ten minus first ten, under 1.5)`);
     }
     check(res.length >= 3 && problems.length === 0, `open/close cycles covered ${res.map((r) => r.name).join(', ')}, no page problems` + (problems.length ? ' ' + problems.slice(0, 2).join(' | ') : ''));
     await ctx.close(); }
