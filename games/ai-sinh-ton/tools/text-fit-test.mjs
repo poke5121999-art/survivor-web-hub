@@ -472,17 +472,85 @@ async function selftest(br, srv) {
   await g.ctx.close();
 }
 
+// two moving overlays that must never sit on something the player needs, sampled frame by frame over their whole life:
+//   O1 the tutorial speech panel never crosses a wave or boss banner of the battle HUD (every FTUE battle step)
+//   O2 the toast never crosses an enabled button, from the tap that raises it until it is gone (home, locked tabs)
+function OVERLAP_PROBE() {
+  const fr = document.getElementById('frame').getBoundingClientRect(), k = fr.width / 780;
+  const toD = (r) => r && { x: (r.x - fr.left) / k, y: (r.y - fr.top) / k, w: r.w / k, h: r.h / k };
+  const cross = (a, b) => { const x = Math.max(a.x, b.x), y = Math.max(a.y, b.y), x2 = Math.min(a.x + a.w, b.x + b.w), y2 = Math.min(a.y + a.h, b.y + b.h); return x2 - x > 1 && y2 - y > 1 ? [Math.round(x2 - x), Math.round(y2 - y)] : null; };
+  const out = { guide: null, toast: null };
+  const G = window.__G, d = G.guide.dbg();
+  if (d.active && d.panel && G.B && G.screens.hud.dbg().visible) {
+    const p = toD(d.panel), h = G.screens.hud.dbg(), hits = [];
+    h.bannerRects.forEach((b, i) => { const c = cross(p, b); if (c) hits.push(`${h.banners[i] || 'boss bar'} ${c.join('x')}`); });
+    out.guide = { step: d.id, banners: h.bannerRects.length, hits };
+  }
+  const t = window.__ui.toastRect();
+  if (t) {
+    const hits = [];
+    for (const q of window.__ui.targets()) { if (!q.enabled) continue; const c = cross(t, toD({ x: q.vx, y: q.vy, w: q.vw, h: q.vh })); if (c) hits.push(`${q.id} ${c.join('x')}`); }
+    out.toast = { hits };
+  }
+  return out;
+}
+async function overlays(br, srv, phone) {
+  const probe = (page) => page.evaluate(OVERLAP_PROBE);
+  { // O2: the toast of each locked tab, every 3 frames over its 2.1 s life
+    const g = await open(br, srv.base, phone, BASE_Q, { fresh: true }); const { page } = g; await step(page, 30);
+    const locked = (await ids(page)).filter((i) => /^(tab-|team-)/.test(i)); // the rail tabs and the locked team slots beside BẮT ĐẦU
+    let samples = 0; const bad = [];
+    for (const id of locked) {
+      await page.evaluate((i) => __ui.tapId(i), id);
+      for (let f = 0; f < 140; f += 3) { await step(page, 3); const o = await probe(page); if (!o.toast) continue; samples++; if (o.toast.hits.length) bad.push(`${id} +${f} frames: ${o.toast.hits.join(', ')}`); }
+      if (await page.evaluate(() => __G.screen !== 'home')) await page.evaluate(() => __G.goto('home'));
+      await step(page, 20);
+    }
+    check(samples >= 10 && bad.length === 0, `${phone} O2 toast vs buttons: ${samples} frames with a toast up after tapping ${locked.join(', ')}, ${bad.length} on an enabled button${bad.length ? ': ' + [...new Set(bad.map((b) => b.replace(/ \+\d+ frames/, '')))].slice(0, 4).join(' | ') : ''}`);
+    for (const b of bad.slice(0, 10)) issue(`${phone} O2 toast ${b}`);
+    await g.ctx.close();
+  }
+  { // O1: the FTUE's first battle, the speech panel against the banners on every loop of the walk
+    const g = await open(br, srv.base, phone, BASE_Q, { fresh: true }); const { page } = g; await step(page, 30);
+    const safe = () => page.evaluate(() => { const r = document.getElementById('frame').getBoundingClientRect(); return [r.left + r.width * 0.5, r.top + r.height * 0.07]; });
+    const tapAt = async (x, y) => { if (phone === 'desktop') await page.mouse.click(x, y); else await page.touchscreen.tap(x, y); await step(page, 10); };
+    let samples = 0, withBanner = 0; const bad = []; const steps = new Set(); let done1 = false;
+    const look = async () => { const o = await probe(page); if (!o.guide) return; samples++; steps.add(o.guide.step); if (o.guide.banners) withBanner++; if (o.guide.hits.length) bad.push(`${o.guide.step}: ${o.guide.hits.join(', ')}`); };
+    for (let it = 0; it < 1500 && !done1; it++) {
+      const st = await page.evaluate(() => ({ d: __G.guide.dbg(), screen: __G.screen, phase: __G.B && __G.B.phase, inB: !!__G.B, cleared: __G.meta.acc.cleared, session: __G.meta.acc.ftue.session }));
+      const d = st.d;
+      if (st.cleared >= 1 && !st.inB) { done1 = true; break; }
+      if (st.inB) { for (let f = 0; f < 4; f++) { await look(); await step(page, 3); } }
+      if (d.reveal) { await tap(page, 'reveal-tap', 6); continue; }
+      if (d.active) {
+        if (d.noTarget) { const [x, y] = await safe(); await tapAt(x, y); if (d.id === 'join') { await step(page, 200); await page.evaluate(() => __sim(0.1)); } continue; }
+        if (!d.rect) { if (st.phase === 'fight' && !d.frozen) await page.evaluate(() => __sim(0.2)); await step(page, 8); continue; }
+        await tap(page, d.target, 12); continue;
+      }
+      if (st.screen === 'home' && !st.session && st.cleared === 0 && !st.inB) { await tap(page, 'start', 12); continue; }
+      if (st.inB && st.phase === 'fight') { await page.evaluate(() => __sim(0.4)); await step(page, 2); continue; }
+      if (st.inB && st.phase === 'pick') { await page.evaluate(() => __G.autoPick()); await step(page, 10); continue; }
+      if (st.inB) { await step(page, 20); continue; }
+      done1 = st.cleared >= 1; await step(page, 20);
+    }
+    check(samples >= 20 && withBanner >= 3 && bad.length === 0, `${phone} O1 speech panel vs banners: ${samples} battle frames with the guide up (${withBanner} with a banner, steps ${[...steps].join(' ')}), ${bad.length} with the panel on a banner${bad.length ? ': ' + [...new Set(bad)].slice(0, 4).join(' | ') : ''}`);
+    for (const b of [...new Set(bad)].slice(0, 10)) issue(`${phone} O1 speech panel ${b}`);
+    await g.ctx.close();
+  }
+}
+
 const srv = await serve(); const br = await launch();
 try {
   if (SELFTEST) await selftest(br, srv);
   else for (const phone of PHONE_LIST) {
     console.log('=== ' + phone + ' ===');
-    const FL = process['env'].FLOWS ? process['env'].FLOWS.split(',') : ['nonBattle', 'ftue', 'battle', 'crowded', 'results'];
+    const FL = process['env'].FLOWS ? process['env'].FLOWS.split(',') : ['nonBattle', 'ftue', 'battle', 'crowded', 'results', 'overlays'];
     if (FL.includes('nonBattle')) await nonBattle(br, srv, phone);
     if (FL.includes('ftue')) await ftue(br, srv, phone);
     if (FL.includes('battle')) await battle(br, srv, phone);
     if (FL.includes('crowded')) await crowded(br, srv, phone);
     if (FL.includes('results')) await results(br, srv, phone);
+    if (FL.includes('overlays')) await overlays(br, srv, phone);
   }
 } finally { await br.close(); srv.close(); }
 if (!SELFTEST) { fs.writeFileSync(path.join(OUT, 'issues.txt'), issues.join('\n') + (issues.length ? '\n' : '')); console.log(`${issues.length} issues written to .chk/textfit/issues.txt`); }

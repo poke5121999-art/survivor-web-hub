@@ -429,6 +429,8 @@ export function createHud(game) {
     },
     hide() { visible = false; ui.hide('hud', { transition: 'none' }); clearTransient(); },
     update,
+    // where the wave, boss and ult banners are (design units), read by the guide's speech panel to stay off them
+    bannerRects,
     // what the test needs to read without guessing from pixels
     dbg() {
       return { visible, bossShown: boss.shown, bossName: boss.label, bossY: boss.y, flames: cards.map((c) => c.flame.visible), ready: cards.map((c) => c.ready), banners: banners.map((b) => b.kind), numbers: live.length, cap: capOf(), numberPos: live.map((q) => [q.x, q.y]), numberRects: live.map((q) => ({ ...sweep(q), age: q.age })), numberList: live.map((q) => ({ text: q.text, x: q.x, y: shownY(q) })), bannerRects: bannerRects(), block: blockRects(), boxes: hudBoxes(), band: [BAND_TOP, ui.H - BOTTOM], specShown: spec.visible };

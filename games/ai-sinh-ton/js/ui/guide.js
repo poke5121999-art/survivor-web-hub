@@ -213,9 +213,14 @@ export function createGuide(game) {
     if (!panel) return;
     const H = ui.H, w = panelW, h = panelH, battle = S.step && S.step.where === 'battle';
     let best = null;
-    if (!rect) best = { x: 390 - w / 2, y: battle ? 148 : H - 12 - h };
-    else {
-      const avoid = [grow(rect, 8), grow(hh.box, 4), BANNER_ZONE], tc = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
+    // the banners really up in the HUD (a stack of two reaches below BANNER_ZONE) are avoided too
+    const hudB = battle && game.screens && game.screens.hud && game.screens.hud.bannerRects ? game.screens.hud.bannerRects().map((q) => grow(q, 4)) : [];
+    if (!rect) {
+      best = { x: 390 - w / 2, y: battle ? 148 : H - 12 - h };
+      const below = Math.max(0, ...hudB.filter((q) => inter({ x: best.x, y: best.y, w, h }, q)).map((q) => q.y + q.h + 2));
+      if (below) best.y = Math.min(H - 12 - h, below);
+    } else {
+      const avoid = [grow(rect, 8), grow(hh.box, 4), BANNER_ZONE, ...hudB], tc = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
       const corners = battle ? [{ x: 0, y: H - 100, w: 190, h: 100 }, { x: 590, y: H - 100, w: 190, h: 100 }] : [];
       let bs = -1e9;
       for (const hard of [avoid, avoid.slice(0, 2)]) {
