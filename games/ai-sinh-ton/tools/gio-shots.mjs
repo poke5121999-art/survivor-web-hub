@@ -211,15 +211,21 @@ async function live(br, base, phone) {
 
 // the katana in the idle, run and attack poses of the real frame: visible span and hands on the hilt
 async function katana(br, base) {
-  const r = await openPage(br, base, 's22', 'noaudio=1&seed=9');
+  const r = await openPage(br, base, 's22', 'noaudio=1&seed=9', { freeze: true });
   const { page } = r;
-  await page.evaluate(() => { const G = window.__G; const sc = G && G.screens && G.screens[G.screen]; if (sc && sc.hide) sc.hide(); });
+  // frozen page (no real-time loop): every sample is two sim ticks and four 60 Hz view frames, the same 1/15 s on both
+  // clocks, so the swing a tick starts is still on screen when the shot is taken and every run samples the same poses
+  await page.evaluate(async () => {
+    const G = window.__G; const sc = G && G.screens && G.screens[G.screen]; if (sc && sc.hide) sc.hide();
+    const v = (document.querySelector('script[src*="main.js"]').src.match(/\?.*$/) || [''])[0];
+    window.__SIM = await import(new URL('js/sim/battle.js' + v, location.href).href);
+  });
   await page.evaluate(() => { const G = window.__G; G.start(3, { seed: 9, wave: 3, team: ['gio'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } }); for (const u of G.B.heroes) for (const s of u.skills) s.cd = 99999; window.__sim(3); window.__step(4); });
   const bb = await page.locator('#frame').boundingBox(); const tmp = path.join(TMP, 'kat'); fs.mkdirSync(tmp, { recursive: true });
   await page.evaluate(FLAT, true);
   const S = { idle: [], run: [], attack: [] }; const files = []; const kinds = [];
   for (let t = 0; t < 160 && !(S.attack.length >= 8 && S.idle.length >= 6 && S.run.length >= 3); t++) {
-    await page.evaluate((dt) => { window.__sim(dt); window.__step(2); }, t % 2 ? 0.07 : 0.23);
+    await page.evaluate(() => { const B = window.__G.B; for (let i = 0; i < 2 && B.phase === 'fight'; i++) window.__SIM.step(B); window.__step(4); });
     if (!S.run.length && t % 4 === 3) await page.evaluate(() => { const u = window.__G.B.heroes[0]; u.x -= Math.sign(u.x || 1) * 2.5; window.__step(1); });
     const at = await page.evaluate(HERO); if (at.skip) continue; const kind = at.attack ? 'attack' : at.run ? 'run' : 'idle';
     const cx = Math.max(0, Math.min(bb.width - 200, at.x - 100)); const cy = Math.max(0, Math.min(bb.height - 200, at.y - 100));
