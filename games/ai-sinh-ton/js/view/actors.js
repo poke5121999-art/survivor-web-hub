@@ -90,13 +90,51 @@ export function createActors(H) {
   const bm = new THREE.Matrix4(); const bq = new THREE.Quaternion(); const bs = new THREE.Vector3(); const bp = new THREE.Vector3();
   let nBlob = 0;
   const addBlob = (x, z, size, y = 0) => { if (nBlob >= BLOBS) return; const fade = 1 / (1 + y * 0.35); bs.set(size * fade, 1, size * fade); bp.set(x, 0.045, z); bm.compose(bp, bq, bs); blobs.setMatrixAt(nBlob++, bm); };
-  // ---- team rims on the floor: warm red under every enemy, stronger for elites and bosses (heroes wear their own disc) ----
+  // ---- team marks on the floor (Addendum 9.3: the side reads at a glance, without loud rings) ----
+  // Under every enemy a blood-tinted scuff: a ragged stain darker at its heart with three claw scratches, stronger for elites
+  // and bosses. Under every hero a chevron in the hero's colour on a dark backing, pointing where the hero faces.
   const RIMS = 256;
-  const rims = new THREE.InstancedMesh(new THREE.RingGeometry(0.5, 0.62, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.8, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), RIMS);
-  rims.frustumCulled = false; rims.renderOrder = 2; rims.count = 0; scene.add(rims);
-  const RIM_COL = { base: new THREE.Color(0xd8402a), elite: new THREE.Color(0xff7a2a), boss: new THREE.Color(0xff3020) };
+  const scuffCv = document.createElement('canvas'); scuffCv.width = 128; scuffCv.height = 128;
+  {
+    const c = scuffCv.getContext('2d'); const img = c.createImageData(128, 128); let sd = 5; const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    const ph = [0, 1, 2, 3].map(() => rnd() * 6.283); const edgeAt = (t) => 0.78 + 0.07 * Math.sin(3 * t + ph[0]) + 0.05 * Math.sin(5 * t + ph[1]) + 0.04 * Math.sin(9 * t + ph[2]) + 0.03 * Math.sin(14 * t + ph[3]);
+    for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) {
+      const dx = (x - 63.5) / 63.5; const dy = (y - 63.5) / 63.5; const r = Math.hypot(dx, dy); const t = Math.atan2(dy, dx); const R = edgeAt(t);
+      let a = Math.max(0, Math.min(1, (R - r) / 0.22)); a = a * (0.3 + 0.24 * Math.min(1, r / R)) * (0.85 + 0.15 * rnd());
+      // three claw scratches across the front half, brighter than the stain
+      for (let k = 0; k < 3; k++) { const ox = -0.34 + k * 0.34; const u = dx - ox - dy * 0.35; if (Math.abs(u) < 0.045 && dy > -0.62 && dy < 0.05 + k * 0.08) a = Math.max(a, 0.85 * (1 - Math.abs(u) / 0.045)); }
+      const o = (y * 128 + x) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = 255; img.data[o + 3] = Math.round(255 * a);
+    }
+    c.putImageData(img, 0, 0);
+  }
+  const scuffTex = new THREE.CanvasTexture(scuffCv); scuffTex.colorSpace = THREE.SRGBColorSpace;
+  const rims = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: scuffTex, transparent: true, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), RIMS);
+  rims.name = 'enemyMarks'; rims.userData.teamMark = true; rims.frustumCulled = false; rims.renderOrder = 2; rims.count = 0; scene.add(rims);
+  const RIM_COL = { base: new THREE.Color(0xd83824), elite: new THREE.Color(0xff6a20), boss: new THREE.Color(0xff2418) };
   let nRim = 0;
-  const addRim = (x, z, size, col) => { if (nRim >= RIMS) return; bs.set(size, 1, size); bp.set(x, 0.05, z); bm.compose(bp, bq, bs); rims.setMatrixAt(nRim, bm); rims.setColorAt(nRim++, col); };
+  const addRim = (x, z, size, col) => { if (nRim >= RIMS) return; bs.set(size * 1.2, 1, size * 1.2); bp.set(x, 0.05, z); bm.compose(bp, bq, bs); rims.setMatrixAt(nRim, bm); rims.setColorAt(nRim++, col); };
+  // hero chevrons: a thick V pointing +z round the feet (its arms reach out past the body on both sides), and the same V a size up behind it in near-black
+  const chevGeo = (() => {
+    const L = [-0.7, -0.02]; const T = [0, 0.82]; const R = [0.7, -0.02]; const th = 0.26; const L2 = [-0.7, -0.02 - th]; const T2 = [0, 0.82 - th * 1.35]; const R2 = [0.7, -0.02 - th];
+    const pts = [L, T, R, L2, T2, R2]; const pos = []; for (const [x, z] of pts) pos.push(x, 0, z);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex([0, 4, 1, 0, 3, 4, 1, 5, 2, 1, 4, 5]); return g;
+  })();
+  const CHEV = 16; const chevQ = new THREE.Quaternion(); const UPY = new THREE.Vector3(0, 1, 0);
+  const chevMat = (o) => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1, ...o });
+  const chevBack = new THREE.InstancedMesh(chevGeo, chevMat({ color: 0x0c1016, opacity: 0.6 }), CHEV); const chev = new THREE.InstancedMesh(chevGeo, chevMat({ opacity: 0.95 }), CHEV);
+  for (const [m, n, o] of [[chevBack, 'heroMarksBack', 2], [chev, 'heroMarks', 3]]) { m.name = n; m.userData.teamMark = true; m.frustumCulled = false; m.renderOrder = o; m.count = 0; scene.add(m); }
+  chev.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(CHEV * 3), 3);
+  function flushChevrons() {
+    let n = 0;
+    for (const a of heroes.values()) {
+      if (!a.disc.visible || n >= CHEV) continue; const p = a.disc.position; chevQ.setFromAxisAngle(UPY, a.yaw);
+      bp.set(p.x, p.y + 0.02, p.z); bs.set(1, 1, 1); bm.compose(bp, chevQ, bs); chev.setMatrixAt(n, bm); chev.setColorAt(n, a.disc.userData.color);
+      bp.set(p.x, p.y + 0.015, p.z); bs.set(1.22, 1, 1.22); bm.compose(bp, chevQ, bs); chevBack.setMatrixAt(n, bm); n++;
+    }
+    chev.count = n; chevBack.count = n; chev.instanceMatrix.needsUpdate = true; chevBack.instanceMatrix.needsUpdate = true; chev.instanceColor.needsUpdate = true;
+  }
+  // world points along the hero's chevron (the tools sample the floor mark there)
+  function markPts(uid) { const a = heroes.get(uid); if (!a) return []; const c = Math.cos(a.yaw); const s2 = Math.sin(a.yaw); const p = a.disc.position; return [[-0.6, -0.03], [-0.48, 0.1], [0, 0.66], [0.48, 0.1], [0.6, -0.03]].map(([x, z]) => [p.x + x * c + z * s2, p.z - x * s2 + z * c]); }
 
   // ---- heroes ----
   function newHeroState(mode) { return { speed: 0, mode, swing: -1, kick: 0, kickL: 0, draw: 1, air: 0, vy: 0, pitch: 0, dead: 0, hurt: 0, hurtDir: 0, pat: 'r2l', cast: 0 }; }
@@ -106,8 +144,8 @@ export function createActors(H) {
     const eq = BZ.equipWeapon(m, bz.weapon); const grip = attachGrip(m, eq, bz.weapon);
     const node = new THREE.Group(); node.scale.setScalar(HERO_SCALE); node.add(m.root); scene.add(node);
     if (m.head) m.head.scale.setScalar(HEAD_SCALE);
-    const disc = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.8, 28), new THREE.MeshBasicMaterial({ color: bz.color, transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
-    disc.rotation.x = -Math.PI / 2; disc.position.y = 0.03; scene.add(disc);
+    // where the hero's chevron is drawn (flushChevrons): a holder for position, visibility and colour, not in the scene
+    const disc = new THREE.Object3D(); disc.position.y = 0.03; disc.userData.color = new THREE.Color(bz.color);
     const bubble = new THREE.Mesh(new THREE.SphereGeometry(1.25, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffd860, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     bubble.visible = false; scene.add(bubble);
     const a = {
@@ -389,15 +427,16 @@ export function createActors(H) {
         const k = e.boss ? 'boss' : e.elite ? 'elite' : 'base'; addRim(z.pos.x, z.pos.z, (e.boss ? 1.6 : e.elite ? 1.25 : 1) * z.T.scale, RIM_COL[k]);
       }
       rims.count = nRim; rims.instanceMatrix.needsUpdate = true; if (rims.instanceColor) rims.instanceColor.needsUpdate = true;
+      flushChevrons();
       syncEnemyBars(); fx.update(B, dt);
     },
     clear() {
       for (const a of [...heroes.values()]) dropHero(a);
       for (const uid of [...summons.keys()]) dropSummon(uid);
       for (const bar of [...enemyBars.values()]) dropBar(bar);
-      enemyBars.clear(); bossActs.clear(); slots.clear(); lifts.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; horde.clear(); B = null;
+      enemyBars.clear(); bossActs.clear(); slots.clear(); lifts.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; chev.count = 0; chevBack.count = 0; horde.clear(); B = null;
     },
-    fx, marks, horde, bossActs, lifts,
+    fx, marks, horde, bossActs, lifts, markPts,
     gripOf(uid) { const h = heroes.get(uid); return h ? { m: h.m, eq: h.eq, grip: h.grip, st: h.st } : null; },
     scaleOf(uid) { if (heroes.has(uid)) return HERO_SCALE; const i = slots.get(uid); return i !== undefined ? pool[i].T.scale : horde.scaleOf(uid); },
     nodeOf(uid) {

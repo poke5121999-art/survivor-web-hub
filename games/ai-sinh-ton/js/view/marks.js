@@ -1,6 +1,10 @@
 // Ground layer: warning marks that fill up before an attack lands (with a falling projectile for `fall` marks),
-// lingering zones animated from the live sim zone, expanding rings and flares. Everything is a flat mesh just above
+// lingering zones animated from the live sim zone, shock bursts and ground flares. Everything is a flat mesh just above
 // the floor, drawn by a few small shaders, so it stays cheap and reads from above.
+// No effect here is a ruled circle (Addendum 8.5 / 9.4): a warning is a scorched decal with a torn outline whose fill
+// creeps from its origin to the far edge over the wind-up (the hit lands when it is full), a boss warning adds a crimson
+// colour and a crawl of teeth outside its outline, a hero's own skill area is only a thin cool outline and fill front;
+// a shock is a burst of broken dust streaks, a ground flare a spray of rays, the edge wash a ragged glow off the rim.
 import { ARENA } from '../sim/battle.js?v=20261121c';
 const THREE = window.THREE;
 
@@ -11,22 +15,47 @@ float vnoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 
 float fbm(vec2 p) { return vnoise(p) * 0.55 + vnoise(p * 2.1 + 7.0) * 0.3 + vnoise(p * 4.3 + 3.0) * 0.15; }`;
 const VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
 
+// One warning per instance: vP = (fill 0..1, opacity, shape 0 circle / 1 line / 2 cone, cone half angle), vS = size (m),
+// vC = colour, vT = 0 hero skill area, 1 enemy, 2 boss. `edge` is metres inside the outline, `prog` how far from where the
+// fill starts (circle and cone: the centre and apex; line: the caster's end) a point is, 0..1.
 const TELE_FRAG = `
-uniform float uK; uniform vec3 uCol; uniform float uA; uniform float uShape; uniform vec2 uSize; uniform float uHalf; uniform float uTime;
-varying vec2 vUv;
+uniform float uTime; varying vec4 vP; varying vec2 vS; varying vec3 vC; varying float vT; varying vec2 vUv;
+${NOISE}
 void main() {
-  vec2 m = (vUv - 0.5) * uSize; float inside = 0.0; float fill = 0.0; float edge = 9.0;
-  if (uShape < 0.5) { float R = uSize.x * 0.5; float d = length(m); inside = step(d, R); fill = step(d, R * uK); edge = R - d; }
-  else if (uShape < 1.5) { vec2 h = uSize * 0.5; inside = step(abs(m.x), h.x) * step(abs(m.y), h.y); fill = inside * step(abs(m.y), h.y * uK); edge = min(h.x - abs(m.x), h.y - abs(m.y)); }
-  else { float R = uSize.x * 0.5; float d = length(m); float an = abs(atan(m.y, m.x)); inside = step(d, R) * step(an, uHalf); fill = inside * step(d, R * uK); edge = min(R - d, (uHalf - an) * d); }
-  float rim = (1.0 - smoothstep(0.07, 0.2, edge)) * inside;
-  float hatch = step(0.5, fract((m.x + m.y) * 0.9 - uTime * 0.7));
-  float pulse = smoothstep(0.82, 1.0, uK) * (0.5 + 0.5 * sin(uTime * 28.0));
-  // strong enough to read on bright paint and sand as well as dark asphalt: a solid fill, a white rim with a dark seam
-  float seam = (1.0 - smoothstep(0.0, 0.07, edge)) * inside;
-  float a = min(1.0, inside * (0.26 + hatch * 0.12) + fill * (0.5 + pulse * 0.25) + rim * 0.95);
-  vec3 c = mix(uCol, vec3(1.0), rim * 0.45 + pulse * 0.3) * (1.0 - seam * 0.75);
-  gl_FragColor = vec4(c, a * uA);
+  float K = vP.x; float A = vP.y; float shape = vP.z; float hang = vP.w;
+  vec2 m = (vUv - 0.5) * vS; float boss = step(1.5, vT); float hero = 1.0 - step(0.5, vT);
+  float edge; float prog; float s;
+  if (shape < 0.5) { float R = vS.x * 0.5; float d = length(m); edge = R - d; prog = d / R; s = atan(m.y, m.x) * R; }
+  else if (shape < 1.5) { vec2 h = vS * 0.5; edge = min(h.x - abs(m.x), h.y - abs(m.y)); prog = (m.x + h.x) / vS.x; s = m.x + abs(m.y) * 2.0; }
+  else { float R = vS.x * 0.5; float d = length(m); float an = abs(atan(m.y, m.x)); edge = min(R - d, (hang - an) * d); prog = d / R; s = atan(m.y, m.x) * R; }
+  // the quad is the outline's box: the torn outline only ever pulls inward from it
+  float amp = mix(0.2, 0.26, boss);
+  float e = edge - amp + (fbm(m * 1.15 + 3.1) - 0.5) * 2.4 * amp;
+  // boss teeth: little crimson triangles standing out of the outline, crawling round it
+  float tt = fract(s / 0.8 - uTime * 0.55); float tooth = boss * step(e, 0.0) * step(-e, 0.32 * (1.0 - abs(tt * 2.0 - 1.0)) - 0.02);
+  if (e < 0.0 && tooth < 0.5) discard;
+  float inside = step(0.0, e);
+  float n2 = vnoise(m * 2.6 + 7.0); // one octave is enough for the front and the cracks: the edge alone takes the full fbm
+  float fr = K - prog + (n2 - 0.5) * 0.14;
+  float filled = smoothstep(0.0, 0.03, fr) * inside;
+  float front = (1.0 - smoothstep(0.0, 0.05, abs(fr))) * step(K, 0.995) * inside;
+  float crack = (1.0 - smoothstep(0.0, 0.045, abs(vnoise(m * 0.85 + 11.0) * 0.7 + vnoise(m * 2.1 + 5.0) * 0.3 - 0.5))) * inside;
+  float soot = (1.0 - smoothstep(0.0, 0.3, e)) * inside;
+  float hot = (1.0 - smoothstep(0.02, mix(0.07, 0.1, boss), abs(e - 0.11))) * inside;
+  float pulse = smoothstep(0.8, 1.0, K) * (0.5 + 0.5 * sin(uTime * 28.0));
+  vec3 bright = min(vec3(1.0), vC * 1.25 + 0.22);
+  vec3 col = vC * mix(0.72, 0.85, boss); float a = inside * mix(0.3, 0.42, boss);
+  col = mix(col, vC, filled); a = max(a, filled * mix(0.48, 0.58, boss));
+  col = mix(col, mix(vC * 0.2, bright, filled), crack * 0.8); a += crack * (0.16 + 0.22 * filled);
+  col *= 1.0 - soot * 0.72; a = max(a, soot * 0.78);
+  col = mix(col, bright, hot); a = max(a, hot * 0.95);
+  col = mix(col, vec3(1.0, 0.95, 0.85), front * 0.65); a = max(a, front * 0.92);
+  col = mix(col, bright, tooth); a = max(a, tooth * 0.95);
+  col = mix(col, vec3(1.0), pulse * 0.22); a = min(1.0, a + pulse * 0.15 * inside);
+  // a hero's own area: no dark soot and no solid fill, only the cool outline, the creeping front and a faint wash
+  if (hero > 0.5) { col = mix(vC, bright, hot + front); a = inside * 0.06 + filled * 0.08 + hot * 0.7 + front * 0.6 + crack * filled * 0.06; }
+  if (a < 0.004) discard;
+  gl_FragColor = vec4(col, min(1.0, a) * A);
 }`;
 
 const ZONE_FRAG = `
@@ -34,9 +63,9 @@ uniform float uStyle; uniform float uT; uniform float uA; uniform float uHalf; u
 varying vec2 vUv; ${NOISE}
 void main() {
   vec2 m = (vUv - 0.5) * 2.0; float d = length(m); float an = atan(m.y, m.x);
-  float inside = step(d, 1.0);
-  if (uHalf > 0.0) inside *= step(abs(an), uHalf);
   float edge = uHalf > 0.0 ? min(1.0 - d, (uHalf - abs(an)) * d) : 1.0 - d; edge *= uR;
+  edge += (fbm(m * uR * 0.8 + 5.0) - 0.5) * 0.8 - 0.4; // torn outline, pulled inside the quad
+  float inside = step(0.0, edge);
   float rim = (1.0 - smoothstep(0.05, 0.28, edge)) * inside;
   float soft = smoothstep(0.0, 0.9, edge);
   vec2 p = m * uR * 0.55; vec3 col = uC1; float a = 0.0;
@@ -48,20 +77,21 @@ void main() {
     col = mix(uC1, uC2, n + bub * 0.6); a = 0.38 + 0.3 * n + bub * 0.3;
   } else if (uStyle < 2.5) {
     float sw = an + uT * 1.4 + d * 3.5; float st = 0.5 + 0.5 * sin(sw * 5.0 + fbm(p) * 6.0);
-    col = mix(uC1, uC2, st); a = 0.42 + 0.4 * st;
+    col = mix(uC1, uC2, st); a = 0.1 + 0.75 * st * st;
   } else if (uStyle < 3.5) {
     float ln = 1.0 - smoothstep(0.0, 0.07, abs(fract(an * 8.0 / 3.14159) - 0.5) * 2.0 * d * 1.2 - 0.0);
     float rg = 1.0 - smoothstep(0.0, 0.07, abs(fract(d * 4.0) - 0.5) * 2.0 - 0.0);
     float web = max(ln, rg * 0.9); col = mix(uC1, uC2, web); a = 0.1 + web * 0.75;
   } else if (uStyle < 4.5) {
-    float rg = fract(d * 3.0 + uT * 1.3); float band = smoothstep(0.0, 0.2, rg) * (1.0 - smoothstep(0.3, 0.7, rg));
+    float rg = fract(d * 3.0 + uT * 1.3 + fbm(p * 1.5) * 0.6); float band = smoothstep(0.0, 0.2, rg) * (1.0 - smoothstep(0.3, 0.7, rg));
     col = mix(uC1, uC2, band); a = 0.22 + 0.5 * band;
   } else {
-    float pulse = 0.75 + 0.25 * sin(uT * 18.0); float g = pow(1.0 - d, 1.6);
+    float pulse = 0.75 + 0.25 * sin(uT * 18.0); float g = pow(clamp(1.0 - d + (fbm(p * 1.3 + uT * 0.6) - 0.5) * 0.4, 0.0, 1.0), 1.6);
     col = mix(uC1, uC2, g); a = (0.1 + 0.55 * g) * pulse;
   }
-  a = a * inside * (0.35 + 0.65 * soft) + rim * 0.75 * inside;
-  col = mix(col, vec3(1.0), rim * 0.45);
+  // a wind swirl (style 2) keeps only a trace of its outline: its bands carry it
+  a = a * inside * (0.35 + 0.65 * soft) + rim * (uStyle > 1.5 && uStyle < 2.5 ? 0.15 : 0.75) * inside;
+  col = mix(col, min(vec3(1.0), uC2 * 1.2 + 0.1), rim * 0.55);
   gl_FragColor = vec4(col, a * uA);
 }`;
 
@@ -86,8 +116,52 @@ const ZONE_GRACE = 1.0;  // a zone the sim no longer holds is ended after this l
 export function createMarks(H) {
   const { scene, G } = H;
   const planeGeo = new THREE.PlaneGeometry(1, 1);
-  const ringGeo = new THREE.RingGeometry(0.86, 1, 56);
-  const discGeo = new THREE.CircleGeometry(1, 40);
+  // a burst of n broken dust streaks between radius ~0.5 and 1, each a quad narrow at its inner end; uv.y runs inner to outer
+  const streakGeo = (() => {
+    let sd = 7; const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    const pos = []; const uv = []; const idx = []; const n = 22;
+    for (let i = 0; i < n; i++) {
+      const a = ((i + rnd() * 0.7) / n) * Math.PI * 2; const hw = (0.45 + rnd() * 0.5) * Math.PI / n; const r0 = 0.45 + rnd() * 0.3; const r1 = 0.86 + rnd() * 0.16; const k = pos.length / 3;
+      for (const [t, r, u, v] of [[a - hw * 0.25, r0, 0, 0], [a + hw * 0.25, r0, 1, 0], [a + hw, r1, 1, 1], [a - hw, r1, 0, 1]]) { pos.push(Math.cos(t) * r, Math.sin(t) * r, 0); uv.push(u, v); }
+      idx.push(k, k + 1, k + 2, k, k + 2, k + 3);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); return g;
+  })();
+  // the streaks' texture: dust thickening toward the outer end, soft sides, speckled
+  const streakTex = (() => {
+    const cv = document.createElement('canvas'); cv.width = 32; cv.height = 64; const c = cv.getContext('2d'); const img = c.createImageData(32, 64);
+    let sd = 11; const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 32; x++) {
+      const v = y / 63; const u = Math.abs(x / 31 - 0.5) * 2; const along = Math.pow(v, 0.8) * (1 - Math.pow(Math.max(0, v - 0.86) / 0.14, 2));
+      const a = Math.max(0, along * (1 - u * u) * (0.6 + 0.4 * rnd()) * (rnd() < 0.08 ? 0.3 : 1)); const o = (y * 32 + x) * 4;
+      img.data[o] = img.data[o + 1] = img.data[o + 2] = 255; img.data[o + 3] = Math.round(255 * Math.min(1, a * 1.6));
+    }
+    c.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  // a ground flare: a spray of uneven rays from a small hot core
+  const raysTex = (() => {
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 128; const c = cv.getContext('2d'); c.translate(64, 64);
+    let sd = 23; const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    c.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 15; i++) {
+      const a = (i / 15) * Math.PI * 2 + rnd() * 0.3; const L = 24 + rnd() * 38; const r0 = 4 + rnd() * 8; const w = 0.025 + rnd() * 0.035;
+      const g = c.createLinearGradient(Math.cos(a) * r0, Math.sin(a) * r0, Math.cos(a) * L, Math.sin(a) * L); g.addColorStop(0, 'rgba(255,255,255,0.7)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = g; c.beginPath(); c.moveTo(Math.cos(a - w * 3) * r0, Math.sin(a - w * 3) * r0); c.lineTo(Math.cos(a) * L, Math.sin(a) * L); c.lineTo(Math.cos(a + w * 3) * r0, Math.sin(a + w * 3) * r0); c.closePath(); c.fill();
+    }
+    const g = c.createRadialGradient(0, 0, 0, 0, 0, 9); g.addColorStop(0, 'rgba(255,255,255,0.7)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(-9, -9, 18, 18);
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  // the arena-edge wash: a band just inside the rim with a ragged inner edge, alpha 0 at the rim and at the inner edge
+  const washGeo = (() => {
+    const N = 120; const pos = []; const col = []; const idx = []; let sd = 31; const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    const jag = []; for (let i = 0; i < N; i++) jag.push(rnd()); const sm = (i) => (jag[(i + N - 1) % N] + jag[i] * 2 + jag[(i + 1) % N]) / 4;
+    for (let i = 0; i < N; i++) {
+      const t = (i / N) * Math.PI * 2; const c = Math.cos(t); const s2 = Math.sin(t); const rin = 0.72 + sm(i) * 0.16;
+      for (const [r, a] of [[1.0, 0], [0.955, 1], [rin, 0]]) { pos.push(c * r, s2 * r, 0); col.push(1, 1, 1, a); }
+      const k = i * 3; const k2 = ((i + 1) % N) * 3; idx.push(k, k2, k + 1, k2, k2 + 1, k + 1, k + 1, k2 + 1, k + 2, k2 + 1, k2 + 2, k + 2);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); g.setIndex(idx); return g;
+  })();
   const teles = []; const falls = []; const zones = new Map(); const fades = [];
   let clock = 0; let lastB = null; let lastSimT = -1;
   const flat = (mesh, x, z, y = 0.05) => { mesh.rotation.order = 'YXZ'; mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, y, z); mesh.renderOrder = 3; mesh.frustumCulled = false; scene.add(mesh); return mesh; };
@@ -103,37 +177,39 @@ export function createMarks(H) {
   const tP = new THREE.InstancedBufferAttribute(new Float32Array(CAP.teles * 4), 4); tP.setUsage(THREE.DynamicDrawUsage); teleGeo.setAttribute('iP', tP);
   const tS = new THREE.InstancedBufferAttribute(new Float32Array(CAP.teles * 2), 2); tS.setUsage(THREE.DynamicDrawUsage); teleGeo.setAttribute('iS', tS);
   const tC = new THREE.InstancedBufferAttribute(new Float32Array(CAP.teles * 3), 3); tC.setUsage(THREE.DynamicDrawUsage); teleGeo.setAttribute('iC', tC);
+  const tT = new THREE.InstancedBufferAttribute(new Float32Array(CAP.teles), 1); tT.setUsage(THREE.DynamicDrawUsage); teleGeo.setAttribute('iT', tT);
   const teleU = { uTime: { value: 0 } };
   const teleB = new THREE.InstancedMesh(teleGeo, new THREE.ShaderMaterial({
     uniforms: teleU, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-    vertexShader: 'attribute vec4 iP; attribute vec2 iS; attribute vec3 iC; varying vec2 vUv; varying vec4 vP; varying vec2 vS; varying vec3 vC;\nvoid main() { vUv = uv; vP = iP; vS = iS; vC = iC; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }',
-    fragmentShader: TELE_FRAG.replace('uniform float uK; uniform vec3 uCol; uniform float uA; uniform float uShape; uniform vec2 uSize; uniform float uHalf; uniform float uTime;',
-      'uniform float uTime; varying vec4 vP; varying vec2 vS; varying vec3 vC;\n#define uK vP.x\n#define uA vP.y\n#define uShape vP.z\n#define uHalf vP.w\n#define uSize vS\n#define uCol vC'),
+    vertexShader: 'attribute vec4 iP; attribute vec2 iS; attribute vec3 iC; attribute float iT; varying vec2 vUv; varying vec4 vP; varying vec2 vS; varying vec3 vC; varying float vT;\nvoid main() { vUv = uv; vP = iP; vS = iS; vC = iC; vT = iT; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }',
+    fragmentShader: TELE_FRAG,
   }), CAP.teles);
-  teleB.frustumCulled = false; teleB.renderOrder = 3; teleB.count = 0; teleB.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(teleB);
+  teleB.name = 'teleB'; teleB.frustumCulled = false; teleB.renderOrder = 3; teleB.count = 0; teleB.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(teleB);
   function flushTeles() {
     let n = 0; teleU.uTime.value = clock;
     for (const t of teles) {
       const m = t.mesh; const u = t.uni; if (!m.visible || n >= CAP.teles) continue;
       m.updateMatrix(); teleB.setMatrixAt(n, m.matrix);
-      tP.setXYZW(n, u.uK.value, u.uA.value, u.uShape.value, u.uHalf.value); tS.setXY(n, u.uSize.value.x, u.uSize.value.y); tC.setXYZ(n, u.uCol.value.r, u.uCol.value.g, u.uCol.value.b); n++;
+      tP.setXYZW(n, u.uK.value, u.uA.value, u.uShape.value, u.uHalf.value); tS.setXY(n, u.uSize.value.x, u.uSize.value.y); tC.setXYZ(n, u.uCol.value.r, u.uCol.value.g, u.uCol.value.b); tT.setX(n, t.kind); n++;
     }
-    teleB.count = n; teleB.instanceMatrix.needsUpdate = true; tP.needsUpdate = true; tS.needsUpdate = true; tC.needsUpdate = true;
+    teleB.count = n; teleB.instanceMatrix.needsUpdate = true; tP.needsUpdate = true; tS.needsUpdate = true; tC.needsUpdate = true; tT.needsUpdate = true;
   }
-  const ENEMY_COL = col3(0xff4a1c); const HERO_COL = col3(0xcfe6ff);
+  // a normal warning is orange-red, a boss warning crimson with teeth, a hero's own area a pale cool blue
+  const ENEMY_COL = col3(0xff8414); const BOSS_COL = col3(0xe8062a); const HERO_COL = col3(0xa8d8ff);
   function tele(e, fallKind) {
     const enemy = e.team === 1; const T = Math.min(6, Math.max(0.15, Number.isFinite(e.t) ? e.t : 0.6));
     while (teles.length >= CAP.teles) dropTele(teles.shift());
-    const uni = { uK: { value: 0 }, uCol: { value: (enemy ? ENEMY_COL : HERO_COL).clone() }, uA: { value: enemy ? 1 : 0.4 }, uShape: { value: 0 }, uSize: { value: new THREE.Vector2(1, 1) }, uHalf: { value: 0 }, uTime: { value: 0 } };
+    const kind = enemy ? (e.boss ? 2 : 1) : 0;
+    const uni = { uK: { value: 0 }, uCol: { value: (kind === 2 ? BOSS_COL : enemy ? ENEMY_COL : HERO_COL).clone() }, uA: { value: enemy ? 1 : 0.85 }, uShape: { value: 0 }, uSize: { value: new THREE.Vector2(1, 1) }, uHalf: { value: 0 }, uTime: { value: 0 } };
     const mesh = new THREE.Mesh(planeGeo, standMat);
-    if (e.shape === 'circle') { const r = e.r + 0.05; uni.uShape.value = 0; uni.uSize.value.set(r * 2, r * 2); mesh.scale.set(r * 2, r * 2, 1); pose(mesh, e.x, e.z); }
+    if (e.shape === 'circle') { const r = e.r + 0.28; uni.uShape.value = 0; uni.uSize.value.set(r * 2, r * 2); mesh.scale.set(r * 2, r * 2, 1); pose(mesh, e.x, e.z); }
     else if (e.shape === 'line') {
       const dx = e.x2 - e.x; const dz = e.z2 - e.z; const len = Math.hypot(dx, dz) || 1;
       uni.uShape.value = 1; uni.uSize.value.set(len, e.w); mesh.scale.set(len, e.w, 1); pose(mesh, (e.x + e.x2) / 2, (e.z + e.z2) / 2); mesh.rotation.y = -Math.atan2(dz, dx);
     } else {
       uni.uShape.value = 2; uni.uHalf.value = (e.deg * Math.PI) / 360; uni.uSize.value.set(e.r * 2, e.r * 2); mesh.scale.set(e.r * 2, e.r * 2, 1); pose(mesh, e.x, e.z); mesh.rotation.y = -e.ang;
     }
-    const rec = { mesh, uni, t: 0, T, x: e.x, z: e.z, bt: lastB ? lastB.t : Infinity };
+    const rec = { mesh, uni, kind, t: 0, T, x: e.x, z: e.z, bt: lastB ? lastB.t : Infinity };
     teles.push(rec);
     if (e.fall) {
       const mk = FALL_LOOK[fallKind] || FALL_LOOK.shell; const obj = mk(); const side = e.team === 1 ? -1 : 1; obj.position.set(e.x + FALL_SIDE * side, FALL_H, e.z); scene.add(obj);
@@ -227,17 +303,17 @@ export function createMarks(H) {
       clear() { for (const r of recs) r.on = false; B.clear(); },
     };
   }
-  const ringB = decals(ringGeo, { side: THREE.DoubleSide }, 28, 0.08, 5);
-  const flareB = decals(discGeo, { blending: THREE.AdditiveBlending, map: BZtex('glow') }, 12, 0.07, 4);
+  const ringB = decals(streakGeo, { side: THREE.DoubleSide, map: streakTex }, 28, 0.08, 5);
+  const flareB = decals(planeGeo, { blending: THREE.AdditiveBlending, map: raysTex }, 12, 0.07, 4);
   const stripB = decals(planeGeo, { map: BZtex('glow') }, 16, 0.09, 5);
   const rings = ringB.recs; const flares = flareB.recs; const strips = stripB.recs;
   function ring(x, z, r0, r1, color, life = 0.5, alpha = 0.9) {
     const rec = ringB.take(); if (!rec) return;
-    Object.assign(rec, { on: true, t: 0, life, r0, r1, a: alpha, x, z, sx: r0, sz: r0, rot: 0, op: alpha * RING_K }); rec.col.set(color);
+    Object.assign(rec, { on: true, t: 0, life, r0, r1, a: alpha, x, z, sx: r0, sz: r0, rot: G.rng.range(0, 6.283), op: alpha * RING_K }); rec.col.set(color);
   }
   function flare(x, z, r, color, life = 0.6, alpha = 0.55) {
     const rec = flareB.take(); if (!rec) return;
-    Object.assign(rec, { on: true, t: 0, life, r, a: alpha * FLARE_K, x, z, sx: r * 0.7, sz: r * 0.7, rot: 0, op: 0 }); rec.col.set(color);
+    Object.assign(rec, { on: true, t: 0, life, r, a: alpha * FLARE_K, x, z, sx: r * 1.4, sz: r * 1.4, rot: G.rng.range(0, 6.283), op: 0 }); rec.col.set(color);
   }
   function strip(x, z, x2, z2, w, color, life = 0.4, alpha = 0.8) {
     const rec = stripB.take(); if (!rec) return;
@@ -246,10 +322,17 @@ export function createMarks(H) {
   }
   // ---- vertical layer: pooled light pillars, shock walls, local flashes and the arena-edge wash ----
   // a base-on-the-floor open cylinder with a gradient that fades toward the top, tinted per use
+  // vertical streaks of uneven height and strength round the cylinder: a wall reads as a curtain of thrown dust and light, not a band
   const gradTex = (() => {
-    const cv = document.createElement('canvas'); cv.width = 4; cv.height = 64; const c = cv.getContext('2d'); const g = c.createLinearGradient(0, 0, 0, 64);
-    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.55, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,1)');
-    c.fillStyle = g; c.fillRect(0, 0, 4, 64); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+    const W = 64; const cv = document.createElement('canvas'); cv.width = W; cv.height = 64; const c = cv.getContext('2d'); const img = c.createImageData(W, 64);
+    let sd = 41; const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    const col = []; for (let x = 0; x < W; x++) col.push([0.35 + 0.65 * rnd(), 0.25 + 0.75 * rnd()]);
+    for (let x = 0; x < W; x++) { const [k, h] = col[x]; const [k2, h2] = col[(x + 1) % W]; col[x] = [(k * 2 + k2) / 3, (h * 2 + h2) / 3]; }
+    for (let y = 0; y < 64; y++) for (let x = 0; x < W; x++) {
+      const v = 1 - y / 63; const [k, h] = col[x]; const top = Math.max(0, 1 - Math.max(0, v - h) / 0.25); const o = (y * W + x) * 4;
+      img.data[o] = img.data[o + 1] = img.data[o + 2] = 255; img.data[o + 3] = Math.round(255 * Math.min(1, (0.25 + 0.75 * (1 - v)) * k * top * 1.1));
+    }
+    c.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; return t;
   })();
   const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 20, 1, true).translate(0, 0.5, 0);
   const VCAP = { pillar: 10, wall: 8, flash: 10 };
@@ -297,7 +380,7 @@ export function createMarks(H) {
   }
   const edge = { on: false, t: 0, life: 0.6, a: 0.25, mesh: null };
   function wash(color, life = 0.6, a = 0.24) {
-    if (!edge.mesh) { edge.mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide })); flat(edge.mesh, 0, 0, 0.04); edge.mesh.renderOrder = 2; edge.mesh.scale.set(ARENA.x * 1.2, ARENA.z * 1.2, 1); }
+    if (!edge.mesh) { edge.mesh = new THREE.Mesh(washGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide })); flat(edge.mesh, 0, 0, 0.04); edge.mesh.renderOrder = 2; edge.mesh.scale.set(ARENA.x * 1.2, ARENA.z * 1.2, 1); }
     edge.on = true; edge.t = 0; edge.life = life; edge.a = a; edge.mesh.material.color.set(color); edge.mesh.material.opacity = 0; edge.mesh.visible = true;
   }
   function updateVertical(dt) {
@@ -430,7 +513,16 @@ export function createMarks(H) {
   // the whirlwind: a funnel of spiral light with spinning arcs, leaves carried up, and a swirl on the floor
   const WH = { cap: 2, H: 5.2, leaves: 34 };
   const funnelGeo = new THREE.CylinderGeometry(1, 0.34, 1, 36, 8, true).translate(0, 0.5, 0);
-  const arcGeo = new THREE.RingGeometry(0.86, 1, 36, 1, 0, 4.1).rotateX(-Math.PI / 2);
+  // a spinning stroke: a spiral 4.1 rad long, its radius 0.82 to 1, thickest and opaque at its head, a thin fading tail
+  const arcGeo = (() => {
+    const N = 36; const pos = []; const col = []; const idx = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N; const an = t * 4.1; const r = 0.82 + 0.18 * t; const w = 0.02 + 0.13 * Math.pow(t, 1.3); const a = Math.pow(t, 1.4);
+      for (const rr of [r - w, r + w]) { pos.push(Math.cos(an) * rr, 0, Math.sin(an) * rr); col.push(1, 1, 1, a); }
+      if (i < N) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); g.setIndex(idx); return g;
+  })();
   const WH_FRAG = `uniform float uT; uniform float uA; uniform vec3 uC1; uniform vec3 uC2; varying vec2 vUv;
     void main() { float ang = vUv.x * 6.2832; float y = vUv.y;
       float b1 = smoothstep(0.55, 0.95, sin(ang * 3.0 + y * 9.0 - uT * 11.0) * 0.5 + 0.5);
@@ -452,7 +544,7 @@ export function createMarks(H) {
         const uni = { uT: { value: 0 }, uA: { value: 0 }, uC1: { value: new THREE.Color() }, uC2: { value: new THREE.Color() } };
         const mesh = new THREE.Mesh(funnelGeo, new THREE.ShaderMaterial({ uniforms: uni, vertexShader: VERT, fragmentShader: WH_FRAG, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
         mesh.frustumCulled = false; mesh.renderOrder = 6; mesh.visible = false; scene.add(mesh);
-        const arcs = []; for (let i = 0; i < 6; i++) { const am = new THREE.Mesh(arcGeo, new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); am.frustumCulled = false; mesh.add(am); arcs.push(am); }
+        const arcs = []; for (let i = 0; i < 6; i++) { const am = new THREE.Mesh(arcGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); am.frustumCulled = false; mesh.add(am); arcs.push(am); }
         const zu = { uStyle: { value: 2 }, uT: { value: 0 }, uA: { value: 0 }, uHalf: { value: 0 }, uC1: { value: new THREE.Color() }, uC2: { value: new THREE.Color() }, uR: { value: 1 } };
         const swirl = new THREE.Mesh(planeGeo, new THREE.ShaderMaterial({ uniforms: zu, vertexShader: VERT, fragmentShader: ZONE_FRAG, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
         flat(swirl, 0, 0, 0.06); swirl.renderOrder = 4; swirl.visible = false;
@@ -529,8 +621,8 @@ export function createMarks(H) {
       if (z.extra) { z.extra.position.x = z.x; z.extra.position.z = z.z; if (z.extra.isSprite) { z.extra.scale.setScalar(2.8 + Math.sin(clock * 20) * 0.35); if (G.rng.chance(dt * 14)) { const aa = G.rng.range(0, 6.28); G.fx.arc(new THREE.Vector3(z.x, 1.3, z.z), new THREE.Vector3(z.x + Math.cos(aa) * 2.4, 0.3, z.z + Math.sin(aa) * 2.4), 0xbfe8ff); } } else z.extra.material.opacity = 0.2 * a; }
       if (z.end < 0) zoneFx(z, dt);
     }
-    for (const r of rings) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; continue; } const e = 1 - Math.pow(1 - k, 3); r.sx = r.sz = r.r0 + (r.r1 - r.r0) * e; r.op = r.a * (1 - k) * RING_K; }
-    for (const f of flares) if (f.on) { f.t += dt; const k = f.t / f.life; if (k >= 1) { f.on = false; continue; } f.sx = f.sz = f.r * (0.7 + 0.5 * k); f.op = f.a * (1 - k) * Math.min(1, k * 8); }
+    for (const r of rings) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; continue; } const e = 1 - Math.pow(1 - k, 3); r.sx = r.sz = r.r0 + (r.r1 - r.r0) * e; r.op = r.a * Math.pow(1 - k, 1.3) * RING_K; }
+    for (const f of flares) if (f.on) { f.t += dt; const k = f.t / f.life; if (k >= 1) { f.on = false; continue; } f.sx = f.sz = f.r * (1.4 + 1.0 * k); f.op = f.a * (1 - k) * Math.min(1, k * 8); }
     ringB.flush(); flareB.flush(); stripB.flush();
   }
 
@@ -545,5 +637,5 @@ export function createMarks(H) {
     lastB = null; lastSimT = -1;
   }
   void fades;
-  return { tele, zoneStart, zoneEnd, ring, flare, strip, pillar, wall, flash, wash, arc, arcPush, arcEnd, streak, ghost, whirl, swordStats, ribs, update, clear, vertical: vpool, stats: () => ({ teles: teles.length, falls: falls.length, zones: zones.size, rings: rings.filter((r) => r.on).length, flares: flares.filter((r) => r.on).length, strips: strips.filter((r) => r.on).length, ...vliveCount(), ...swordStats() }), teleRecs: teles };
+  return { shockGeo: streakGeo, shockTex: streakTex, tele, zoneStart, zoneEnd, ring, flare, strip, pillar, wall, flash, wash, arc, arcPush, arcEnd, streak, ghost, whirl, swordStats, ribs, update, clear, vertical: vpool, stats: () => ({ teles: teles.length, falls: falls.length, zones: zones.size, rings: rings.filter((r) => r.on).length, flares: flares.filter((r) => r.on).length, strips: strips.filter((r) => r.on).length, ...vliveCount(), ...swordStats() }), teleRecs: teles };
 }

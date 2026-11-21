@@ -3,6 +3,7 @@
 // and is logged once. counters[key] counts the effects played per key (the view-shots tool reads it).
 import { arenaNorm } from '../sim/battle.js?v=20261121c';
 import { HEROES } from '../data/heroes.js?v=20261121c';
+import { ENEMIES } from '../data/enemies.js?v=20261121c';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -138,13 +139,21 @@ const PLUME = {
   smoke: [0x3a3632, 0x7a746c, false], dust: [0xb8ae98, 0x8a8070, false], gas: [null, null, false], fire: [0xffd070, 0xff3a10, true], ink: [0x2a2038, 0x6a5a82, false], wind: [0xffffff, 0xbfe4ff, true],
 };
 
+// skill keys only a boss uses: an enemy warning under one of them is drawn as a boss warning (crimson, with teeth)
+const BOSS_KEYS = (() => {
+  const of = (list) => new Set(list.flatMap((e) => [...(e.skills || []).map((k) => k.fx), e.attack && e.attack.fx]).filter(Boolean));
+  const boss = of(ENEMIES.filter((e) => e.boss)); const other = of(ENEMIES.filter((e) => !e.boss));
+  return new Set([...boss].filter((k) => !other.has(k)));
+})();
 const BOSS_DEATH = [['pillar', 14, 2, 1.2, 0.4], ['fount', 24, 12, 'fire', 5], ['plume', 5.5, 7, 'smoke', 4], ['wall', 1, 0.5, 1.4, 0.6], ['flash', 4]];
 const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 export function createFxMap(H, marks, ctx) {
   const { G, scene, camera } = H;
-  // Blockade Z's blast shock rings are additive 0xffe0b0 at 0.9: on the pale chapter floors they clip to pure white, so they are tinted down
-  scene.traverse((o) => { const m = o.isMesh && o.material; if (m && o.geometry.type === 'RingGeometry' && m.blending === THREE.AdditiveBlending && m.color.getHex() === 0xffe0b0) m.color.multiplyScalar(0.4); });
+  // Blockade Z's blast shock rings are additive 0xffe0b0 at 0.9: on the pale chapter floors they clip to pure white, so they are
+  // tinted down; and they are flat ruled rings, so they take the marks' burst of dust streaks instead (same unit radius, same scaling)
+  const shock = marks.shockGeo.clone().rotateX(-Math.PI / 2);
+  scene.traverse((o) => { const m = o.isMesh && o.material; if (m && o.geometry.type === 'RingGeometry' && m.blending === THREE.AdditiveBlending && m.color.getHex() === 0xffe0b0) { m.color.multiplyScalar(0.4); o.geometry = shock; m.map = marks.shockTex; m.needsUpdate = true; } });
   const counters = {}; const missing = new Set(); const bump = (k) => { counters[k] = (counters[k] || 0) + 1; };
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   let budget = { pop: 0, boom: 0, puff: 0 };
@@ -240,8 +249,8 @@ export function createFxMap(H, marks, ctx) {
       for (let i = 0; i < 5; i++) { const t = (i + 0.5) / 5; G.fx.puff(V(e.x + (e.x2 - e.x) * t, 0.9, e.z + (e.z2 - e.z) * t), { glow: true, s0: 1.1, s1: 0.3, life: 0.3, c0: cols[0], c1: cols[1], a0: 0.9, spin: 0 }); }
       snd(k.snd || 'saber_swing', e.x, e.z, 0.4);
     },
-    heal(e) { sparkle(e.x, e.z, [0xd8ffb8, 0x58e070], 6); marks.ring(e.x, e.z, 0.4, 1.7, 0x58e070, 0.6, 0.8); snd('pickup', e.x, e.z, 0.3); },
-    shield(e) { marks.ring(e.x, e.z, 0.5, 2.1, 0x9ad8ff, 0.5, 0.9); sparkle(e.x, e.z, [0xffffff, 0x7ac0ff], 4); },
+    heal(e) { rise(e.x, e.z, 0x58e070, 12, 1.3); marks.pillar(e.x, e.z, 0x6ae880, { h: 3.2, r: 0.7, life: 0.65, a: 0.32 }); snd('pickup', e.x, e.z, 0.3); },
+    shield(e) { rise(e.x, e.z, 0x9ad8ff, 9, 1.3); marks.pillar(e.x, e.z, 0x9ad8ff, { h: 2.6, r: 1, life: 0.5, a: 0.28 }); },
     bolt(e, k, p) {
       const cols = teamCol(e.team, p); const style = k.bolt || 'tracer';
       const to = V(e.x, 1.2, e.z);
@@ -262,6 +271,14 @@ export function createFxMap(H, marks, ctx) {
     pull(e, k, p) { marks.ring(e.x, e.z, e.r, 0.4, p[0], 0.5, 0.8); marks.ring(e.x, e.z, e.r * 0.7, 0.3, p[1], 0.6, 0.6); snd('swipe', e.x, e.z, 0.4); },
   };
 
+  // motes drifting up and round a unit, a few starting high: a heal, a buff, a state or a status on it
+  function rise(x, z, c, n, r = 0.9, h = 1) {
+    const c0 = mixHex(c, 0xffffff, 0.55);
+    for (let i = 0; i < n && budget.puff-- > 0; i++) {
+      const a = G.rng.range(0, 6.283); const d = G.rng.range(0.25, r);
+      G.fx.puff(V(x + Math.cos(a) * d, G.rng.range(0.1, 1.1), z + Math.sin(a) * d), { glow: true, vel: V(-Math.sin(a) * 0.7, G.rng.range(1.6, 3.2) * h, Math.cos(a) * 0.7), drag: 0.4, s0: G.rng.range(0.26, 0.42), s1: 0.06, life: G.rng.range(0.6, 1.0), delay: (i % 4) * 0.04, c0, c1: c, a0: 1, spin: 0 });
+    }
+  }
   function sparkle(x, z, cols, n) {
     for (let i = 0; i < n && budget.puff-- > 0; i++) {
       const a = G.rng.range(0, 6.283); const d = G.rng.range(0.3, 1);
@@ -350,7 +367,7 @@ export function createFxMap(H, marks, ctx) {
       layers(set, x, z, colorsFor(e.key, e.by || e.uid), e.part === 'bolt' ? 2 : e.r, e);
     },
     tele(e) {
-      const k = look(e.key); marks.tele(e, k && k.fall); if (k) bump(e.key);
+      const k = look(e.key); marks.tele(e.team === 1 && BOSS_KEYS.has(e.key) ? { ...e, boss: true } : e, k && k.fall); if (k) bump(e.key);
     },
     zone(e) {
       const k = look(e.key); if (!k || !k.z) { if (k) bump(e.key); return; }
@@ -366,7 +383,7 @@ export function createFxMap(H, marks, ctx) {
     cast(e) {
       const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (!k) return; bump(e.key);
       const p = u.hero ? [0xffffff, ctx.colorOf(e.uid)] : pal(k);
-      marks.ring(u.x, u.z, 0.4, 2.4, p[1], 0.5, 0.8); marks.flare(u.x, u.z, 2, p[1], 0.5, 0.3);
+      rise(u.x, u.z, p[1], 5, 0.8); marks.flare(u.x, u.z, 2, p[1], 0.5, 0.3);
       if (k.snd && !u.hero) snd(k.snd, u.x, u.z, 0.5);
       layers(VERT[e.key] && VERT[e.key].cast, u.x, u.z, colorsFor(e.key, e.uid), undefined, e);
     },
@@ -392,7 +409,7 @@ export function createFxMap(H, marks, ctx) {
     },
     summon(e) {
       const u = ctx.unit(e.owner); const c = u && u.hero ? ctx.colorOf(e.owner) : 0xb0c0ff;
-      pop(e.x, 0.6, e.z, 1.1, [0xffffff, c]); marks.ring(e.x, e.z, 0.3, 1.8, c, 0.5, 0.8); bump('summon'); snd('pickup', e.x, e.z, 0.3);
+      pop(e.x, 0.6, e.z, 1.1, [0xffffff, c]); rise(e.x, e.z, c, 6, 1); bump('summon'); snd('pickup', e.x, e.z, 0.3);
     },
     spawn(e) {
       if (arenaNorm(e.x, e.z) < 0.98) { // spawned inside the arena by a skill: the old pop
@@ -430,10 +447,10 @@ export function createFxMap(H, marks, ctx) {
     heal(e) { if (e.amt > 0 && budget.puff > 0) { sparkle(e.x, e.z, [0xd8ffb8, 0x58e070], 2); } },
     revive(e) {
       const u = ctx.unit(e.uid); const x = e.x; const z = e.z; bump('revive');
-      marks.pillar(x, z, 0xffd860, 1.1); marks.ring(x, z, 0.3, 3, 0xffe890, 0.7, 0.9); sparkle(x, z, [0xffffff, 0xffd860], 8); void u;
+      marks.pillar(x, z, 0xffd860, 1.1); rise(x, z, 0xffd860, 14, 1.5, 1.3); void u;
     },
     die(e) {
-      if (e.expire) { marks.ring(e.x, e.z, 0.3, 1.2, 0xc8d0ff, 0.35, 0.6); return; }
+      if (e.expire) { rise(e.x, e.z, 0xc8d0ff, 5, 0.8); return; }
       const u = ctx.unit(e.uid); if (!u) return;
       if (u.hero) { pop(e.x, 0.8, e.z, 1.2, [0xffffff, 0xff6070]); marks.ring(e.x, e.z, 0.3, 2.4, 0xff6070, 0.5, 0.8); return; }
       if (e.boss) { boom(e.x, e.z, 5); wave(e.x, e.z, 7, STYLE.fire, 0.8); marks.flare(e.x, e.z, 6, 0xffa040, 0.7, 0.45); layers(BOSS_DEATH, e.x, e.z, { a: 0xffa040, b: 0xffd890 }, 7, e); return; }
@@ -443,17 +460,17 @@ export function createFxMap(H, marks, ctx) {
     hit(e) {
       if (dashWin.uid && e.by === dashWin.uid && ctx.time() <= dashWin.until && !e.dot && e.x !== undefined) dashHit(e);
       const u = ctx.unit(e.uid); if (!u || !u.hero) return;
-      if (e.shield) { marks.ring(u.x, u.z, 0.8, 1.9, 0x9ad8ff, 0.25, 0.7); return; }
+      if (e.shield) { pop(u.x, 1.2, u.z, 0.45, [0xffffff, 0x9ad8ff]); return; }
       const t = lastHurt.get(e.uid) || 0; if (ctx.time() - t < 0.18) return; lastHurt.set(e.uid, ctx.time());
       pop(u.x, 1.3, u.z, 0.45, [0xffffff, 0xff5060]);
     },
-    block(e) { const u = ctx.unit(e.uid); if (u) { marks.ring(u.x, u.z, 0.6, 1.9, 0xffd860, 0.3, 0.9); pop(u.x, 1.3, u.z, 0.5, [0xffffff, 0xffd860]); } },
-    buff(e) { const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (k) bump(e.key); const p = pal(k); marks.ring(u.x, u.z, 0.5, 1.8, p[1], 0.6, 0.8); sparkle(u.x, u.z, p, 4); },
+    block(e) { const u = ctx.unit(e.uid); if (u) { pop(u.x, 1.3, u.z, 0.5, [0xffffff, 0xffd860]); marks.flash(u.x, 1.3, u.z, 1.2, 0xffd860, 0.3); } },
+    buff(e) { const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (k) bump(e.key); const p = pal(k); rise(u.x, u.z, p[1], 10, 1.1); },
     state(e) {
       const u = ctx.unit(e.uid); if (!u) return; const k = look(e.fx); if (k) bump(e.fx);
-      const p = STATE[e.key] || pal(k); marks.ring(u.x, u.z, 0.5, 2, p[1], 0.6, 0.85); sparkle(u.x, u.z, p, 5); snd('saber_on', u.x, u.z, 0.3);
+      const p = STATE[e.key] || pal(k); rise(u.x, u.z, p[1], 10, 1.1); snd('saber_on', u.x, u.z, 0.3);
     },
-    status(e) { const u = ctx.unit(e.uid); if (u && u.hero) { const c = { burn: 0xff7030, poison: 0x78d838, freeze: 0x8ae0ff, slow: 0x8ab8ff, stun: 0xffe860, root: 0x8a6a44, bleed: 0xc02838 }[e.k]; if (c) marks.ring(u.x, u.z, 0.4, 1.4, c, 0.35, 0.8); } },
+    status(e) { const u = ctx.unit(e.uid); if (u && u.hero) { const c = { burn: 0xff7030, poison: 0x78d838, freeze: 0x8ae0ff, slow: 0x8ab8ff, stun: 0xffe860, root: 0x8a6a44, bleed: 0xc02838 }[e.k]; if (c) rise(u.x, u.z, c, 4, 0.7); } },
   };
 
   // ---- basic attacks ----
