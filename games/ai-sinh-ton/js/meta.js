@@ -10,11 +10,11 @@
 //     equipAt (stages cleared when Trang Bị opened), mergeOpen (latched once the bag held 3 identical items) }
 // stats also counts upgrades and merges (manual) for the equipment unlocks.
 
-import { GACHA, HERO_RARITY, rollGacha, rollTen, levelCost, levelMul, stageReward, lossReward, DAILY, START } from './data/economy.js?v=20261121a';
-import { SLOTS, TIERS, ITEMS, ITEM, itemStat, upgradeCost, mergeProblem, merge as mergeItems, autoMergePlan, equipBonus, baseWorth } from './data/equip.js?v=20261121a';
-import { HEROES, HERO } from './data/heroes.js?v=20261121a';
-import { UNLOCKS, UNLOCK, isUnlocked, lockText, teamSlots, newUnlocks, addXp, xpForResult, NEW_ACCOUNT, GIFTS, FTUE, LATER_GUIDES, mergeTriples, wornOf, slotOpen, openSlots, slotLine, EQUIP_GOLD } from './data/unlocks.js?v=20261121a';
-import { makeRng } from './sim/battle.js?v=20261121a';
+import { GACHA, HERO_RARITY, rollGacha, rollTen, levelCost, levelMul, stageReward, lossReward, DAILY, START } from './data/economy.js?v=20261121b';
+import { SLOTS, TIERS, ITEMS, ITEM, itemStat, upgradeCost, mergeProblem, merge as mergeItems, autoMergePlan, equipBonus, baseWorth } from './data/equip.js?v=20261121b';
+import { HEROES, HERO } from './data/heroes.js?v=20261121b';
+import { UNLOCKS, UNLOCK, isUnlocked, lockText, teamSlots, newUnlocks, addXp, xpForResult, NEW_ACCOUNT, GIFTS, FTUE, LATER_GUIDES, mergeTriples, wornOf, slotOpen, openSlots, slotLine, EQUIP_GOLD } from './data/unlocks.js?v=20261121b';
+import { makeRng } from './sim/battle.js?v=20261121b';
 
 const VERSION = 1;
 const TEAM_MAX = 4;

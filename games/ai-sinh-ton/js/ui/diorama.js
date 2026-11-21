@@ -2,8 +2,8 @@
 // miniature, a few small zombies, fog at the rim and light rain. One instance, re-dressed with dress(stage).
 // The boss is the battle's own model (bossacts.bossModel: a pool body dressed by the pool's spawn and copied), scaled to the
 // chunk, idling and now and then playing one of its skill poses; the small zombies are boxed figures built here.
-import { stageDef, CHAPTERS } from '../data/stages.js?v=20261121a';
-import { bossModel, idlePose, stepAct, skillPoses } from '../view/bossacts.js?v=20261121a';
+import { stageDef, CHAPTERS } from '../data/stages.js?v=20261121b';
+import { bossModel, idlePose, stepAct, skillPoses } from '../view/bossacts.js?v=20261121b';
 
 const INK = 0x1a1420;
 

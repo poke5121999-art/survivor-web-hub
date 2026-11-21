@@ -5,8 +5,8 @@
 // Lighting is baked once per stage: cool ambient by normal, a soft key direction, warm falloff from every light,
 // ambient occlusion under steps and at the foot of props. One atlas material (voxtex.js), MeshBasic, so q=low pays nothing
 // per light.
-import { voxAtlas } from './voxtex.js?v=20261121a';
-import { LIGHTS } from './themes.js?v=20261121a';
+import { voxAtlas } from './voxtex.js?v=20261121b';
+import { LIGHTS } from './themes.js?v=20261121b';
 const THREE = window.THREE;
 
 const R2 = Math.SQRT1_2;
