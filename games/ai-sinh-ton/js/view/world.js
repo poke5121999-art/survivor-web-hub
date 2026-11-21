@@ -211,7 +211,10 @@ export function createWorld(H) {
     const B = th.boss || {}; const sm = B.crack && i >= SECTIONS - 2 ? seams(main, B, boss ? 1 : 0.5, boss ? 14 : 5, stageN * 71 + i) : null; if (sm) all.push(...sm.lights);
     const g = new THREE.Group(); g.name = 'section' + i; g.add(main.build(all)); for (const s of sats) g.add(s.build(all));
     const sk = sm && sm.mesh(th); if (sk) g.add(sk);
-    for (const m of g.children) { m.matrixAutoUpdate = true; }
+    // islands of this section and the next one overlap in places (terraces, satellite islets) with block tops at the same whole-metre
+    // heights: sink each pad mesh by its own few millimetres (main pad 0 or 2 mm by section parity, satellites 4 mm and down) so
+    // no two overlapping tops share a depth and z-fight; the fight floor moves at most 2 mm
+    let np = 0; for (const m of g.children) { m.matrixAutoUpdate = true; if (m.name === 'pad') { m.geometry.translate(0, -0.002 * (np * 2 + (i % 2)), 0); np++; } }
     root.add(g); S.group = g; S.sats = sats; S.lights = all; S.buildMs = performance.now() - t0; W.buildMs += S.buildMs;
     return S;
   }
