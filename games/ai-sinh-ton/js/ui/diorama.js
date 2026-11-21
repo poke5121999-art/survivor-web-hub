@@ -2,7 +2,7 @@
 // miniature, a few small zombies, fog at the rim and light rain. One instance, re-dressed with dress(stage).
 // Bosses are boxed figures built here (the Blockade Z boss rigs are tied to its zombie pool and cannot stand alone):
 // each boss id has a look (colours, size, extra parts) in BOSS_LOOK so it reads as the same creature.
-import { stageDef, CHAPTERS } from '../data/stages.js?v=20261120d';
+import { stageDef, CHAPTERS } from '../data/stages.js?v=20261120f';
 
 const INK = 0x1a1420;
 

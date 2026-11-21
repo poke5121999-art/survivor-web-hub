@@ -5,8 +5,8 @@
 // keeps heroes (0.9 of the ellipse) above the hero card block at the bottom centre and the rim's corners above the bottom
 // edge. No follow and no zoom, so everything the sim does happens inside the picture. Spectate: a chase camera behind and
 // above one unit, blended in and out.
-import { ARENA } from '../sim/battle.js?v=20261120d';
-import { FLY_Y } from './keys.js?v=20261120d';
+import { ARENA } from '../sim/battle.js?v=20261120f';
+import { FLY_Y } from './keys.js?v=20261120f';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
