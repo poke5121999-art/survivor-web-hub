@@ -16,6 +16,8 @@ const BLADE = { fwd: [0, 1, 0], up: [0, 0, 1] };
 // `twist` is how far the shoulders turn into the shot (the right one goes back): the barrel's yaw in spine space is
 // yaw - twist, so the weapon keeps pointing at the target while the chest turns. Pistols give `m`, the grip point, and
 // poles give `rh` and `lh`, both hand positions: the shaft runs through them and slides through the hands on a thrust.
+// The fight camera sits 38 m away (a hero is 0.107 of the frame): the small weapons (pistols, stars, fists, wrist bow) are
+// drawn larger than Blockade Z drew them so each still spans >= 18 CSS px at s22 (tools/grip-shots.mjs).
 export const GRIP = {
   // two hands on the hilt (main near the guard, off hand at the pommel); the sword hangs off the spine and both arms are solved onto it.
   // Poses are the off hand's position `lh` and the blade direction `d` in spine space; a cut runs wind-up -> cross -> low finish -> guard.
@@ -29,10 +31,10 @@ export const GRIP = {
   glaive: { scale: 1.4, type: 'pole', ...BLADE, main: [0, -0.25, 0], support: null, stock: null,
     rest: { rh: [0.28, 0.42, 0.1], lh: [-0.02, 0.58, 0.42], twist: 0.2 }, aim: { rh: [0.28, 0.5, 0.1], lh: [-0.02, 0.58, 0.42], twist: 0.2 } },
   javelin: { scale: 1.4, type: 'thrown', ...GUN, main: [0, 0, 0.1], support: null, stock: null, carry: [0.5, 0.2, 0.84] },
-  shuriken: { scale: 3, type: 'thrown', ...GUN, main: [0, 0.02, -0.105], support: null, stock: null },
-  fists: { scale: 3.6, type: 'fists', ...GUN, main: [0, 0, -0.07], support: null, stock: null, both: true },
+  shuriken: { scale: 3.6, type: 'thrown', ...GUN, main: [0, 0.02, -0.105], support: null, stock: null },
+  fists: { scale: 3.0, type: 'fists', ...GUN, main: [0, 0, -0.07], support: null, stock: null, both: true },
   claws: { scale: 2.0, type: 'fists', ...GUN, main: [0, 0, -0.07], support: null, stock: null, both: true },
-  dualpistol: { scale: 1.9, type: 'dual', ...GUN, main: [0, -0.09, 0], support: null, stock: null,
+  dualpistol: { scale: 2.3, type: 'dual', ...GUN, main: [0, -0.09, 0], support: null, stock: null,
     rest: { m: [0.28, 0.5, 0.36], yaw: 0.1, pitch: 0, twist: 0 }, aim: { m: [0.26, 0.62, 0.42], yaw: 0.04, pitch: 0.02, twist: 0 } },
   shotgun: { scale: 1.5, type: 'two', ...GUN, main: [0, -0.06, 0.02], support: [0, -0.05, -0.2], stock: [0, 0.02, 0.38], muzzle: [0, 0.075, -0.94],
     rest: { lh: [-0.05, 0.52, 0.38], yaw: 0, pitch: 0, twist: 0.5 }, aim: { lh: [-0.05, 0.55, 0.4], yaw: 0, pitch: 0.04, twist: 0.6 } },
@@ -40,7 +42,7 @@ export const GRIP = {
     rest: { lh: [-0.05, 0.45, 0.4], yaw: 0, pitch: 0, twist: 0.5 }, aim: { lh: [-0.05, 0.45, 0.42], yaw: 0, pitch: 0.04, twist: 0.5 } },
   bazooka: { scale: 1.5, type: 'shoulder', ...GUN, main: [0, -0.1, 0.02], support: [0, -0.1, -0.22], stock: [0, 0.05, 0.3], muzzle: [0, 0.05, -1.13],
     rest: { lh: [-0.02, 0.55, 0.4], yaw: 0, pitch: 0.1, twist: 0.7 }, aim: { lh: [-0.02, 0.55, 0.42], yaw: 0, pitch: 0.1, twist: 0.7 } },
-  webbow: { scale: 1.5, type: 'wrist', ...GUN, main: [0, -0.04, 0.05], support: [0, -0.04, -0.15], stock: null, muzzle: [0, 0.112, -0.43],
+  webbow: { scale: 2.2, type: 'wrist', ...GUN, main: [0, -0.04, 0.05], support: [0, -0.04, -0.09], stock: null, muzzle: [0, 0.128, -0.565],
     rest: { lh: [0, 0.52, 0.4], yaw: 0, pitch: 0.05, twist: 0.5 }, aim: { lh: [0, 0.55, 0.4], yaw: 0, pitch: 0.04, twist: 0.5 } },
 };
 
