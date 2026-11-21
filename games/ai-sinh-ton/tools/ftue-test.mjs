@@ -286,9 +286,9 @@ for (PHONE of PHONE_LIST) {
     await ctx.close();
   }
 
-  // ============ equipment: a gentle first meeting (pictures in .chk/ftue-equip/) ============
-  if (PHONE === 's22') {
-    const OUTE = path.join(ROOT, '.chk', 'ftue-equip'); fs.mkdirSync(OUTE, { recursive: true });
+  // ============ equipment: a gentle first meeting, at every size (pictures in .chk/ftue-equip/<phone>/) ============
+  {
+    const OUTE = path.join(ROOT, '.chk', 'ftue-equip', PHONE); fs.mkdirSync(OUTE, { recursive: true });
     for (const f of fs.readdirSync(OUTE)) if (f.endsWith('.png')) fs.unlinkSync(path.join(OUTE, f));
     const eshots = [];
     const snapE = async (page, name) => { const f = path.join(OUTE, name + '.png'); await page.screenshot({ path: f }); eshots.push(f); };
