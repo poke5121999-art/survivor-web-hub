@@ -297,8 +297,12 @@ try {
           const left = 100 * Math.min(...xs) / Wd; const right = 100 * (Wd - Math.max(...xs)) / Wd; const top = Math.min(...ys);
           const corner = Math.max(...p.rim.filter((q) => q[0] < HUD.x0 || q[0] > HUD.x1).map((q) => q[1]));
           console.log(`${ph}: spawn rim left ${left.toFixed(1)}% right ${right.toFixed(1)}%, top ${top.toFixed(0)} px, lowest outside the hero block ${corner.toFixed(0)} px (frame ${Wd.toFixed(0)}x${Hd.toFixed(0)})`);
-          check(left >= 2 && left <= 5 && right >= 2 && right <= 5, `${ph}: spawn rim within 2-5% of the frame width from left/right (${left.toFixed(1)}%, ${right.toFixed(1)}%)`);
-          check(top >= 38 && top <= 70, `${ph}: top rim point just under the top bar (${top.toFixed(0)} design px)`);
+          // The Minecraft Dungeons camera (js/view/camera.js, ~/handoff/ast-par/cam/mcd-camera.md) frames the pad inside a
+          // wider world instead of stretching it to the frame edges (the old 2-5% side gap and a far rim at 38-70 px were the
+          // porthole framing the owner rejected); the rim now only has to stay in the frame and under the top bar. Every
+          // unit's box against the HUD is measured by tools/cam-test.mjs.
+          check(left >= 2 && right >= 2, `${ph}: spawn rim inside the frame, at least 2% from left/right (${left.toFixed(1)}%, ${right.toFixed(1)}%)`);
+          check(top >= 41, `${ph}: top rim point under the top bar (${top.toFixed(0)} design px, bar ends at 41)`);
           check(corner <= 352, `${ph}: spawn rim outside the hero block above y 352 (${corner.toFixed(0)})`);
         }
       }
