@@ -9,6 +9,7 @@ import { stageDef, expectedLevel } from './data/stages.js?v=20261121a';
 import { levelMul } from './data/economy.js?v=20261121a';
 import { attachGame } from './game.js?v=20261121a';
 import { createOrient } from './orient.js?v=20261121a';
+import { createPerf } from './view/perf.js?v=20261121a';
 
 const DEFAULT_TEAM = ['thep', 'mua', 'yta', 'gio'];
 const MAX_CATCHUP = 8;
@@ -48,6 +49,7 @@ async function boot() {
   window.__stats = host.stats;
   const glue = await attachGame(game, { params });
   createOrient(game, frame);
+  createPerf(game, frame, params);
 
   let acc = 0;
   function present(dt, realDt = dt) {
