@@ -13,12 +13,8 @@ export const fmt = (n) => { n = Math.round(n); try { return n.toLocaleString('vi
 export const heroColor = (kind) => (HERO_RARITY[HERO[kind] && HERO[kind].rarity] || HERO_RARITY.R).color;
 export const unitName = (u) => (u.hero ? HERO[u.kind].name : ENEMY[u.kind] ? ENEMY[u.kind].name : u.kind);
 
-// the kit's node.dispose walks its children while they remove themselves: collect first, then dispose leaves up
-export function kill(node) {
-  const all = []; node.traverse((o) => all.push(o));
-  for (let i = all.length - 1; i >= 0; i--) if (all[i] !== node && typeof all[i].dispose === 'function') all[i].dispose();
-  node.dispose();
-}
+// pick.js still imports this name; the kit's own dispose() frees the whole subtree
+export const kill = (node) => node.dispose();
 
 // a rounded translucent rectangle texture, used to grey out a portrait
 export function roundPlane(THREE, w, h, r, rgba) {
@@ -101,7 +97,7 @@ export function createHud(game) {
   }
 
   // ---------- hero cards ----------
-  function disposeCards() { for (const c of cards) kill(c.col); cards = []; }
+  function disposeCards() { for (const c of cards) c.col.dispose(); cards = []; }
   const cardX = (i, n) => W / 2 - rowW(n) / 2 + i * CARD_PITCH;
   const cardTop = () => ui.H - BOTTOM - CARD_H;
   function buildCards(B) {
@@ -148,7 +144,7 @@ export function createHud(game) {
   function banner(kind, str, sub) {
     const spec0 = BANNER[kind];
     // a newer wave/boss/rage banner replaces the older of its kind; two different ultimates both stack
-    for (let k = banners.length - 1; k >= 0; k--) if (banners[k].kind === kind && (kind !== 'ult' || banners[k].str === str)) { kill(banners[k].g); banners.splice(k, 1); }
+    for (let k = banners.length - 1; k >= 0; k--) if (banners[k].kind === kind && (kind !== 'ult' || banners[k].str === str)) { banners[k].g.dispose(); banners.splice(k, 1); }
     const t = ui.text(str, { size: kind === 'ult' ? 27 : 24, align: 'center', valign: 'mid', upper: true });
     const w = Math.min(430, Math.max(220, t.w + 64)), h = sub ? 56 : 44, g = ui.group({ w, h });
     const p = ui.panel({ w, h, r: 17, color: spec0.color, depth: 5, bevel: 3 }); g.put(p, 0, 0, 0);
@@ -159,19 +155,19 @@ export function createHud(game) {
     banners.push({ g, kind, str, spec: spec0, t: 0, w, h, cx, y });
     // rows stop above the hero cards and their flames: when one more would not fit, the oldest goes
     const limit = ui.H - BOTTOM - CARD_H - 30;
-    while (banners.length > 1 && rowOf(banners.length - 1) + banners[banners.length - 1].h > limit) { kill(banners[0].g); banners.shift(); }
+    while (banners.length > 1 && rowOf(banners.length - 1) + banners[banners.length - 1].h > limit) { banners[0].g.dispose(); banners.shift(); }
     // numbers already flying whose remaining path crosses a banner would hide its text (they draw above it): drop them
     const rs = bannerRects();
     for (let i = live.length - 1; i >= 0; i--) {
       const q = live[i], y0 = q.y - easeOut(q.age / NUMBER_LIFE) * RISE, y1 = q.y - RISE;
       const path = { x: q.x - q.w / 2, y: y1 - q.h / 2, w: q.w, h: y0 - y1 + q.h };
-      if (rs.some((r) => meets(path, r))) { kill(q.node); live.splice(i, 1); }
+      if (rs.some((r) => meets(path, r))) { q.node.dispose(); live.splice(i, 1); }
     }
   }
   // the row of banner i: under every banner before it, whatever their kinds
   const rowOf = (i) => { let y = BANNER_TOP; for (let k = 0; k < i && k < banners.length; k++) y += banners[k].h + BANNER_GAP; return y; };
   function updateBanners(dt) {
-    for (let i = banners.length - 1; i >= 0; i--) { const b = banners[i]; b.t += dt; if (b.t >= (b.spec.kind === 'slide' ? 1.9 : 1.5)) { kill(b.g); banners.splice(i, 1); } }
+    for (let i = banners.length - 1; i >= 0; i--) { const b = banners[i]; b.t += dt; if (b.t >= (b.spec.kind === 'slide' ? 1.9 : 1.5)) { b.g.dispose(); banners.splice(i, 1); } }
     for (let i = banners.length - 1; i >= 0; i--) {
       const b = banners[i]; const dur = b.spec.kind === 'slide' ? 1.9 : 1.5, tin = 0.3, tout = 0.26;
       const row = rowOf(i); b.y += (row - b.y) * (1 - Math.exp(-dt * 14)); if (Math.abs(row - b.y) < 0.3) b.y = row;
@@ -187,21 +183,21 @@ export function createHud(game) {
   function burst(slot) {
     const c = cards[slot]; if (!c) return;
     const cx = c.col.ux + PX + PW / 2, cy = c.col.uy + CY;
-    for (let i = bursts.length - 1; i >= 0; i--) if (bursts[i].slot === slot) { kill(bursts[i].f); bursts.splice(i, 1); }
+    for (let i = bursts.length - 1; i >= 0; i--) if (bursts[i].slot === slot) { bursts[i].f.dispose(); bursts.splice(i, 1); }
     const f = ui.icon('flame', { size: 36, sway: false }); const x = cx - 18, y = c.col.uy - FLAME_UP - 4; scr.put(f, x, y, 40); bursts.push({ f, x, y, slot, t: 0 });
   }
   function updateBursts(dt) {
     for (let i = bursts.length - 1; i >= 0; i--) {
       const b = bursts[i]; b.t += dt; const k = b.t / 0.45;
-      if (k >= 1) { kill(b.f); bursts.splice(i, 1); continue; }
+      if (k >= 1) { b.f.dispose(); bursts.splice(i, 1); continue; }
       const s = 1 + 0.5 * easeOut(k);
       b.f.pos(b.x - 18 * (s - 1), b.y - 18 * (s - 1) - 14 * easeOut(k), 40); b.f.scale.set(s, s, s); if (b.f.setOpacity) b.f.setOpacity(1 - k * k);
     }
   }
   function clearTransient() {
-    for (const b of banners) kill(b.g); banners.length = 0;
-    for (const b of bursts) kill(b.f); bursts.length = 0;
-    pending.clear(); for (const q of live) kill(q.node); live.length = 0; deaths.length = 0; avgHit = 0;
+    for (const b of banners) b.g.dispose(); banners.length = 0;
+    for (const b of bursts) b.f.dispose(); bursts.length = 0;
+    pending.clear(); for (const q of live) q.node.dispose(); live.length = 0; deaths.length = 0; avgHit = 0;
   }
 
   // ---------- damage and heal numbers ----------
@@ -260,7 +256,7 @@ export function createHud(game) {
   function updateNumbers(dt) {
     for (let i = live.length - 1; i >= 0; i--) {
       const q = live[i]; q.age += dt;
-      if (q.age >= NUMBER_LIFE) { kill(q.node); live.splice(i, 1); continue; }
+      if (q.age >= NUMBER_LIFE) { q.node.dispose(); live.splice(i, 1); continue; }
       drawNumber(q);
     }
   }
@@ -310,12 +306,12 @@ export function createHud(game) {
     q.sum += p.sum; q.n += p.n; q.text = numStr(q);
     const size = p.heal ? 18 : clamp(17 + 2.2 * Math.log2(q.n), 17, 29); q.size = Math.max(q.size, size);
     q.node.set(q.text); Object.assign(q, sizeOf(q.text, q.size)); q.age = Math.min(q.age, NUMBER_LIFE * 0.45);
-    const t = twin(q); if (t) { const drop = t.age > q.age ? t : q; kill(drop.node); live.splice(live.indexOf(drop), 1); if (drop === q) return; }
+    const t = twin(q); if (t) { const drop = t.age > q.age ? t : q; drop.node.dispose(); live.splice(live.indexOf(drop), 1); if (drop === q) return; }
     // grown or made young again where it stands, it may now reach out of the play band or sit on a banner that came up
     // after it: then it is placed again like a new number
     const s = sweep(q);
     if (s.y < BAND_TOP || q.y + q.h / 2 > ui.H - BOTTOM || [...bannerRects(), ...blockRects()].some((r) => meets(s, r)) || crowds(q.x, q.y, q.w, q.h, q.age, q)) {
-      kill(q.node); live.splice(live.indexOf(q), 1);
+      q.node.dispose(); live.splice(live.indexOf(q), 1);
       place(q.key, q.text, q.x, q.y, { color: q.color, size: q.size, sum: q.sum, n: q.n, heal: q.heal, merged: q.merged });
     }
   }

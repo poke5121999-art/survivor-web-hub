@@ -4,7 +4,7 @@
 // All account changes go through meta.*; this screen only reads meta.acc and rebuilds after each command.
 import { SLOTS, TIERS, ITEM, itemStat, upgradeCost, refundOf, autoMergePlan } from '../data/equip.js?v=20261120e';
 import { HERO } from '../data/heroes.js?v=20261120e';
-import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120e';
+import { makeBackdrop, makeBurst, fmt, rarityColor } from './home.js?v=20261120e';
 import { ITEM_ICON } from './itemicons.js?v=20261120e';
 
 const SLOT = Object.fromEntries(SLOTS.map((s) => [s.id, s]));
@@ -42,7 +42,7 @@ export function createEquip(game) {
     const own = Object.keys(meta.acc.heroes).filter((id) => meta.acc.heroes[id].level > 0);
     return [...meta.acc.team.filter((id) => own.includes(id)), ...own.filter((id) => !meta.acc.team.includes(id))];
   };
-  const veilGeo = new THREE.PlaneGeometry(1, 1), veilMat = new THREE.MeshBasicMaterial({ color: 0x120a24, transparent: true, opacity: 0.62, depthWrite: false, toneMapped: false });
+  const veilGeo = new THREE.PlaneGeometry(1, 1), veilMat = new THREE.MeshBasicMaterial({ color: 0x120a24, transparent: true, opacity: 0.62, depthWrite: false, toneMapped: false }); veilGeo.userData.shared = veilMat.userData.shared = true;
   const cap = (s) => s.charAt(0).toLocaleUpperCase('vi') + s.slice(1);
   // every explanation is one short toast, kept in U for the tests
   // a refused tap sets game.guideRefused so the guide does not count it as a press
@@ -92,7 +92,7 @@ export function createEquip(game) {
   function buildBottom() {
     const showMerge = meta.unlocked('merge'), showAuto = showMerge && meta.autoShown(), key = showMerge + '|' + showAuto;
     if (key === bottomKey) return; bottomKey = key;
-    for (const n of [bestB, mergeB, autoB]) if (n) kill(n);
+    for (const n of [bestB, mergeB, autoB]) if (n) n.dispose();
     mergeB = autoB = null;
     const mk = (id, x, w, color, label, size, fn, sub) => { const n = ui.button({ id, w, h: BTN_H, r: 16, color, label, sub, size, onTap: fn }); eq.put(n, x, BTN_Y, 6); return n; };
     if (!showMerge) bestB = mk('equip-best', 482, 270, PAL.green, 'MẶC TỐT NHẤT', 19, wearBest, ' ');
@@ -108,7 +108,7 @@ export function createEquip(game) {
   const fxLayer = ui.group(); eq.put(fxLayer, 0, 0, 60);
   const glowCan = document.createElement('canvas'); glowCan.width = glowCan.height = 64;
   { const c = glowCan.getContext('2d'), g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(0.45, 'rgba(255,255,255,0.4)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); }
-  const glowTex = new THREE.CanvasTexture(glowCan); glowTex.colorSpace = THREE.SRGBColorSpace;
+  const glowTex = new THREE.CanvasTexture(glowCan); glowTex.colorSpace = THREE.SRGBColorSpace; glowTex.userData.shared = true;
 
   // ---------- tiles ----------
   // pooled little hero portraits for items worn by someone else: a portrait is a whole model, so each is made once
@@ -129,7 +129,7 @@ export function createEquip(game) {
   // ---------- hero stage ----------
   let vpNode = null, modelM = null, rotY = 0.4, dragging = false, builtFor = '';
   function buildModel() {
-    if (vpNode) { kill(vpNode); vpNode = null; }
+    if (vpNode) { vpNode.dispose(); vpNode = null; }
     const bz = BZ && BZ.HEROES && BZ.HEROES.find((h) => h.id === S.hero), root = new THREE.Group(); modelM = null;
     if (bz && BZ.heroModel) { try { const m = BZ.heroModel(S.hero); try { BZ.equipWeapon(m, bz.weapon); } catch (e) { /* weapon is decoration here */ } root.add(m.root); modelM = m; } catch (e) { console.warn('[equip] model failed: ' + e.message); } }
     if (!modelM) root.add(new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.6), new THREE.MeshStandardMaterial({ color: rarityColor(S.hero) })));
@@ -151,7 +151,7 @@ export function createEquip(game) {
 
   let slotNodes = [];
   function buildSlots() {
-    for (const n of slotNodes) kill(n); slotNodes = [];
+    for (const n of slotNodes) n.dispose(); slotNodes = [];
     const e = meta.acc.equip[S.hero] || {}, sd = meta.dots().slotDots[S.hero] || {};
     U.slotInfo = {};
     const place = (slot, x, y) => {
@@ -219,7 +219,7 @@ export function createEquip(game) {
   }
   function buildGrid() {
     unpool();
-    for (const n of gridNodes) kill(n); gridNodes = [];
+    for (const n of gridNodes) n.dispose(); gridNodes = [];
     const worn = wornMap(), merging = S.mode === 'merge', G = merging ? GRIDM : GRID, other = merging ? scN : scM;
     const keep = sc === (merging ? scM : scN) ? sc.getScroll() : 0; sc = merging ? scM : scN; other.setVisible(false); sc.setVisible(true);
     const list = bag().filter((it) => merging || !(worn.get(it.uid) && worn.get(it.uid).hid === S.hero)).sort(sorters[SORTS[S.sort].id]);
@@ -245,7 +245,7 @@ export function createEquip(game) {
     U.uids = list.map((it) => it.uid);
   }
   function buildMats() {
-    for (const n of matNodes) kill(n); matNodes = []; U.mats = {};
+    for (const n of matNodes) n.dispose(); matNodes = []; U.mats = {};
     if (!meta.unlocked('upgrade')) return;
     let k = 0;
     SLOTS.forEach((s) => {
@@ -269,7 +269,7 @@ export function createEquip(game) {
   function closeSheet() { S.sheet = 0; U.sheet = null; ui.hide('item', { transition: 'pop' }); }
   function buildSheet() {
     const it = find(S.sheet); if (!it) { closeSheet(); return; }
-    for (const n of shDyn) kill(n); shDyn = [];
+    for (const n of shDyn) n.dispose(); shDyn = [];
     const T = TIERS[it.tier], def = ITEM[it.item], slot = SLOTS.find((s) => s.id === def.slot), w = wornMap().get(it.uid);
     const put = (n, x, y, z = 4) => { shP.put(n, x, y, z); shDyn.push(n); return n; };
     const tile = ui.tile({ size: 96, color: T.color, node: ui.icon(ITEM_ICON(it.item), { size: 72, sway: true }) }); put(tile, 38, 10);
@@ -343,7 +343,7 @@ export function createEquip(game) {
     mk(a, cx - 108); mk(b, cx + 18); const ar = ui.icon('right', { size: 22, sway: false }); mergeG.put(ar, cx - 11, y + 1, 14); pvNodes.push(ar);
   };
   function buildPreview() {
-    for (const n of pvNodes) kill(n); pvNodes = [];
+    for (const n of pvNodes) n.dispose(); pvNodes = [];
     const main = S.main ? find(S.main) : null, add = (n, x, y, z = 14) => { mergeG.put(n, x, y, z); pvNodes.push(n); return n; };
     const cx = PREV.cx, head = main ? 'Ghép lên bậc cao hơn' : 'Chọn món chính để ghép';
     add(ui.text(head, { size: 13, align: 'center', outlineW: 2.4 }), cx, 54);
@@ -425,7 +425,7 @@ export function createEquip(game) {
     for (const f of fx.flies) { const k = e * e; f.n.pos(f.x0 + (fx.tx - f.x0) * k - 22 * (1 - 0.5 * k), f.y0 + (fx.ty - f.y0) * k - 22 * (1 - 0.5 * k)); f.n.scale.setScalar(1 - 0.5 * k); f.n.visible = e < 1; }
     if (fx.t >= 0.5 && !fx.hit) { fx.hit = true; burst.spawn(fx.tx, fx.ty, 30, fx.col, 210); game.vibrate && game.vibrate(25); }
     if (fx.hit) { const k = (fx.t - 0.5) / 0.6, s = 50 + ease2(Math.min(1, k)) * 150; fx.gm.scale.set(s, s, 1); fx.gm.material.opacity = Math.max(0, Math.sin(Math.min(1, k) * Math.PI)) * (game.settings && game.settings.reduceFlash ? 0.4 : 0.75); }
-    if (fx.t >= 1.15) { for (const f of fx.flies) kill(f.n); fx.gm.material.dispose(); fxLayer.remove(fx.gm); fx = null; U.fx = false; dirty = true; }
+    if (fx.t >= 1.15) { for (const f of fx.flies) f.n.dispose(); fx.gm.material.dispose(); fxLayer.remove(fx.gm); fx = null; U.fx = false; dirty = true; }
   }
 
   // ---------- Ghép Nhanh ----------
@@ -454,7 +454,7 @@ export function createEquip(game) {
   function openAuto() {
     if (!meta.unlocked('merge')) { refuse(meta.lockText('merge')); return; }
     const r = simAuto(); if (!r.merges) { refuse('Chưa có bộ ba nào giống nhau để ghép'); return; }
-    for (const n of aDyn) kill(n); aDyn = [];
+    for (const n of aDyn) n.dispose(); aDyn = [];
     const put = (n, x, y, z = 4) => { aP.put(n, x, y, z); aDyn.push(n); return n; };
     aCount.set(`Sẽ ghép ${r.merges} lần` + (r.rows.length > 6 ? ` · còn ${r.rows.length - 6} kết quả nữa` : ''));
     r.rows.slice(0, 6).forEach((g, i) => {

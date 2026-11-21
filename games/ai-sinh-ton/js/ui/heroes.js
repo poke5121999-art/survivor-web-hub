@@ -3,7 +3,7 @@
 // Everything is read from meta.acc and rebuilt after each meta command.
 import { HEROES, HERO } from '../data/heroes.js?v=20261120e';
 import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261120e';
-import { makeBackdrop, makeBurst, fmt, rarityColor, kill } from './home.js?v=20261120e';
+import { makeBackdrop, makeBurst, fmt, rarityColor } from './home.js?v=20261120e';
 
 const ROLE = { tank: 'Đỡ đòn', ranged: 'Bắn xa', healer: 'Hồi máu', melee: 'Cận chiến' };
 const RANK = { SSR: 0, SR: 1, R: 2 };
@@ -47,7 +47,7 @@ export function createHeroes(game) {
   }
   function buildGrid() {
     const keep = sc.getScroll();
-    for (const c of cells) kill(c); cells = [];
+    for (const c of cells) c.dispose(); cells = [];
     const rank = (h) => (owned(h.id) ? 0 : 1);
     const list = HEROES.slice().sort((a, b) => rank(a) - rank(b) || RANK[a.rarity] - RANK[b.rarity]);
     list.forEach((h, i) => cells.push(cell(h, i))); mui.gridCount = cells.length;
@@ -93,7 +93,7 @@ export function createHeroes(game) {
   const burst = makeBurst(ui); scr.put(burst.node, 0, 0, 60);
 
   function buildModel() {
-    if (vpNode) { kill(vpNode); vpNode = null; }
+    if (vpNode) { vpNode.dispose(); vpNode = null; }
     const bz = BZ && BZ.HEROES && BZ.HEROES.find((h) => h.id === id); const root = new THREE.Group(); modelM = null;
     if (bz && BZ.heroModel) {
       try { const m = BZ.heroModel(id); try { BZ.equipWeapon(m, bz.weapon); } catch (e) { /* weapon is decoration here */ } root.add(m.root); modelM = m; } catch (e) { console.warn('[heroes] model failed: ' + e.message); }
@@ -147,7 +147,7 @@ export function createHeroes(game) {
   let pickNodes = [];
   const pCancel = ui.button({ id: 'replace-cancel', w: 76, h: 48, r: 14, color: PAL.red, label: 'HUỶ', size: 16, onTap: () => ui.hide('team-pick', { transition: 'pop' }) }); pp.put(pCancel, 384, 66);
   function openPick() {
-    for (const n of pickNodes) kill(n); pickNodes = [];
+    for (const n of pickNodes) n.dispose(); pickNodes = [];
     meta.acc.team.forEach((tid, i) => {
       const p = ui.portrait(tid, { size: 72, color: rarityColor(tid), id: 'replace-' + i, onTap: () => { const t = meta.acc.team.slice(); t[i] = id; ui.hide('team-pick', { transition: 'pop' }); const r = meta.setTeam(t); if (!r.ok) ui.toast(r.why); } });
       pp.put(p, 16 + i * 90, 56); pickNodes.push(p);

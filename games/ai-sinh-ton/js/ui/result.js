@@ -2,7 +2,7 @@
 // per-hero statistics tab, with the next steps always in view) and 'settings' (the same switches, opened from the home screen).
 import { HERO } from '../data/heroes.js?v=20261120e';
 import { ITEM, TIERS } from '../data/equip.js?v=20261120e';
-import { fmt, heroColor, kill } from './hud.js?v=20261120e';
+import { fmt, heroColor } from './hud.js?v=20261120e';
 import { xpNeed } from '../data/unlocks.js?v=20261120e';
 import { ITEM_ICON } from './itemicons.js?v=20261120e';
 import { createStatsPanel } from './stats.js?v=20261120e';
@@ -75,7 +75,7 @@ export function createResult(game) {
   // ---------- result ----------
   let res = null, xpAnim = null, xpText = '', lvUp = '', gifts = [], tab = '', stats = null, tabBtns = null, leftG = null;
   function buildResult(r) {
-    if (res) { kill(res); res = null; stats = null; }
+    if (res) { res.dispose(); res = null; stats = null; }
     xpAnim = null; xpText = ''; lvUp = ''; gifts = [];
     const g = ui.group({ w: W, h: 360 }); scr.put(g, 0, 0, 2); res = g;
     g.put(ui.panel({ w: 748, h: 336, r: 26, color: 0x33286a, depth: 6, bevel: 3, gloss: false }), 16, 12, 0);

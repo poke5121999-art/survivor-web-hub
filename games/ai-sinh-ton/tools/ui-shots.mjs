@@ -161,6 +161,27 @@ try {
     }
     await ctx.close();
   }
+  // every meta screen of the real game opened and closed 5 times gives its GPU memory back
+  { const { ctx, page, problems } = await open(br, srv.base, 's22');
+    await page.waitForFunction(() => window.__G && window.__G.screens && window.__G.screens.home && window.__step, null, { timeout: 60000 });
+    const res = await page.evaluate(() => {
+      const G = window.__G, ui = window.__ui, out = [];
+      const cycle = (name) => { G.goto(name); window.__step(20); G.goto('home'); window.__step(20); };
+      // the home diorama draws some meshes for the first time only after a few hundred frames: let the count settle before measuring
+      let last = -1, still = 0; for (let f = 0; f < 3000 && still < 400; f += 50) { window.__step(50); const g = ui.memory().geometries; still = g === last ? still + 50 : 0; last = g; }
+      for (const name of Object.keys(G.screens).filter((n) => !['home', 'hud', 'result', 'stats', 'pick', 'battle'].includes(n))) {
+        let err = '';
+        try { cycle(name); const m0 = ui.memory(); for (let k = 0; k < 5; k++) cycle(name); const m1 = ui.memory(); out.push({ name, m0, m1 }); } catch (e) { err = String(e && e.message); out.push({ name, err }); }
+      }
+      return out;
+    });
+    for (const r of res) {
+      if (r.err) { check(false, `open/close ${r.name} x5: threw ${r.err}`); continue; }
+      const dg = r.m1.geometries - r.m0.geometries, dt = r.m1.textures - r.m0.textures;
+      check(dg <= 0 && dt <= 0, `open/close ${r.name} x5 after one warm cycle: geometries ${r.m0.geometries} -> ${r.m1.geometries}, textures ${r.m0.textures} -> ${r.m1.textures} (allowance 0)`);
+    }
+    check(res.length >= 3 && problems.length === 0, `open/close cycles covered ${res.map((r) => r.name).join(', ')}, no page problems` + (problems.length ? ' ' + problems.slice(0, 2).join(' | ') : ''));
+    await ctx.close(); }
   // placeholder portraits without Blockade Z
   { const { ctx, page, problems } = await open(br, srv.base, 's22', 'screen=hud&nobz=1', DEMO); await wait(page, 800);
     const f = path.join(OUT, 'hud-nobz-s22.png'); await shot(page, { path: f });

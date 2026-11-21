@@ -4,7 +4,7 @@
 
 export function makeGeo(THREE) {
   const cache = new Map();
-  const memo = (key, make) => { let g = cache.get(key); if (!g) { g = make(); cache.set(key, g); } return g; };
+  const memo = (key, make) => { let g = cache.get(key); if (!g) { g = make(); g.userData.shared = true; cache.set(key, g); } return g; };
   const k = (v) => Math.round(v * 100) / 100;
 
   function rrShape(w, h, r) {
@@ -70,19 +70,19 @@ export function makeGeo(THREE) {
     const c = document.createElement('canvas'); c.width = cw; c.height = ch; const x = c.getContext('2d');
     x.filter = `blur(${blur * sc * 0.55}px)`; x.fillStyle = '#000';
     x.beginPath(); x.roundRect(pad * sc, pad * sc, w * sc, h * sc, r * sc); x.fill();
-    t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.userData = { pad };
+    t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.userData = { pad, shared: true };
     shadowTex.set(key, t); return t;
   }
 
   const mats = new Map();
   function std(color, o = {}) {
     const key = 's' + color + (o.rough ?? '') + (o.vc ? 'v' : ''); let m = mats.get(key);
-    if (!m) { m = new THREE.MeshStandardMaterial({ color, roughness: o.rough ?? 0.42, metalness: 0, vertexColors: !!o.vc }); mats.set(key, m); }
+    if (!m) { m = new THREE.MeshStandardMaterial({ color, roughness: o.rough ?? 0.42, metalness: 0, vertexColors: !!o.vc }); m.userData.shared = true; mats.set(key, m); }
     return m;
   }
   function basic(color, opacity = 1) {
     const key = 'b' + color + '|' + opacity; let m = mats.get(key);
-    if (!m) { m = new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, depthWrite: opacity >= 1, toneMapped: false }); mats.set(key, m); }
+    if (!m) { m = new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, depthWrite: opacity >= 1, toneMapped: false }); m.userData.shared = true; mats.set(key, m); }
     return m;
   }
 

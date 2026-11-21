@@ -5,7 +5,7 @@ import { GACHA, HERO_RARITY } from '../data/economy.js?v=20261120e';
 import { HERO } from '../data/heroes.js?v=20261120e';
 import { ITEM as ITEM_DEF, TIERS } from '../data/equip.js?v=20261120e';
 import { ITEM_ICON } from './itemicons.js?v=20261120e';
-import { makeBackdrop, makeBurst, capsule3d, fmt, kill } from './home.js?v=20261120e';
+import { makeBackdrop, makeBurst, capsule3d, fmt } from './home.js?v=20261120e';
 
 const GOLD = 0xffc21f, ITEM = 0x98a6c4;
 const PILLS = [[0xff8ad0, 0x6ad8ff], [0xffd21f, 0x8f4dff], [0x8aff9a, 0xff9a5a], [0xb48aff, 0xffe27a], [0x5ad0ff, 0xff6a8a], [0xff9a5a, 0x4af0c8]];
@@ -141,7 +141,7 @@ export function createGacha(game) {
     cap = { g: cp, color: c, vy: 0, y: 1.0, z: 1.9, bounce: 0 };
   }
   function clearCap() { if (cap) { root.remove(cap.g); cap = null; } glow.visible = false; glowM.opacity = 0; }
-  function clearCard() { if (card) { kill(card); card = null; } scrim.material.opacity = 0; rays.material.opacity = 0; }
+  function clearCard() { if (card) { card.dispose(); card = null; } scrim.material.opacity = 0; rays.material.opacity = 0; }
   const peak = () => (game.settings.reduceFlash ? 0.26 : 0.55);
 
   function capStep(dt) {
@@ -208,7 +208,7 @@ export function createGacha(game) {
     sp.tick = 0; ov.userData.sum = sp;
   }
   function doDone() {
-    if (!S) return; clearCard(); clearCap(); for (const n of sumNodes) kill(n); sumNodes = []; scrim.material.opacity = 0;
+    if (!S) return; clearCard(); clearCap(); for (const n of sumNodes) n.dispose(); sumNodes = []; scrim.material.opacity = 0;
     S = null; done.setVisible(false); skip.setVisible(false); idleG.setVisible(true); lastKey = ''; game.chrome && game.chrome.setNav(true);
   }
   mui.gachaPhase = () => (S ? S.phase : 'idle');
@@ -235,7 +235,7 @@ export function createGacha(game) {
   return {
     name: 'gacha',
     show() { ui.show('gacha', { transition: 'none' }); if (!S) { idleG.setVisible(true); lastKey = ''; } },
-    hide() { ui.hide('gacha', { transition: 'none' }); ui.hide('rates', { transition: 'none' }); if (S) { clearCard(); clearCap(); for (const n of sumNodes) kill(n); sumNodes = []; S = null; done.setVisible(false); skip.setVisible(false); idleG.setVisible(true); } },
+    hide() { ui.hide('gacha', { transition: 'none' }); ui.hide('rates', { transition: 'none' }); if (S) { clearCard(); clearCap(); for (const n of sumNodes) n.dispose(); sumNodes = []; S = null; done.setVisible(false); skip.setVisible(false); idleG.setVisible(true); } },
     update(dt) {
       if (!ui.isShown('gacha')) return;
       title.visible = scrim.material.opacity < 0.05; // the reveal scrim would dim it into a half-covered title
