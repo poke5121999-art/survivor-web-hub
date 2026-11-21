@@ -217,12 +217,18 @@ export function createUI({ THREE, renderer, frame }) {
   // ---------- button ----------
   ui.button = (o) => {
     const w = o.w ?? 120, h = o.h ?? 44, color = o.color ?? PAL.orange, lip = Math.max(3, Math.round(h * 0.11)), r = Math.min(o.r ?? h * 0.3, h / 2);
-    const { root: g, pivot, holder } = centred(w, h); g.top = 6 + 3 + 0.3;
-    if (o.shadow !== false) addShadow(g, w, h + lip, r, 4, 0.5);
-    const backMat = geo.std(0xffffff, { vc: true });
-    const base = new THREE.Mesh(geo.buttonBack(w, h, lip, r, color), backMat); g.add(base);
-    const body = new THREE.Mesh(geo.slab(w, h, r, 6, 3), geo.std(color)); holder.add(body);
-    { const ins = 5.5, gw = w - ins * 2, gh = Math.max(5, (h - ins) * 0.4); const gl = new THREE.Mesh(geo.plate(gw, gh, Math.max(3, r - 4)), geo.basic(0xffffff, 0.24)); gl.position.set(ins, -3.6, 9.4); holder.add(gl); }
+    // flat: a see-through rounded plate instead of the bevelled slab (one draw, no shadow, no lip), for HUD buttons that
+    // sit over the fight; it presses by scale like a tile
+    const flat = !!o.flat, alpha = o.alpha ?? 0.5;
+    const { root: g, pivot, holder } = centred(w, h); g.top = flat ? 1 : 6 + 3 + 0.3;
+    if (o.shadow !== false && !flat) addShadow(g, w, h + lip, r, 4, 0.5);
+    let base, body = null;
+    if (flat) { base = new THREE.Mesh(geo.plate(w, h, r), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: alpha, depthWrite: false, toneMapped: false })); holder.add(base); }
+    else {
+      base = new THREE.Mesh(geo.buttonBack(w, h, lip, r, color), geo.std(0xffffff, { vc: true })); g.add(base);
+      body = new THREE.Mesh(geo.slab(w, h, r, 6, 3), geo.std(color)); holder.add(body);
+      { const ins = 5.5, gw = w - ins * 2, gh = Math.max(5, (h - ins) * 0.4); const gl = new THREE.Mesh(geo.plate(gw, gh, Math.max(3, r - 4)), geo.basic(0xffffff, 0.24)); gl.position.set(ins, -3.6, 9.4); holder.add(gl); }
+    }
     pivot.position.z = 3;
     const size = o.size ?? clamp(Math.round(h * 0.4), 12, 26);
     let label = null, sub = null, ic = null, enabled = true, badge = null;
@@ -250,15 +256,17 @@ export function createUI({ THREE, renderer, frame }) {
     g.setBadge = (n) => { if (!badge) badge = makeBadge(holder, w - (o.stack ? 14 : 7), -1, 12); badge.setN(n); return g; };
     g.setEnabled = (b) => {
       enabled = !!b; if (g.target) g.target.enabled = enabled;
-      body.material = geo.std(enabled ? color : PAL.disabled); base.geometry = geo.buttonBack(w, h, lip, r, enabled ? color : PAL.disabled);
+      if (flat) base.material.opacity = enabled ? alpha : alpha * 0.7;
+      else { body.material = geo.std(enabled ? color : PAL.disabled); base.geometry = geo.buttonBack(w, h, lip, r, enabled ? color : PAL.disabled); }
       label && label.setColor(enabled ? 0xffffff : 0xd4d0e4);
       return g;
     };
     const sp = spring();
     pressable(g, sp, (x, tm) => {
       const br = o.pulse && enabled ? Math.sin(tm * 3.6) * 0.022 + 0.022 : 0;
+      if (flat) { const k = 1 - 0.08 * x; pivot.position.y = -h / 2; pivot.scale.set(k, k, 1); return; }
       pivot.position.y = -h / 2 - x * lip * 0.85; pivot.scale.set(1 + 0.035 * x + br, 1 - 0.07 * x + br, 1);
-    })({ id: o.id, onTap: o.onTap, h: () => h + lip });
+    })({ id: o.id, onTap: o.onTap, h: () => (flat ? h : h + lip) });
     if (o.enabled === false) g.setEnabled(false);
     return g;
   };
