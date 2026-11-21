@@ -252,7 +252,7 @@ export function createActors(H) {
     m.root.traverse((o) => { if (o.isMesh && o.material) o.material = Array.isArray(o.material) ? o.material.map(own) : own(o.material); });
     const g = new THREE.Group(); g.scale.setScalar(HERO_SCALE); g.add(m.root);
     const st = newHeroState(BZ.holdOf(BZ.WEAPONS[bz.weapon]));
-    return { root: g, tick(a, dt) { BZ.animHero(m, st, dt); solveGrip(grip, m, st, dt, { aim: false }); } };
+    return { root: g, tick(a, dt) { st.speed = a.speed; BZ.animHero(m, st, dt); solveGrip(grip, m, st, dt, { aim: false }); } };
   }
   const BUILD = { drone: buildDrone, turret: buildTurret, cannon: buildCannon, wolf: buildWolf, decoy: buildDecoy };
 
@@ -265,14 +265,20 @@ export function createActors(H) {
   }
   function syncSummon(a, dt) {
     const u = a.u; const bx = a.pos.x; const bz = a.pos.z; const k = 1 - Math.exp(-18 * dt);
-    a.pos.x += (u.x - a.pos.x) * k; a.pos.z += (u.z - a.pos.z) * k;
-    a.speed = dt > 1e-4 ? Math.hypot(a.pos.x - bx, a.pos.z - bz) / dt : 0;
+    // during a run between pads a summon runs along beside its hero (world.heroAt), and its speed over the ground counts the
+    // scene sliding under the group (world.vel), so its walk cycle plays instead of a glide
+    const o = H.world && B ? B.byUid.get(u.owner) : null; const run = o && o.hero && o.alive ? H.world.heroAt(o.slot, o.x, o.z) : null;
+    let tx = u.x; let tz = u.z; let ty = 0;
+    if (run) { let ox = u.x - o.x; let oz = u.z - o.z; const ol = Math.hypot(ox, oz); if (ol > 1.6) { ox *= 1.6 / ol; oz *= 1.6 / ol; } tx = run.x + ox; tz = run.z + oz; ty = run.y; }
+    a.pos.x += (tx - a.pos.x) * k; a.pos.z += (tz - a.pos.z) * k;
+    const wv = run && H.world.vel; const gx = a.pos.x - bx + (wv ? wv.x * dt : 0); const gz = a.pos.z - bz + (wv ? wv.z * dt : 0);
+    a.speed = dt > 1e-4 ? Math.hypot(gx, gz) / dt : 0; a.lift = (a.lift || 0) + (ty - (a.lift || 0)) * Math.min(1, dt * 14);
     a.yaw += wrap(yawOf(u.face) - a.yaw) * Math.min(1, dt * 10);
     a.age += dt; const grow = Math.min(1, a.age / 0.25);
-    a.root.position.set(a.pos.x, 0, a.pos.z); a.root.scale.setScalar(Math.max(0.01, grow));
+    a.root.position.set(a.pos.x, a.lift, a.pos.z); a.root.scale.setScalar(Math.max(0.01, grow));
     if (a.aim) { a.aim.rotation.y = a.yaw; a.root.rotation.y = 0; } else a.root.rotation.y = a.yaw;
     a.tick(a, dt, performance.now() / 1000);
-    if (u.kind === 'drone') a.root.position.y = SUMMON_LOOK.drone;
+    if (u.kind === 'drone') a.root.position.y = SUMMON_LOOK.drone + a.lift;
     addBlob(a.pos.x, a.pos.z, u.kind === 'drone' ? 1.2 : 1.4, u.kind === 'drone' ? 2 : 0);
   }
 
