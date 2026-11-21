@@ -43,8 +43,11 @@ const ONLY = ([names]) => { const H = window.__G.host; H.scene.children.forEach(
 // rings over the bare floor: everything but the floor (island or old floor), its surroundings and the team rings is hidden,
 // so the with/without difference is the rings alone (no rain, particles or flicker between the two frames).
 // The frame is drawn with the host's render alone, not __step: a view step (actors.sync) sets each hero disc back to
-// visible = alive, so a stepped "off" frame still showed the hero discs and only the enemy rims were measured
-const RINGS = ([on]) => { const H = window.__G.host; const isRing = (o) => { const p = o.geometry && o.geometry.type === 'RingGeometry' && o.geometry.parameters; return !!p && (Math.abs(p.innerRadius - 0.5) < 1e-3 || Math.abs(p.innerRadius - 0.62) < 1e-3); };
+// visible = alive, so a stepped "off" frame still showed the hero discs and only the enemy rims were measured.
+// Since the flat rings went (Addendum 8.5), the team marks are the enemy scuffs and the hero chevrons (actors.js, userData.teamMark);
+// the rings are still recognised so the deployed "before" build is measured the same way. What is measured is unchanged: the
+// colour distance between the floor with and without the team marks, over the marks' own pixels.
+const RINGS = ([on]) => { const H = window.__G.host; const isRing = (o) => { if (o.userData && o.userData.teamMark) return true; const p = o.geometry && o.geometry.type === 'RingGeometry' && o.geometry.parameters; return !!p && (Math.abs(p.innerRadius - 0.5) < 1e-3 || Math.abs(p.innerRadius - 0.62) < 1e-3); };
   if (H.__bg === undefined) H.__bg = H.scene.background;
   H.scene.background = on === 'mask' ? new H.THREE.Color(0) : H.__bg; if (on === 'mask') H.renderer.setClearColor(0, 1); else if (H.__bg && H.__bg.isColor) H.renderer.setClearColor(H.__bg, 1);
   window.__G.paused = true; H.scene.children.forEach((o) => { if (o.isLight || o.isCamera) return; if (o.__vis === undefined) o.__vis = o.visible; o.visible = on === null ? o.__vis : (isRing(o) ? on !== 'off' : on !== 'mask' && ['island', 'abyss', 'floor', 'fog'].includes(o.name)); }); if (on === null) window.__step(1); else H.render(); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); };

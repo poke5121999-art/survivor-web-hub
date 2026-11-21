@@ -91,9 +91,10 @@ try {
       a.set(0, 0, 0).project(H.camera); b.set(0, 2.7, 0).project(H.camera); const hc = Math.abs(b.y - a.y) / 2 * H.size.h / H.size.u;
       const h0 = G.B.heroes.find((u) => u.alive); const n0 = G.actors.nodeOf(h0.uid);
       const pr = (x, z) => { a.set(x, 0, z).project(H.camera); return [(a.x + 1) / 2, (1 - a.y) / 2]; };
-      const ringR = 0.71;
+      // the hero's floor mark: points along its chevron (actors.markPts), or round the old 0.62..0.8 ring of a build without it
+      const ringR = 0.71; const mp = G.actors.markPts ? G.actors.markPts(h0.uid) : null;
       const warm = H.world.lights().filter((L) => { if (!L.warm) return false; a.set(L.x, L.y, L.z).project(H.camera); const y = (1 - a.y) / 2 * H.size.h / H.size.u; return a.z < 1 && Math.abs(a.x) <= 1 && y >= 40 && a.y >= -1; }).length;
-      return { hs, hc, warm, ringPts: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => pr(n0.position.x + Math.cos(k * 0.785) * ringR, n0.position.z + Math.sin(k * 0.785) * ringR)), floorPt: pr(n0.position.x + 2.6, n0.position.z + 1.2), uid: h0.uid, theme: H.world.theme.name };
+      return { hs, hc, warm, ringPts: mp && mp.length ? mp.map(([x, z]) => pr(x, z)) : [0, 1, 2, 3, 4, 5, 6, 7].map((k) => pr(n0.position.x + Math.cos(k * 0.785) * ringR, n0.position.z + Math.sin(k * 0.785) * ringR)), floorPt: pr(n0.position.x + 2.6, n0.position.z + 1.2), uid: h0.uid, theme: H.world.theme.name };
     });
     const over = await shot(page, `ours-${tag}-overview.png`);
     const d = stats(over);
@@ -106,14 +107,15 @@ try {
     const px = 2.2; const pz = -1.5;
     // eight points inside the circle: heroes and monsters standing on the single centre point must not decide the check, so the median counts
     const ats = await page.evaluate(([x, z]) => { const H = window.__G.host; return [[0, 0], ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => [Math.cos(k * 0.785) * 1.4, Math.sin(k * 0.785) * 1.4])].map(([dx, dz]) => { const v = new H.THREE.Vector3(x + dx, 0, z + dz).project(H.camera); return [(v.x + 1) / 2, (1 - v.y) / 2]; }); }, [px, pz]);
+    // boss: true draws the boss look (crimson, teeth): since the fx rework a boss warning and a normal one differ
     const beforeF = await shot(page, `ours-${tag}-warn0.png`);
-    await page.evaluate(([x, z]) => { window.__G.actors.marks.tele({ team: 1, shape: 'circle', x, z, r: 2.2, t: 3 }); window.__step(45); }, [px, pz]);
+    await page.evaluate(([x, z]) => { window.__G.actors.marks.tele({ team: 1, boss: true, shape: 'circle', x, z, r: 2.2, t: 3 }); window.__step(45); }, [px, pz]);
     const duringF = await shot(page, `ours-${tag}-warn1.png`);
     const diffs = ats.map((q) => rb(meanAt(duringF, q[0], q[1], 10)) - rb(meanAt(beforeF, q[0], q[1], 10))).sort((m, n) => m - n); const med = diffs[Math.floor(diffs.length / 2)];
     check(med > 12, `${k}: boss warning visible inside its circle (red-blue change, median of ${diffs.length} points ${med.toFixed(0)}, range ${diffs[0].toFixed(0)}..${diffs[diffs.length - 1].toFixed(0)}, > 12)`);
     const fl = meanAt(over, info.floorPt[0], info.floorPt[1], 6);
     const rd = Math.max(...info.ringPts.map((q) => dist3(meanAt(over, q[0], q[1], 1.6), fl)));
-    check(rd > 40, `${k}: hero ring reads on the floor (colour distance ${rd.toFixed(0)} > 40)`);
+    check(rd > 40, `${k}: hero floor mark reads on the floor (colour distance ${rd.toFixed(0)} > 40)`);
     check(info.hc >= 40, `${k}: hero height at the arena centre ${info.hc.toFixed(0)} design px (>= 40); heroes now ${Math.min(...info.hs).toFixed(0)}..${Math.max(...info.hs).toFixed(0)}`);
     await page.evaluate(([u]) => { window.__G.paused = false; window.__G.cam.spectate(u); window.__step(80); window.__G.paused = true; }, [info.uid]);
     const close = await shot(page, `ours-${tag}-close.png`);
