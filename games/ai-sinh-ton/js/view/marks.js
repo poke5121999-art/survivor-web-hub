@@ -94,19 +94,44 @@ export function createMarks(H) {
   const col3 = (hex) => new THREE.Color(hex);
 
   // ---- warnings ----
+  // All warnings are one instanced mesh, one draw call: each record keeps a stand-in mesh outside the scene (its position,
+  // rotation, scale and visible flag, which the tools read and hide) and its uniforms as plain values, copied into instance
+  // attributes every frame. The fragment shader is TELE_FRAG with the per-warning uniforms read from varyings.
+  const pose = (mesh, x, z, y = 0.05) => { mesh.rotation.order = 'YXZ'; mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, y, z); return mesh; };
+  const standMat = new THREE.MeshBasicMaterial();
+  const teleGeo = planeGeo.clone();
+  const tP = new THREE.InstancedBufferAttribute(new Float32Array(CAP.teles * 4), 4); tP.setUsage(THREE.DynamicDrawUsage); teleGeo.setAttribute('iP', tP);
+  const tS = new THREE.InstancedBufferAttribute(new Float32Array(CAP.teles * 2), 2); tS.setUsage(THREE.DynamicDrawUsage); teleGeo.setAttribute('iS', tS);
+  const tC = new THREE.InstancedBufferAttribute(new Float32Array(CAP.teles * 3), 3); tC.setUsage(THREE.DynamicDrawUsage); teleGeo.setAttribute('iC', tC);
+  const teleU = { uTime: { value: 0 } };
+  const teleB = new THREE.InstancedMesh(teleGeo, new THREE.ShaderMaterial({
+    uniforms: teleU, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    vertexShader: 'attribute vec4 iP; attribute vec2 iS; attribute vec3 iC; varying vec2 vUv; varying vec4 vP; varying vec2 vS; varying vec3 vC;\nvoid main() { vUv = uv; vP = iP; vS = iS; vC = iC; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }',
+    fragmentShader: TELE_FRAG.replace('uniform float uK; uniform vec3 uCol; uniform float uA; uniform float uShape; uniform vec2 uSize; uniform float uHalf; uniform float uTime;',
+      'uniform float uTime; varying vec4 vP; varying vec2 vS; varying vec3 vC;\n#define uK vP.x\n#define uA vP.y\n#define uShape vP.z\n#define uHalf vP.w\n#define uSize vS\n#define uCol vC'),
+  }), CAP.teles);
+  teleB.frustumCulled = false; teleB.renderOrder = 3; teleB.count = 0; teleB.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(teleB);
+  function flushTeles() {
+    let n = 0; teleU.uTime.value = clock;
+    for (const t of teles) {
+      const m = t.mesh; const u = t.uni; if (!m.visible || n >= CAP.teles) continue;
+      m.updateMatrix(); teleB.setMatrixAt(n, m.matrix);
+      tP.setXYZW(n, u.uK.value, u.uA.value, u.uShape.value, u.uHalf.value); tS.setXY(n, u.uSize.value.x, u.uSize.value.y); tC.setXYZ(n, u.uCol.value.r, u.uCol.value.g, u.uCol.value.b); n++;
+    }
+    teleB.count = n; teleB.instanceMatrix.needsUpdate = true; tP.needsUpdate = true; tS.needsUpdate = true; tC.needsUpdate = true;
+  }
   const ENEMY_COL = col3(0xff4a1c); const HERO_COL = col3(0xcfe6ff);
   function tele(e, fallKind) {
     const enemy = e.team === 1; const T = Math.min(6, Math.max(0.15, Number.isFinite(e.t) ? e.t : 0.6));
     while (teles.length >= CAP.teles) dropTele(teles.shift());
     const uni = { uK: { value: 0 }, uCol: { value: (enemy ? ENEMY_COL : HERO_COL).clone() }, uA: { value: enemy ? 1 : 0.4 }, uShape: { value: 0 }, uSize: { value: new THREE.Vector2(1, 1) }, uHalf: { value: 0 }, uTime: { value: 0 } };
-    const mat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: VERT, fragmentShader: TELE_FRAG, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-    const mesh = new THREE.Mesh(planeGeo, mat);
-    if (e.shape === 'circle') { const r = e.r + 0.05; uni.uShape.value = 0; uni.uSize.value.set(r * 2, r * 2); mesh.scale.set(r * 2, r * 2, 1); flat(mesh, e.x, e.z); }
+    const mesh = new THREE.Mesh(planeGeo, standMat);
+    if (e.shape === 'circle') { const r = e.r + 0.05; uni.uShape.value = 0; uni.uSize.value.set(r * 2, r * 2); mesh.scale.set(r * 2, r * 2, 1); pose(mesh, e.x, e.z); }
     else if (e.shape === 'line') {
       const dx = e.x2 - e.x; const dz = e.z2 - e.z; const len = Math.hypot(dx, dz) || 1;
-      uni.uShape.value = 1; uni.uSize.value.set(len, e.w); mesh.scale.set(len, e.w, 1); flat(mesh, (e.x + e.x2) / 2, (e.z + e.z2) / 2); mesh.rotation.y = -Math.atan2(dz, dx);
+      uni.uShape.value = 1; uni.uSize.value.set(len, e.w); mesh.scale.set(len, e.w, 1); pose(mesh, (e.x + e.x2) / 2, (e.z + e.z2) / 2); mesh.rotation.y = -Math.atan2(dz, dx);
     } else {
-      uni.uShape.value = 2; uni.uHalf.value = (e.deg * Math.PI) / 360; uni.uSize.value.set(e.r * 2, e.r * 2); mesh.scale.set(e.r * 2, e.r * 2, 1); flat(mesh, e.x, e.z); mesh.rotation.y = -e.ang;
+      uni.uShape.value = 2; uni.uHalf.value = (e.deg * Math.PI) / 360; uni.uSize.value.set(e.r * 2, e.r * 2); mesh.scale.set(e.r * 2, e.r * 2, 1); pose(mesh, e.x, e.z); mesh.rotation.y = -e.ang;
     }
     const rec = { mesh, uni, t: 0, T, x: e.x, z: e.z, bt: lastB ? lastB.t : Infinity };
     teles.push(rec);
@@ -117,7 +142,7 @@ export function createMarks(H) {
     return rec;
   }
 
-  function dropTele(t) { scene.remove(t.mesh); t.mesh.material.dispose(); }
+  function dropTele(t) { t.mesh.visible = false; }
 
   // ---- zones ----
   function zoneStart(e, look) {
@@ -481,6 +506,7 @@ export function createMarks(H) {
       const simOver = B && B.t > t.bt + t.T + TELE_GRACE;
       if (t.t >= t.T + TELE_GRACE || simOver) { dropTele(t); teles.splice(i, 1); } else if (t.t > t.T) t.uni.uA.value *= 0.6;
     }
+    flushTeles();
     for (let i = falls.length - 1; i >= 0; i--) {
       const f = falls[i]; f.t += dt; const k = Math.min(1, f.t / f.T);
       f.obj.position.set(f.x + FALL_SIDE * f.side * (1 - k) * (1 - k), FALL_H * (1 - k * k) + 0.3, f.z); f.obj.rotation.y += f.spin * dt; f.obj.rotation.x += f.spin * 0.5 * dt;
@@ -509,7 +535,7 @@ export function createMarks(H) {
   }
 
   function clear() {
-    for (const t of teles) dropTele(t); teles.length = 0;
+    for (const t of teles) dropTele(t); teles.length = 0; teleB.count = 0;
     for (const f of falls) scene.remove(f.obj); falls.length = 0;
     for (const z of [...zones.values()]) dropZone(z);
     ringB.clear(); flareB.clear(); stripB.clear();
