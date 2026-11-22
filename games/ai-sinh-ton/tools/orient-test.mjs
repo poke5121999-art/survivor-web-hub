@@ -57,7 +57,10 @@ try {
     const s = await open(br, srv.base, 's22', QUIET + '&autostart=1&stage=1&seed=3');
     const page = s.page;
     const st = () => page.evaluate(() => ({ paused: __G.paused, t: __G.B ? __G.B.t : -1, phase: __G.B && __G.B.phase }));
-    await page.waitForTimeout(600);
+    // Each stage now opens in the start room (63f49949, Addendum 8): the team stands 0.55 s and runs the bridge for 2.4 to 4.6 s
+    // while the sim clock waits (world.busy). The check used to sample 600 ms after load, inside that run, so it saw t 0; it now
+    // waits for the fight itself (phase fight, the run over, sim clock past 0) before it measures that the battle runs.
+    await page.waitForFunction(() => __G.B && __G.B.phase === 'fight' && !__G.host.world.busy && __G.B.t > 0, null, { timeout: 15000 });
     const a = await st(); await page.waitForTimeout(500); const b = await st();
     check(a.phase === 'fight' && b.t > a.t, `portrait test: a battle is running before the rotation (t ${a.t.toFixed(2)} to ${b.t.toFixed(2)})`);
     await page.setViewportSize({ width: 360, height: 780 });

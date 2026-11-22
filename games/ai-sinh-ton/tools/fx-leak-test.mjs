@@ -27,9 +27,22 @@ async function run(br, base, stage, mode) {
   const r = await openPage(br, base, 's22', `autostart=1&stage=${stage}&wave=5&autoult=1&autopick=1&noaudio=1&seed=${stage}`);
   const { page } = r;
   await page.evaluate(([n, o]) => { window.__G.start(n, { seed: n, wave: 5, auto: { ult: true, pick: 'best' }, ...o }); }, [stage, TOUGH]);
+  // At normal speed the 60 s are counted from the moment the boss fight really runs. Since 63f49949 and 72b4490e (Addendum 8)
+  // a stage opens with the run out of the start room (0.55 s plus 2.4 to 4.6 s of bridge) and the boss comes in with its
+  // entrance scene (2.9 to 3.6 s), both on a held sim clock, so twelve 5 s waits from the page load ended at 51.6 s (stage 4)
+  // and 50 s (stage 15) of game time with the fight still on. The wait below is on that state, not on time.
+  // The samples are then taken every 5 s of game time, the clock this test states it covers: on the wall clock the boss
+  // wave's ultimate scenes, hit-stops and frame catch-up made 60 s real only 54.5 to 55.1 s of game time after the entrance.
+  // A wave that ends early stops the sim clock, the wait gives up after 15 s real and the >= 55 check below still fails it.
+  let t0 = 0;
+  if (mode === 'normal') {
+    await page.waitForFunction(() => { const G = window.__G; const B = G.B; return !!B && B.phase === 'fight' && !!B.boss && !G.host.world.busy && !(G.intro && G.intro.active) && B.t > 0; }, null, { timeout: 30000 });
+    t0 = await page.evaluate(() => window.__G.B.t);
+  }
   const rows = [];
   for (let i = 1; i <= 12; i++) {
-    if (mode === 'normal') await page.waitForTimeout(5000); else await page.evaluate(() => { window.__sim(5); window.__step(2); });
+    if (mode === 'normal') await page.waitForFunction((tt) => { const B = window.__G.B; return !B || B.phase !== 'fight' || B.t >= tt; }, t0 + 5 * i, { timeout: 15000, polling: 100 }).catch(() => {});
+    else await page.evaluate(() => { window.__sim(5); window.__step(2); });
     rows.push(await page.evaluate(SAMPLE));
   }
   if (mode === 'normal' && stage === 4) await page.locator('#frame').screenshot({ path: path.join(OUT, 'fx-60s-stage4.png') });

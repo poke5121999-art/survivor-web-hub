@@ -139,7 +139,11 @@ const LIVE = async ([mode, opt]) => {
   const rimMargin = () => { let m = 9; for (const [x, z] of rim) { const [px, py] = proj(x, 0, z); m = Math.min(m, 1 - Math.abs(px), 1 - Math.abs(py)); } return m; };
   const raf = () => new Promise((r) => requestAnimationFrame(r));
   J.reset(); J.stops.length = 0; J.scenes = 0; G.paused = false; G.speed = opt.speed || 1;
-  const B = G.B; const p0 = proj(0, 0, 0); const rows = []; const castAt = [];
+  // the camera offset is read on the camera's own look point (game.cam.focus), not on the world origin: the MCD camera (16236ae0)
+  // pans after the team's centre, so a world point drifted 11 to 13 px over the 1 s shake run with the shake already back at 0
+  // (camera x 0.89 -> 0.25 m with shake 0, measured); the focus rides with that pan and moves on screen only by shake and push
+  const F = G.cam.focus; const fp = () => proj(F.x, F.y, F.z);
+  const B = G.B; const p0 = fp(); const rows = []; const castAt = [];
   const t0 = performance.now(); let step = 0; let stallNext = false;
   const casts = opt.casts || [];
   const total = opt.secs * 1000;
@@ -147,7 +151,7 @@ const LIVE = async ([mode, opt]) => {
     await raf(); if (stallNext) { stallNext = false; const e = performance.now() + opt.stall; while (performance.now() < e) { /* stalled frame */ } }
     const now = performance.now() - t0;
     for (const c of casts) if (!c.done && now >= c.at) { c.done = true; castAt.push(performance.now() - t0); if (opt.stall) stallNext = true; if (c.what === 'ult') { const u = B.heroes[c.slot]; u.ult = 1; u.ultReady = true; SIM.castUlt(B, c.slot); } else if (c.what === 'kick') J.kick(c.px); else if (c.what === 'tap') window.dispatchEvent(new Event('pointerdown')); else if (c.what === 'boom') J.onEvent({ e: 'fx', team: 1, key: 'boss_slam', part: 'burst' }); }
-    const p = proj(0, 0, 0);
+    const p = fp();
     rows.push({ t: now, Bt: B.t, scale: J.scale, stopped: J.stopped, part: J.partial, shake: J.view.shake.px, push: J.view.push, off: Math.hypot((p[0] - p0[0]) * H.size.w / 2, (p[1] - p0[1]) * H.size.h / 2), offX: (p[0] - p0[0]) * H.size.w / 2, offY: (p[1] - p0[1]) * H.size.h / 2, margin: rimMargin() });
     step++;
   }
