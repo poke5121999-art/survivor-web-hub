@@ -116,7 +116,7 @@ export async function attachGame(game, { params }) {
     if (tutorial) fireTutorial('start');
     return B;
   };
-  game.castUlt = (slot) => !!game.B && !game.paused && castUlt(game.B, slot);
+  game.castUlt = (slot) => !!game.B && !game.paused && !game.cine && castUlt(game.B, slot);
   game.pick = (slot, k) => !!game.B && pickCard(game.B, slot, k);
   game.autoPick = () => {
     const B = game.B; if (!B || B.phase !== 'pick') return;
@@ -184,7 +184,7 @@ export async function attachGame(game, { params }) {
   // a ready ultimate goes off one second after it is ready when the switch is on and unlocked
   function autoUlt() {
     const B = game.B;
-    if (!B || B.phase !== 'fight' || game.paused || game.frozen || !game.settings.autoUlt || !game.meta.unlocked('autoult')) return;
+    if (!B || B.phase !== 'fight' || game.paused || game.frozen || game.cine || !game.settings.autoUlt || !game.meta.unlocked('autoult')) return;
     for (const u of B.heroes) if (u.alive && u.ult >= 1 && u.ultReady && B.t - u.ultReadyT >= 1) castUlt(B, u.slot);
   }
 
