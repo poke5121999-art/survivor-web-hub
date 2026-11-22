@@ -105,7 +105,28 @@ try {
     check(d.warm >= 0.005 && d.warm <= 0.12, `${k}: warm pixels ${(d.warm * 100).toFixed(2)}% (0.5..12%)`);
     check(info.warm >= 4, `${k}: warm light sources in the frame ${info.warm} (>= 4)`);
     // a boss warning circle injected near the centre: centre colour before and while it fills
-    const px = 2.2; const pz = -1.5;
+    // the probe goes where no unit stands: of the points whose nine samples lie on the floor (inside 0.95 of the arena
+    // ellipse) and in the open part of the frame (under the top band, over the cards), the one farthest from every living
+    // unit. A fixed point measured whoever happened to fight there, not the warning.
+    const probe = await page.evaluate(() => {
+      const G = window.__G; const H = G.host; const v = new H.THREE.Vector3(); const AX = 9.6; const AZ = 4.6;
+      const us = G.B.units.filter((u) => u.alive).map((u) => { const n = G.actors.nodeOf(u.uid); return n ? [n.position.x, n.position.z] : [u.x, u.z]; });
+      const offs = [[0, 0], ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => [Math.cos(k * 0.785) * 1.4, Math.sin(k * 0.785) * 1.4])];
+      let best = null;
+      for (let x = -8; x <= 8.001; x += 0.25) for (let z = -4; z <= 4.001; z += 0.25) {
+        let ok = true;
+        for (const [dx, dz] of offs) {
+          if (Math.hypot((x + dx) / AX, (z + dz) / AZ) > 0.95) { ok = false; break; }
+          v.set(x + dx, 0, z + dz).project(H.camera); const fx = (v.x + 1) / 2; const fy = (1 - v.y) / 2;
+          if (fx < 0.05 || fx > 0.95 || fy < 0.16 || fy > 0.68) { ok = false; break; }
+        }
+        if (!ok) continue;
+        const c = us.length ? Math.min(...us.map(([ux, uz]) => Math.hypot(ux - x, uz - z))) : 99;
+        if (!best || c > best.c) best = { x, z, c };
+      }
+      return best || { x: 2.2, z: -1.5, c: -1 };
+    });
+    const px = probe.x; const pz = probe.z;
     // eight points inside the circle: heroes and monsters standing on the single centre point must not decide the check, so the median counts
     const ats = await page.evaluate(([x, z]) => { const H = window.__G.host; return [[0, 0], ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => [Math.cos(k * 0.785) * 1.4, Math.sin(k * 0.785) * 1.4])].map(([dx, dz]) => { const v = new H.THREE.Vector3(x + dx, 0, z + dz).project(H.camera); return [(v.x + 1) / 2, (1 - v.y) / 2]; }); }, [px, pz]);
     // boss: true draws the boss look (crimson, teeth): since the fx rework a boss warning and a normal one differ
@@ -113,7 +134,7 @@ try {
     await page.evaluate(([x, z]) => { window.__G.actors.marks.tele({ team: 1, boss: true, shape: 'circle', x, z, r: 2.2, t: 3 }); window.__step(45); }, [px, pz]);
     const duringF = await shot(page, `ours-${tag}-warn1.png`);
     const diffs = ats.map((q) => rb(meanAt(duringF, q[0], q[1], 10)) - rb(meanAt(beforeF, q[0], q[1], 10))).sort((m, n) => m - n); const med = diffs[Math.floor(diffs.length / 2)];
-    check(med > 12, `${k}: boss warning visible inside its circle (red-blue change, median of ${diffs.length} points ${med.toFixed(0)}, range ${diffs[0].toFixed(0)}..${diffs[diffs.length - 1].toFixed(0)}, > 12)`);
+    check(med > 12, `${k}: boss warning visible inside its circle (red-blue change, at (${px}, ${pz}), ${probe.c.toFixed(1)} m from the nearest unit, median of ${diffs.length} points ${med.toFixed(0)}, range ${diffs[0].toFixed(0)}..${diffs[diffs.length - 1].toFixed(0)}, > 12)`);
     const fl = meanAt(over, info.floorPt[0], info.floorPt[1], 6);
     const rd = Math.max(...info.ringPts.map((q) => dist3(meanAt(over, q[0], q[1], 1.6), fl)));
     check(rd > 40, `${k}: hero floor mark reads on the floor (colour distance ${rd.toFixed(0)} > 40)`);

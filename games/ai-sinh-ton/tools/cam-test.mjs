@@ -2,10 +2,10 @@
 //  1. numbers: pitch, lens, distance, screen angle of the block grid's edges, a 2.7 m hero's share of the frame height,
 //     metres of ground across the frame, where the team's centre sits; beside the MCD values measured on the owner's clip
 //     (~/handoff/ast-par/cam/mcd-camera.md)
-//  2. whole fights (stages 1, 3, 8, 15, 24 to the end of the boss wave, s22 and xiaomi): every 0.25 s the screen box of
-//     every living unit (feet to head through the game's camera) must lie inside the frame, under the top bar (0-41 of
-//     360 design px), off the boss bar (44-68, x 240-540) while a boss lives and off the hero card block at the bottom
-//     centre (y 252 down, x 236-544); the sight line from
+//  2. whole fights (stages 1, 3, 8, 10 (Pharaoh, the tallest early boss), 15, 24 to the end of the boss wave, s22 and xiaomi): every 0.25 s the screen box of
+//     every living unit (feet to head through the game's camera) must lie inside the frame, off every top HUD piece and
+//     off the hero card block, both read from the live HUD each sample (hud.dbg(): topHud, boxes; a cluster faded over the
+//     boss is see-through and does not cover); the sight line from
 //     the camera to its chest must not cross a world block. Units still climbing over the rim (below the floor) count for
 //     the HUD and frame, not for the sight line (they climb out from behind the cliff on purpose).
 //  3. the run between pads: the next pad shows at the frame edge while the team is on the bridge
@@ -18,25 +18,25 @@ import { serve, launch, open as openPage, checker, ROOT } from './pw.mjs';
 const OUT = path.join(ROOT, '.chk', 'cam'); fs.mkdirSync(OUT, { recursive: true });
 const argv = process.argv.slice(2); const arg = (k) => (argv.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.length + 3);
 const QUICK = argv.includes('--quick');
-const STAGES = arg('stages') ? arg('stages').split(',').map(Number) : (QUICK ? [8] : [1, 3, 8, 15, 24]);
+const STAGES = arg('stages') ? arg('stages').split(',').map(Number) : (QUICK ? [8] : [1, 3, 8, 10, 15, 24]);
 const PHONES = arg('phones') ? arg('phones').split(',') : ['s22', 'xiaomi'];
 const TAG = arg('tag') || (process['env'].AST_BASE ? 'before' : 'after');
-// the HUD in design px (frame 780 wide, js/ui/hud.js): the top bar across the frame, the boss bar while a boss lives,
-// the hero card block with its flame headroom
-const PLAY = { top: 41, boss: { x0: 240, x1: 540, y: 68 }, cards: { x0: 236, x1: 544, y: 252 } };
 const MCD = { pitch: 47, fov: 27, edge: 36, heroFill: 0.107, groundAcross: 32, feetY: 0.50 };
 const STEP = 0.25; const LIMIT = 900;
 const T0 = Date.now();
 const { check, done } = checker();
 
 // installed in the page: one sample of every living unit's screen box
-const SAMPLER = ([PLAY]) => {
+const SAMPLER = () => {
   const G = window.__G; const H = G.host; const T = H.THREE; const V = new T.Vector3(); const head = new T.Vector3();
   const ray = new T.Raycaster(); const dir = new T.Vector3(); const at = new T.Vector3();
   window.__camAgg = { n: {}, bad: {}, hid: {}, rays: {}, worst: {} };
   const px = (x, y, z) => { V.set(x, y, z).project(H.camera); const u = H.size.u || 1; return [(V.x + 1) / 2 * H.size.w / u, (1 - V.y) / 2 * H.size.h / u, V.z]; };
   window.__camSample = (rays) => {
     const B = G.B; if (!B) return; const A = window.__camAgg; const hd = H.size.h / (H.size.u || 1); const wd = H.size.w / (H.size.u || 1);
+    // the HUD as it is drawn this frame: the top corner pieces (not the ones faded over the boss) and the hero cards
+    const hd0 = G.screens.hud.dbg(); const hudTop = hd0.visible ? hd0.topHud.filter((q) => !q.see) : []; const hudCards = hd0.visible ? hd0.boxes.filter((q) => /^card/.test(q.id)) : [];
+    A.hudOff = (A.hudOff || 0) + (hd0.visible ? 0 : 1);
     const meshes = []; if (rays) H.scene.traverse((o) => { if (o.isMesh && o.name === 'pad' && o.visible) meshes.push(o); });
     if (rays) H.scene.updateMatrixWorld(true);
     for (const u of B.units) {
@@ -52,8 +52,9 @@ const SAMPLER = ([PLAY]) => {
       const outF = x0 < -2 || x1 > wd + 2 || y0 < -2 || y1 > hd + 2;
       const bossOn = B.boss && B.byUid.get(B.boss) && B.byUid.get(B.boss).alive;
     if (bossOn && G.cam.bossFit) { const d = H.camera.position.distanceTo(G.cam.focus); A.bossDist = Math.max(A.bossDist || 0, d); A.bossFit = G.cam.bossFit; }
-      const underTop = y0 < PLAY.top - 2 || (bossOn && x1 > PLAY.boss.x0 + 2 && x0 < PLAY.boss.x1 - 2 && y0 < PLAY.boss.y - 2);
-      const underCards = x1 > PLAY.cards.x0 + 2 && x0 < PLAY.cards.x1 - 2 && y1 > PLAY.cards.y + 2;
+      const into = (q) => x1 > q.x + 2 && x0 < q.x + q.w - 2 && y1 > q.y + 2 && y0 < q.y + q.h - 2;
+      const underTop = hudTop.some(into);
+      const underCards = hudCards.some(into);
       A.n[cat] = (A.n[cat] || 0) + 1;
       const why = outF ? 'out' : underTop ? 'top' : underCards ? 'cards' : '';
       if (why) { A.bad[cat] = (A.bad[cat] || 0) + 1; A.bad[cat + ':' + why] = (A.bad[cat + ':' + why] || 0) + 1; if (!A.worst[cat + ':' + why]) A.worst[cat + ':' + why] = `wave ${B.wave} t ${B.t ? B.t.toFixed(1) : '?'} ${why} box ${x0.toFixed(0)},${y0.toFixed(0)}-${x1.toFixed(0)},${y1.toFixed(0)} at ${fx.toFixed(1)},${fy.toFixed(1)},${fz.toFixed(1)} h ${(hy - fy).toFixed(1)}`; }
@@ -129,7 +130,7 @@ try {
   // ---- 2. whole fights ----
   for (const phone of PHONES) for (const s of STAGES) {
     const r = await openPage(br, srv.base, phone, `autostart=1&stage=${s}&autoult=1&autopick=1&noaudio=1&seed=${s}&q=low`, { freeze: true });
-    await r.page.evaluate(SAMPLER, [PLAY]);
+    await r.page.evaluate(SAMPLER);
     const end = await r.page.evaluate(RUN, [LIMIT, STEP]);
     let A = await r.page.evaluate(() => window.__camAgg);
     if (!A.n.boss) { // the team fell before the boss wave: play the boss wave alone
@@ -139,7 +140,7 @@ try {
     const errs = r.problems.filter((x) => !/Failed to load resource/.test(x));
     await r.ctx.close();
     const line = ['hero', 'monster', 'boss', 'ally'].filter((c) => A.n[c]).map((c) => `${c} ${A.n[c] - (A.bad[c] || 0)}/${A.n[c]} clear (top ${A.bad[c + ':top'] || 0}, cards ${A.bad[c + ':cards'] || 0}, out ${A.bad[c + ':out'] || 0}), hidden ${A.hid[c] || 0}/${A.rays[c] || 0}`).join('; ');
-    console.log(`${TAG} ${phone} stage ${s} (${end.phase} at wave ${end.wave}${end.boss ? ', boss wave replayed' : ''}, ${Math.round((Date.now() - T0) / 1000)} s): ${line}`);
+    console.log(`${TAG} ${phone} stage ${s} (${end.phase} at wave ${end.wave}${end.boss ? ', boss wave replayed' : ''}, ${Math.round((Date.now() - T0) / 1000)} s, ${A.hudOff || 0} samples without the HUD): ${line}`);
     if (A.bossFit) console.log(`   boss framing: boss ${A.bossFit.head} m tall (with flight), ${A.bossFit.wide} m wide -> distance ${A.bossFit.dist} m (wave pads ${res[phone].N.dist} m): hero ${(0.107 * res[phone].N.dist / A.bossFit.dist).toFixed(3)} of the frame height`);
     for (const c of Object.keys(A.worst)) console.log(`   first ${c} covered: ${A.worst[c]}`);
     res[phone][s] = A;

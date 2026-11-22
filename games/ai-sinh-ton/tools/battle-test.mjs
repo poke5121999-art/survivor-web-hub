@@ -219,7 +219,19 @@ try {
         }
       }
       const snap = await cp.evaluate(() => __G.B.units.map((u) => [u.uid, u.x, u.z, u.hp]));
-      if (watch) { await shot(cp, phone, 'spec'); const again = await tapId(cp, 'eye1'); await step(cp, 5); out.back = await cp.evaluate(() => ({ mode: __G.cam.mode, w: __G.watching })); out.again = again; }
+      if (watch) {
+        await shot(cp, phone, 'spec');
+        // wave 1 can end inside the sampled 5 s: the card pick is modal and hides the eye buttons, so pick a card and
+        // wait until the fight is back and eye1 is a live target again before tapping it the second time
+        for (let g = 0; g < 40; g++) {
+          const st = await cp.evaluate(() => ({ ph: __G.B.phase, eye: __ui.targets().some((q) => q.id === 'eye1') }));
+          if (st.ph === 'fight' && st.eye) break;
+          if (st.ph === 'pick' && (await tapId(cp, 'card0'))) out.picked = (out.picked || 0) + 1;
+          await cp.evaluate(() => { __sim(0.1); __step(3); });
+        }
+        out.before = await cp.evaluate(() => ({ ph: __G.B.phase, mode: __G.cam.mode, w: __G.watching }));
+        const again = await tapId(cp, 'eye1'); await step(cp, 5); out.back = await cp.evaluate(() => ({ mode: __G.cam.mode, w: __G.watching })); out.again = again;
+      }
       out.snap = snap; out.problems = c.problems.filter((s) => !foreign(s)); out.errors = await cp.evaluate(() => (window.__errors || []).length);
       await c.ctx.close(); return out;
     };
@@ -228,6 +240,7 @@ try {
     check(A.max < 9 && A.travel >= 1, `${phone}: the camera stays within ${A.max.toFixed(1)} m of the hero (limit 9) while it travels ${A.travel.toFixed(1)} m over 5 s (at least 1)`);
     const same = A.snap.length === T.snap.length && A.snap.every((r, i) => r.every((v, j) => Math.abs(v - T.snap[i][j]) < 1e-9));
     check(same, `${phone}: taps and drags while spectating leave every sim position unchanged against a twin run (${A.snap.length} units compared)`);
+    check(A.before && A.before.ph === 'fight' && A.before.mode === 'spectate' && A.again, `${phone}: back in the fight (phase ${A.before && A.before.ph}, ${A.picked || 0} taps on the pick card) the camera still spectates (mode ${A.before && A.before.mode}) and eye1 is tappable (${A.again})`);
     check(A.back && A.back.mode === 'overview' && A.back.w === 0, `${phone}: tapping eye1 again returns to the overview (mode ${A.back && A.back.mode})`);
     check(A.problems.length === 0 && A.errors === 0 && T.errors === 0, `${phone}: spectate runs have no errors`);
 

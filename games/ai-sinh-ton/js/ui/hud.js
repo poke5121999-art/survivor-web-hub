@@ -530,6 +530,13 @@ export function createHud(game) {
     update,
     // where the wave, boss and ult banners are (design units), read by the guide's speech panel to stay off them
     bannerRects,
+    // the play band the fight camera frames into (js/view/camera.js), read from the live nodes so the two cannot drift:
+    // the lowest edge of the top corner pieces with the left cluster in its wave row and in its boss row, and the hero card
+    // block of a full team with the flame headroom
+    band() {
+      const tops = [top.pause.uy + BTN.h, top.speed.uy + BTN.h, right.uy + ROW.h, top.auto.uy + ROW.h], n = Math.max(4, cards.length);
+      return { top: Math.max(...tops, left.uy + ROW.h), topBoss: Math.max(...tops, left.uy + ROW.bossH), cards: { x0: W / 2 - rowW(n) / 2, x1: W / 2 + rowW(n) / 2, y: cardTop() - FLAME_UP - 4 } };
+    },
     // what the test needs to read without guessing from pixels
     dbg() {
       return { visible, bossShown: boss.shown, bossName: boss.label, bossY: left.uy + boss.uy, topHud: topHud(), flames: cards.map((c) => c.flame.visible), ready: cards.map((c) => c.ready), banners: banners.filter((b) => !b.off).map((b) => b.kind), numbers: live.length, cap: capOf(), numberPos: live.map((q) => [q.x, q.y]), numberRects: live.map((q) => ({ ...sweep(q), age: q.age })), numberList: live.map((q) => ({ text: q.text, x: q.x, y: shownY(q) })), bannerRects: bannerRects(), block: blockRects(), boxes: hudBoxes(), band: [BAND_TOP, ui.H - BOTTOM], specShown: spec.visible };
