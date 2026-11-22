@@ -259,6 +259,10 @@
     [-0.011, 0.12, -0.5, 0.011, 0.136, -0.06, EL.web], [-0.024, 0.114, -0.565, 0.024, 0.142, -0.495, EL.amber], [-0.024, 0.116, -0.095, 0.024, 0.138, -0.055, 'g_gold'],
   ];
   GUNS.webbow.muzzle = [0, 0.128, -0.565];
+  // Gió's katana: the blade (every part tagged blade, above the guard at 0.22) 22% longer, the hilt where both hands hold it unchanged
+  { const K = 1.22; const y = (v) => (v > 0.22 ? +(0.22 + (v - 0.22) * K).toFixed(4) : v); const kt = GUNS.katana;
+    for (const q of kt.parts) if (q[7] === 'blade') { q[1] = y(q[1]); q[4] = y(q[4]); }
+    kt.tip = [0, y(1.1), 0]; kt.mid = [0, y(0.62), 0]; kt.muzzle = [0, y(1.1), 0]; }
   // ---- the elements: Băng's ice spear, Độc's poison glaive, Bóng's shadow stars, Hoả's burning gloves, Y Tá's healing left pistol ----
   GUNS.spear.parts = [...swapTex(GUNS.spear.parts, { g_blade: EL.ice, g_glow_saber: EL.iceGlow, g_red: 'g_blue' }),
     [-0.05, 1.84, -0.01, -0.034, 1.99, 0.01, EL.iceGlow], [0.034, 1.84, -0.01, 0.05, 1.99, 0.01, EL.iceGlow], [-0.01, 1.84, -0.05, 0.01, 1.99, -0.034, EL.iceGlow], [-0.01, 1.84, 0.034, 0.01, 1.99, 0.05, EL.iceGlow]];

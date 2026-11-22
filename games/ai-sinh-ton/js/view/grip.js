@@ -21,7 +21,9 @@ const BLADE = { fwd: [0, 1, 0], up: [0, 0, 1] };
 export const GRIP = {
   // two hands on the hilt (main near the guard, off hand at the pommel); the sword hangs off the spine and both arms are solved onto it.
   // Poses are the off hand's position `lh` and the blade direction `d` in spine space; a cut runs wind-up -> cross -> low finish -> guard.
-  katana: { scale: 1.9, type: 'sword2', ...BLADE, main: [0, 0.07, 0], support: [0, -0.12, 0], stock: null, muzzle: [0, 1.1, 0],
+  // katana: the blade is 22% longer than Blockade Z's (tools/port-bz.mjs, tip 1.1 -> 1.294) so it reads at the far camera; the hilt
+  // and both hand points are unchanged
+  katana: { scale: 1.9, type: 'sword2', ...BLADE, main: [0, 0.07, 0], support: [0, -0.12, 0], stock: null, muzzle: [0, 1.294, 0],
     poses: { guard: { lh: [0.0, 0.3, 0.22], d: [0.34, 0.6, 0.72], u: [0, 1, 0] }, wind: { lh: [0.02, 0.8, 0.34], d: [0.45, 0.8, -0.4], u: [-0.6, 0.3, 0.7] },
       cross: { lh: [-0.02, 0.5, 0.15], d: [0.3, 0.1, 0.95], u: [0, 1, 0] }, end: { lh: [0.15, 0.43, 0.1], d: [-0.35, -0.1, 0.93], u: [0.3, 1, 0] } } },
   longsword: { scale: 1.5, type: 'one', ...BLADE, main: [0, -0.1, 0], support: null, stock: null, shield: 1.3, tilt: 2.65, carry: [0.6, 0.12, 0.8] },
