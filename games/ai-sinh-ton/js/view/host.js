@@ -1,7 +1,7 @@
 // The view host: renderer, scene, lights, the battle world (world.js: the block island, its abyss and its lights), rain,
 // and the small `G` object that Blockade Z's fx, audio, zombie and boss code expects. The sim never touches it; actors.js
 // and camera.js read H and draw the battle on top.
-import { createWorld } from './world.js?v=20261121c';
+import { createWorld } from './world.js?v=20261122a';
 const THREE = window.THREE;
 const BZ = window.BZ;
 

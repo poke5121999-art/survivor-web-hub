@@ -9,8 +9,8 @@
 // A boss gets its own framing while it lives (pulled back just enough for its height at the far rim and the heroes' area,
 // blended in while it rises), and the picture slides up or down (the lift) when a tall body or a flyer would reach a band.
 // Spectate: a chase camera behind and above one unit, blended in and out.
-import { ARENA } from '../sim/battle.js?v=20261121c';
-import { FLY_Y } from './keys.js?v=20261121c';
+import { ARENA } from '../sim/battle.js?v=20261122a';
+import { FLY_Y } from './keys.js?v=20261122a';
 const THREE = window.THREE;
 const BZ = window.BZ;
 

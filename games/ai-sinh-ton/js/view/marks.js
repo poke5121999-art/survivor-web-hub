@@ -5,7 +5,7 @@
 // creeps from its origin to the far edge over the wind-up (the hit lands when it is full), a boss warning adds a crimson
 // colour and a crawl of teeth outside its outline, a hero's own skill area is only a thin cool outline and fill front;
 // a shock is a burst of broken dust streaks, a ground flare a spray of rays, the edge wash a ragged glow off the rim.
-import { ARENA } from '../sim/battle.js?v=20261121c';
+import { ARENA } from '../sim/battle.js?v=20261122a';
 const THREE = window.THREE;
 
 const NOISE = `

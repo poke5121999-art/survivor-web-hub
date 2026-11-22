@@ -1,11 +1,11 @@
 // One modal screen with three modes: 'pause' (resume, settings, retry, home), 'result' (win or loss: a reward tab and a
 // per-hero statistics tab, with the next steps always in view) and 'settings' (the same switches, opened from the home screen).
-import { HERO } from '../data/heroes.js?v=20261121c';
-import { ITEM, TIERS } from '../data/equip.js?v=20261121c';
-import { fmt, heroColor } from './hud.js?v=20261121c';
-import { xpNeed } from '../data/unlocks.js?v=20261121c';
-import { ITEM_ICON } from './itemicons.js?v=20261121c';
-import { createStatsPanel } from './stats.js?v=20261121c';
+import { HERO } from '../data/heroes.js?v=20261122a';
+import { ITEM, TIERS } from '../data/equip.js?v=20261122a';
+import { fmt, heroColor } from './hud.js?v=20261122a';
+import { xpNeed } from '../data/unlocks.js?v=20261122a';
+import { ITEM_ICON } from './itemicons.js?v=20261122a';
+import { createStatsPanel } from './stats.js?v=20261122a';
 
 const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Rung màn hình', 'shake', 'set-shake'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
 const FULLSCREEN = ['Toàn màn hình', 'fullscreen', 'set-fullscreen'];

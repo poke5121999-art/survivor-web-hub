@@ -1,9 +1,9 @@
 // Tướng tab, landscape: one screen with the collection grid at the left, the selected hero's live model in the middle and
 // the stats, skills and LÊN CẤP at the right (selecting a tile updates the right side), plus the team chooser modal.
 // Everything is read from meta.acc and rebuilt after each meta command.
-import { HEROES, HERO } from '../data/heroes.js?v=20261121c';
-import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261121c';
-import { makeBackdrop, makeBurst, fmt, rarityColor } from './home.js?v=20261121c';
+import { HEROES, HERO } from '../data/heroes.js?v=20261122a';
+import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261122a';
+import { makeBackdrop, makeBurst, fmt, rarityColor } from './home.js?v=20261122a';
 
 const ROLE = { tank: 'Đỡ đòn', ranged: 'Bắn xa', healer: 'Hồi máu', melee: 'Cận chiến' };
 const RANK = { SSR: 0, SR: 1, R: 2 };
