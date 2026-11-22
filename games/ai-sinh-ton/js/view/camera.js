@@ -2,7 +2,7 @@
 // a fixed diagonal view at 47 degrees of pitch through a 27-degree lens, no rotation and no zoom. The diagonal comes from the
 // world's 45-degree block grid (the camera looks straight down -z), so block edges run at about 36 degrees on screen as in the
 // clip. The distance is the one that fits the whole fight ellipse (spawn rim at 1.04, a body standing on its far half) into the
-// play band: under the top HUD band (top bar and boss bar, 20% of the height) and over the hero cards at the bottom centre;
+// play band: under the top HUD corners (read from js/ui/hud.js at run time) and over the hero cards at the bottom centre;
 // that comes out at MCD's scale (a 2.7 m hero is about 0.11 of the frame height) and never closer. The world around the pad,
 // the bridge and the next pad fill the rest of the frame. The camera follows the team's centre by panning (the world slides
 // under it), clamped so the whole rim stays inside the frame and the band; between pads the world slides along the bridge.
@@ -20,12 +20,15 @@ const FOV_OVER = 27;              // MCD: vertical lens from the lean of upright
 const MCD_FILL = 0.107;           // MCD: the hero stands 0.10-0.12 of the frame height; a 2.7 m hero never gets bigger than this
 const HERO_H = 2.7;
 export const PLAY = {             // the play band in design px (frame 780 wide): what the HUD leaves to the fight
-  top: 46,                        // the top bar (0-41) and a margin
-  topBoss: 72,                    // while a boss lives: its bar (44-68) too, 20% of the 360 height
-  cards: { x0: 236, x1: 544, y: 252 }, // the hero card block with the flame headroom, bottom centre
+  top: 38,                        // under the top corner pieces (js/ui/hud.js, 3-33) and a margin
+  topBoss: 40,                    // while a boss lives the left cluster grows to its boss row (5-35)
+  cards: { x0: 241.5, x1: 538.5, y: 252 }, // the hero card block with the flame headroom, bottom centre
   side: 10,                       // rim points stay this far from the left and right edges
   bottom: 6,                      // and outside the card block, this far above the bottom edge
 };
+// The numbers above are only the fallback before the HUD exists: every frame the camera reads the HUD's own rectangles
+// (C.bandOf, wired in main.js to hud.band()) and refits when they change, so a HUD redesign moves the band with it.
+const TOP_MARGIN = 5;   // design px kept between the lowest top HUD piece and the band
 const GAP = 3;          // design px between the band edges and the fitted rim
 const FIT_K = 1.04;     // the spawn rim is at 1.04 of the ellipse
 const HERO_K = 0.9;     // heroes stay inside this share of the ellipse
@@ -52,7 +55,7 @@ export function createCamera(H) {
   const v = new THREE.Vector3(); const look = new THREE.Vector3(); const pos = new THREE.Vector3();
   let dist = 36; const pitch = PITCH; let shift = 0; let rim = { x0: -0.95, x1: 0.95, y0: -0.5, y1: 0.7 }; let key = ''; let blend = 0; let want = 0; let target = 0; let fov = FOV_OVER;
   const pan = { x: 0, z: 0, lo: { x: 0, z: 0 }, hi: { x: 0, z: 0 }, init: false, lift: 0 };
-  const C = { focus, pan, PLAY, get bossK() { return bossK; }, get R() { return ARENA.z * FIT_K; }, get dist() { return dist; }, get shift() { return shift; }, get pitch() { return pitch; }, get fovOver() { return FOV_OVER; }, mode: 'overview', spectate(uid) { target = uid || 0; want = target ? 1 : 0; H.spectateUid = target; }, update };
+  const C = { focus, pan, PLAY, bandOf: null, band: null, get bossK() { return bossK; }, get R() { return ARENA.z * FIT_K; }, get dist() { return dist; }, get shift() { return shift; }, get pitch() { return pitch; }, get fovOver() { return FOV_OVER; }, mode: 'overview', spectate(uid) { target = uid || 0; want = target ? 1 : 0; H.spectateUid = target; }, update };
   Object.defineProperty(C, 'mode', { get: () => (target ? 'spectate' : 'overview') });
 
   // the fit camera at distance d panned to (px, pz), lens shift sh; design px of a world point
@@ -113,7 +116,14 @@ export function createCamera(H) {
   }
   // the wave pads' framing (fixed per frame size) and the boss framing (per boss: its height, flight and width)
   let base = null; let bossF = null; let bossKey = ''; let bossK = 0;
+  function readBand() {
+    const b = C.bandOf ? C.bandOf() : null; if (!b) return;
+    const t = b.top + TOP_MARGIN; const tb = b.topBoss + TOP_MARGIN; const c = b.cards;
+    if (t === PLAY.top && tb === PLAY.topBoss && c.x0 === PLAY.cards.x0 && c.x1 === PLAY.cards.x1 && c.y === PLAY.cards.y) return;
+    PLAY.top = t; PLAY.topBoss = tb; PLAY.cards = { x0: c.x0, x1: c.x1, y: c.y }; key = ''; C.band = { top: t, topBoss: tb, cards: PLAY.cards };
+  }
   function framings(B) {
+    readBand();
     const k = H.size.w + 'x' + H.size.h;
     if (k !== key) { key = k; base = solve({ head: HEAD_FAR, top: PLAY.top, side: 0, near: FIT_K, sink: SINK }); bossKey = ''; C.fitClear = base.clear; C.mcdDist = base.mcd; }
     const bu = B && B.boss ? B.byUid.get(B.boss) : null;

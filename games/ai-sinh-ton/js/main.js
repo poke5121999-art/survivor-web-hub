@@ -48,6 +48,8 @@ async function boot() {
   window.__G = game;
   window.__stats = host.stats;
   const glue = await attachGame(game, { params });
+  // the camera keeps the fight inside what the battle HUD leaves free, measured on the HUD itself
+  cam.bandOf = () => (game.screens.hud && game.screens.hud.band ? game.screens.hud.band() : null);
   createOrient(game, frame);
   createPerf(game, frame, params);
 

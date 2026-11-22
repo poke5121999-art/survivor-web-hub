@@ -68,6 +68,9 @@ void main() {
   for (int i = 0; i < ${NL}; i++) { vec4 L = uL[i]; if (L.z <= 0.0) continue; vec2 q = p - L.xy; c += uLC[i] * L.z * 0.18 * exp(-dot(q, q) / (L.w * L.w * 3.0)); }
   c = mix(c, uHaze, far * 0.7);
   c *= 0.62 + 0.5 * cl + 0.26 * vn(p * 1.7 + vec2(0.0, uTime * 0.05));
+  // a finer grain (0.4 m) on top: in a dark theme the far pit under the camera's top edge spans a few metres per 24 px and
+  // the blobs above left it one flat tone there (floor-shots chapter 4: 3.96% flat cells at the merged start room view, 1.88% with this)
+  c *= 0.74 + 0.52 * vn(p * 2.6 + vec2(uTime * 0.06, 0.0));
   // lit wisps in the theme's mist colour, so even the near, nearly black pit under the cliffs has a grain
   c += uShallow * 0.22 * vn(p * 1.1 - vec2(uTime * 0.04, 0.0));
   gl_FragColor = vec4(c, 1.0);
