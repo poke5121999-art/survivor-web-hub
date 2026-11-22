@@ -53,7 +53,7 @@ async function hudAudit(page, phone, state) {
 }
 // occlusion check (part 9): cases [stage, wave, seed] and limits; BT_ONLY=occ runs only that part
 const OCC_CASES = [[5, 5, 5], [10, 5, 10], [8, 1, 8], [15, 1, 15]], OCC_SAMPLES = +process['env'].OCC_SAMPLES || 60;
-const OCC = { bossMax: 0.10, topShare: 0.01, cardShare: 0.02 };
+const OCC = { bossMax: 0.10, topShare: 0.01, cardShare: 0.02, ultShare: 0.01 };
 const ONLY = process['env'].BT_ONLY || '';
 const killWave = (page) => page.evaluate(() => { const B = __G.B; for (const e of B.enemies) e.hp = 0; let g = 0; while (B.phase === 'fight' && g++ < 300) __sim(1); __step(40); return B.phase; });
 
@@ -274,7 +274,7 @@ try {
   // clipped to the frame; per sample the share of that box under the top HUD (bar, buttons, boss bar) and under the
   // hero cards is measured. Stages 5 and 10 start at their boss wave, 8 and 15 are crowded ordinary waves.
   for (const phone of (process['env'].OCC_PHONES || 'xiaomi,s22').split(',')) {
-    const agg = { top: [], cards: [], boss: [] };
+    const agg = { top: [], cards: [], boss: [], ult: [], mid: [], ultUp: 0 };
     for (const [st, wv, sd] of OCC_CASES) {
       const o = await open(br, srv.base, phone, `noaudio=1&q=low&seed=${sd}&autostart=1&stage=${st}&wave=${wv}&autoult=1&autopick=1`);
       const r = await o.page.evaluate((N) => {
@@ -291,29 +291,33 @@ try {
         }
         const meets = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
         const under = (b, rects) => { let hit = 0; for (let i = 0; i < 16; i++) for (let j = 0; j < 16; j++) { const x = b.x + (i + 0.5) / 16 * b.w, y = b.y + (j + 0.5) / 16 * b.h; if (rects.some((q) => x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h)) hit++; } return hit / 256; };
-        const out = { top: [], cards: [], boss: [], samples: 0, faded: 0, worst: null, topH: 0 };
+        const out = { top: [], cards: [], boss: [], ult: [], mid: [], ultUp: 0, samples: 0, faded: 0, worst: null, topH: 0 };
         for (let i = 0; i < N && (B.phase === 'fight' || B.phase === 'pick'); i++) {
           __sim(0.5); __step(12); if (B.phase !== 'fight') continue; // 0.2 s of HUD frames: the HUD reacts in real time, not per sim slice
-          const d = G.screens.hud.dbg(), top = d.topHud ? d.topHud.filter((q) => !q.see) : [...d.boxes.filter((q) => /^(pause|plate|speed|auto)$/.test(q.id)), ...d.bannerRects.filter((q) => q.age === 99)], cards = d.boxes.filter((q) => /^card/.test(q.id)); out.samples++; if (d.topHud && d.topHud.some((q) => q.see)) out.faded++;
+          const d = G.screens.hud.dbg(), top = d.topHud ? d.topHud.filter((q) => !q.see) : [...d.boxes.filter((q) => /^(pause|plate|speed|auto)$/.test(q.id)), ...d.bannerRects.filter((q) => q.age === 99)], cards = d.boxes.filter((q) => /^card/.test(q.id)); // ultimate callouts and the middle banners (wave, boss, rage): bannerRects lists the banners in d.banners order, then the boss bar
+          const ultR = d.bannerRects.filter((q, i) => d.banners[i] === 'ult'), midR = d.bannerRects.filter((q, i) => i < d.banners.length && d.banners[i] !== 'ult'); if (ultR.length) out.ultUp++;
+          out.samples++; if (d.topHud && d.topHud.some((q) => q.see)) out.faded++;
           out.topH = Math.max(out.topH, ...(d.topHud || top).map((q) => q.y + q.h));
           for (const u of B.units) {
             if (!u.alive) continue; const b = column(u); if (!b) continue;
             const ft = under(b, top), fc = under(b, cards);
-            out.top.push(ft); out.cards.push(fc); if (u.boss) { out.boss.push(ft); if (!out.bossWorst || ft > out.bossWorst.f) out.bossWorst = { f: ft, kind: u.kind, t: +B.t.toFixed(1), box: [b.x, b.y, b.w, b.h].map(Math.round), under: top.filter((q) => meets(q, b)).map((q) => q.id).join('+') }; }
+            out.top.push(ft); out.cards.push(fc); if (ultR.length) out.ult.push(under(b, ultR)); if (midR.length) out.mid.push(under(b, midR)); if (u.boss) { out.boss.push(ft); if (!out.bossWorst || ft > out.bossWorst.f) out.bossWorst = { f: ft, kind: u.kind, t: +B.t.toFixed(1), box: [b.x, b.y, b.w, b.h].map(Math.round), under: top.filter((q) => meets(q, b)).map((q) => q.id).join('+') }; }
             if (!out.worst || ft > out.worst.f) out.worst = { f: ft, kind: u.kind, t: +B.t.toFixed(1), box: [b.x, b.y, b.w, b.h].map(Math.round) };
           }
         }
         return out;
       }, OCC_SAMPLES);
-      for (const key of ['top', 'cards', 'boss']) agg[key].push(...r[key]);
+      for (const key of ['top', 'cards', 'boss', 'ult', 'mid']) agg[key].push(...r[key]); agg.ultUp += r.ultUp;
       const q = (a, t) => a.filter((f) => f > t).length;
-      console.log(`${phone} stage ${st} wave ${wv} seed ${sd}: ${r.samples} samples (${r.faded} with a cluster faded over the boss), ${r.top.length} unit boxes; top HUD ends at y ${r.topH.toFixed(1)}; under the top HUD >25%: ${q(r.top, 0.25)}, boss max ${(Math.max(0, ...r.boss) * 100).toFixed(1)}%; under the cards >25%: ${q(r.cards, 0.25)}; worst top ${r.worst && JSON.stringify(r.worst)}; worst boss ${r.bossWorst ? JSON.stringify(r.bossWorst) : 'none'}`);
+      console.log(`${phone} stage ${st} wave ${wv} seed ${sd}: ${r.samples} samples (${r.faded} with a cluster faded over the boss), ${r.top.length} unit boxes; top HUD ends at y ${r.topH.toFixed(1)}; under the top HUD >25%: ${q(r.top, 0.25)}, boss max ${(Math.max(0, ...r.boss) * 100).toFixed(1)}%; under the cards >25%: ${q(r.cards, 0.25)}; ${r.ultUp} samples with an ultimate callout up, units under it >25%: ${q(r.ult, 0.25)}; under a middle banner >25%: ${q(r.mid, 0.25)} of ${r.mid.length}; worst top ${r.worst && JSON.stringify(r.worst)}; worst boss ${r.bossWorst ? JSON.stringify(r.bossWorst) : 'none'}`);
       await o.ctx.close();
     }
     const share = (a, t) => (a.length ? a.filter((f) => f > t).length / a.length : 0), pct = (v) => (v * 100).toFixed(2) + '%';
     const bossMax = Math.max(0, ...agg.boss), bossMean = agg.boss.reduce((s, f) => s + f, 0) / Math.max(1, agg.boss.length);
     check(agg.boss.length >= 40 && bossMax <= OCC.bossMax, `${phone}: over ${agg.boss.length} boss boxes (stages ${OCC_CASES.filter((c) => c[1] === 5).map((c) => c[0]).join(', ')}, wave 5) the top HUD covers at most ${pct(bossMax)} of the boss (mean ${pct(bossMean)}; limit ${pct(OCC.bossMax)})`);
     check(agg.top.length >= 500 && share(agg.top, 0.25) <= OCC.topShare, `${phone}: of ${agg.top.length} unit boxes, ${pct(share(agg.top, 0.25))} are more than a quarter under the top HUD (limit ${pct(OCC.topShare)})`);
+    check(agg.ultUp >= 10 && share(agg.ult, 0.25) <= OCC.ultShare, `${phone}: in ${agg.ultUp} samples with an ultimate callout up, ${pct(share(agg.ult, 0.25))} of ${agg.ult.length} unit boxes are more than a quarter under it (limit ${pct(OCC.ultShare)})`);
+    check(agg.mid.length >= 100 && share(agg.mid, 0.25) <= OCC.ultShare, `${phone}: of ${agg.mid.length} unit boxes while a wave, boss or rage banner is up, ${pct(share(agg.mid, 0.25))} are more than a quarter under it (limit ${pct(OCC.ultShare)})`);
     check(share(agg.cards, 0.25) <= OCC.cardShare, `${phone}: of ${agg.cards.length} unit boxes, ${pct(share(agg.cards, 0.25))} are more than a quarter under the hero cards (limit ${pct(OCC.cardShare)})`);
   }
 } finally { await br.close(); srv.close(); }
