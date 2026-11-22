@@ -30,7 +30,9 @@ const KINDS = Object.keys(STAGE).filter((k) => !ONLY.length || ONLY.includes(k))
 const CLOSE_H = 0.38;
 const EDGE = 6;          // design px a pose (arms flung up, wings) may reach into a bar
 const END_MAX = 4.0;     // real seconds
-const FOV_OVER = 19;
+// The fight camera's lens is read from camera.js (game.cam.fovOver) at run time: it was a constant 19 here, written on the old
+// camera; the owner-approved MCD camera (16236ae0) uses 27, and the check is that the intro hands back whatever the fight uses.
+let FOV_OVER = 0;
 const BAR = { top: 46, bot: 88 };
 const CLEAR_TOP = 70;   // the HUD's boss bar hangs under the top bar down to 68 design px: the boss stays below it too
 const DT = 1 / 60;
@@ -88,6 +90,7 @@ try {
       const n = STAGE[kind]; const tag = `${phone} ${kind}`;
       const { ctx, page, problems } = await open(br, srv.base, phone, `autostart=1&stage=${n}&wave=5&noaudio=1&seed=${n}`, { freeze: true });
       await page.evaluate(INSTALL);
+      FOV_OVER = await page.evaluate(() => window.__G.cam.fovOver);
       // up to the spawn frame
       const pre = await page.evaluate(RUN, [1500, 'window.__bi.spawn', true]);
       const last = pre[pre.length - 1];
@@ -152,7 +155,7 @@ try {
       const n = STAGE[kind]; const tag = `${phone} ${kind} skip`;
       const { ctx, page, problems } = await open(br, srv.base, phone, `autostart=1&stage=${n}&wave=5&noaudio=1&seed=${n}`, { freeze: true });
       await page.evaluate(() => { window.__G.settings.shake = false; });
-      await page.evaluate(INSTALL); await page.evaluate(RUN, [1500, 'window.__bi.spawn', false]);
+      await page.evaluate(INSTALL); FOV_OVER = await page.evaluate(() => window.__G.cam.fovOver); await page.evaluate(RUN, [1500, 'window.__bi.spawn', false]);
       const mid = await page.evaluate(RUN, [400, 'I.scene && I.scene.t >= I.scene.def.L + 0.3', true]);
       check(mid.every((f) => f.shake === 0), `${tag}: no shake with the setting off (max ${Math.max(...mid.map((f) => f.shake)).toFixed(2)} px over ${mid.length} frames)`);
       const box = await page.locator('#frame').boundingBox();

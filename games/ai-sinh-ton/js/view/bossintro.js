@@ -371,8 +371,12 @@ export function createBossIntro(game) {
       // of the two three-quarter sides, the one the sun lights (host.js puts the sun at -12, +14 from the focus)
       const a0 = Math.atan2(S.o.z, S.o.x); const sunA = Math.atan2(14, -12);
       const ang = Math.cos(a0 + SIDE - sunA) >= Math.cos(a0 - SIDE - sunA) ? a0 + SIDE : a0 - SIDE; S.sideSign = ang > a0 ? 1 : -1;
-      S.ang = ang; const f0 = fitShot(b0.root, z.T.fly); S.D = S.fitD = f0.D; S.dy = S.fitDy = f0.dy;
-      S.yaw0 = Math.atan2(Math.cos(ang), Math.sin(ang)); // face the camera
+      S.ang = ang; S.yaw0 = Math.atan2(Math.cos(ang), Math.sin(ang)); // face the camera
+      // fit the body turned the way it holds in the shot (facing the camera), not the way the sim had it face: since bosses walk
+      // out of the far gate (63f49949) the spawn heading turned the queen's spread wings across the lens, the first fit stood
+      // 12.2 m off instead of 11.7 m, and the later refits never come closer, so the close-up held her at 37% of the frame
+      b0.root.rotation.set(0, S.yaw0, 0); b0.root.updateMatrixWorld(true);
+      const f0 = fitShot(b0.root, z.T.fly); S.D = S.fitD = f0.D; S.dy = S.fitDy = f0.dy;
     }
     // the intro clock: real time, stopped by a hit-stop, slowed for SLOW.span after the landing
     const stopped = game.juice && game.juice.stopped;
