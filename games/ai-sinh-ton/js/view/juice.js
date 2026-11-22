@@ -16,7 +16,7 @@ const BLADES = { span: 1.65, slow: 0.75, push: 3, cut: 30, last: 40, realMax: 3 
 export function createJuice(game) {
   const view = { shake: { x: 0, y: 0, px: 0 }, push: 0, pull: { x: 0, z: 0, k: 0 } };
   const J = {
-    view, scale: 1, enabled: true, silent: false, stopped: false, partial: false,
+    view, scale: 1, slow: 1, enabled: true, silent: false, stopped: false, partial: false,
     stops: [],            // every hit-stop taken: { at, ms } (real seconds on the juice clock)
     scenes: 0, lastScene: null, kills: [], bossDown: new Set(),
   };
@@ -71,7 +71,7 @@ export function createJuice(game) {
   // one cut of Gió's ultimate: a short stop on the wall clock, halved at x2, never during __sim (hit() ignores silent runs)
   J.slash = (i, last) => hit((last ? BLADES.last : BLADES.cut) * (fast() ? 0.5 : 1), { force: true });
   J.hit = hit; J.kick = kick; J.skip = skip;
-  J.reset = () => { deadline = 0; scene = null; shakeAmp = 0; shakeT = 9; J.scale = 1; J.stopped = false; J.kills.length = 0; J.bossDown.clear(); view.shake.x = view.shake.y = view.shake.px = 0; view.push = 0; view.pull.k = 0; };
+  J.reset = () => { deadline = 0; scene = null; J.slow = 1; shakeAmp = 0; shakeT = 9; J.scale = 1; J.stopped = false; J.kills.length = 0; J.bossDown.clear(); view.shake.x = view.shake.y = view.shake.px = 0; view.push = 0; view.pull.k = 0; };
   if (typeof window !== 'undefined') window.addEventListener('pointerdown', skip, true);
 
   // real seconds in; sets scale and the camera view for this frame
@@ -95,7 +95,8 @@ export function createJuice(game) {
     view.push = k * (scene ? scene.pushK : 1);
     const B = game.B; const hero = scene && scene.slow && B && B.byUid.get(scene.uid);
     if (hero) { view.pull.x = hero.x; view.pull.z = hero.z; view.pull.k = k; } else view.pull.k = 0;
-    scale *= live; J.partial = live < 1;
+    // a boss entrance (bossintro.js) slows the view for a moment; the sim is held then, so only the picture slows
+    scale *= live * J.slow; J.partial = live < 1;
     if (J.stopped) scale = 0;
     J.scale = scale;
     // shake: one offset that turns around and decays, so its peak is the amplitude
