@@ -51,10 +51,14 @@ async function hudAudit(page, phone, state) {
   if (cards.length) { if (right - left > 300.5) bad.push(`card row is ${(right - left).toFixed(0)} wide`); if (Math.abs((left + right) / 2 - 390) > 0.5) bad.push(`card row centre ${((left + right) / 2).toFixed(1)}`); }
   check(bad.length === 0 && cards.length > 0, `${phone} ${state}: ${d.b.length} HUD rectangles, ${cards.length} cards in one row x ${left.toFixed(0)}..${right.toFixed(0)} (${bad.join('; ') || 'none in the middle'})`);
 }
+// occlusion check (part 9): cases [stage, wave, seed] and limits; BT_ONLY=occ runs only that part
+const OCC_CASES = [[5, 5, 5], [10, 5, 10], [8, 1, 8], [15, 1, 15]], OCC_SAMPLES = +process['env'].OCC_SAMPLES || 60;
+const OCC = { bossMax: 0.10, topShare: 0.01, cardShare: 0.02, ultShare: 0.01 };
+const ONLY = process['env'].BT_ONLY || '';
 const killWave = (page) => page.evaluate(() => { const B = __G.B; for (const e of B.enemies) e.hp = 0; let g = 0; while (B.phase === 'fight' && g++ < 300) __sim(1); __step(40); return B.phase; });
 
 try {
-  for (const phone of ['s22', 'xiaomi', 'desktop']) {
+  for (const phone of ONLY === 'occ' ? [] : ['s22', 'xiaomi', 'desktop']) {
     touch = phone !== 'desktop';
     const a = await open(br, srv.base, phone, BASE); const p = a.page;
     await p.evaluate(() => {
@@ -177,8 +181,8 @@ try {
     const b = await open(br, srv.base, phone, BASE + '&wave=5'); const bp = b.page;
     await bp.evaluate(() => { __sim(6); __step(60); });
     const bs = await bp.evaluate(() => { const B = __G.B, u = B.byUid.get(B.boss), d = __G.screens.hud.dbg(); return { alive: !!(u && u.alive), name: u && u.def.name, d }; });
-    check(bs.alive && bs.d.bossShown && bs.d.bossName === bs.name && bs.d.bossY > 40, `${phone}: wave 5 shows the boss bar for "${bs.name}" (alive ${bs.alive}, bar "${bs.d.bossName}", y ${bs.d.bossY.toFixed(0)})`);
-    { const br2 = await bp.evaluate(() => __G.screens.hud.dbg().bannerRects.filter((r) => r.age === 99)[0]); check(br2 && br2.w <= 300 && br2.y + br2.h < 70, `${phone}: boss bar rectangle ${br2 && JSON.stringify(br2)} is at most 300 wide and ends above y 70`); }
+    check(bs.alive && bs.d.bossShown && bs.d.bossName === bs.name && bs.d.bossY >= 0 && bs.d.bossY < 40, `${phone}: wave 5 shows the boss bar for "${bs.name}" in the top-left cluster (alive ${bs.alive}, bar "${bs.d.bossName}", y ${bs.d.bossY.toFixed(0)})`);
+    { const br2 = await bp.evaluate(() => __G.screens.hud.dbg().bannerRects.filter((r) => r.age === 99)[0]); check(br2 && br2.w <= 300 && br2.y + br2.h <= 36, `${phone}: boss bar rectangle ${br2 && JSON.stringify(br2)} is at most 300 wide and ends above y 36 (no second band under the top bar)`); }
     await hudAudit(bp, phone, 'boss wave');
     await shot(bp, phone, 'boss');
     await bp.evaluate(() => { __G.spectate(__G.B.boss); __step(70); });
@@ -265,6 +269,57 @@ try {
     check(wprob.length === 0 && werr === 0, `${phone}: win flow has no errors (${wprob.slice(0, 2).join(' | ') || 'none'}, ${werr} logged)`);
     await w.ctx.close();
   }
+  // 9: gameplay is never under the HUD (brief Addendum 9, owner's "boss bị che"). Every living unit is a column on the
+  // floor (heroes 1.9 m; enemies from their radius; a boss from its puppet's scale), projected to design units and
+  // clipped to the frame; per sample the share of that box under the top HUD (bar, buttons, boss bar) and under the
+  // hero cards is measured. Stages 5 and 10 start at their boss wave, 8 and 15 are crowded ordinary waves.
+  for (const phone of (process['env'].OCC_PHONES || 'xiaomi,s22').split(',')) {
+    const agg = { top: [], cards: [], boss: [], ult: [], mid: [], ultUp: 0 };
+    for (const [st, wv, sd] of OCC_CASES) {
+      const o = await open(br, srv.base, phone, `noaudio=1&q=low&seed=${sd}&autostart=1&stage=${st}&wave=${wv}&autoult=1&autopick=1`);
+      const r = await o.page.evaluate((N) => {
+        const G = __G, B = G.B, THREE = __ui.THREE, fr = document.getElementById('frame'), k = fr.clientWidth / 780, H = fr.clientHeight / k, P = new THREE.Vector3();
+        G.paused = true;
+        const proj = (x, y, z) => { P.set(x, y, z).project(G.host.camera); return [(P.x + 1) / 2 * 780, (1 - P.y) / 2 * H]; };
+        function column(u) {
+          let h = u.hero ? 1.9 : 1.8 * Math.max(1, u.r / 0.45), r = u.r || 0.45;
+          if (u.boss) { let best = null, bd = 1.5; for (const z of G.host.G.zombies.list) { if (!z.alive || z.dying) continue; const d = Math.hypot(z.pos.x - u.x, z.pos.z - u.z); if (d < bd) { bd = d; best = z; } } if (best) { h = 1.9 * best.T.scale; r = 0.5 * best.T.scale; } }
+          let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+          for (const dx of [-r, r]) for (const dz of [-r, r]) for (const y of [0, h]) { const [px, py] = proj(u.x + dx, y, u.z + dz); x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py); }
+          const cx0 = Math.max(0, x0), cy0 = Math.max(0, y0), cx1 = Math.min(780, x1), cy1 = Math.min(H, y1);
+          return cx1 > cx0 && cy1 > cy0 ? { x: cx0, y: cy0, w: cx1 - cx0, h: cy1 - cy0 } : null;
+        }
+        const meets = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+        const under = (b, rects) => { let hit = 0; for (let i = 0; i < 16; i++) for (let j = 0; j < 16; j++) { const x = b.x + (i + 0.5) / 16 * b.w, y = b.y + (j + 0.5) / 16 * b.h; if (rects.some((q) => x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h)) hit++; } return hit / 256; };
+        const out = { top: [], cards: [], boss: [], ult: [], mid: [], ultUp: 0, samples: 0, faded: 0, worst: null, topH: 0 };
+        for (let i = 0; i < N && (B.phase === 'fight' || B.phase === 'pick'); i++) {
+          __sim(0.5); __step(12); if (B.phase !== 'fight') continue; // 0.2 s of HUD frames: the HUD reacts in real time, not per sim slice
+          const d = G.screens.hud.dbg(), top = d.topHud ? d.topHud.filter((q) => !q.see) : [...d.boxes.filter((q) => /^(pause|plate|speed|auto)$/.test(q.id)), ...d.bannerRects.filter((q) => q.age === 99)], cards = d.boxes.filter((q) => /^card/.test(q.id)); // ultimate callouts and the middle banners (wave, boss, rage): bannerRects lists the banners in d.banners order, then the boss bar
+          const ultR = d.bannerRects.filter((q, i) => d.banners[i] === 'ult'), midR = d.bannerRects.filter((q, i) => i < d.banners.length && d.banners[i] !== 'ult'); if (ultR.length) out.ultUp++;
+          out.samples++; if (d.topHud && d.topHud.some((q) => q.see)) out.faded++;
+          out.topH = Math.max(out.topH, ...(d.topHud || top).map((q) => q.y + q.h));
+          for (const u of B.units) {
+            if (!u.alive) continue; const b = column(u); if (!b) continue;
+            const ft = under(b, top), fc = under(b, cards);
+            out.top.push(ft); out.cards.push(fc); if (ultR.length) out.ult.push(under(b, ultR)); if (midR.length) out.mid.push(under(b, midR)); if (u.boss) { out.boss.push(ft); if (!out.bossWorst || ft > out.bossWorst.f) out.bossWorst = { f: ft, kind: u.kind, t: +B.t.toFixed(1), box: [b.x, b.y, b.w, b.h].map(Math.round), under: top.filter((q) => meets(q, b)).map((q) => q.id).join('+') }; }
+            if (!out.worst || ft > out.worst.f) out.worst = { f: ft, kind: u.kind, t: +B.t.toFixed(1), box: [b.x, b.y, b.w, b.h].map(Math.round) };
+          }
+        }
+        return out;
+      }, OCC_SAMPLES);
+      for (const key of ['top', 'cards', 'boss', 'ult', 'mid']) agg[key].push(...r[key]); agg.ultUp += r.ultUp;
+      const q = (a, t) => a.filter((f) => f > t).length;
+      console.log(`${phone} stage ${st} wave ${wv} seed ${sd}: ${r.samples} samples (${r.faded} with a cluster faded over the boss), ${r.top.length} unit boxes; top HUD ends at y ${r.topH.toFixed(1)}; under the top HUD >25%: ${q(r.top, 0.25)}, boss max ${(Math.max(0, ...r.boss) * 100).toFixed(1)}%; under the cards >25%: ${q(r.cards, 0.25)}; ${r.ultUp} samples with an ultimate callout up, units under it >25%: ${q(r.ult, 0.25)}; under a middle banner >25%: ${q(r.mid, 0.25)} of ${r.mid.length}; worst top ${r.worst && JSON.stringify(r.worst)}; worst boss ${r.bossWorst ? JSON.stringify(r.bossWorst) : 'none'}`);
+      await o.ctx.close();
+    }
+    const share = (a, t) => (a.length ? a.filter((f) => f > t).length / a.length : 0), pct = (v) => (v * 100).toFixed(2) + '%';
+    const bossMax = Math.max(0, ...agg.boss), bossMean = agg.boss.reduce((s, f) => s + f, 0) / Math.max(1, agg.boss.length);
+    check(agg.boss.length >= 40 && bossMax <= OCC.bossMax, `${phone}: over ${agg.boss.length} boss boxes (stages ${OCC_CASES.filter((c) => c[1] === 5).map((c) => c[0]).join(', ')}, wave 5) the top HUD covers at most ${pct(bossMax)} of the boss (mean ${pct(bossMean)}; limit ${pct(OCC.bossMax)})`);
+    check(agg.top.length >= 500 && share(agg.top, 0.25) <= OCC.topShare, `${phone}: of ${agg.top.length} unit boxes, ${pct(share(agg.top, 0.25))} are more than a quarter under the top HUD (limit ${pct(OCC.topShare)})`);
+    check(agg.ultUp >= 10 && share(agg.ult, 0.25) <= OCC.ultShare, `${phone}: in ${agg.ultUp} samples with an ultimate callout up, ${pct(share(agg.ult, 0.25))} of ${agg.ult.length} unit boxes are more than a quarter under it (limit ${pct(OCC.ultShare)})`);
+    check(agg.mid.length >= 100 && share(agg.mid, 0.25) <= OCC.ultShare, `${phone}: of ${agg.mid.length} unit boxes while a wave, boss or rage banner is up, ${pct(share(agg.mid, 0.25))} are more than a quarter under it (limit ${pct(OCC.ultShare)})`);
+    check(share(agg.cards, 0.25) <= OCC.cardShare, `${phone}: of ${agg.cards.length} unit boxes, ${pct(share(agg.cards, 0.25))} are more than a quarter under the hero cards (limit ${pct(OCC.cardShare)})`);
+  }
 } finally { await br.close(); srv.close(); }
-try { const LAND = path.join(ROOT, '.chk', 'landscape'); fs.mkdirSync(LAND, { recursive: true }); for (const ph of ['s22', 'xiaomi', 'desktop']) sheet(shots.filter((f) => f.includes(ph + '-')), path.join(LAND, `battle-ui-${ph}.png`), 3, 520); } catch (e) { console.log('sheet not written: ' + e.message); }
+if (shots.length) try { const LAND = path.join(ROOT, '.chk', 'landscape'); fs.mkdirSync(LAND, { recursive: true }); for (const ph of ['s22', 'xiaomi', 'desktop']) sheet(shots.filter((f) => f.includes(ph + '-')), path.join(LAND, `battle-ui-${ph}.png`), 3, 520); } catch (e) { console.log('sheet not written: ' + e.message); }
 done();

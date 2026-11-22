@@ -26,16 +26,20 @@ export function roundPlane(THREE, w, h, r, rgba) {
   return m;
 }
 
-// 780 x 360 landscape: a 40 high top bar and one compact row of hero cards at the bottom centre (at most 300 x 68, 12 above the
-// bottom edge); everything else is the fight
+// 780 x 360 landscape: two low see-through clusters in the top corners (at most 33 high, nothing across the top middle) and
+// one compact row of hero cards at the bottom centre (at most 300 x 68, 12 above the bottom edge); everything else is the fight
 const SAFE = 28, BAR_Y = 3, CARD_W = 72, CARD_PITCH = 75, CARD_H = 68, PW = 48, PX = 3, PY = 0, BOTTOM = 12, FLAME_UP = 24;
 const CX = CARD_W / 2, CY = PY + PW / 2;
 const rowW = (n) => n * CARD_PITCH - (CARD_PITCH - CARD_W);
 const HP_COLORS = { ok: 0x35d65a, mid: 0xff9a1f, low: 0xff3b52 };
 const MERGE = 0.15, MERGE_GROUP = 0.3, NUMBER_LIFE = 0.95, BIG_HIT = 3, STREAK_MIN = 8;
-const BANNER = { wave: { color: 0x4a3a86, kind: 'pop' }, boss: { color: 0xc4203a, kind: 'pop' }, rage: { color: 0xe2641a, kind: 'pop' }, ult: { color: 0x8f4dff, kind: 'slide' } };
-const BANNER_TOP = 80, BANNER_GAP = 12, BANNER_TEXT_Z = 12; // banners stack downward from here, oldest on top; text clears the panel gloss (depth 5 + bevel 3)
-const BOSS_BAR = { x: 240, w: 300, h: 24, y: 44, hidden: -40 };
+// Wave, boss, rage and ultimate names: one line each, a chip in the bottom-right corner beside the hero cards, the part of
+// the frame units reach least (measured over six stages: under 0.1 unit boxes per sample there, 1 to 2 in the middle); the
+// newest at the bottom, older ones pushed up, at most three, the oldest leaves first
+const CALL = { gap: 4, h: 26, minW: 96, maxW: 200, max: 3, tin: 0.2, tout: 0.22, slide: 22 };
+const CALL_LIFE = { wave: 1.9, boss: 2.1, rage: 1.6, ult: 1.5 }, CALL_COL = { wave: 0xffc93a, boss: 0xff4a5e, rage: 0xff8a2a };
+const BTN = { w: 40, sw: 58, h: 30 }, ROW = { y: 5, h: 26, bossH: 30, pad: 9 }, BOSS = { w: 132, h: 24 }, STATS = { w: 120, skullX: 56 };
+const GHOST_A = 0.3; // a top cluster over the boss fades to this opacity
 
 export function createHud(game) {
   const ui = game.ui, PAL = ui.PAL, THREE = ui.THREE, W = ui.W;
@@ -44,37 +48,103 @@ export function createHud(game) {
   const top = {};
 
   // ---------- top bar ----------
-  top.pause = ui.button({ id: 'pause', w: 44, h: 34, r: 11, color: 0x5a55a0, icon: 'pause', onTap: () => { game.setPaused(true); game.goto('result', { mode: 'pause', over: true }); } });
+  // Light and low: two see-through clusters in the top corners, nothing across the top middle, so units walking at the
+  // far edge of the arena stay in view. Left: pause, then the wave (ĐỢT n/5 and five thin segments, the last one the
+  // boss); in the boss wave the segments give way to the boss's name over its health bar. Right: time and kills, then
+  // speed. The stage name rides on the wave banner instead of sitting in the bar.
+  top.pause = ui.button({ id: 'pause', w: BTN.w, h: BTN.h, r: 10, color: 0x120d22, flat: true, alpha: 0.5, icon: 'pause', onTap: () => { game.setPaused(true); game.goto('result', { mode: 'pause', over: true }); } });
   scr.put(top.pause, SAFE, BAR_Y);
-  const plate = ui.panel({ w: 400, h: 38, r: 14, color: 0x2a2150, depth: 4, bevel: 2.4 }); scr.put(plate, (W - 400) / 2, BAR_Y - 1);
-  top.wave = ui.text('ĐỢT 1/5', { size: 15, align: 'left', valign: 'mid' }); plate.put(top.wave, 14, 11, 1);
-  top.stage = ui.text('', { size: 11, align: 'left', valign: 'mid', color: 0xd9ccff, outlineW: 1.2 }); plate.put(top.stage, 14, 29.5, 1);
-  top.speed = ui.button({ id: 'speed', w: 64, h: 34, r: 11, color: PAL.blue, icon: 'speed', label: 'x1', size: 15, onTap: () => { if (!game.meta.unlocked('speed')) { ui.toast(game.meta.lockText('speed')); return; } game.setSpeed(game.speed === 1 ? 2 : 1); } });
-  scr.put(top.speed, W - SAFE - 64, BAR_Y);
-  top.speedLock = ui.icon('lock', { size: 22, sway: false }); top.speed.put(top.speedLock, 46, -9, 14);
-  // small chip while the auto-ultimate switch is on
-  top.auto = ui.panel({ w: 46, h: 30, r: 10, color: 0x6a3ad0, depth: 3, bevel: 2, ow: 2.2, shadow: false }); scr.put(top.auto, SAFE + 52, BAR_Y + 2);
-  top.auto.put(ui.icon('bolt', { size: 20, sway: false }), 3, 5, 4); top.auto.put(ui.text('TỰ', { size: 13, valign: 'mid' }), 26, 16, 2); top.auto.setVisible(false);
-  top.timerPlate = ui.panel({ w: 66, h: 24, r: 12, color: 0x1a1340, depth: 3, bevel: 2, gloss: false, ow: 2.4, shadow: false }); plate.put(top.timerPlate, 254, 7, 1);
-  top.timer = ui.text('00:00', { size: 14, align: 'center', valign: 'mid' }); top.timerPlate.put(top.timer, 33, 13, 1);
-  top.killPlate = ui.panel({ w: 72, h: 24, r: 12, color: 0x1a1340, depth: 3, bevel: 2, gloss: false, ow: 2.4, shadow: false }); plate.put(top.killPlate, 324, 7, 1);
-  top.killIcon = ui.icon('skull', { size: 26, sway: false }); top.killPlate.put(top.killIcon, -5, -1, 4);
-  top.kills = ui.text('0', { size: 14, align: 'right', valign: 'mid' }); top.killPlate.put(top.kills, 66, 13, 1);
-  top.pips = [];
-  { // four pills and a skull pill for the boss wave
-    const widths = [24, 24, 24, 24, 30], gap = 5, total = widths.reduce((a, b) => a + b, 0) + gap * 4; let x = 104 + (146 - total) / 2;
-    widths.forEach((w, i) => {
-      const boss = i === 4, p = ui.panel({ w, h: boss ? 18 : 12, r: boss ? 9 : 6, color: 0x4a4f68, depth: 2, bevel: 1.4, shadow: false, ow: 2 }); plate.put(p, x, boss ? 10 : 13, 1);
-      if (boss) { const s = ui.icon('skull', { size: 18, sway: false }); p.put(s, 6, 0, 2); }
-      top.pips.push(p); x += w + gap;
+  top.speed = ui.button({ id: 'speed', w: BTN.sw, h: BTN.h, r: 10, color: 0x120d22, flat: true, alpha: 0.5, icon: 'speed', label: 'x1', size: 14, onTap: () => { if (!game.meta.unlocked('speed')) { ui.toast(game.meta.lockText('speed')); return; } game.setSpeed(game.speed === 1 ? 2 : 1); } });
+  scr.put(top.speed, W - SAFE - BTN.sw, BAR_Y);
+  top.speedLock = ui.icon('lock', { size: 18, sway: false }); top.speed.put(top.speedLock, BTN.sw - 12, -7, 14);
+
+  // a see-through rounded strip drawn into one canvas texture, repainted only when its content changes
+  function strip(w, h) {
+    const g = ui.group({ w, h }), c = document.createElement('canvas'), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false })); g.add(m);
+    g.paint = (w2, h2, fn) => {
+      const k = clamp(Math.ceil(ui.dpr * ui.u), 2, 4); c.width = Math.ceil(w2 * k); c.height = Math.ceil(h2 * k);
+      const x = c.getContext('2d'); x.setTransform(k, 0, 0, k, 0, 0); x.clearRect(0, 0, w2, h2); fn(x);
+      tex.dispose(); tex.needsUpdate = true; m.scale.set(w2, h2, 1); m.position.set(w2 / 2, -h2 / 2, 0); g.w = w2; g.h = h2;
+    };
+    return g;
+  }
+  const rr = (x, X, Y, w, h, r, fill) => { x.fillStyle = fill; x.beginPath(); x.roundRect(X, Y, w, h, r); x.fill(); };
+  const BACK = 'rgba(12,9,24,0.42)';
+  const SEG = { w: 15, boss: 21, h: 7, gap: 3 }, segW = SEG.w * 4 + SEG.boss + SEG.gap * 4;
+  const waveTxtW = Math.ceil(ui.measure('ĐỢT 5/5', 13)) + 2;
+
+  // left cluster: wave
+  const left = ui.group({ w: 0, h: ROW.h }); scr.put(left, SAFE + BTN.w + 8, ROW.y, 0);
+  top.waveBg = strip(10, 10); left.put(top.waveBg, 0, 0, 0);
+  top.wave = ui.text('ĐỢT 1/5', { size: 13, align: 'left', valign: 'mid' }); left.put(top.wave, ROW.pad, ROW.h / 2, 2);
+  top.segs = strip(segW, SEG.h + 4); left.put(top.segs, ROW.pad + waveTxtW + 6, (ROW.h - SEG.h - 4) / 2, 1);
+  top.bossSkull = ui.icon('skull', { size: 15, sway: false }); left.put(top.bossSkull, ROW.pad + waveTxtW + 6 + segW - SEG.boss / 2 - 7.5, ROW.h / 2 - 7.5, 3);
+  // boss: name over a slim bar, in place of the segments
+  const boss = ui.group({ w: BOSS.w, h: BOSS.h }); left.put(boss, ROW.pad + waveTxtW + 6, 3, 1);
+  boss.skull = ui.icon('skull', { size: 13, sway: false }); boss.put(boss.skull, 0, 0, 2);
+  boss.name = ui.text('', { size: 11, align: 'left', valign: 'mid', upper: true, color: 0xffd9d9 }); boss.put(boss.name, 16, 6.5, 2);
+  boss.bar = ui.bar({ w: BOSS.w, h: 8, color: 0xff3b52, ghost: true, ow: 1.4 }); boss.put(boss.bar, 0, 15, 0);
+  boss.setVisible(false); boss.shown = false; boss.uid = 0; boss.label = ''; boss.y = 0;
+  let leftMode = '';
+  function layoutLeft(bossOn) {
+    const mode = bossOn ? 'boss' : 'wave'; if (mode === leftMode) return; leftMode = mode;
+    const inner = bossOn ? Math.max(BOSS.w, 16 + Math.ceil(boss.name.w)) : segW, w = ROW.pad + waveTxtW + 6 + inner + ROW.pad, h = bossOn ? ROW.bossH : ROW.h;
+    left.w = w; left.h = h; top.wave.pos(ROW.pad, h / 2, left.top + 2);
+    top.segs.setVisible(!bossOn); top.bossSkull.setVisible(!bossOn); boss.setVisible(bossOn);
+    top.waveBg.paint(w, h, (x) => { rr(x, 0, 0, w, h, Math.min(10, h / 2), BACK); });
+  }
+  let segSig = '';
+  function paintSegs(cols) {
+    const sig = cols.join(','); if (sig === segSig) return; segSig = sig;
+    top.segs.paint(segW, SEG.h + 4, (x) => {
+      let X = 0;
+      cols.forEach((c, i) => { const w = i === 4 ? SEG.boss : SEG.w; rr(x, X, 2, w, SEG.h, SEG.h / 2, 'rgba(0,0,0,0.55)'); rr(x, X + 1, 3, w - 2, SEG.h - 2, (SEG.h - 2) / 2, c); X += w + SEG.gap; });
     });
   }
-  // boss bar under the top bar, centred, never wider than 300
-  const boss = ui.group({ w: BOSS_BAR.w, h: BOSS_BAR.h }); scr.put(boss, BOSS_BAR.x, BOSS_BAR.hidden);
-  boss.put(ui.icon('skull', { size: 26 }), -2, -1, 2);
-  boss.name = ui.text('', { size: 11, align: 'left', valign: 'mid', upper: true }); boss.put(boss.name, 28, 6, 3);
-  boss.bar = ui.bar({ w: 272, h: 13, color: PAL.red, ghost: true }); boss.put(boss.bar, 28, 11, 0);
-  boss.sh = 0; boss.y = BOSS_BAR.hidden; boss.shown = false; boss.uid = 0; boss.label = '';
+
+  // right cluster: time and kills
+  const right = ui.group({ w: STATS.w, h: ROW.h }); scr.put(right, W - SAFE - BTN.sw - 8 - STATS.w, ROW.y, 0);
+  top.statBg = strip(10, 10); right.put(top.statBg, 0, 0, 0);
+  top.statBg.paint(STATS.w, ROW.h, (x) => { rr(x, 0, 0, STATS.w, ROW.h, 10, BACK); });
+  top.timer = ui.text('00:00', { size: 13, align: 'left', valign: 'mid', color: 0xe8e4f4 }); right.put(top.timer, ROW.pad, ROW.h / 2, 2);
+  top.killIcon = ui.icon('skull', { size: 15, sway: false }); right.put(top.killIcon, STATS.skullX, ROW.h / 2 - 7.5, 3);
+  top.kills = ui.text('0', { size: 13, align: 'right', valign: 'mid' }); right.put(top.kills, STATS.w - ROW.pad, ROW.h / 2, 2);
+  // small mark while the auto-ultimate switch is on: a bolt and TỰ left of the time
+  top.auto = ui.group({ w: 38, h: ROW.h }); scr.put(top.auto, right.ux - 42, ROW.y, 0);
+  top.auto.put(ui.icon('bolt', { size: 16, sway: false }), 2, ROW.h / 2 - 8, 2); top.auto.put(ui.text('TỰ', { size: 12, valign: 'mid', color: 0xd8c8ff }), 20, ROW.h / 2, 2); top.auto.setVisible(false);
+
+  // A cluster with the boss under it fades to see-through, so the boss is never hidden by the bar (brief Addendum 9).
+  // The boss is a column of its radius, 4.2 radii high, projected to design units.
+  const ghosts = [{ id: 'wave', node: left, f: 0, a: 1 }, { id: 'stats', node: right, also: [top.auto], f: 0, a: 1 }];
+  function fadeTo(node, a) {
+    node.traverse((m) => {
+      if (!m.isMesh) return;
+      const one = (mat) => {
+        let x = mat;
+        if (mat.userData.shared && !mat.userData.ghost) { x = mat.clone(); x.userData = { shared: true, ghost: true }; } // kept for the HUD's lifetime
+        if (x.userData.a0 === undefined) { x.userData.a0 = x.opacity; if (!x.transparent) { x.transparent = true; x.needsUpdate = true; } }
+        x.opacity = x.userData.a0 * a; return x;
+      };
+      m.material = Array.isArray(m.material) ? m.material.map(one) : one(m.material);
+    });
+  }
+  function bossBox(B) {
+    const bu = B.boss ? B.byUid.get(B.boss) : null; if (!bu || !bu.alive) return null;
+    const r = bu.r || 1, h = Math.max(3.2, r * 4.2); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (const dx of [-r, r]) for (const dz of [-r, r]) for (const y of [0, h]) { const p = game.project(bu.x + dx, bu.z + dz, y); if (p.behind) continue; x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+    return x1 > x0 ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+  }
+  function updateGhosts(B, dt) {
+    const bb = bossBox(B);
+    for (const g of ghosts) {
+      const n = g.node, want = bb && meets({ x: n.ux, y: n.uy, w: n.w, h: n.h }, bb) ? 1 : 0;
+      g.f += (want - g.f) * (1 - Math.exp(-dt * 10)); if (Math.abs(want - g.f) < 0.01) g.f = want;
+      const a = 1 - (1 - GHOST_A) * g.f;
+      if (Math.abs(a - g.a) > 0.01 || (a !== g.a && (a === 1 || a === GHOST_A))) { g.a = a; fadeTo(n, a); for (const o of g.also || []) fadeTo(o, a); }
+    }
+  }
+  layoutLeft(false);
 
   // ---------- spectate indicator: a block on the left edge, clear of the fight ----------
   const SPEC = { x: SAFE, y: 74, w: 140 };
@@ -141,21 +211,30 @@ export function createHud(game) {
 
   // ---------- banners and bursts ----------
   const banners = [], bursts = [];
-  function banner(kind, str, sub) {
-    const spec0 = BANNER[kind];
-    // a newer wave/boss/rage banner replaces the older of its kind; two different ultimates both stack
-    for (let k = banners.length - 1; k >= 0; k--) if (banners[k].kind === kind && (kind !== 'ult' || banners[k].str === str)) { banners[k].g.dispose(); banners.splice(k, 1); }
-    const t = ui.text(str, { size: kind === 'ult' ? 27 : 24, align: 'center', valign: 'mid', upper: true });
-    const w = Math.min(430, Math.max(220, t.w + 64)), h = sub ? 56 : 44, g = ui.group({ w, h });
-    const p = ui.panel({ w, h, r: 17, color: spec0.color, depth: 5, bevel: 3 }); g.put(p, 0, 0, 0);
-    g.put(t, w / 2, sub ? 20 : 23, BANNER_TEXT_Z);
-    if (sub) g.put(ui.text(sub, { size: 11, align: 'center', valign: 'mid', color: 0xfff1b0, outlineW: 1.4 }), w / 2, 45, BANNER_TEXT_Z);
-    const cx = (W - w) / 2, y = rowOf(banners.length);
-    scr.put(g, spec0.kind === 'slide' ? W + 20 : cx, y, 30);
-    banners.push({ g, kind, str, spec: spec0, t: 0, w, h, cx, y });
-    // rows stop above the hero cards and their flames: when one more would not fit, the oldest goes
-    const limit = ui.H - BOTTOM - CARD_H - 30;
-    while (banners.length > 1 && rowOf(banners.length - 1) + banners[banners.length - 1].h > limit) { banners[0].g.dispose(); banners.shift(); }
+  function banner(kind, str, sub, slot) {
+    for (let k = banners.length - 1; k >= 0; k--) { const q = banners[k]; if (q.kind === kind && (kind !== 'ult' || q.str === str)) drop(q); }
+    const B = game.B, u = kind === 'ult' && B && slot !== undefined ? B.heroes[slot] : null;
+    const col = u ? heroColor(u.kind) : CALL_COL[kind] ?? PAL.purple;
+    const t = ui.text(str, { size: 13, align: 'left', valign: 'mid', upper: true });
+    let st = sub ? ui.text(sub, { size: 11, align: 'left', valign: 'mid', color: 0xd8c8ff, outlineW: 1.2 }) : null;
+    // a second part that does not fit is left out rather than shrunk under 11 units
+    if (st && t.w + 6 + st.w + 22 > CALL.maxW) { st.dispose(); st = null; }
+    if (t.w + 22 > CALL.maxW) t.scale.setScalar((CALL.maxW - 22) / t.w);
+    const tw = t.w * t.scale.x, w = Math.round(clamp(tw + (st ? 6 + st.w : 0) + 22, CALL.minW, CALL.maxW)), h = CALL.h;
+    const g = ui.group({ w, h }), bg = strip(w, h); g.put(bg, 0, 0, 0);
+    const css = '#' + new THREE.Color(col).getHexString();
+    bg.paint(w, h, (x) => { rr(x, 0, 0, w, h, 9, 'rgba(14,10,30,0.64)'); x.save(); x.beginPath(); x.roundRect(0, 0, w, h, 9); x.clip(); x.fillStyle = css; x.fillRect(0, 0, 4, h); x.restore(); });
+    g.put(t, 12, h / 2, 2); if (st) g.put(st, 12 + tw + 6, h / 2 + 0.5, 2);
+    const cx = W - SAFE - w, y = ui.H - BOTTOM - h;
+    scr.put(g, cx + CALL.slide, y, 30); fadeTo(g, 0); if (!chipsUp) g.setVisible(false);
+    banners.push({ g, kind, str, t: 0, w, h, cx, x: cx + CALL.slide, y, a: 0, off: !chipsUp });
+    while (banners.length > CALL.max) drop(banners[0]);
+    // the older chips step up a row at once, so two chips never cross while one moves
+    banners.forEach((b, i) => { b.y = rowOf(i); b.g.pos(b.x, b.y, 30); });
+    dropCrossed();
+  }
+  function drop(q) { q.g.dispose(); banners.splice(banners.indexOf(q), 1); }
+  function dropCrossed() {
     // numbers already flying whose remaining path crosses a banner would hide its text (they draw above it): drop them
     const rs = bannerRects();
     for (let i = live.length - 1; i >= 0; i--) {
@@ -164,20 +243,31 @@ export function createHud(game) {
       if (rs.some((r) => meets(path, r))) { q.node.dispose(); live.splice(i, 1); }
     }
   }
-  // the row of banner i: under every banner before it, whatever their kinds
-  const rowOf = (i) => { let y = BANNER_TOP; for (let k = 0; k < i && k < banners.length; k++) y += banners[k].h + BANNER_GAP; return y; };
+  // the row of chip i: the newest sits just above the bottom edge, every older one a row higher
+  const rowOf = (i) => { let y = ui.H - BOTTOM - CALL.h; for (let k = banners.length - 1; k > i; k--) y -= banners[k].h + CALL.gap; return y; };
+  const sliding = (b) => b.t < CALL.tin || b.t > CALL_LIFE[b.kind] - CALL.tout;
+  // chips show only while the fight runs: the card pick and the end screens have the frame to themselves
+  // and a chip under the tutorial's speech panel steps aside (the panel's words come first; the wave is also in the top-left)
+  let chipsUp = true, guideAt = null, guideT = 0;
+  function guidePanel(dt) {
+    guideT -= dt; if (guideT > 0) return guideAt; guideT = 0.1; guideAt = null;
+    const gd = game.guide && game.guide.dbg ? game.guide.dbg() : null; if (!gd || !gd.active || !gd.panel) return null;
+    const fr = document.getElementById('frame').getBoundingClientRect(), k = fr.width / 780, p = gd.panel;
+    guideAt = { x: (p.x - fr.left) / k - 4, y: (p.y - fr.top) / k - 4, w: p.w / k + 8, h: p.h / k + 8 }; return guideAt;
+  }
+  function showChips(on, dt) {
+    chipsUp = on; const gp = on ? guidePanel(dt) : null;
+    for (const b of banners) { b.off = !on || !!(gp && meets({ x: b.cx, y: b.y, w: b.w + CALL.slide, h: b.h }, gp)); b.g.setVisible(!b.off); }
+  }
   function updateBanners(dt) {
-    for (let i = banners.length - 1; i >= 0; i--) { const b = banners[i]; b.t += dt; if (b.t >= (b.spec.kind === 'slide' ? 1.9 : 1.5)) { b.g.dispose(); banners.splice(i, 1); } }
+    for (let i = banners.length - 1; i >= 0; i--) { const b = banners[i]; b.t += dt; if (b.t >= CALL_LIFE[b.kind]) { b.g.dispose(); banners.splice(i, 1); } }
     for (let i = banners.length - 1; i >= 0; i--) {
-      const b = banners[i]; const dur = b.spec.kind === 'slide' ? 1.9 : 1.5, tin = 0.3, tout = 0.26;
-      const row = rowOf(i); b.y += (row - b.y) * (1 - Math.exp(-dt * 14)); if (Math.abs(row - b.y) < 0.3) b.y = row;
-      if (b.spec.kind === 'slide') {
-        const x = b.t < tin ? W + 20 + (b.cx - W - 20) * easeBack(b.t / tin) : b.t > dur - tout ? b.cx - (b.cx + b.w + 20) * easeOut((b.t - (dur - tout)) / tout) : b.cx;
-        b.g.pos(x, b.y, 30); b.g.scale.set(1, 1, 1);
-      } else {
-        const s = b.t < tin ? easeBack(b.t / tin) : b.t > dur - tout ? 1 - easeOut((b.t - (dur - tout)) / tout) : 1, k = Math.max(0.01, s);
-        b.g.pos(b.cx + b.w / 2 * (1 - k), b.y + b.h / 2 * (1 - k), 30); b.g.scale.set(k, k, 1);
-      }
+      const b = banners[i], dur = CALL_LIFE[b.kind];
+      b.y = rowOf(i);
+      // fades in while it slides a little from the right, fades out the same way; it stays inside the frame all along
+      const k = b.t < CALL.tin ? easeOut(b.t / CALL.tin) : b.t > dur - CALL.tout ? 1 - easeOut((b.t - (dur - CALL.tout)) / CALL.tout) : 1;
+      b.x = b.cx + CALL.slide * (1 - k); b.g.pos(b.x, b.y, 30);
+      if (Math.abs(k - b.a) > 0.02 || (k !== b.a && (k === 0 || k === 1))) { b.a = k; fadeTo(b.g, k); }
     }
   }
   function burst(slot) {
@@ -224,8 +314,8 @@ export function createHud(game) {
   const numStr = (q) => (q.heal ? '+' : '') + fmt(q.sum) + (q.merged && q.n >= 3 ? ' x' + q.n : '');
   function bannerRects() {
     // a banner still gliding to its row covers the whole stretch between where it is and where it is going
-    const out = banners.map((b, i) => { const row = rowOf(i); return { x: b.cx, y: Math.min(b.y, row), w: b.w, h: b.h + Math.abs(row - b.y), age: b.t }; });
-    if (boss.visible) out.push({ x: BOSS_BAR.x, y: boss.y, w: BOSS_BAR.w, h: BOSS_BAR.h, age: 99 });
+    const out = banners.filter((b) => !b.off).map((b) => ({ x: b.cx, y: b.y, w: b.w + (sliding(b) ? CALL.slide : 0), h: b.h, age: b.t, kind: b.kind }));
+    if (boss.shown) out.push({ x: left.ux + boss.ux, y: left.uy + boss.uy, w: left.w - boss.ux, h: BOSS.h, age: 99 });
     return out;
   }
   // the bottom-centre card block (with the flame's headroom) and the spectate block: numbers go around them
@@ -338,10 +428,12 @@ export function createHud(game) {
   const on = (name, fn) => game.events.on(name, fn);
   on('sim:hit', (e) => note(e, false)); on('sim:heal', (e) => note(e, true));
   on('sim:die', (e) => { const u = visible && game.B && game.B.byUid.get(e.uid); if (u && u.team === 1 && !u.summon && !u.hero && !e.expire) deaths.push(clock); });
-  on('sim:wave', (e) => { if (!visible) return; if (e.boss) banner('boss', 'BOSS: ' + e.name); else banner('wave', 'ĐỢT ' + e.n); });
+  on('sim:wave', (e) => { if (!visible) return; if (e.boss) banner('boss', 'BOSS', e.name); else banner('wave', 'ĐỢT ' + e.n, stageName()); });
   on('sim:enrage', () => { if (visible) banner('rage', 'CUỒNG NỘ!'); });
-  on('sim:ult', (e) => { if (!visible) return; banner('ult', e.name + '!', HERO[e.hero] ? HERO[e.hero].name : ''); burst(e.slot); });
+  on('sim:ult', (e) => { if (!visible) return; banner('ult', e.name + '!', HERO[e.hero] ? HERO[e.hero].name : '', e.slot); burst(e.slot); });
   on('battle:end', () => { hud.hide(); });
+
+  const stageName = () => (game.B && game.B.stage && game.B.stage.name) || '';
 
   // ---------- per frame ----------
   function setHp(c, u) {
@@ -374,18 +466,16 @@ export function createHud(game) {
   }
   function updateTop(B) {
     const waves = B.stage.waves.length;
-    top.wave.set('ĐỢT ' + clamp(B.wave, 1, waves) + '/' + waves); top.stage.set(B.stage.name || ''); if (top.stage.w > 92) top.stage.scale.setScalar(92 / top.stage.w); else top.stage.scale.setScalar(1);
+    top.wave.set('ĐỢT ' + clamp(B.wave, 1, waves) + '/' + waves);
     const s = Math.floor(B.t); top.timer.set(String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'));
     top.kills.set(fmt(B.kills));
     top.speed.setLabel('x' + game.speed);
-    top.pips.forEach((p, i) => { const done = i < B.wave - 1 || B.phase === 'won', cur = i === B.wave - 1 && B.phase !== 'won'; const col = done ? PAL.green : cur ? (i === 4 ? PAL.red : PAL.gold) : 0x4a4f68; if (p.col !== col) { p.col = col; p.setColor(col); } });
+    paintSegs([0, 1, 2, 3, 4].map((i) => { const done = i < B.wave - 1 || B.phase === 'won', cur = i === B.wave - 1 && B.phase !== 'won'; return done ? '#3ddc68' : cur ? (i === 4 ? '#ff4a5e' : '#ffc93a') : 'rgba(255,255,255,0.24)'; }));
   }
-  function updateBoss(B, dt) {
+  function updateBoss(B) {
     const bu = B.boss ? B.byUid.get(B.boss) : null, on = !!(bu && bu.alive);
-    if (on && boss.uid !== bu.uid) { boss.uid = bu.uid; boss.label = unitName(bu); boss.name.set(boss.label); boss.bar.set(1, true); }
-    boss.shown = on; const want = on ? BOSS_BAR.y : BOSS_BAR.hidden;
-    boss.y += (want - boss.y) * (1 - Math.exp(-dt * 9)); if (Math.abs(want - boss.y) < 0.2) boss.y = want;
-    boss.pos(BOSS_BAR.x, boss.y, 0); boss.visible = boss.y > BOSS_BAR.hidden + 8;
+    if (on && boss.uid !== bu.uid) { boss.uid = bu.uid; boss.label = unitName(bu); boss.name.set(boss.label); boss.bar.set(1, true); leftMode = ''; }
+    boss.shown = on; layoutLeft(on);
     if (bu) boss.bar.set(clamp(bu.hp / (bu.maxHp || bu.base.hp), 0, 1));
     return on;
   }
@@ -406,15 +496,23 @@ export function createHud(game) {
     lockButton(top.speed, locks.speed); top.speedLock.setVisible(locks.speed);
     for (const c of cards) { lockButton(c.eye, locks.eye); c.eyeLock.setVisible(locks.eye); }
     top.auto.setVisible(!!game.settings.autoUlt && game.meta.unlocked('autoult'));
-    updateBoss(B, dt); updateSpectate(B, dt);
-    updateBanners(dt); updateBursts(dt); updateNumbers(dt); flushNumbers();
+    updateBoss(B); updateGhosts(B, dt); updateSpectate(B, dt);
+    updateBanners(dt); showChips(B.phase === 'fight', dt); updateBursts(dt); updateNumbers(dt); flushNumbers();
   }
 
+  // the top HUD as rectangles (buttons, both clusters, the auto mark): what may cover a unit at the top of the fight
+  function topHud() {
+    const box = (id, n, w = n.w, h = n.h) => ({ id, x: n.ux, y: n.uy, w, h });
+    const out = [box('pause', top.pause, BTN.w, BTN.h), box('wave', left), box('stats', right), box('speed', top.speed, BTN.sw, BTN.h)];
+    if (top.auto.visible) out.push(box('auto', top.auto));
+    // a faded cluster is drawn at GHOST_A: what is under it stays in view
+    for (const g of ghosts) for (const r of out) if ((r.id === g.id || (g.id === 'stats' && r.id === 'auto')) && g.f > 0.5) r.see = true;
+    return out;
+  }
   // every fixed piece of the HUD as a rectangle, read from the live nodes (the tool checks them against the fight area)
   function hudBoxes() {
     const box = (id, n, w = n.w, h = n.h) => ({ id, x: n.ux, y: n.uy, w, h });
-    const out = [box('pause', top.pause), box('plate', plate), box('speed', top.speed)];
-    if (top.auto.visible) out.push(box('auto', top.auto));
+    const out = topHud();
     if (spec.visible) out.push(box('spec', spec));
     cards.forEach((c) => out.push({ id: 'card' + c.i, x: c.col.ux, y: c.col.uy - (c.flame.visible ? FLAME_UP + 4 : 0), w: CARD_W, h: CARD_H + (c.flame.visible ? FLAME_UP + 4 : 0) }));
     return out;
@@ -424,8 +522,9 @@ export function createHud(game) {
     name: 'hud',
     show() {
       visible = true; ui.show('hud', { transition: 'none' }); clearTransient();
-      const B = game.B; boss.uid = 0; boss.y = BOSS_BAR.hidden; boss.pos(BOSS_BAR.x, BOSS_BAR.hidden, 0); boss.visible = false;
-      if (B) { teamSig = B.heroes.map((u) => u.kind).join(','); buildCards(B); if (B.wave === 1 && B.t < 1) banner('wave', 'ĐỢT 1'); }
+      const B = game.B; boss.uid = 0; boss.shown = false; leftMode = ''; layoutLeft(false);
+      for (const g of ghosts) { g.f = 0; if (g.a !== 1) { g.a = 1; fadeTo(g.node, 1); for (const o of g.also || []) fadeTo(o, 1); } }
+      if (B) { teamSig = B.heroes.map((u) => u.kind).join(','); buildCards(B); if (B.wave === 1 && B.t < 1) banner('wave', 'ĐỢT 1', stageName()); }
     },
     hide() { visible = false; ui.hide('hud', { transition: 'none' }); clearTransient(); },
     update,
@@ -433,7 +532,7 @@ export function createHud(game) {
     bannerRects,
     // what the test needs to read without guessing from pixels
     dbg() {
-      return { visible, bossShown: boss.shown, bossName: boss.label, bossY: boss.y, flames: cards.map((c) => c.flame.visible), ready: cards.map((c) => c.ready), banners: banners.map((b) => b.kind), numbers: live.length, cap: capOf(), numberPos: live.map((q) => [q.x, q.y]), numberRects: live.map((q) => ({ ...sweep(q), age: q.age })), numberList: live.map((q) => ({ text: q.text, x: q.x, y: shownY(q) })), bannerRects: bannerRects(), block: blockRects(), boxes: hudBoxes(), band: [BAND_TOP, ui.H - BOTTOM], specShown: spec.visible };
+      return { visible, bossShown: boss.shown, bossName: boss.label, bossY: left.uy + boss.uy, topHud: topHud(), flames: cards.map((c) => c.flame.visible), ready: cards.map((c) => c.ready), banners: banners.filter((b) => !b.off).map((b) => b.kind), numbers: live.length, cap: capOf(), numberPos: live.map((q) => [q.x, q.y]), numberRects: live.map((q) => ({ ...sweep(q), age: q.age })), numberList: live.map((q) => ({ text: q.text, x: q.x, y: shownY(q) })), bannerRects: bannerRects(), block: blockRects(), boxes: hudBoxes(), band: [BAND_TOP, ui.H - BOTTOM], specShown: spec.visible };
     },
   };
   return hud;
