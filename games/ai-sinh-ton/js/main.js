@@ -10,6 +10,7 @@ import { levelMul } from './data/economy.js?v=20261121c';
 import { attachGame } from './game.js?v=20261121c';
 import { createOrient } from './orient.js?v=20261121c';
 import { createPerf } from './view/perf.js?v=20261121c';
+import { createBossIntro } from './view/bossintro.js?v=20261121c';
 
 const DEFAULT_TEAM = ['thep', 'mua', 'yta', 'gio'];
 const MAX_CATCHUP = 8;
@@ -38,11 +39,11 @@ async function boot() {
         team: opts.teamSpec || ids.map((id) => ({ id, mul: opts.mul || levelMul(L), atkFlat: opts.atkFlat ?? 6 * n, hpFlat: opts.hpFlat ?? 40 * n })),
         onEvent: (e) => { actors.onEvent(e); for (const fn of listeners) fn(e); },
       });
-      host.B = game.B; host.setStage(game.B.stage, game.B.wave); game.state = 'battle'; game.stageN = n; acc = 0; juice.reset();
+      host.B = game.B; host.setStage(game.B.stage, game.B.wave); game.state = 'battle'; game.stageN = n; acc = 0; juice.reset(); if (game.intro) game.intro.reset();
       if (opts.spectate !== undefined && game.B.heroes[opts.spectate]) cam.spectate(game.B.heroes[opts.spectate].uid);
       return game.B;
     },
-    stop() { actors.clear(); cam.spectate(0); host.B = null; host.world.settle(); game.B = null; game.state = 'home'; juice.reset(); },
+    stop() { actors.clear(); cam.spectate(0); host.B = null; host.world.settle(); game.B = null; game.state = 'home'; juice.reset(); if (game.intro) game.intro.reset(); },
   };
   const juice = createJuice(game); host.juice = juice.view; game.juice = juice;
   window.__G = game;
@@ -50,30 +51,38 @@ async function boot() {
   const glue = await attachGame(game, { params });
   createOrient(game, frame);
   createPerf(game, frame, params);
+  const intro = createBossIntro(game); game.intro = intro;
 
   let acc = 0;
   function present(dt, realDt = dt) {
     const B = game.B;
     if (B) actors.sync(B, dt);
-    cam.update(B, dt); host.update(dt); glue.update(dt, realDt); host.render(glue.overlay);
+    cam.update(B, dt); intro.update(realDt); host.update(dt); glue.update(dt, realDt); host.render(glue.overlay);
   }
   function advance(dt) {
     const B = game.B;
-    if (!B || game.paused || game.frozen || B.phase !== 'fight' || host.world.busy) return;
+    if (!B || game.paused || game.frozen || game.cine || B.phase !== 'fight' || host.world.busy) return;
     acc += dt * game.speed * juice.scale;
     let n = 0;
-    while (acc >= DT && n++ < MAX_CATCHUP && B.phase === 'fight') { step(B); acc -= DT; }
+    // a boss spawned by these ticks starts its entrance (bossintro.js), which holds the sim from the next tick on
+    game.stepping = true;
+    try { while (acc >= DT && n++ < MAX_CATCHUP && B.phase === 'fight' && !game.cine) { step(B); acc -= DT; } } finally { game.stepping = false; }
     if (acc > DT * MAX_CATCHUP) acc = 0;
   }
 
   let last = performance.now();
-  function loop(now) {
-    const dt = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
+  function tick(dt) {
     juice.update(dt);
     advance(dt);
     present(game.paused ? 0.0001 : Math.max(0.0001, dt * game.speed * juice.scale), dt);
+  }
+  function loop(now) {
+    const dt = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
+    tick(dt);
     requestAnimationFrame(loop);
   }
+  // one frame of the real loop with a given dt (tools/bossintro-test.mjs drives the live path with it while the page is frozen)
+  window.__frame = (dt = 1 / 60) => tick(dt);
 
   window.__sim = (secs) => {
     const B = game.B; if (!B) return;

@@ -539,18 +539,39 @@ async function overlays(br, srv, phone) {
   }
 }
 
+// the boss entrance (js/view/bossintro.js) at the moment its name is up: the three longest boss names, driven through the real
+// frame loop (window.__frame) on a clock this case advances, so the scene's hit-stop and slow motion run as in play
+async function bossIntro(br, srv, phone) {
+  for (const [kind, n] of [['pharaoh', 10], ['guardian', 15], ['dragon', 20]]) {
+    if (ONLY && !(phone + '-bossintro-' + kind).includes(ONLY)) continue;
+    const g = await open(br, srv.base, phone, BASE_Q + `&autostart=1&stage=${n}&wave=5&seed=${n}`); const { page, problems } = g;
+    const st = await page.evaluate(() => {
+      let vt = performance.now(); performance.now = () => vt; const fr = () => { vt += 1000 / 60; window.__frame(1 / 60); };
+      const I = __G.intro; let k = 0;
+      while (!I.active && k++ < 1500) fr();
+      while (I.scene && I.scene.t < I.scene.def.L + 0.7 && k++ < 2500) fr();
+      return { active: I.active, kind: I.scene && I.scene.kind };
+    });
+    check(st.active && st.kind === kind, `${phone} bossintro-${kind}: the entrance is up for the audit (${JSON.stringify(st)})`);
+    await inspect(page, phone, 'bossintro-' + kind, { battle: true });
+    check(problems.length === 0, `${phone} bossintro-${kind}: no console errors (${problems.slice(0, 2).join(' | ') || 'none'})`);
+    await g.ctx.close();
+  }
+}
+
 const srv = await serve(); const br = await launch();
 try {
   if (SELFTEST) await selftest(br, srv);
   else for (const phone of PHONE_LIST) {
     console.log('=== ' + phone + ' ===');
-    const FL = process['env'].FLOWS ? process['env'].FLOWS.split(',') : ['nonBattle', 'ftue', 'battle', 'crowded', 'results', 'overlays'];
+    const FL = process['env'].FLOWS ? process['env'].FLOWS.split(',') : ['nonBattle', 'ftue', 'battle', 'crowded', 'results', 'overlays', 'bossIntro'];
     if (FL.includes('nonBattle')) await nonBattle(br, srv, phone);
     if (FL.includes('ftue')) await ftue(br, srv, phone);
     if (FL.includes('battle')) await battle(br, srv, phone);
     if (FL.includes('crowded')) await crowded(br, srv, phone);
     if (FL.includes('results')) await results(br, srv, phone);
     if (FL.includes('overlays')) await overlays(br, srv, phone);
+    if (FL.includes('bossIntro')) await bossIntro(br, srv, phone);
   }
 } finally { await br.close(); srv.close(); }
 if (!SELFTEST) { fs.writeFileSync(path.join(OUT, 'issues.txt'), issues.join('\n') + (issues.length ? '\n' : '')); console.log(`${issues.length} issues written to .chk/textfit/issues.txt`); }
