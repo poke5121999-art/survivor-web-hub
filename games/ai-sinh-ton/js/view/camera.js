@@ -204,8 +204,10 @@ export function createCamera(H) {
   function addPt(x, y0, y1, z, hw, must) { const o = np * 6; pts[o] = x; pts[o + 1] = y0; pts[o + 2] = y1; pts[o + 3] = z; pts[o + 4] = hw; pts[o + 5] = must ? 1 : 0; np++; }
   // every living unit on this pad (a monster of a room ahead waits there, off the fight) and the gate of each pack due
   // within SPAWN_LOOK; during a run only the team, where it is drawn on the bridge
+  const callers = new WeakMap();
+  const callsAtGate = (def) => { let v = callers.get(def); if (v === undefined) { v = (def.ops || []).some((o) => o.op === 'spawn' && !o.near); callers.set(def, v); } return v; };
   function gather(B, run) {
-    np = 0; if (!B || !B.units) return 0;
+    np = 0; if (!B || !B.units) return 0; let gateCall = false;
     const wr = B.plan && B.plan.waveRoom; const sec = H.world ? H.world.sec : 0;
     let x0 = 1e9; let x1 = -1e9; let z0 = 1e9; let z1 = -1e9;
     const take = (x, z) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); };
@@ -220,11 +222,14 @@ export function createCamera(H) {
       const yb = !u.fly && u.z > 0 && Math.hypot(u.x / ARENA.x, u.z / ARENA.z) > 0.95 ? y0 - SINK : y0;
       const hw = u.boss && C.bossFit ? Math.max(CL_SIDE, C.bossFit.wide * 0.6) : CL_SIDE; // a boss swings wider than its width at the rise
       addPt(u.x, yb, y0 + h, u.z, hw, u.team === 0 || u.boss); take(u.x, u.z);
+      if (u.team === 1 && u.skills && !gateCall) for (const k of u.skills) if (k.cd <= SPAWN_LOOK && callsAtGate(k.def)) { gateCall = true; break; }
     }
-    if (!run && B.queue && B.queue.length && B.plan && B.plan.rooms) {
-      const room = B.plan.rooms[Math.max(0, Math.min(B.plan.rooms.length - 1, wr ? wr[B.wave - 1] : B.wave - 1))];
-      const gates = room && room.gates;
-      if (gates) for (const g of B.queue) {
+    const room = !run && B.plan && B.plan.rooms ? B.plan.rooms[Math.max(0, Math.min(B.plan.rooms.length - 1, wr ? wr[B.wave - 1] : B.wave - 1))] : null;
+    const gates = room && room.gates;
+    // a monster about to call others in (battle.js ops.spawn without `near`) brings them out of a random gate of the room
+    if (gates && gateCall) for (const q of gates) { addPt(q.x, 0, HEAD_FAR, q.z, 1.2, 0); take(q.x, q.z); }
+    else if (gates && B.queue && B.queue.length) {
+      for (const g of B.queue) {
         if (g.at - B.waveT > SPAWN_LOOK) break;
         // a pack queued with an angle and no gate (the survive rule's cycled packs) takes the gate battle.js gateOf picks
         const gi = g.gate !== undefined ? g.gate : g.ang !== undefined && gates.length ? Math.floor((((g.ang % 6.283) + 6.283) % 6.283) / 6.283 * gates.length) % gates.length : -1;
