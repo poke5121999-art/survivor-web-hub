@@ -4,7 +4,7 @@
 // boss wave in the last room, links between consecutive rooms, hazards inside their room; every layout kind and both new
 // biomes are used; waves of stages 1-30 are the same as before the chapters changed (balance untouched).
 // With --shots (browser): an overview of each layout kind and each biome, the whole map seen from high above, and the pad
-// the first wave is fought on at the game's camera, into .chk/a10/maps/ (sheet overview.png).
+// the first wave is fought on at the game's camera, into .chk/a10/maps2/ (sheet overview.png).
 // Usage: node games/ai-sinh-ton/tools/layout-test.mjs [--to=50] [--shots]
 import fs from 'node:fs';
 import path from 'node:path';

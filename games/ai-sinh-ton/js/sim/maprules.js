@@ -25,8 +25,8 @@ import { WAVES } from './rooms.js?v=20261122a';
 
 export const MODES = {
   defend: { title: 'BẢO VỆ TRỨNG MẦM', rule: 'Trứng vỡ là thua', hpK: 1.6, heal: 0.3, taunt: 0.5, r: 0.75 },
-  survive: { title: 'SỐNG SÓT', rule: 'Trụ vững đủ 30 giây mỗi đợt', time: 30, cap: 36 },
-  chase: { title: 'ĐUỔI THEO LÕI', rule: 'Hạ quái mang Lõi trước khi nó thoát', hpK: 2.5, speed: 1.9, legs: 4, rest: 2.5 },
+  survive: { title: 'SỐNG SÓT 30 GIÂY', rule: 'Quái ra liên tục', time: 30, cap: 36 },
+  chase: { title: 'ĐUỔI THEO LÕI', rule: 'Hạ nó trước khi thoát', hpK: 2.5, speed: 1.9, legs: 4, rest: 2.5 },
 };
 
 const POISON_FLOOR = 0.65;
@@ -135,8 +135,9 @@ function modeTick(B, dt) {
   }
   if (mode === 'survive') {
     if (B.wave >= WAVES) return;
-    if (fresh) { st.left = R.time; st.k = 0; st.done = false; }
+    if (fresh) { st.left = R.time; st.k = 0; st.done = false; st.ten = false; }
     st.left = Math.max(0, R.time - B.waveT);
+    if (!st.ten && st.left <= 10) { st.ten = true; B.emit({ e: 'survive_left', left: 10 }); }
     if (st.done) return;
     if (B.waveT >= R.time) {
       st.done = true; B.queue.length = 0; B.spawnsLeft = 0;

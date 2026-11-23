@@ -5,7 +5,8 @@
 // and a warm key from the host's lights.
 // A stage is a map of 1 to 6 sections (rooms.js roomPlan: the layout picks how many and how they are joined), each a pad
 // with its own satellites and lights on its own height; a link joins each pad to the next: a bridge or a stair of planks, a
-// raft over the river, a bridge that falls once crossed. Each wave is fought in the room plan.waveRoom gives it; some rooms
+// raft over the river, a bridge that falls once crossed, a bridge of light between floating islands, a walled corridor of
+// a maze, a mine cart on a railway, rock stairs down a cave (the layout's own link builders, layouts/*.js). Each wave is fought in the room plan.waveRoom gives it; some rooms
 // are only crossed. When a wave is cleared the scene slides along the links to the next wave's pad while the heroes run
 // over them (the sim waits). The layout's own pieces (an arena's stands, a mountain flank, a river) come from
 // layouts/<kind>.js, the hazards' look from layouts/hazards.js. Two or three sections are meshed at a time.
@@ -18,6 +19,7 @@ import { THEMES, themeOf } from './themes.js?v=20261122a';
 import { buildPad, buildBridge, rngOf, voxMaterial, mesher } from './pad.js?v=20261122a';
 import { LAYOUTS, RAFT_Y } from './layouts/index.js?v=20261122a';
 import { createHazards } from './layouts/hazards.js?v=20261122a';
+import { createModes } from './layouts/modes.js?v=20261122a';
 import { createAbyss } from './abyss.js?v=20261122a';
 import { roomPlan } from '../sim/rooms.js?v=20261122a';
 import { gateSpots, emitGates, gateLights, buildGateFx } from './gates.js?v=20261122a';
@@ -94,7 +96,8 @@ export function layoutMap(theme, n) {
     const p = cs[i - 1]; const boss = i === R - 1;
     const a = plan.exits[i - 1];
     const d = reach(roomK(plan, i - 1), a) + reach(roomK(plan, i), a) + L.gap;
-    let dy = plan.rises[i - 1]; if (boss && dy) dy = Math.abs(dy) + 1;
+    // the boss pad stands a step higher than the climb so far (a layout that goes down, the cave, takes it a step lower)
+    let dy = plan.rises[i - 1]; if (boss && dy) dy = L.bossDown ? -(Math.abs(dy) + 1) : Math.abs(dy) + 1;
     if (p.y + dy > yMax || p.y + dy < yMin) dy = -dy;
     const y = Math.max(yMin, Math.min(yMax, p.y + dy));
     cs.push({ x: p.x + Math.cos(a) * d, y, z: p.z + Math.sin(a) * d }); gates.push(a);
@@ -137,6 +140,8 @@ export function createWorld(H) {
       return n;
     },
   };
+  // a special stage's rule drawn in the scene (layouts/modes.js): the Seed Egg, the Core over its carrier and its path
+  const modes = createModes(H);
   // sections by index, -1 (the start room) to the last room (the boss pad)
   let secs = {}; let stageN = 1; let travel = null; let rng = rngOf(1);
   const N = () => (W.map ? W.map.R : 1);
@@ -217,10 +222,15 @@ export function createWorld(H) {
     // a standing gate close to a bridge's line could stand between the camera and the heroes on that bridge: it is drawn laid
     // in the floor instead (the sim walks monsters out of the same spot either way)
     const room = roomAt(i); const lines = g.map((a) => [Math.cos(a), Math.sin(a)]);
-    const near = (q, c) => lines.some(([ux, uz]) => q.x * ux + q.z * uz > 0 && Math.abs(-q.x * uz + q.z * ux) < c);
+    // (a gate on the camera's side of the line hides the run from farther off: it stands between the camera and the heroes)
+    const near = (q, c) => lines.some(([ux, uz]) => { const o = -q.x * uz + q.z * ux; return q.x * ux + q.z * uz > 0 && Math.abs(o) < (o * ux > 0 ? c + 2.2 : c); });
     S.spots = room ? gateSpots({ ...room, gates: room.gates.map((q) => (q.low || !near(q, q.big ? 5.2 : 4.4) ? q : { ...q, low: true, big: false })) }, ARENA) : [];
     // a one-room arena keeps the stage's own light through every wave: the boss look is for a climax room at the end of a walk
-    S.main = buildPad({ theme: boss && R > 1 ? bossTheme(themeAt(i)) : i === R - 2 ? { ...themeAt(i), ...W.theme.pre } : themeAt(i), seed: stageN * 17 + 3 + i * 101, centre: { x: 0, y: 0, z: 0 }, ellipse: { x: ARENA.x * k, z: ARENA.z * k }, fight: true, boss, gates: g, keep: S.spots.map((p) => ({ x: p.cx, z: p.cz, r: p.r })), embers: room ? room.camps : [], solid: S.spots.map((p) => ({ x: p.cx, z: p.cz, r: p.low ? 1.9 : 1.6 * p.s })) });
+    // a layout whose links leave close by (the maze's short corridors) keeps a wider wedge free of props around each link: a
+    // tree beside a corridor's mouth on the camera's side hid the heroes running out
+    const lc = W.map.L.linkClear || 0; const clr = [];
+    if (lc) for (const a of g) for (const o of [-lc, lc]) { const b = a + o; const rr = 1 / Math.hypot(Math.cos(b) / (ARENA.x * k), Math.sin(b) / (ARENA.z * k)); for (const q of [1.1, 1.3, 1.5]) clr.push({ x: Math.cos(b) * rr * q, z: Math.sin(b) * rr * q, r: 1.8 }); }
+    S.main = buildPad({ theme: boss && R > 1 ? bossTheme(themeAt(i)) : i === R - 2 ? { ...themeAt(i), ...W.theme.pre } : themeAt(i), seed: stageN * 17 + 3 + i * 101, centre: { x: 0, y: 0, z: 0 }, ellipse: { x: ARENA.x * k, z: ARENA.z * k }, fight: true, boss, gates: g, keep: [...S.spots.map((p) => ({ x: p.cx, z: p.cz, r: p.r })), ...clr], embers: room ? room.camps : [], solid: S.spots.map((p) => ({ x: p.cx, z: p.cz, r: p.low ? 1.9 : 1.6 * p.s })) });
     return S.main;
   }
 
@@ -235,12 +245,16 @@ export function createWorld(H) {
       const a = exitOf(i); const d = delta(i, i + 1); const e = main.edgeAt(a); const f = mainOf(i + 1).edgeAt(a + Math.PI);
       const c = Math.cos(a); const s = Math.sin(a); const kind = linkOf(i);
       const p0 = { x: e.x - c * 0.4, y: 0, z: e.z - s * 0.4 }; const p1 = { x: d.x + f.x + c * 0.4, y: d.y, z: d.z + f.z + s * 0.4 };
-      if (kind === 'raft') {
-        // no deck: a raft waits at this bank and carries the team over the water (moved by the run, see update)
-        const raft = L.raft(p0, p1, th); S.walk = raft; S.bridges.push(raft); own.push(raft.mesh);
+      if (kind === 'raft' || kind === 'rail') {
+        // no deck to walk: a raft waits at this bank (or a cart at this station) and carries the team over (moved by the run,
+        // see update); a rail's track is part of the pad's mesh
+        const raft = (kind === 'raft' ? L.raft : L.cart)(p0, p1, th); S.walk = raft; S.bridges.push(raft); own.push(raft.mesh);
+        if (raft.emit) main.bridges.push(raft);
       } else {
-        const b = buildBridge(p0, p1, th, { width: WALK_W, steps: Math.abs(d.y) >= 2 });
-        S.walk = b; S.bridges.push(b);
+        // the layout's own link (a bridge of light, a walled corridor, rock stairs) or the plank bridge; a link with a mesh of
+        // its own (the light bridge's glowing deck) adds it to the section beside what it emits into the pad's mesh
+        const b = (L.bridge || buildBridge)(p0, p1, th, { width: WALK_W, steps: Math.abs(d.y) >= 2 });
+        S.walk = b; S.bridges.push(b); if (b.mesh && kind !== 'collapse') own.push(b.mesh);
         // a bridge that falls once crossed is a mesh of its own so it can drop; any other is part of the pad's mesh
         if (kind === 'collapse') { const M = mesher(); b.emit(M); b.mesh = M.bake(th, b.lights, voxMaterial(), null); b.mesh.name = 'bridge'; b.mesh.matrixAutoUpdate = true; b.falls = true; own.push(b.mesh); } else main.bridges.push(b);
       }
@@ -259,7 +273,7 @@ export function createWorld(H) {
       const p = buildPad({ theme: th, seed: stageN * 31 + sats.length * 7 + 1 + i * 211, centre: { x: sx, y, z: sz2 }, ellipse: { x: r.range(2.4, 3.4) * sz, z: r.range(1.7, 2.3) * sz }, fight: false, decor: sz >= 1, avoid: near });
       if (p.cells.size) sats.push(p);
     }
-    for (const si of [0, 3]) {
+    for (const si of L.satBridges === false ? [] : [0, 3]) {
       const s = sats[si]; if (!s) continue;
       const a = Math.atan2(s.centre.z, s.centre.x); if (S.bridges.some((b) => b.raft || Math.abs(Math.atan2(Math.sin(a - Math.atan2(b.dir[1], b.dir[0])), Math.cos(a - Math.atan2(b.dir[1], b.dir[0])))) < 0.6)) continue;
       // nor across a spawn gate
@@ -274,10 +288,10 @@ export function createWorld(H) {
     if (boss) for (let k = 0; k < 7; k++) { const a = Math.PI + (k / 6) * Math.PI; const e = main.edgeAt(a); all.push({ kind: 'deep', x: e.x + Math.cos(a) * 1.6, y: -2.6, z: e.z + Math.sin(a) * 1.6, ground: -3.2, color: deep.color, r: 7, k: 1.3, warm: deep.color[0] > deep.color[2] ? 1 : 0, glow: 3.0, glowC: deep.glowC }); }
     const B = th.boss || {}; const sm = B.crack && R > 1 && i >= R - 2 ? seams(main, B, boss ? 1 : 0.5, boss ? 14 : 5, stageN * 71 + i) : null; if (sm) all.push(...sm.lights);
     // the layout's own pieces around this pad (stands, the mountain flank, the river banks) and the hazards of the room
-    const ex = i >= 0 ? L.extras({ i, room: roomAt(i), plan: plan(), main, theme: th, rng: rngOf(stageN * 61 + i * 17), cen: (j) => delta(i, j), R }) : null;
+    const ex = i >= 0 ? L.extras({ i, room: roomAt(i), plan: plan(), main, theme: th, rng: rngOf(stageN * 61 + i * 17), cen: (j) => delta(i, j), at: cen(i), R, avoid: near, walk: S.walk }) : null;
     if (ex) all.push(...ex.lights);
     if (S.spots.length) all.push(...gateLights(S.spots, th));
-    const g = new THREE.Group(); g.name = 'section' + i; g.add(main.build(all, S.spots.length ? (M) => emitGates(M, S.spots, th) : null)); for (const s of sats) g.add(s.build(all));
+    const g = new THREE.Group(); g.name = 'section' + i; g.add(main.build(all, S.spots.length ? (M) => emitGates(M, S.spots, th) : null)); for (const s of sats) { const m = s.build(all); if (L.bob) m.userData.bob = { a: L.bob, w: r.range(0.5, 0.8), p: r.range(0, 6.283) }; g.add(m); }
     if (S.spots.length) { const fx = buildGateFx(S.spots, th); g.add(fx); S.gfx = { mesh: fx, c: [0.12, 0.12, 0.12, 0.12], f: [0, 0, 0, 0] }; }
     const sk = sm && sm.mesh(th); if (sk) g.add(sk);
     if (ex) for (const m of ex.build(all)) g.add(m);
@@ -314,7 +328,8 @@ export function createWorld(H) {
       const d = delta(W.sec, j);
       for (const p of [S.main, ...S.sats]) proxies.push({ cellAt: (x, z) => { const c = p.cellAt(x - d.x, z - d.z); return c ? { top: c.top + d.y } : null; }, centre: { y: p.centre.y + d.y } });
     }
-    abyss.setStage(themeAt(W.sec), proxies, all);
+    // a dark pit (the cave) does not catch the torches' glow: their warm spill on the mist read as a lit floor far below
+    abyss.setStage(themeAt(W.sec), proxies, W.map.L.pitGlow === false ? [] : all);
     const gc = new THREE.Color(); let gi = 0;
     for (const L of all) {
       if (gi >= NG) break; if (L.gate) continue; // a gate's light has no halo or pool: its mouth and spill are the glow
@@ -323,7 +338,10 @@ export function createWorld(H) {
       glows.A.setXYZW(gi, L.x, L.y, L.z, L.glow * (th.day ? 0.7 : 1)); glows.B.setXYZW(gi, gc.r * dk, gc.g * dk, gc.b * dk, gi * 0.37);
       const lk = th.lightK || 1; pools.A.setXYZW(gi, L.x, L.ground + 0.03, L.z, L.r * 0.6); pools.B.setXYZW(gi, L.color[0] * lk, L.color[1] * lk, L.color[2] * lk, gi * 0.61); gi++;
     }
-    glows.g.instanceCount = gi; pools.g.instanceCount = gi; glows.A.needsUpdate = glows.B.needsUpdate = pools.A.needsUpdate = pools.B.needsUpdate = true;
+    // a layout's lantern (the cave): one more floor pool, moved under the team every frame (update)
+    lantern = W.map.L.lantern && gi < NG ? { i: gi, x: 0, y: 0, z: 0, ...W.map.L.lantern } : null;
+    if (lantern) { pools.A.setXYZW(gi, 0, 0.03, 0, lantern.r); pools.B.setXYZW(gi, lantern.color[0], lantern.color[1], lantern.color[2], 0); }
+    glows.g.instanceCount = gi; pools.g.instanceCount = gi + (lantern ? 1 : 0); glows.A.needsUpdate = glows.B.needsUpdate = pools.A.needsUpdate = pools.B.needsUpdate = true;
     const P = moteGeo.attributes.position; const S = moteGeo.attributes.aS; const Cc = moteGeo.attributes.color; const fires = cur.lights.filter((L) => L.warm && L.kind !== 'lamp' && L.kind !== 'mushrooms');
     const fly = th.fly || (th.name === 'void' ? [0.8, 0.6, 1.0] : th.day ? [1.0, 0.95, 0.6] : [1.0, 0.85, 0.45]);
     for (let i = 0; i < NM; i++) {
@@ -354,14 +372,14 @@ export function createWorld(H) {
     if (k === W.key) { const sec = secOf(); if (sec !== W.sec || travel) enter(sec); return W.theme; }
     for (let j = -1; j < N(); j++) drop(j);
     W.key = k; stageN = n;
-    W.theme = th; W.map = layoutMap(th, n); W.abyss = W.map.L.abyss(th); rng = rngOf(n * 131 + 7); W.buildMs = 0;
+    W.map = layoutMap(th, n); W.theme = W.map.L.theme ? W.map.L.theme(th) : th; W.abyss = W.map.L.abyss(W.theme); rng = rngOf(n * 131 + 7); W.buildMs = 0;
     const sec = secOf();
     secs = {}; for (let i = -1; i < N(); i++) secs[i] = { i, c: cen(i), main: null, sats: [], lights: [], bridges: [], walk: null, group: null, buildMs: 0, spots: [], gfx: null };
-    dMat.color.setRGB(th.amb.sky[0] * 0.9, th.amb.sky[1] * 0.9, th.amb.sky[2] * 0.9);
-    const uv = voxAtlas().uv(th.side.rows[0][0]); const U = dGeo.attributes.uv; for (let i = 0; i < U.count; i++) U.setXY(i, uv[0] + (uv[2] - uv[0]) * (i % 2), uv[1] + (uv[3] - uv[1]) * ((i >> 1) % 2)); U.needsUpdate = true;
+    dMat.color.setRGB(W.theme.amb.sky[0] * 0.9, W.theme.amb.sky[1] * 0.9, W.theme.amb.sky[2] * 0.9);
+    const uv = voxAtlas().uv(W.theme.side.rows[0][0]); const U = dGeo.attributes.uv; for (let i = 0; i < U.count; i++) U.setXY(i, uv[0] + (uv[2] - uv[0]) * (i % 2), uv[1] + (uv[3] - uv[1]) * ((i >> 1) % 2)); U.needsUpdate = true;
     enter(sec);
-    W.boss = 0; setUnitsLight(th, false); glows.mesh.material.uniforms.uK.value = 1; pools.mesh.material.uniforms.uK.value = 1;
-    return th;
+    W.boss = 0; setUnitsLight(W.theme, false); glows.mesh.material.uniforms.uK.value = 1; pools.mesh.material.uniforms.uK.value = 1;
+    return W.theme;
   };
 
   // ---- the run to the next wave's pad ----
@@ -391,12 +409,13 @@ export function createWorld(H) {
     if (travel || j <= W.sec) { enter(j); return false; }
     for (let k = W.sec + 1; k <= j; k++) build(k);
     for (let k = W.sec; k < j; k++) if (!secs[k].walk) { enter(j); return false; }
-    const P = pathTo(j); let raft = null; for (let k = W.sec; k < j; k++) if (secs[k].walk.raft) raft = k;
+    const P = pathTo(j); let raft = null; for (let k = W.sec; k < j; k++) if (secs[k].walk.raft) raft = secs[k].walk;
     // where each hero stood when the run began: before the sim moved it to the next room's entry, if it just did
     const B = curB(); const from = []; const moved = !!B && (B.placeN || 0) !== placeSeen;
     if (B) for (const u of B.heroes) from[u.slot] = moved && u.from ? { x: u.from.x, z: u.from.z } : { x: u.x, z: u.z };
     placeSeen = B ? B.placeN || 0 : 0;
-    const T = raft !== null ? Math.max(3.2, Math.min(7, P.L / RAFT_SPEED)) : Math.max(2.4, Math.min(j - W.sec > 1 ? 6.5 : 4.6, P.L / RUN_SPEED));
+    // a ride (raft, cart) takes its own pace: a cart rolls a longer line than a raft poles across
+    const T = raft !== null ? Math.max(3.2, Math.min(raft.maxT || 7, P.L / (raft.speed || RAFT_SPEED))) : Math.max(2.4, Math.min(j - W.sec > 1 ? 6.5 : 4.6, P.L / RUN_SPEED));
     travel = { to: j, t: W.sec < 0 ? -START_WAIT : -RUN_WAIT, T, P, s: 0, w: 0, from }; W.busy = true; W.runs++;
     return true;
   };
@@ -529,13 +548,29 @@ export function createWorld(H) {
   let lastWave = 0;
   const hiddenWaveWas = (w) => { const p = W.map && W.map.plan; return !!p && w > 0 && p.waveRoom[w] === p.waveRoom[w - 1]; };
 
-  let time = 0;
+  let time = 0; let lantern = null;
+  // the lantern pool follows the team: the middle of the living heroes (the run's group while it runs), in the current
+  // section's frame (the glow group slides with the scene)
+  function moveLantern(dt, B) {
+    let x = 0; let y = 0; let z = 0; let n = 0;
+    if (travel) { x = smp.x; y = smp.y; z = smp.z; n = 1; } else if (B) for (const u of B.heroes) if (u.alive) { x += u.x; z += u.z; n++; }
+    if (!n) return; x /= n; z /= n; const k = Math.min(1, dt * 5);
+    lantern.x += (x - lantern.x) * k; lantern.y += (y - lantern.y) * k; lantern.z += (z - lantern.z) * k;
+    pools.A.setXYZW(lantern.i, lantern.x, lantern.y + 0.03, lantern.z, lantern.r); pools.A.needsUpdate = true;
+  }
+  W.lantern = () => lantern;
   W.update = (dt) => {
     time = (time + dt) % 4000;
     for (const m of [glows.mesh.material, pools.mesh.material, moteMat]) m.uniforms.uTime.value = time;
     moteMat.uniforms.uScale.value = H.renderer.domElement.height / (2 * Math.tan(H.camera.fov * Math.PI / 360));
     abyss.update(dt); gateLevels(dt);
-    const Bn = curB(); hazards.update(dt, Bn && Bn.plan && Bn.plan.n === stageN ? Bn : null, Bn ? roomNow(Bn) : W.sec, (r, h) => { const o = offs[r]; if (o && r === W.sec) W.debris(h.x + o.x, h.z + o.z, 10, 3); });
+    const Bn = curB(); const Lw = W.map && W.map.L;
+    if (Lw && Lw.tick) Lw.tick(time);
+    modes.update(dt, Bn && Bn.plan && Bn.plan.n === stageN ? Bn : null, W, window.__G && window.__G.actors);
+    // the floating islands' satellites bob (the fight pad stays still)
+    if (Lw && Lw.bob) for (let j = -1; j < N(); j++) { const S = secs[j]; if (S && S.group) for (const m of S.group.children) { const b = m.userData.bob; if (b) m.position.y = b.a * Math.sin(time * b.w + b.p); } }
+    if (lantern) moveLantern(dt, Bn && Bn.plan && Bn.plan.n === stageN ? Bn : null);
+    hazards.update(dt, Bn && Bn.plan && Bn.plan.n === stageN ? Bn : null, Bn ? roomNow(Bn) : W.sec, (r, h) => { const o = offs[r]; if (o && r === W.sec) W.debris(h.x + o.x, h.z + o.z, 10, 3); });
     // two waves in one room: once the first is cleared the sim puts the team back at the room's entry; walk them there
     if (Bn && !travel && !regroup && (Bn.placeN || 0) !== placeSeen && Bn.phase === 'pick' && roomNow(Bn) === W.sec) {
       const from = []; for (const u of Bn.heroes) from[u.slot] = u.from ? { x: u.from.x, z: u.from.z } : { x: u.x, z: u.z };

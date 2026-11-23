@@ -1,10 +1,10 @@
 // Overview shots for layout-test --shots: for each layout kind and each biome one stage, the whole map from high above (every
-// section built, fog off) beside the first wave's pad at the game's own camera. Files and the sheet go to .chk/a10/maps/.
+// section built, fog off) beside the first wave's pad at the game's own camera. Files and the sheet go to .chk/a10/maps2/.
 import fs from 'node:fs';
 import path from 'node:path';
 import { serve, launch, open, sheet, ROOT } from './pw.mjs';
 
-const OUT = path.join(ROOT, '.chk', 'a10', 'maps'); fs.mkdirSync(OUT, { recursive: true });
+const OUT = path.join(ROOT, '.chk', 'a10', 'maps2'); fs.mkdirSync(OUT, { recursive: true });
 
 const OVER = () => {
   const G = window.__G; const H = G.host; const W = H.world; const T = H.THREE;
@@ -20,7 +20,7 @@ const OVER = () => {
 
 export async function shots(check, plans) {
   const pick = {}; for (const p of plans) { if (!pick['layout-' + p.layout]) pick['layout-' + p.layout] = p.n; if (!pick['biome-' + p.biome]) pick['biome-' + p.biome] = p.n; }
-  const want = Object.entries(pick).filter(([k]) => k.startsWith('layout-') || /forest|swamp|street|crypt|factory|void/.test(k));
+  const want = Object.entries(pick);
   const srv = await serve(); const br = await launch(); const files = [];
   try {
     for (const [name, n] of want) {
