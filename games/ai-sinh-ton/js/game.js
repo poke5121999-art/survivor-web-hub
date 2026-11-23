@@ -19,7 +19,7 @@ const RESULT_DELAY = 1.4;
 // [module path, factory name]; a module that is not there yet is skipped so the game still boots
 const SCREENS = [
   ['./ui/home.js', 'createHome'], ['./ui/heroes.js', 'createHeroes'], ['./ui/gacha.js', 'createGacha'], ['./ui/equip.js', 'createEquip'], ['./ui/soon.js', 'createSoon'],
-  ['./ui/hud.js', 'createHud'], ['./ui/pick.js', 'createPick'], ['./ui/result.js', 'createResult'], ['./ui/guide.js', 'createGuide'], ['./ui/account.js', 'createAccountPanel'],
+  ['./ui/hud.js', 'createHud'], ['./ui/pick.js', 'createPick'], ['./ui/result.js', 'createResult'], ['./ui/guide.js', 'createGuide'], ['./ui/account.js', 'createAccountPanel'], ['./ui/evolve.js', 'createEvolve'],
 ];
 const V = new URL(import.meta.url).search;
 
