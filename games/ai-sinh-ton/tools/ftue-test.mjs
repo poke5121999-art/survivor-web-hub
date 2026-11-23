@@ -67,6 +67,7 @@ for (PHONE of PHONE_LIST) {
   const lockedTabs = await page.evaluate(() => __ui.targets().filter((t) => /^team-[123]$/.test(t.id)).length);
   check(lockedTabs === 3, 'fresh save: team slots 2 to 4 are visible targets (locked, they toast)');
 
+  let storyRun = false;
   const seq = []; const labels = []; let last = ''; let frozenOk = null; let resultInfo = null; let bad = 0; let n = 0;
   for (let it = 0; it < 2500; it++) {
     const st = await page.evaluate(() => ({ d: __G.guide.dbg(), screen: __G.screen, phase: __G.B && __G.B.phase, stage: __G.stageN, cleared: __G.meta.acc.cleared, session: __G.meta.acc.ftue.session, inBattle: !!__G.B }));
@@ -77,6 +78,21 @@ for (PHONE of PHONE_LIST) {
       resultInfo = await page.evaluate(() => ({ ...__G.screens.result.dbg(), xp: __G.lastReward.xp, lb: __G.lastReward.levelBefore, la: __G.lastReward.levelAfter, unlocked: __G.lastReward.unlocked, giftIds: __G.lastReward.gifts, won: __G.lastReward.won }));
       await snap(page, 'result-tutorial');
       continue;
+    }
+    if (d.story && d.story.on) {
+      if (!storyRun) {
+        await step(page, 40);
+        const t0 = await page.evaluate(() => __G.B.t); await step(page, 40); const t1 = await page.evaluate(() => __G.B.t);
+        const sd = await page.evaluate(() => ({ s: __G.guide.dbg().story, guide: __G.guide.dbg().active, skip: __ui.targets().some((q) => q.id === 'story-skip') }));
+        check(t0 === t1 && sd.s.shown === 1 && sd.s.lines.length === 2 && !sd.guide && sd.skip, `${P}the first fight opens on the story: fight frozen (t ${t0.toFixed(2)} -> ${t1.toFixed(2)}), line 1 of ${sd.s.lines.length}, BỎ QUA offered, no guide step yet`);
+        await snap(page, '00-story-1');
+        const [sx, sy] = await safePt(page); await tapAt(page, sx, sy); await step(page, 40);
+        const s2 = await page.evaluate(() => __G.guide.dbg().story);
+        check(s2.on && s2.shown === 2, `${P}a tap shows the second line ("${s2.lines[1]}")`);
+        await snap(page, '00-story-2');
+        storyRun = true; seq.push('story');
+      }
+      const [sx, sy] = await safePt(page); await tapAt(page, sx, sy); await step(page, 6); continue;
     }
     if (d.reveal) {
       if (!labels.includes(d.reveal.label)) { labels.push(d.reveal.label); await step(page, 100); await snap(page, `r-${String(labels.length).padStart(2, '0')}-reveal`); }
@@ -157,7 +173,7 @@ for (PHONE of PHONE_LIST) {
   // the first full ultimate and the first pick come in whichever order the fight gives them
   const swap = seq.indexOf('pick:card1') >= 0 && seq.indexOf('pick:card1') < seq.indexOf('ult:ult0');
   if (swap) { const i = seq.indexOf('pick:card1'); seq[i] = 'ult:ult0'; seq[i + 1] = 'pick:card1'; }
-  const want = ['intro:free', 'ult:ult0', 'pick:card1', 'join:free', 'boss:free', 'reward:home', 'levelup:tab-heroes', 'levelup:hero-chon', 'levelup:levelup', 'levelup:back', 'gacha:tab-gacha', 'gacha:pull1', 'gacha:done', 'team:tab-heroes', 'team:hero-nhim', 'team:team-toggle', 'team:back', 'start2:tab-battle', 'start2:start'];
+  const want = ['story', 'intro:free', 'ult:ult0', 'pick:card1', 'join:free', 'boss:free', 'reward:home', 'levelup:tab-heroes', 'levelup:hero-chon', 'levelup:levelup', 'levelup:back', 'gacha:tab-gacha', 'gacha:pull1', 'gacha:done', 'team:tab-heroes', 'team:hero-nhim', 'team:team-toggle', 'team:back', 'start2:tab-battle', 'start2:start'];
   check(JSON.stringify(seq) === JSON.stringify(want), `the guide walked ${seq.length} steps in order (${seq.join(' ')})`);
   check(bad === 0, 'every tap on a target moved the guide on');
   check(!!resultInfo && resultInfo.won && resultInfo.xp === 140 && resultInfo.lb === 1 && resultInfo.la === 2, `tutorial result: won, 140 xp, level 1 -> 2 (${JSON.stringify(resultInfo && [resultInfo.won, resultInfo.xp, resultInfo.lb, resultInfo.la])})`);
@@ -245,6 +261,22 @@ for (PHONE of PHONE_LIST) {
     await winIn(p, 2, true); await p.evaluate(() => __G.meta.pull(1));
     const bad = await p.evaluate(() => __G.meta.setTeam(['chon', 'loc', 'nhim', 'tegiap']).ok);
     check(bad === true, 'level 7: four heroes are accepted (all granted by the gifts)');
+    await ctx.close();
+  }
+
+  // ============ the opening story: BỎ QUA closes it and it never comes back ============
+  {
+    const { page: p, ctx, problems } = await fresh(); await step(p, 20);
+    await tapId(p, 'start'); await step(p, 40);
+    let d = await guide(p);
+    check(d.story.on && !d.active, `${P}BẮT ĐẦU on a fresh save opens the story first`);
+    await tapId(p, 'story-skip'); await step(p, 30); d = await guide(p);
+    check(!d.story.on && d.active && d.id === 'intro', `${P}BỎ QUA closes the story and the first guide step comes up (${d.id})`);
+    for (let i = 0; i < 40 && (await guide(p)).id === 'intro'; i++) { await p.evaluate(() => __sim(0.2)); await step(p, 10); }
+    await p.reload(); await p.waitForFunction('window.__ready === true'); await step(p, 20);
+    await tapId(p, 'start'); await step(p, 40); d = await guide(p);
+    check(!d.story.on && (await p.evaluate(() => __G.tutorial)), `${P}after a reload the tutorial fight starts again without the story (story ${d.story.on})`);
+    check(problems.length === 0, `${P}the story logged no errors (${problems.slice(0, 2).join(' | ') || 'none'})`);
     await ctx.close();
   }
 
