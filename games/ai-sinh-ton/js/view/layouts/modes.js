@@ -35,10 +35,11 @@ const BEAM_F = `uniform float uTime; varying vec2 vUv; void main() { float a = (
   #include <colorspace_fragment>
 }`;
 const UV_V = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-// chevrons along a strip laid on the floor (uv.x along it, in metres through uLen), running toward its far end
+// chevrons along a strip laid on the floor (uv.x along it, in metres through uLen), running toward its far end; painted in a
+// saturated violet over the floor, not added: added light burns to white on the snow and sand floors
 const CHEV_F = `uniform float uTime; uniform float uLen; varying vec2 vUv;
 void main() { float s = vUv.x * uLen; float y = abs(vUv.y - 0.5) * 2.0; float k = fract(s * 0.8 - uTime * 1.6 - y * 0.35); float on = smoothstep(0.0, 0.08, k) * (1.0 - smoothstep(0.3, 0.38, k));
-  float a = on * (1.0 - y * 0.8) * smoothstep(0.0, 1.2, s) * (1.0 - smoothstep(uLen - 1.2, uLen, s)); gl_FragColor = vec4(vec3(1.2, 0.8, 1.6) * a, 1.0);
+  float a = on * (1.0 - y * 0.8) * smoothstep(0.0, 1.2, s) * (1.0 - smoothstep(uLen - 1.2, uLen, s)); gl_FragColor = vec4(0.82, 0.3, 1.0, a * 0.9);
   #include <colorspace_fragment>
 }`;
 
@@ -70,7 +71,7 @@ export function createModes(H) {
   const beamMat = add(BEAM_F); beamMat.uniforms.uTime = time; beamMat.vertexShader = UV_V;
   const beam = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 1.8), beamMat); beam.name = 'corebeam';
   const coreG = new THREE.Group(); coreG.add(core, beam); coreG.visible = false; g.add(coreG);
-  const chevMat = add(CHEV_F); chevMat.uniforms.uTime = time;
+  const chevMat = add(CHEV_F); chevMat.uniforms.uTime = time; chevMat.blending = THREE.NormalBlending;
   const chev = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), chevMat); chev.rotation.order = 'YXZ'; chev.visible = false; chev.renderOrder = 2; chev.name = 'corepath'; g.add(chev);
   const V = new THREE.Vector3(); let hit = 0; let lastHp = 1; let broke = 0; let lastB = null;
 

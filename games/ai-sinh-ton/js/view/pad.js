@@ -349,6 +349,13 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
         if (place(kind, x, z, Math.PI / 4 + rng.int(0, 3) * Math.PI / 2)) break;
       }
     }
+    // two more warm lights on the near rim between its gates and the flanks: the fight framing (camera.js) leaves the flanks
+    // out of the frame and the far rim behind the top bar, so this arc is where the rim lights show
+    const warmK = th.lights.filter((l) => LIGHTS[l[0]] && LIGHTS[l[0]].warm && LIGHTS[l[0]].h <= 1.2 && PROPS[l[0]] && PROPS[l[0]].light);
+    if (fight && warmK.length) for (const side of [-1, 1]) for (let t = 0; t < 14; t++) {
+      const a = Math.PI / 2 + side * (0.85 + rng.range(-0.12, 0.12)); const kk = rng.range(1.17, 1.3);
+      if (place(rng.weighted(warmK), cx + Math.cos(a) * E.x * kk, cz + Math.sin(a) * E.z * kk, Math.PI / 4 + rng.int(0, 3) * Math.PI / 2)) break;
+    }
     // the boss pad: braziers all along the far rim and flanks, and tall pillars there too (the near side stays low and open)
     if (boss && fight) {
       const brz = LIGHTS.brazier ? 'brazier' : 'torch';
