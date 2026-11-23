@@ -277,7 +277,7 @@ export function createWorldMap(ui, meta, { w, h, onPick }) {
   const st = { open: 1, current: 0, sel: 0 };
   const spots = regions.map((rg) => {
     const hs = ui.hotspot({ id: 'region-' + rg.k, w: HOT.w, h: HOT.h, onTap: () => onPick && onPick(rg.k) });
-    const label = ui.text(rg.name, { size: 12.5, align: 'center', upper: true, outlineW: 2.4 }); hs.put(label, HOT.w / 2, 2, 6);
+    const label = ui.text(rg.name, { size: 12.5, align: 'center', upper: true, outlineW: 2.4 }); hs.put(label, HOT.w / 2, 7, 6);
     scroll.put(hs, 0, 0, 2); return { rg, hs, label };
   });
   const toDesign = (x, y, z) => { V.set(x, y, z).project(cam); return [(V.x + 1) * 0.5 * w, (1 - V.y) * 0.5 * h]; };
