@@ -586,7 +586,8 @@ export function createMarks(H) {
   }
   const swordStats = () => ({ ribbons: ribs.filter((r) => r.on).length, streaks: ribs.filter((r) => r.on && r.kind !== 'arc').length, arcs: ribs.filter((r) => r.on && r.kind === 'arc').length, ghosts: ghosts.filter((r) => r.on).length, whirls: whirls.filter((r) => r.on).length, leaves: leafMesh.count });
 
-  function update(dt, B) {
+  // zap: thin spark streaks (fx/beats.js); BZ's arc boxes stand still and fill an ultimate's close-up as white bars
+  function update(dt, B, zap) {
     clock += dt;
     updateRibs(dt); updateGhosts(dt); updateWhirls(dt); lastB = B || lastB;
     // a fast-forward moves the sim far ahead of the view clock: decals dry up on the sim clock as well
@@ -620,7 +621,7 @@ export function createMarks(H) {
       let a = Math.min(1, z.age / 0.25) * base * (delayed ? 0.35 : 1);
       if (z.end >= 0) { z.end += dt; a *= Math.max(0, 1 - z.end / 0.4); if (z.end >= 0.4) { dropZone(z); continue; } }
       z.uni.uA.value = a;
-      if (z.extra) { z.extra.position.x = z.x; z.extra.position.z = z.z; if (z.extra.isSprite) { z.extra.scale.setScalar(2.8 + Math.sin(clock * 20) * 0.35); if (G.rng.chance(dt * 14)) { const aa = G.rng.range(0, 6.28); G.fx.arc(new THREE.Vector3(z.x, 1.3, z.z), new THREE.Vector3(z.x + Math.cos(aa) * 2.4, 0.3, z.z + Math.sin(aa) * 2.4), 0xbfe8ff); } } else z.extra.material.opacity = 0.2 * a; }
+      if (z.extra) { z.extra.position.x = z.x; z.extra.position.z = z.z; if (z.extra.isSprite) { z.extra.scale.setScalar(2.8 + Math.sin(clock * 20) * 0.35); if (G.rng.chance(dt * 14)) { const aa = G.rng.range(0, 6.28); zap(z.x, 1.3, z.z, z.x + Math.cos(aa) * 2.4, 0.3, z.z + Math.sin(aa) * 2.4, 0xbfe8ff, false); } } else z.extra.material.opacity = 0.2 * a; }
       if (z.end < 0) zoneFx(z, dt);
     }
     for (const r of rings) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; continue; } const e = 1 - Math.pow(1 - k, 3); r.sx = r.sz = r.r0 + (r.r1 - r.r0) * e; r.op = r.a * Math.pow(1 - k, 1.3) * RING_K; }

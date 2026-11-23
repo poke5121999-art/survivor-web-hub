@@ -661,7 +661,7 @@ export function createFxMap(H, marks, ctx) {
     attack, swordArc, WHIRL_DUR,
     update(B, dt) {
       budget = { pop: 8, boom: 2, puff: 60 }; vb = 28; bungLeft = BUNG_CAP; hitLeft = HIT_CAP;
-      if (B) { syncProjs(B, dt); unitsFx(B, dt); updateCuts(B); } marks.update(dt, B);
+      if (B) { syncProjs(B, dt); unitsFx(B, dt); updateCuts(B); } marks.update(dt, B, beats.zap);
       const J = juice(); beats.update(dt, J ? J.realDt || dt : dt);
     },
     clear() { for (const r of projs.values()) dropProj(r); projs.clear(); marks.clear(); beats.clear(); held.clear(); lastCast.clear(); cuts = null; dashWin.uid = 0; },
