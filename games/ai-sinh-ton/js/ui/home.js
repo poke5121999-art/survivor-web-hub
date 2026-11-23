@@ -70,6 +70,10 @@ const chapterOf = (n) => Math.floor((n - 1) / STAGES_PER_CHAPTER);
 const chapterStart = (k) => k * STAGES_PER_CHAPTER + 1;
 
 export const fmt = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+// counters in a fixed pill: full digits up to 999.999, then 1,23 Tr / 4,5 Tỷ so the number never runs under the icon
+export const fmtShort = (n) => { n = Math.round(n); if (n < 1e6) return fmt(n); const [v, u] = n < 1e9 ? [n / 1e6, ' Tr'] : [n / 1e9, ' Tỷ']; const d = v < 100 ? v.toFixed(v < 10 ? 2 : 1).replace(/\.?0+$/, '') : String(Math.floor(v)); return d.replace('.', ',') + u; };
+// shrink a one-line text to a width (its own scale only)
+export const fitW = (t, room) => { t.scale.setScalar(1); if (t.w > room) t.scale.setScalar(room / t.w); return t; };
 export const rarityColor = (id) => HERO_RARITY[HERO[id].rarity].color;
 const hex = (n) => '#' + (n & 0xffffff).toString(16).padStart(6, '0');
 const fmtTime = (s) => { const m = Math.floor(s / 60), r = Math.round(s % 60); return m ? `${m} phút ${r} giây` : `${r} giây`; };
@@ -162,8 +166,8 @@ export function createHome(game) {
   const counters = {};
   const pill = (key, icon, x, w) => {
     const p = ui.panel({ w, h: 32, r: 16, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); chrome.put(p, x, 8);
-    const t = ui.text(fmt(shownVal[key]), { size: 16, align: 'right', valign: 'mid' }); p.put(t, w - 12, 17); p.put(ui.icon(icon, { size: 36 }), -8, -3, 4);
-    counters[key] = { t, last: fmt(shownVal[key]) }; mui.barText[key] = counters[key].last;
+    const t = ui.text(fmtShort(shownVal[key]), { size: 16, align: 'right', valign: 'mid' }); p.put(t, w - 12, 17); p.put(ui.icon(icon, { size: 36 }), -8, -3, 4);
+    counters[key] = { t, last: fmtShort(shownVal[key]), room: w - 48 }; fitW(t, counters[key].room); mui.barText[key] = counters[key].last;
   };
   pill('gold', 'gold', 466, 100); pill('gems', 'gem', 572, 92);
   const lvPill = ui.panel({ w: 80, h: 32, r: 16, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); chrome.put(lvPill, 672, 8);
@@ -299,7 +303,7 @@ export function createHome(game) {
       for (const key of ['gold', 'gems']) {
         const tgt = meta.acc[key]; let v = shownVal[key];
         if (v !== tgt) { v += (tgt - v) * (1 - Math.exp(-dt * 9)); if (Math.abs(tgt - v) < 0.6) v = tgt; shownVal[key] = v; }
-        const s = fmt(v); if (s !== counters[key].last) { counters[key].last = s; counters[key].t.set(s); mui.barText[key] = s; }
+        const s = fmtShort(v); if (s !== counters[key].last) { counters[key].last = s; counters[key].t.set(s); fitW(counters[key].t, counters[key].room); mui.barText[key] = s; }
       }
       { const L = meta.acc.level, k = L + ':' + meta.acc.xp; if (k !== lvKey) { lvKey = k; lvTxt.set('Cấp ' + L); lvBar.set(meta.acc.xp / xpNeed(L)); mui.level = { text: 'Cấp ' + L, level: L, xp: meta.acc.xp, need: xpNeed(L) }; } }
       rail.update(dt);

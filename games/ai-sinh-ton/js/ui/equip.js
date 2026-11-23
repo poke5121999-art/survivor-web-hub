@@ -20,7 +20,7 @@ const STATP = { x: 112, y: 296, w: 228, h: 44 };
 const GRID = { x: 354, y: 122, w: 398, h: 176, size: 52, pitch: 57, cols: 7 };
 const GRIDM = { x: 108, y: 170, w: 644, h: 128, size: 52, pitch: 57, cols: 11 };
 const BAND = { x: 106, y: 48, w: 646, h: 116 };
-const PREV = { main: [120, 70], fod: [204, 76], fodPitch: 60, result: [358, 70], mainSz: 64, fodSz: 52, cx: 556 };
+const PREV = { main: [120, 70], fod: [204, 76], fodPitch: 60, result: [358, 70], mainSz: 64, fodSz: 52, cx: 520 };
 const BTN_Y = 300, BTN_H = 48;
 const dim = (hex, k) => { const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255; return (Math.round(r * k) << 16) | (Math.round(g * k) << 8) | Math.round(b * k); };
 const ease2 = (e) => e * e * (3 - 2 * e);

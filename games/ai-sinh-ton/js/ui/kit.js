@@ -284,14 +284,15 @@ export function createUI({ THREE, renderer, frame }) {
     const fmat = clipMat(color, plane, 0.32), fill = new THREE.Mesh(geo.slab(iw, ih, ir, 1.5, 1), fmat); fill.position.set(ins, -ins, 3.2); g.add(fill);
     const sh = new THREE.Mesh(geo.plate(iw - 2, Math.max(2, ih * 0.34), Math.max(1, ir * 0.5)), (() => { const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.32, depthWrite: false, clippingPlanes: [plane], toneMapped: false }); return m; })());
     sh.position.set(ins + 1, -ins - ih * 0.1, 5.6); g.add(sh);
-    let target = o.value ?? 1, cur = target, gTarget = target, gCur = target, hold = 0; const auto = !!o.ghost;
-    g.set = (f, instant) => { f = clamp(f, 0, 1); if (auto && f < target) { hold = 0.35; } target = f; if (instant) cur = f, gCur = Math.max(gCur, f); if (auto) gTarget = f; return g; };
-    g.setGhost = (f) => { gCur = clamp(f, 0, 1); gTarget = target; hold = 0.35; return g; };
+    let target = o.value ?? 1, cur = target, gTarget = target, gCur = target, hold = 0; const auto = !!o.ghost; let gOn = auto;
+    g.set = (f, instant) => { f = Number.isFinite(f) ? clamp(f, 0, 1) : 0; if (auto && f < target && !instant) { hold = 0.35; } target = f; gTarget = f; if (instant) cur = gCur = f; return g; };
+    g.setGhost = (f) => { gOn = true; gCur = clamp(f, 0, 1); gTarget = target; hold = 0.35; return g; };
+    g.dbg = () => ({ value: target, shown: fill.visible ? cur : 0, ghost: ghost.visible ? gCur : 0 }); // read by tools/ui-bugs-test.mjs
     g.setColor2 = (c) => { fmat.color.set(c); return g; };
     anim(g, (dt) => {
       cur += (target - cur) * (1 - Math.exp(-dt * 11)); if (Math.abs(target - cur) < 0.0004) cur = target;
       if (hold > 0) hold -= dt; else gCur += (Math.max(gTarget, cur) - gCur) * (1 - Math.exp(-dt * 3.2));
-      if (gCur < cur) gCur = cur;
+      if (gCur < cur || !gOn) gCur = cur;
       g.updateWorldMatrix(true, false);
       const lx = ins + Math.max(cur * iw, cur > 0 ? ir * 0.6 : 0), gx = ins + Math.max(gCur * iw, 0);
       fill.visible = sh.visible = cur > 0.002; ghost.visible = gCur > cur + 0.004;

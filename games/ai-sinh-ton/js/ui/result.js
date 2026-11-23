@@ -49,7 +49,7 @@ export function createResult(game) {
     const b = ui.button({ id: 'q-' + key, w: 84, h: 36, r: 12, color: PAL.blue, label, size: 14, onTap: () => { game.setSetting('quality', key); paint(); } });
     pause.put(b, 282 + i * 92, 234, 14); quals[key] = b;
   });
-  pause.put(ui.text('Áp dụng khi mở lại game', { size: 11, align: 'left', valign: 'mid', color: 0xb9b3cc, outlineW: 1.2 }), 566, 252, 14);
+  pause.put(ui.text('Áp dụng khi mở\nlại game', { size: 11, align: 'left', lineH: 13, color: 0xb9b3cc, outlineW: 1.2 }), 566, 240, 14);
   pause.resume = ui.button({ id: 'resume', w: 190, h: 48, r: 17, color: PAL.green, icon: 'play', label: 'TIẾP TỤC', size: 18, onTap: () => resume() }); pause.put(pause.resume, 96, 288, 14);
   pause.retry = ui.button({ id: 'retry', w: 130, h: 48, r: 15, color: PAL.orange, label: 'CHƠI LẠI', size: 14, onTap: () => { game.setPaused(false); open = false; game.retry(); } }); pause.put(pause.retry, 300, 288, 14);
   pause.home = ui.button({ id: 'home', w: 130, h: 48, r: 15, color: PAL.blue, label: 'VỀ NHÀ', size: 14, onTap: () => { open = false; game.leaveBattle(); } }); pause.put(pause.home, 440, 288, 14);
