@@ -27,7 +27,7 @@ function spire(K, bone, o) {
   for (let i = 0; i <= N; i++) {
     const t = i / N; const th = t * turns * Math.PI * 2; const R = R0 * (1 - t * 0.92); const h = H * (1 - Math.pow(1 - t, 1.4));
     const p = new THREE.Vector3(cx, cy, cz).addScaledVector(ax, h).addScaledVector(ux, Math.cos(th) * R).addScaledVector(uz, Math.sin(th) * R);
-    pts.push({ p: [p.x, p.y, p.z], rx: R * 0.95, ry: R * 0.8, bone, col: o.colAt ? o.colAt(i, N) : P0.shellA, th, R });
+    pts.push({ p: [p.x, p.y, p.z], rx: R * 0.62, ry: R * 0.62, bone, col: o.colAt ? o.colAt(i, N) : P0.shellA, th, R });
   }
   K.tube(pts, { sub: K.hi ? 3 : 2 });
   return pts;
@@ -79,7 +79,8 @@ export default {
       const f = foot(K, P, { len: 1.2, headY: 0.42 });
       K.bone('shell', 'body', [0, 0.3, -0.12]);
       // a tall spire shell, green with purple bands, venom spikes on every turn dripping
-      const pts = spire(K, 'shell', { c: [0, 0.26, -0.16], h: 0.82, R: 0.32, turns: 3.4, tilt: 0.5, colAt: (i) => (i % 4 === 0 ? 0x6a3a7a : i % 4 === 2 ? 0x3a7a32 : 0x2e6a2a) });
+      const pts = spire(K, 'shell', { c: [0, 0.3, -0.16], h: 0.9, R: 0.34, turns: 3, tilt: 0.5, colAt: (i, N) => (Math.floor(i / 2) % 2 ? 0x4e9a3a : 0xc8e870) });
+      K.horn('shell', [pts[pts.length - 3].p, pts[pts.length - 1].p, [0, pts[pts.length - 1].p[1] + 0.12, pts[pts.length - 1].p[2] - 0.06]], 0.05, { col: 0x4e9a3a, tip: P.spike });
       for (let i = 2; i < pts.length - 4; i += 3) {
         const q = pts[i]; const out = [Math.cos(q.th), 0, Math.sin(q.th)];
         const b = [q.p[0] + Math.cos(q.th) * q.R * 0.7, q.p[1] + 0.02, q.p[2] - Math.sin(q.th) * q.R * 0.3];
