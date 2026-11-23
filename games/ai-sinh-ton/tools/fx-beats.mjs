@@ -57,7 +57,7 @@ const PREP = async ([id, form, branch]) => {
 // cast one slot and run the frames; returns the per-frame beat counters and the frames to keep
 const CAST = ([slot, frames]) => {
   const G = window.__G; const B = G.B; const SIM = window.__SIM; const u = B.heroes[0]; const fx = G.actors.fx; const bt = fx.beats;
-  let castF = -1; let f = 0; const rows = [];
+  let castF = -1; let f = 0; const rows = []; const casts0 = u.casts || 0; // u.casts counts every cast since the fight began, PREP's included
   G.paused = false;
   if (slot === 'ult') { u.ult = 1; u.ultReady = true; SIM.castUlt(B, 0); castF = 0; }
   else {
@@ -66,7 +66,7 @@ const CAST = ([slot, frames]) => {
   }
   for (f = 0; f < frames; f++) {
     window.__fr(1 / 60);
-    if (castF < 0 && u.casts > 0) castF = f;
+    if (castF < 0 && (u.casts || 0) > casts0) castF = f;
     const s = bt.sparks.stats(); const d = bt.decals.stats(); const m = G.actors.marks.stats();
     rows.push({ f, sparks: s.live, decals: d.live, vert: m.pillars + m.walls + m.flashes, scale: G.juice.scale, ult: !!(G.juice.ult && G.juice.ult.active), phase: G.juice.ult && G.juice.ult.scene ? G.juice.ult.scene.phase : '' });
   }
