@@ -164,8 +164,12 @@ const GROUND = () => {
 const QUIET = async () => {
   const G = window.__G; const v = (document.querySelector('script[src*="main.js"]').src.match(/\?.*$/) || [''])[0];
   window.__SIM = await import(new URL('js/sim/battle.js' + v, location.href).href);
+  // the first four heroes of this build's own roster: the deployed "before" build of the perf run may still have other ids
+  // (tegiap, nhim, loc, chon on this tree)
+  const { HEROES } = await import(new URL('js/data/heroes.js' + v, location.href).href);
   const sc = G.screens && G.screens[G.screen]; if (sc && sc.hide) sc.hide();
-  G.start(3, { seed: 9, wave: 3, team: ['tegiap', 'nhim', 'loc', 'chon'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } });
+  window.__TEAM = HEROES.slice(0, 4).map((h) => h.id);
+  G.start(3, { seed: 9, wave: 3, team: window.__TEAM, hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } });
   window.__sim(6); if (G.juice) G.juice.reset(); G.paused = true;
 };
 
@@ -260,7 +264,7 @@ async function live(br, base, phone) {
 // ---------- cost ----------
 const PERF = async () => {
   const G = window.__G; const H = G.host; const SIM = window.__SIM;
-  G.start(15, { seed: 15, wave: 5, team: ['tegiap', 'nhim', 'loc', 'chon'], hpFlat: 400000, atkFlat: 0, mul: 0.3, auto: { ult: false, pick: 'best' } });
+  G.start(15, { seed: 15, wave: 5, team: window.__TEAM, hpFlat: 400000, atkFlat: 0, mul: 0.3, auto: { ult: false, pick: 'best' } });
   window.__sim(20); G.paused = false; G.speed = 1;
   const render = H.render; let cpu = 0; let calls = 0; H.render = (o) => { const t = performance.now(); render(o); cpu += performance.now() - t; calls++; };
   const raf = () => new Promise((r) => requestAnimationFrame(r)); const B = G.B;
