@@ -176,7 +176,7 @@ export function foeMaterials(gait) {
       .replace('#include <color_vertex>', '#include <color_vertex>\n if (aMat.y > 0.5) vColor.rgb *= iC;');
     sh.fragmentShader = sh.fragmentShader
       .replace('void main() {', 'void main() { float edge = foeCut();')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += vColor.rgb * (uSelf + vGlow * 1.6) + vec3(vFlash * 0.9) + uBurst * edge * 2.;');
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += vColor.rgb * (uSelf + vGlow * 1.6) + vec3(vFlash * 0.6) + uBurst * edge * 2.;');
   };
   toon.customProgramCacheKey = () => 'foeToon';
   const line = new THREE.MeshBasicMaterial({ color: 0x1c1418, side: THREE.BackSide });
@@ -185,7 +185,7 @@ export function foeMaterials(gait) {
     sh.vertexShader = sh.vertexShader.replace('void main() {', 'uniform float uOutline;\nvoid main() {')
       .replace('#include <begin_vertex>', 'vec3 fP = position; vec3 fN = normal; foeAnim(fP, fN); vec3 transformed = fP + normalize(fN) * uOutline; ' + setVary);
     sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'void main() { float edge = foeCut();')
-      .replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, uBurst, edge) + vec3(vFlash * 0.5);');
+      .replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, uBurst, edge) + vec3(vFlash * 0.3);');
   };
   line.customProgramCacheKey = () => 'foeLine';
   return { toon, line, U };

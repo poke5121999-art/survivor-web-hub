@@ -63,9 +63,10 @@ const SETUP = async ([n, kind, clean]) => {
   G.cam.spectate(clean && u.fly ? u.uid : 0); window.__step(90);
   const pool = G.host.G.zombies.list;
   const body = () => { const r = G.actors.nodeOf(u.uid); const z = pool.find((q) => q.body.root === r); return z && z.body; };
-  const nodes = () => { const out = []; body().root.traverse((o) => out.push(o)); return out; };
+  // the Z.update hook outlives this boss: once another fight has replaced it there is no body to read
+  const nodes = () => { const out = []; const b = body(); if (b) b.root.traverse((o) => out.push(o)); return out; };
   // every joint's rotation and position, the root's own heading and position left out (that is the walk, not the pose)
-  const snap = () => { const a = []; for (const o of nodes()) { const root = o === body().root; a.push(o.rotation.x, root ? 0 : o.rotation.y, o.rotation.z); if (!root) a.push(o.position.x, o.position.y, o.position.z); } return a; };
+  const snap = () => { const a = []; const b = body(); for (const o of nodes()) { const root = o === b.root; a.push(o.rotation.x, root ? 0 : o.rotation.y, o.rotation.z); if (!root) a.push(o.position.x, o.position.y, o.position.z); } return a; };
   const names = []; for (const o of nodes()) { const root = o === body().root; const id = (o.type || '') + ':' + (o.parent ? o.parent.children.indexOf(o) : 0) + (o.isInstancedMesh ? 'I' : ''); for (const c of root ? ['rx', 'ry', 'rz'] : ['rx', 'ry', 'rz', 'px', 'py', 'pz']) names.push(id + '.' + c); }
   const Z = G.host.G.zombies; const st = { pre: null, post: null };
   if (!Z.__wrapped) { const orig = Z.update; Z.update = function (dt) { const r = orig.call(this, dt); if (window.__bt && window.__bt.snap) window.__bt.st.pre = window.__bt.snap(); return r; }; Z.__wrapped = true; }

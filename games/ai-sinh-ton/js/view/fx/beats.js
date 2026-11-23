@@ -183,5 +183,5 @@ export function createBeats(H, marks) {
     sparks.update(dt, real); decals.update(dt, real);
   }
   function clear() { queue.length = 0; sparks.clear(); decals.clear(); }
-  return { gong, bung, later, update, clear, sparks, decals, skinOf, voiceOf: (u) => VOICE_OF[(u && u.kind) || ''] || 'earth', VOICE, SHAPE, FORM, run, ctxOf };
+  return { gong, bung, later, update, clear, sparks, decals, zap, skinOf, voiceOf: (u) => VOICE_OF[(u && u.kind) || ''] || 'earth', VOICE, SHAPE, FORM, run, ctxOf };
 }

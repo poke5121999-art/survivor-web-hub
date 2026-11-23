@@ -283,7 +283,9 @@ export function createFxMap(H, marks, ctx) {
       }
       if (e.key === 'blades' && cuts) cuts.q.push({ x: e.x, z: e.z });
       const from = V(e.fromX, 1.3, e.fromZ);
-      if (style === 'arc') G.fx.arc(from, to, cols[1]);
+      // a chain hop as thin streaks: BZ's arc boxes stop with the world when an ultimate's close-up freezes it and fill the
+      // close-up as thick white bars
+      if (style === 'arc') beats.zap(from.x, from.y, from.z, to.x, to.y, to.z, cols[1], false);
       else if (style === 'drain') { G.fx.bolt(to, from, 0xff4060); pop(e.x, 1, e.z, 0.7, [0xff7080, 0xa01028]); }
       else if (style === 'slash' && e.key === 'blades') { G.fx.puff(to, { glow: true, s0: 0.3, s1: 1.2, life: 0.18, c0: cols[1], c1: cols[1], a0: 0.7, spin: 0 }); }
       else if (style === 'slash') { G.fx.slash(to, cols[0], screenAng(e.fromX, e.fromZ, e.x, e.z), 1.5); G.fx.puff(to, { glow: true, s0: 0.3, s1: 1.4, life: 0.2, c0: 0xffffff, c1: cols[1], a0: 1, spin: 0 }); }
