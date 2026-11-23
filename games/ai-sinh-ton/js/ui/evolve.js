@@ -46,6 +46,9 @@ export function createEvolve(game) {
       const w = n.w, h = n.h, x0 = t.align === 'right' ? -w : t.align === 'center' ? -w / 2 : 0;
       let lo = [1e9, 1e9], hi = [-1e9, -1e9];
       for (const [cx, cy] of [[x0, 0], [x0 + w, 0], [x0, -h], [x0 + w, -h]]) { _v.set(cx, cy, 0); n.localToWorld(_v); slot.worldToLocal(_v); lo = [Math.min(lo[0], _v.x), Math.min(lo[1], _v.y)]; hi = [Math.max(hi[0], _v.x), Math.max(hi[1], _v.y)]; }
+      // a text sunk behind its panel's face is hidden however well it fits
+      if (b.top !== undefined && n.position.z < b.top) bad.push(`${n.str}: at depth ${n.position.z.toFixed(1)}, behind the panel face at ${b.top.toFixed(1)}`);
+      if (b === right && n !== skipHint && -lo[1] > BUTTON_TOP - 1 && closeB.visible) bad.push(`${n.str}: reaches y ${(-lo[1]).toFixed(1)}, under the buttons at ${BUTTON_TOP}`);
       if (lo[0] < -0.6 || hi[0] > b.w + 0.6 || hi[1] > 0.6 || lo[1] < -b.h - 0.6) bad.push(`${n.str}: x ${lo[0].toFixed(1)}..${hi[0].toFixed(1)} of 0..${b.w}, y ${(-hi[1]).toFixed(1)}..${(-lo[1]).toFixed(1)} of 0..${b.h}`);
     }
     return bad;
@@ -123,7 +126,8 @@ export function createEvolve(game) {
     parts.push(k.shards + ' mảnh', fmt(k.gold) + ' vàng', k.stones + ' Đá Mầm ' + ELEMENTS[k.element].name);
     if (k.cores) parts.push(k.cores + ' Lõi Cổ');
     if (k.cleared && meta.acc.cleared < k.cleared) parts.push('qua ải ' + k.cleared);
-    return parts.join(' · ') + (c.ok ? '' : '  (' + c.why + ')');
+    // one item never breaks across lines: its own spaces are non-breaking
+    return parts.map((x) => x.replace(/ /g, '\u00a0')).join(' · ') + (c.ok ? '' : '  (' + c.why + ')');
   }
   function fill(from, to) {
     const a = stats(from), b = to ? stats(to) : null;
@@ -137,8 +141,19 @@ export function createEvolve(game) {
     skillLines.forEach((n, i) => n.set(changed[i] || ''));
     const p = b ? b.def.passive : a.def.passive;
     passHead.set(`${b ? 'Nội tại mới' : 'Nội tại'}: ${p.name}`); passDesc.set(p.desc);
+    layoutText(changed.length);
     reg.from = { name: nameA, hp: Math.round(a.hp), atk: Math.round(a.atk), move: a.def.move.kind };
     reg.to = b ? { name: nameB, hp: Math.round(b.hp), atk: Math.round(b.atk), move: b.def.move.kind, skills: changed, passive: p.name } : null;
+  }
+  // the lower block follows what is above it: skills used, then the passive, then the price, all above the buttons
+  const BUTTON_TOP = 246;
+  reg.buttonTop = BUTTON_TOP;
+  function layoutText(nSkills) {
+    let y = 120 + (nSkills ? 17 + nSkills * 15 : 0) + 4;
+    const z = right.top + 6;
+    passHead.pos(14, y, z); y += 16;
+    passDesc.pos(14, y, z); y += Math.max(13, passDesc.h) + 4;
+    costT.pos(14, y, z);
   }
   function target() {
     const h = meta.acc.heroes[S.id];

@@ -118,6 +118,27 @@ for (const phone of ['s22', 'xiaomi']) {
   await openEvo(page, 'chon'); await step(page, 30); R = await reg(page);
   check(R.ok === false && R.why === 'chưa đủ cấp 8' && R.texts.some((s) => s.includes('chưa đủ cấp 8')), `${phone}: Chồn at level 3 cannot evolve and the screen says "${R.why}"`);
   await shot(page, phone, '7-locked'); await audit(page, `${phone} locked`);
+  // every beast at every step, rich and poor (the poor price line carries the reason too): nothing spills or hides under a button
+  await tap(page, 'evolve-close'); await step(page, 10);
+  const sweep = await page.evaluate(async () => {
+    const m = await import('/games/ai-sinh-ton/js/ui/evolve.js?v=20261122a'); const bz = await import('/games/ai-sinh-ton/js/data/beasts.js?v=20261122a');
+    const { HEROES } = await import('/games/ai-sinh-ton/js/data/heroes.js?v=20261122a');
+    const A = __G.meta.acc, out = []; let n = 0;
+    for (const id of HEROES.map((h) => h.id)) {
+      if (!A.heroes[id]) A.heroes[id] = { level: 1, shards: 0, form: 1, branch: null };
+      const br = bz.branchesOf(id);
+      const states = [[1, null], [2, null], ...(br.length ? br.map((b) => [3, b]) : [[3, null]])];
+      for (const [form, branch] of states) for (const rich of [true, false]) {
+        Object.assign(A.heroes[id], { level: rich ? 30 : 2, shards: rich ? 999 : 0, form, branch });
+        A.gold = rich ? 1e6 : 0;
+        m.openEvolve(id); __step(12); n++;
+        for (const b of __G.evolveUi.audit()) out.push(`${id}.${form}${branch || ''} ${rich ? 'rich' : 'poor'}: ${b}`);
+        __G.screens.evolve.hide(); __step(2);
+      }
+    }
+    return { n, out };
+  });
+  check(sweep.n >= 90 && sweep.out.length === 0, `${phone}: ${sweep.n} screens (14 beasts, every step, rich and poor) keep every text inside its panel and above the buttons (${sweep.out.slice(0, 3).join(' | ') || 'none out'})`);
   check(problems.length === 0, `${phone}: no console errors (${problems.slice(0, 3).join(' | ') || 'none'})`);
   await ctx.close();
 }
