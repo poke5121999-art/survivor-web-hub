@@ -33,6 +33,7 @@ export const PLAY = {             // the play band in design px (frame 780 wide)
 // (C.bandOf, wired in main.js to hud.band()) and refits when they change, so a HUD redesign moves the band with it.
 const TOP_MARGIN = 5;   // design px kept between the lowest top HUD piece and the band
 const GAP = 3;          // design px between the band edges and the fitted rim
+const RIM_LAG = 4;      // design px more kept under the far rim: the lens shift eases toward its target and trails it by 1-3 px
 const FIT_K = 1.04;     // the spawn rim is at 1.04 of the ellipse
 const HERO_K = 0.9;     // heroes stay inside this share of the ellipse
 const HEAD_FAR = 2.3;   // metres of body at the far rim that must stay under the top band (a monster at 1.05 scale)
@@ -260,6 +261,9 @@ export function createCamera(H) {
     }
     fitOut.room = Math.min(hi - lo, x0 - PLAY.side - CL_GAP, wd - PLAY.side - CL_GAP - x1); fitOut.o = (lo + hi) / 2;
     if (hi < lo && mlo <= mhi) fitOut.o = Math.max(mlo, Math.min(mhi, fitOut.o));
+    // with room to spare the shift also keeps the far rim of the pad under the top band, so its rim lights and edge show
+    // instead of sliding behind the top bar; the cluster comes first
+    if (hi >= lo) { let rimHi = 1e9; for (let k = 1; k < 12; k++) { const a = -Math.PI * k / 12; toPx(Math.cos(a) * ARENA.x * FIT_K, 0, Math.sin(a) * ARENA.z * FIT_K, 0, q); rimHi = Math.min(rimHi, q[1] - top - GAP - RIM_LAG); } fitOut.o = Math.max(lo, Math.min(fitOut.o, rimHi)); }
     return fitOut;
   }
   // the closest distance in [near, far] that holds the cluster at the pan (px, pz); far when nothing closer does

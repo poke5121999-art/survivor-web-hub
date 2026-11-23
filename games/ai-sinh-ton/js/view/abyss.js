@@ -31,8 +31,9 @@ void main() {
   float deep = smoothstep(0.2, 8.0, d);
   vec3 c = mix(uShallow, uDeep, deep);
   c *= 0.84 + 0.34 * (n1 * 0.6 + n2 * 0.4);
-  float plate = uIce * smoothstep(0.55, 0.6, vn(p * 0.45 + 3.0)) * (1.0 - deep * 0.6); c = mix(c, uFoam * 0.75, plate * 0.45);
   float far = smoothstep(uNearZ, uFarZ, p.y);
+  // ice plates thin out with distance: bright plates everywhere left the near and far water one tone in a close framing
+  float plate = uIce * smoothstep(0.55, 0.6, vn(p * 0.45 + 3.0)) * (1.0 - deep * 0.6) * (1.0 - far * 0.85); c = mix(c, uFoam * 0.75, plate * 0.45);
   float foam = 1.0 - smoothstep(0.0, 0.5 + 0.7 * n2, d); c = mix(c, uFoam, foam * 0.5);
   // waves: foam rollers running in toward the shore, broken along their length, fading out to sea
   if (uWave > 0.0) {

@@ -336,6 +336,13 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
   };
   if (decor) {
     const th = theme; const want = fight ? (boss ? 8 : 7) : 2;
+    // first four warm lights on the near rim, two each side of the hero cards: the fight framing (camera.js) leaves the flanks
+    // out of the frame and puts the flames of the far rim behind the top bar, so this arc is where rim lights show
+    const warmK = th.lights.filter((l) => LIGHTS[l[0]] && LIGHTS[l[0]].warm && LIGHTS[l[0]].h <= 1.2 && PROPS[l[0]] && PROPS[l[0]].light);
+    if (fight && warmK.length) for (const side of [-1, 1]) for (const a0 of [0.45, 0.85]) for (let t = 0; t < 30; t++) {
+      const a = Math.PI / 2 + side * (a0 + rng.range(-0.15, 0.15)); const kk = rng.range(1.15, 1.4);
+      if (place(rng.weighted(warmK), cx + Math.cos(a) * E.x * kk, cz + Math.sin(a) * E.z * kk, Math.PI / 4 + rng.int(0, 3) * Math.PI / 2)) break;
+    }
     // lights spread around the rim: try angles in order, each on the outer band of the floor or a terrace
     const tries = fight ? 40 : 10;
     for (let k = 0; k < want; k++) {
@@ -348,13 +355,6 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
         if (fight && near(x, z) && extent(kind, x, z).h > 1.2) kind = rng.pick(['torch', 'brazier', 'campfire', 'barrelfire'].filter((q) => th.lights.some((l) => l[0] === q)).concat(['torch']));
         if (place(kind, x, z, Math.PI / 4 + rng.int(0, 3) * Math.PI / 2)) break;
       }
-    }
-    // two more warm lights on the near rim between its gates and the flanks: the fight framing (camera.js) leaves the flanks
-    // out of the frame and the far rim behind the top bar, so this arc is where the rim lights show
-    const warmK = th.lights.filter((l) => LIGHTS[l[0]] && LIGHTS[l[0]].warm && LIGHTS[l[0]].h <= 1.2 && PROPS[l[0]] && PROPS[l[0]].light);
-    if (fight && warmK.length) for (const side of [-1, 1]) for (let t = 0; t < 14; t++) {
-      const a = Math.PI / 2 + side * (0.85 + rng.range(-0.12, 0.12)); const kk = rng.range(1.17, 1.3);
-      if (place(rng.weighted(warmK), cx + Math.cos(a) * E.x * kk, cz + Math.sin(a) * E.z * kk, Math.PI / 4 + rng.int(0, 3) * Math.PI / 2)) break;
     }
     // the boss pad: braziers all along the far rim and flanks, and tall pillars there too (the near side stays low and open)
     if (boss && fight) {
