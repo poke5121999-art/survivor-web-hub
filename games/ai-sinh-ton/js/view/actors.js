@@ -1,21 +1,22 @@
-// Draws the sim's units: four Blockade Z heroes, the zombie pool in puppet mode, and a few code-built summons.
+// Draws the sim's units: the four beasts of the team (beast/ kit), the zombie pool in puppet mode, and a few code-built summons.
 // sync(B, dt) is called once per rendered frame after the sim ticks; onEvent(e) is called for every sim event.
-import { CAST_KEY, SWING_HOLDS, FLY_Y } from './keys.js?v=20261122a';
+import { FLY_Y } from './keys.js?v=20261122a';
 import { createMarks } from './marks.js?v=20261122a';
 import { createFxMap } from './fxmap.js?v=20261122a';
 import { createHorde } from './horde.js?v=20261122a';
 import { arrive } from './arrival.js?v=20261122a';
-import { attachGrip, solveGrip } from './grip.js?v=20261122a';
+import { buildBeast, LEGACY } from './beast/index.js?v=20261122a';
 import { actFor, stepAct, usePool } from './bossacts.js?v=20261122a';
 
 const THREE = window.THREE;
 const BZ = window.BZ;
 
-const HERO_SCALE = 1.15;
-const HEAD_SCALE = 1.18;
 const ELITE_AFFIX = 2;
 const STATUS_BITS = { burn: 16, slow: 32, freeze: 32, poison: 128, root: 4096, bleed: 8192 };
 const SUMMON_LOOK = { drone: 2.1, turret: 0.9, cannon: 0.9, wolf: 0.5 };
+// old hero id per beast id: the attack sound still comes from the Blockade Z weapon the beast's skill set came from
+const OLD_ID = Object.fromEntries(Object.entries(LEGACY).map(([o, n]) => [n, o]));
+const specOf = (u) => { const d = u.def || {}; return { id: d.id || u.kind, form: d.form || 1, branch: d.branch || null }; };
 
 const wrap = BZ.wrapAngle;
 
@@ -54,7 +55,7 @@ export function createActors(H) {
   }
   const fx = createFxMap(H, marks, {
     unit: (uid) => (B ? B.byUid.get(uid) : null), time: () => (B ? B.t : 0),
-    colorOf: (uid) => { const u = B && B.byUid.get(uid); const bz = u && BZ.HEROES.find((h) => h.id === u.kind); return bz ? bz.color : 0xffffff; },
+    colorOf: (uid) => { const u = B && B.byUid.get(uid); if (u && u.def && u.def.color !== undefined) return u.def.color; const bz = u && BZ.HEROES.find((h) => h.id === u.kind); return bz ? bz.color : 0xffffff; },
   });
 
   // ---- bars: a fixed on-screen size (CSS px at the 360 frame), so they never grow with the camera ----
@@ -136,77 +137,61 @@ export function createActors(H) {
   // world points along the hero's chevron (the tools sample the floor mark there)
   function markPts(uid) { const a = heroes.get(uid); if (!a) return []; const c = Math.cos(a.yaw); const s2 = Math.sin(a.yaw); const p = a.disc.position; return [[-0.6, -0.03], [-0.48, 0.1], [0, 0.66], [0.48, 0.1], [0.6, -0.03]].map(([x, z]) => [p.x + x * c + z * s2, p.z - x * s2 + z * c]); }
 
-  // ---- heroes ----
-  function newHeroState(mode) { return { speed: 0, mode, swing: -1, kick: 0, kickL: 0, draw: 1, air: 0, vy: 0, pitch: 0, dead: 0, hurt: 0, hurtDir: 0, pat: 'r2l', cast: 0 }; }
+  // ---- heroes: one kit-built beast each (js/view/beast), animated from the sim's anim, movement kind and ground speed ----
   function makeHero(u) {
-    const bz = BZ.HEROES.find((h) => h.id === u.kind) || BZ.HEROES[3];
-    const m = BZ.heroModel(bz.id); const W = BZ.WEAPONS[bz.weapon] || {};
-    const eq = BZ.equipWeapon(m, bz.weapon); const grip = attachGrip(m, eq, bz.weapon);
-    const node = new THREE.Group(); node.scale.setScalar(HERO_SCALE); node.add(m.root); scene.add(node);
-    if (m.head) m.head.scale.setScalar(HEAD_SCALE);
+    const sp = specOf(u); const color = u.def && u.def.color !== undefined ? u.def.color : 0xc0a070;
+    const beast = buildBeast(sp, { lod: 'battle', color, shadow: H.quality.shadow > 0 });
+    const node = new THREE.Group(); node.add(beast.root); scene.add(node);
     // where the hero's chevron is drawn (flushChevrons): a holder for position, visibility and colour, not in the scene
-    const disc = new THREE.Object3D(); disc.position.y = 0.03; disc.userData.color = new THREE.Color(bz.color);
-    const bubble = new THREE.Mesh(new THREE.SphereGeometry(1.25, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffd860, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+    const disc = new THREE.Object3D(); disc.position.y = 0.03; disc.userData.color = new THREE.Color(color);
+    const bubble = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffd860, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     bubble.visible = false; scene.add(bubble);
+    const bz = BZ.HEROES.find((h) => h.id === (OLD_ID[sp.id] || sp.id)); const W = (bz && BZ.WEAPONS[bz.weapon]) || {};
     const a = {
-      u, m, eq, grip, W, wid: bz.weapon, node, disc, bubble, bar: makeBar(0x4cd860, 34, 5), skinKey: '', st: newHeroState(BZ.holdOf(W)),
-      pos: new THREE.Vector3(u.x, 0, u.z), yaw: yawOf(u.face), swingT: 0, swingDur: 0.4, combo: 0, side: 0, deadT: 0, fastT: 0, sndT: 0, rib: null, spin: 0,
+      u, beast, node, disc, bubble, bar: makeBar(0x4cd860, 34, 5), snd: W.snd || 'pistol',
+      pos: new THREE.Vector3(u.x, 0, u.z), yaw: yawOf(u.face), deadT: 0, fastT: 0, sndT: 0, hurtT: 0, anim: 'idle', animT: 0, blinkT: 0, sink: 0,
     };
-    a.node.position.copy(a.pos); m.root.rotation.y = a.yaw;
+    a.node.position.copy(a.pos); beast.root.rotation.y = a.yaw;
     heroes.set(u.uid, a); return a;
   }
 
-  // stealth and frozen look: the model's materials are shared through BZ.mat, so a hero gets its own copies the first time
-  function skin(a, opacity, emissive) {
-    const key = opacity + ':' + emissive; if (a.skinKey === key) return;
-    if (!a.cloned) { a.cloned = true; a.node.traverse((o) => { if (o.isMesh && o.material) o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone(); }); }
-    a.skinKey = key;
-    a.node.traverse((o) => { if (!o.isMesh || !o.material) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (m.emissive) m.emissive.setHex(emissive); m.transparent = opacity < 1 || m.userData.wasT; if (m.userData.wasT === undefined) m.userData.wasT = m.transparent && opacity >= 1; m.opacity = opacity; m.depthWrite = opacity >= 1; m.needsUpdate = true; } });
-  }
-
   function syncHero(a, dt) {
-    const u = a.u; const st = a.st; const m = a.m;
+    const u = a.u; const bst = a.beast;
     const run = H.world && u.alive ? H.world.heroAt(u.slot, u.x, u.z) : null;
     const dx = (run ? run.x : u.x) - a.pos.x; const dz = (run ? run.z : u.z) - a.pos.z; const far = Math.hypot(dx, dz);
     const lam = run ? 14 : far > 2.2 || a.fastT > 0 ? 34 : 16; a.fastT = Math.max(0, a.fastT - dt);
     const k = 1 - Math.exp(-lam * dt); const bx = a.pos.x; const bz = a.pos.z;
     a.pos.x += dx * k; a.pos.z += dz * k;
     // speed over the ground: during a run between pads the scene slides under the group (world.js `vel`), so the drawn
-    // position barely moves while the hero covers 8 to 12 m/s of bridge; the run cycle follows the ground, not the scene
+    // position barely moves while the hero covers 8 to 12 m/s of bridge; the gait follows the ground, not the scene
     const wv = H.world && H.world.vel; const gx = a.pos.x - bx + (wv ? wv.x * dt : 0); const gz = a.pos.z - bz + (wv ? wv.z * dt : 0);
     const sp = dt > 1e-4 ? Math.min(12, Math.hypot(gx, gz) / dt) : 0;
     const lift = run ? run.y : 0; a.lift = (a.lift || 0) + (lift - (a.lift || 0)) * Math.min(1, dt * 14);
+    const was = a.yaw;
     a.yaw += wrap((run && run.w > 0.3 ? yawOf(Math.atan2(run.dz, run.dx)) : yawOf(u.face)) - a.yaw) * Math.min(1, dt * 12);
-    a.node.position.set(a.pos.x, a.lift, a.pos.z); m.root.rotation.y = a.yaw;
-    a.disc.position.x = a.pos.x; a.disc.position.z = a.pos.z; a.disc.position.y = 0.03 + a.lift; a.disc.visible = u.alive;
-    if (!u.alive) {
-      addBlob(a.pos.x, a.pos.z, 2.3);
-      a.deadT = Math.max(0.001, a.deadT + dt); st.dead = a.deadT; st.speed = 0; st.swing = -1; st.kick = 0; st.kickL = 0;
-      BZ.animHero(m, st, dt); BZ.heroGun(m, st, a.eq && a.eq.gun); solveGrip(a.grip, m, st, dt, { aim: false }); BZ.heroFall(m, a.deadT, 1); a.bar.visible = false; a.bubble.visible = false; return;
-    }
-    if (a.deadT) { a.deadT = 0; st.dead = 0; m.root.rotation.x = 0; m.root.position.y = 0; }
+    // burrowing: the beast sinks under the floor while the sim holds it underground
+    a.sink += ((u.under ? 1 : 0) - a.sink) * Math.min(1, dt * 8);
+    a.node.position.set(a.pos.x, a.lift - a.sink * bst.height * 1.1, a.pos.z); bst.root.rotation.y = a.yaw;
+    a.disc.position.x = a.pos.x; a.disc.position.z = a.pos.z; a.disc.position.y = 0.03 + a.lift; a.disc.visible = u.alive && a.sink < 0.5;
     const stunned = u.status && (u.status.stun || u.status.freeze);
-    st.speed = stunned ? 0 : sp; st.sprint = run && sp > 6 ? 1 : 0;
-    a.swingT = Math.max(0, a.swingT - dt); st.swing = a.swingT > 0 ? 1 - a.swingT / a.swingDur : -1;
-    st.kick = Math.max(0, st.kick - dt * 30); st.kickL = Math.max(0, st.kickL - dt * 30); a.sndT -= dt;
-    if (a.eq && a.eq.gun) {
-      const bar = a.eq.gun.getObjectByName('barrels');
-      if (bar) { a.spin = (a.spin + (u.anim === 'attack' || st.kick > 0 ? 36 * dt : 0)) % (Math.PI * 2); bar.rotation.z = a.spin; }
+    let anim = !u.alive ? 'die' : stunned ? 'stun' : u.anim === 'dead' ? 'idle' : (u.anim || 'idle');
+    if (u.alive && a.hurtT > 0 && (anim === 'idle' || anim === 'run')) anim = 'hit';
+    if (anim !== a.anim) { a.anim = anim; a.animT = 0; } else a.animT += dt;
+    a.hurtT = Math.max(0, a.hurtT - dt); a.blinkT = Math.max(0, a.blinkT - dt); a.sndT -= dt;
+    const move = (u.def && u.def.move && u.def.move.kind) || bst.move;
+    bst.update({ anim, animT: a.animT, move, speed: stunned || !u.alive ? 0 : sp, air: !!u.air, turn: wrap(a.yaw - was) / Math.max(dt, 1e-3) }, dt);
+    // blink: gone for a moment, then back; stealth: see-through; frozen: blue; hit: a white flash
+    const blinkK = a.blinkT > 0 ? Math.abs(a.blinkT - 0.16) / 0.16 : 1;
+    bst.setTint({ opacity: Math.min(u.alive && u.state.stealth > 0 ? 0.35 : 1, blinkK), freeze: !!(u.status && u.status.freeze), flash: a.hurtT > 0.12 ? (a.hurtT - 0.12) / 0.13 : 0 });
+    const top = bst.height + a.lift + bst.lift;
+    if (!u.alive) {
+      a.deadT += dt; addBlob(a.pos.x, a.pos.z, 1.8 * Math.max(0, 1 - a.deadT / 2)); a.bar.visible = false; a.bubble.visible = false; return;
     }
-    BZ.animHero(m, st, dt); BZ.heroGun(m, st, a.eq && a.eq.gun);
-    solveGrip(a.grip, m, st, dt, { aim: u.anim === 'attack' || st.swing >= 0 || st.kick > 0.02 || st.kickL > 0.02 });
-    fx.swordArc(a);
-    const W = a.W;
-    if (W.melee && !W.noTrail && a.eq && a.eq.tip && a.grip.row.type !== 'sword2') {
-      if (!a.rib) a.rib = G.fx.ribbon();
-      if (st.swing >= 0.15 && st.swing < 0.75) { a.node.updateMatrixWorld(true); a.rib.push(a.eq.tip.getWorldPosition(tip.clone()), m.handR.getWorldPosition(tmp.clone())); }
-      a.rib.update(dt, W.trail || 0xffffff, 0.9);
-    }
+    a.deadT = 0;
     a.bubble.visible = u.state.invuln > 0 || u.shield > 0;
-    if (a.bubble.visible) { a.bubble.material.color.setHex(u.state.invuln > 0 ? 0xffd860 : 0xa8dcff); a.bubble.position.set(a.pos.x, 1.2, a.pos.z); a.bubble.scale.setScalar(1 + Math.sin(performance.now() / 160) * 0.03); }
-    skin(a, u.state.stealth > 0 ? 0.35 : 1, u.status && u.status.freeze ? 0x2a6a9a : 0);
-    if (H.spectateUid === u.uid) a.bar.visible = false; else setBar(a.bar, a.pos.x, 3.05 + a.lift, a.pos.z, u.hp / u.maxHp, u.shield > 0 ? u.shield / u.maxHp : 0);
-    addBlob(a.pos.x, a.pos.z, 2.3);
+    if (a.bubble.visible) { a.bubble.material.color.setHex(u.state.invuln > 0 ? 0xffd860 : 0xa8dcff); a.bubble.position.set(a.pos.x, a.lift + bst.lift + bst.height * 0.5, a.pos.z); a.bubble.scale.setScalar(Math.max(0.9, bst.height * 0.85) * (1 + Math.sin(performance.now() / 160) * 0.03)); }
+    if (H.spectateUid === u.uid) a.bar.visible = false; else setBar(a.bar, a.pos.x, top + 0.45, a.pos.z, u.hp / u.maxHp, u.shield > 0 ? u.shield / u.maxHp : 0);
+    addBlob(a.pos.x, a.pos.z, 1.9 * (a.sink > 0.5 ? 0.6 : 1), bst.lift);
   }
 
   // ---- summons: small code-built bodies ----
@@ -245,14 +230,11 @@ export function createActors(H) {
     for (const [x, z] of [[-0.15, 0.32], [0.15, 0.32], [-0.15, -0.32], [0.15, -0.32]]) { const l = new THREE.Group(); l.position.set(x, 0.5, z); l.add(box(0.12, 0.5, 0.12, 0x6a7390, 0, -0.25, 0)); g.add(l); legs.push(l); }
     return { root: g, body, legs, phase: 0, tick(a, dt) { this.phase += dt * a.speed * 2.2; legs.forEach((l, i) => { l.rotation.x = Math.sin(this.phase + (i % 3 === 0 ? 0 : Math.PI)) * Math.min(0.9, a.speed * 0.15); }); body.rotation.z = Math.sin(this.phase) * 0.04; } };
   }
+  // Bóng's decoy: a see-through copy of its owner's beast
   function buildDecoy(owner) {
-    const bz = BZ.HEROES.find((h) => h.id === owner.kind) || BZ.HEROES[3];
-    const m = BZ.heroModel(bz.id); const grip = attachGrip(m, BZ.equipWeapon(m, bz.weapon), bz.weapon);
-    const own = (mat) => { const c = mat.clone(); c.transparent = true; c.opacity = 0.45; c.depthWrite = false; return c; };
-    m.root.traverse((o) => { if (o.isMesh && o.material) o.material = Array.isArray(o.material) ? o.material.map(own) : own(o.material); });
-    const g = new THREE.Group(); g.scale.setScalar(HERO_SCALE); g.add(m.root);
-    const st = newHeroState(BZ.holdOf(BZ.WEAPONS[bz.weapon]));
-    return { root: g, tick(a, dt) { st.speed = a.speed; BZ.animHero(m, st, dt); solveGrip(grip, m, st, dt, { aim: false }); } };
+    const beast = buildBeast(specOf(owner), { lod: 'battle', color: owner.def && owner.def.color });
+    beast.setTint({ opacity: 0.45 });
+    return { root: beast.root, beast, tick(a, dt) { beast.update({ anim: 'run', animT: 0, speed: a.speed, move: beast.move }, dt); } };
   }
   const BUILD = { drone: buildDrone, turret: buildTurret, cannon: buildCannon, wolf: buildWolf, decoy: buildDecoy };
 
@@ -336,18 +318,13 @@ export function createActors(H) {
   const unitOf = (uid) => (B ? B.byUid.get(uid) : null);
   function muzzleOf(a) {
     a.node.updateMatrixWorld(true);
-    if (a.eq && a.eq.tip) return a.eq.tip.getWorldPosition(tip);
-    return a.m.handR.getWorldPosition(tip);
+    return a.beast.muzzle.getWorldPosition(tip);
   }
   const ON = {
     attack(e) {
       const a = heroOf(e.uid); const tgtY = 1.0;
       if (a) {
-        const W = a.W; const st = a.st;
-        if (SWING_HOLDS.has(st.mode)) {
-          st.pat = W.combo ? W.combo[a.combo++ % W.combo.length] : 'r2l'; a.swingDur = Math.min(0.5, W.swing || W.throwT || 0.4); a.swingT = a.swingDur;
-        } else if (st.mode === 'dual') { a.side = 1 - a.side; if (a.side) st.kickL = 6; else st.kick = 6; } else st.kick = 6;
-        if (a.sndT <= 0) { a.sndT = 0.14; G.audio.playAt(W.snd || 'pistol', a.pos, { gain: 0.4 }); }
+        if (a.sndT <= 0) { a.sndT = 0.14; G.audio.playAt(a.snd, a.pos, { gain: 0.4 }); }
         fx.attack(e, muzzleOf(a).clone(), true);
         return;
       }
@@ -358,7 +335,7 @@ export function createActors(H) {
     hit(e) {
       if (e.dot || !e.dmg) return;
       const idx = slots.get(e.uid); const a = heroOf(e.uid);
-      if (a) { a.st.hurt++; return; }
+      if (a) { a.hurtT = 0.25; return; }
       if (idx === undefined || hitBudget <= 0) return;
       const z = pool[idx]; const u = unitOf(e.uid); if (!z || !z.alive || !u || (z.hitT || 0) > B.t) return;
       z.hitT = B.t + 0.12; hitBudget--;
@@ -384,7 +361,7 @@ export function createActors(H) {
     gone(e) { slots.delete(e.uid); dropSummon(e.uid); const h = heroes.get(e.uid); if (h) dropHero(h); },
     cast(e) {
       const a = heroOf(e.uid);
-      if (a) { const key = CAST_KEY[e.key]; if (key && BZ.CAST_ANIM[key]) a.st.act = { key, t: 0 }; return; }
+      if (a) return;
       const idx = slots.get(e.uid); const u = unitOf(e.uid); if (idx === undefined || !u) return;
       if (!u.boss) return;
       const sk = u.skills.find((s) => s.slot === e.slot); if (!sk) return;
@@ -395,11 +372,12 @@ export function createActors(H) {
     },
     ult(e) { ON.cast(e); },
     dash(e) { const a = heroOf(e.uid); if (a) a.fastT = 0.3; },
-    revive(e) { const a = heroOf(e.uid); if (a) { a.deadT = 0; a.st.dead = 0; a.m.root.rotation.x = 0; a.m.root.position.y = 0; } },
+    revive(e) { const a = heroOf(e.uid); if (a) { a.deadT = 0; a.anim = ''; } },
+    move(e) { const a = heroOf(e.uid); if (a && e.k === 'blink') a.blinkT = 0.32; },
   };
 
-  function dropSummon(uid) { const s = summons.get(uid); if (s) { scene.remove(s.root); summons.delete(uid); } }
-  function dropHero(a) { scene.remove(a.node); scene.remove(a.disc); scene.remove(a.bubble); dropBar(a.bar); if (a.rib) scene.remove(a.rib.mesh); heroes.delete(a.u.uid); }
+  function dropSummon(uid) { const s = summons.get(uid); if (s) { scene.remove(s.root); if (s.beast) s.beast.dispose(); summons.delete(uid); } }
+  function dropHero(a) { scene.remove(a.node); scene.remove(a.disc); scene.remove(a.bubble); dropBar(a.bar); a.beast.dispose(); heroes.delete(a.u.uid); }
 
   const api = {
     onEvent(e) { const h = ON[e.e]; if (h) h(e); fx.onEvent(e); horde.onEvent(e); },
@@ -443,8 +421,8 @@ export function createActors(H) {
       enemyBars.clear(); bossActs.clear(); slots.clear(); lifts.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; chev.count = 0; chevBack.count = 0; horde.clear(); B = null;
     },
     fx, marks, horde, bossActs, lifts, markPts,
-    gripOf(uid) { const h = heroes.get(uid); return h ? { m: h.m, eq: h.eq, grip: h.grip, st: h.st } : null; },
-    scaleOf(uid) { if (heroes.has(uid)) return HERO_SCALE; const i = slots.get(uid); return i !== undefined ? pool[i].T.scale : horde.scaleOf(uid); },
+    beastOf(uid) { const h = heroes.get(uid); return h ? h.beast : null; },
+    scaleOf(uid) { if (heroes.has(uid)) return 1; const i = slots.get(uid); return i !== undefined ? pool[i].T.scale : horde.scaleOf(uid); },
     nodeOf(uid) {
       const h = heroes.get(uid); if (h) return h.node;
       const s = summons.get(uid); if (s) return s.root;
@@ -452,7 +430,7 @@ export function createActors(H) {
     },
     // how tall the unit stands in metres: the camera sizes its chase distance from it
     heightOf(uid) {
-      if (heroes.has(uid)) return 2.7; if (summons.has(uid)) return 1.6;
+      const h = heroes.get(uid); if (h) return h.beast.height + h.beast.lift; if (summons.has(uid)) return 1.6;
       const i = slots.get(uid); return 2.2 * (i !== undefined ? pool[i].T.scale : horde.scaleOf(uid) || 1);
     },
     // sideways extent of the unit's meshes in metres (wings, a saucer): the camera keeps it inside the frame width
@@ -461,7 +439,7 @@ export function createActors(H) {
       n.updateMatrixWorld(true); widthBox.setFromObject(n); widthBox.getSize(widthSize); return Math.max(widthSize.x, widthSize.z);
     },
     headPos(uid, out) {
-      const h = heroes.get(uid); if (h) return out.set(h.pos.x, 2.6, h.pos.z);
+      const h = heroes.get(uid); if (h) return out.set(h.pos.x, (h.lift || 0) + h.beast.height + h.beast.lift, h.pos.z);
       const s = summons.get(uid); if (s) return out.set(s.pos.x, 1.6, s.pos.z);
       const i = slots.get(uid); if (i !== undefined) { const z = pool[i]; return out.set(z.pos.x, z.pos.y + 2.1 * z.T.scale, z.pos.z); }
       return horde.headPos(uid, out);
