@@ -740,7 +740,7 @@ const opened = () => {
   stock(); const g0 = A.gold, s0 = te.shards, d0 = A.evo.stone.dat;
   const r = M.evolve('tegiap');
   check(r.ok && te.form === 2 && te.branch === null && g0 - A.gold === 5000 && s0 - te.shards === 30 && d0 - A.evo.stone.dat === 10 && A.evo.core === 10, `form 2 costs 5000 gold, 30 shards, 10 Đá Mầm Đất (paid ${g0 - A.gold}, ${s0 - te.shards}, ${d0 - A.evo.stone.dat}) and no Lõi Cổ`);
-  check(EVOLVE[2].level === 8 && EVOLVE[3].level === 13 && EVOLVE[3].cleared === 15, `form 2 at beast level ${EVOLVE[2].level}, form 3 at ${EVOLVE[3].level} with stage ${EVOLVE[3].cleared} cleared (the levels tools/pacing.mjs settled)`);
+  check(EVOLVE[2].level === 8 && EVOLVE[3].level === 14 && EVOLVE[3].cleared === 15, `form 2 at beast level ${EVOLVE[2].level}, form 3 at ${EVOLVE[3].level} with stage ${EVOLVE[3].cleared} cleared (the levels tools/pacing.mjs settled)`);
   check(M.heroStats('tegiap').hp === Math.round(heroDef({ id: 'tegiap', form: 2 }).hp * levelMul(EVOLVE[2].level)) && M.teamSpec().find((x) => x.id === 'tegiap').form === 2, `stats and the battle spec follow the form (health ${M.heroStats('tegiap').hp} at level ${EVOLVE[2].level}, form 2)`);
   te.level = 30; A.cleared = 14;
   eq(M.canEvolve('tegiap', 'a').why, 'chưa qua ải 15', 'form 3 needs stage 15 cleared');
@@ -748,11 +748,11 @@ const opened = () => {
   eq([M.canEvolve('tegiap').ok, M.canEvolve('tegiap').why], [false, 'chưa chọn nhánh'], 'a branching beast needs its path chosen');
   A.evo.core = 2; eq(M.canEvolve('tegiap', 'b').why, 'thiếu 1 Lõi Cổ', 'form 3 needs 3 Lõi Cổ');
   stock(); const g1 = A.gold, c1 = A.evo.core, d1 = A.evo.stone.dat, s1 = te.shards;
-  check(M.evolve('tegiap', 'b').ok && te.form === 3 && te.branch === 'b' && g1 - A.gold === 20000 && c1 - A.evo.core === 3 && d1 - A.evo.stone.dat === 25 && s1 - te.shards === 80, `form 3 (branch b) costs 20000 gold, 80 shards, 25 stones, 3 Lõi Cổ (paid ${g1 - A.gold}, ${s1 - te.shards}, ${d1 - A.evo.stone.dat}, ${c1 - A.evo.core})`);
+  check(M.evolve('tegiap', 'b').ok && te.form === 3 && te.branch === 'b' && g1 - A.gold === 35000 && c1 - A.evo.core === 3 && d1 - A.evo.stone.dat === 25 && s1 - te.shards === 80, `form 3 (branch b) costs 35000 gold, 80 shards, 25 stones, 3 Lõi Cổ (paid ${g1 - A.gold}, ${s1 - te.shards}, ${d1 - A.evo.stone.dat}, ${c1 - A.evo.core})`);
   eq(M.canEvolve('tegiap').why, 'đã ở dạng cuối', 'nothing past form 3');
   check(!M.rebranch('tegiap', 'b').ok && M.canRebranch('tegiap', 'b').why === 'đang ở nhánh này rồi', 'rebranching to the same path is refused');
   const g2 = A.gold, c2 = A.evo.core, d2 = A.evo.stone.dat;
-  check(M.rebranch('tegiap', 'a').ok && te.branch === 'a' && g2 - A.gold === 10000 && A.evo.core === c2 && d2 - A.evo.stone.dat === 13, `switching to path a costs half (10000 gold, 13 stones; paid ${g2 - A.gold}, ${d2 - A.evo.stone.dat}) and no Lõi Cổ`);
+  check(M.rebranch('tegiap', 'a').ok && te.branch === 'a' && g2 - A.gold === 17500 && A.evo.core === c2 && d2 - A.evo.stone.dat === 13, `switching to path a costs half (17500 gold, 13 stones; paid ${g2 - A.gold}, ${d2 - A.evo.stone.dat}) and no Lõi Cổ`);
   check(M.teamSpec().find((x) => x.id === 'tegiap').branch === 'a', 'the battle fights the new path');
   A.heroes.nhim.level = 30; A.evo.stone.bang = 99; A.heroes.nhim.shards = 999;
   M.evolve('nhim'); check(M.canEvolve('nhim').ok && M.canEvolve('nhim', 'x').ok && M.evolve('nhim').ok && A.heroes.nhim.form === 3 && A.heroes.nhim.branch === null, 'a beast without a fork takes form 3 with no branch');

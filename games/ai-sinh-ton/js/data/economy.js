@@ -102,10 +102,13 @@ export const START = { gold: 1500, gems: 1000, heroes: ['tegiap', 'nhim', 'loc',
 // ---- evolution (SCOPE section 4) ----
 // what reaching form 2 and form 3 asks: beast level, shards, gold, Đá Mầm of the beast's element, Lõi Cổ, stages cleared.
 // The levels are set by tools/pacing.mjs (first form 2 in minutes 40-60, first form 3 in hours 4-6): the real account bot
-// reaches level 10 only after 1.5-3 hours and level 13-16 after 8, so SCOPE's 10 and 25 became 8 and 13; the form-3 price is 20000 gold and 25 Đá Mầm (SCOPE 30000 and 30): what the bot gathers in hours 4-6.
+// reaches level 10 only after 1.5-3 hours and level 13-16 after 8, so SCOPE's 10 and 25 became 8 and 14; the form-3 price is
+// 35000 gold and 25 Đá Mầm (SCOPE 30000 and 30). Gold, not Đá Mầm, carries the time: stones come in lumps from first clears and
+// the bots that stall at the stage-50 boss never gather 33 or more, while gold comes from every match. Level 13 and 20000 gold
+// held when stages 35-41 were walls (bot median 4.9 h); the layouts of W-maps2 opened them and the median fell to 3.1 h.
 export const EVOLVE = {
   2: { level: 8, shards: 30, gold: 5000, stones: 10, cores: 0, cleared: 0 },
-  3: { level: 13, shards: 80, gold: 20000, stones: 25, cores: 3, cleared: 15 },
+  3: { level: 14, shards: 80, gold: 35000, stones: 25, cores: 3, cleared: 15 },
 };
 // changing the form-3 branch afterwards costs this share of the form-3 price, Lõi Cổ excepted
 export const REBRANCH = 0.5;
