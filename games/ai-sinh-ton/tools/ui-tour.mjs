@@ -126,6 +126,7 @@ async function ftue(page, tag) {
     const st = await page.evaluate(() => ({ d: __G.guide.dbg(), screen: __G.screen, phase: __G.B && __G.B.phase, inB: !!__G.B, cleared: __G.meta.acc.cleared, session: __G.meta.acc.ftue.session }));
     const d = st.d;
     if (st.cleared >= 2 && !st.inB && !d.active) break;
+    if (d.story && d.story.on) { await step(page, 40); await shoot(page, tag, `ftue-${String(++n).padStart(2, '0')}-story`); await tap(page, 'story-skip', 10); continue; }
     if (d.reveal) { const k = 'reveal:' + JSON.stringify(d.reveal).slice(0, 40); if (k !== last) { last = k; await step(page, 30); await shoot(page, tag, `ftue-${String(++n).padStart(2, '0')}-reveal`); } await tap(page, 'reveal-tap', 6); continue; }
     if (d.active) {
       const key = d.id + ':' + (d.target || 'free');

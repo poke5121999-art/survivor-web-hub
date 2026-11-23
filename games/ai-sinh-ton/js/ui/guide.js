@@ -3,6 +3,7 @@
 //              big text. Only the target is tappable while a step with a target is up: four invisible blocker buttons
 //              (id "guide-block") cover everything outside the spotlight.
 //   'reveal' - the padlock pops open and the new feature flies in; tap to continue.
+//   'story'  - the two-sentence opening story over the first fight (createStory at the end).
 // meta.ftueNext() says what to show, game.events says when; pressing the target (a pointer press on it) completes a step.
 import { UNLOCK } from '../data/unlocks.js?v=20261122a';
 import { clamp, easeOut, easeBack } from './hud.js?v=20261122a';
@@ -60,6 +61,7 @@ export function createGuide(game) {
   let narrow = false, panel = null, panelKey = '', panelH = 60, panelW = 340, panelAt = null, handAt = null;
   const S = { step: null, idx: 0, wait: 0, miss: 0, t: 0, wrapped: null, rect: null, queue: [], dis: 0, skipped: new Set(), noTarget: false, hold: null };
   let reveal = null;
+  const story = createStory(game, { onDone: () => offer({ screen: 'battle', event: 'tutorial:start' }) });
 
   function toDesign(r) { const fr = frame.getBoundingClientRect(), k = fr.width / 780; return { x: (r.x - fr.left) / k, y: (r.y - fr.top) / k, w: r.w / k, h: r.h / k }; }
 
@@ -175,7 +177,9 @@ export function createGuide(game) {
     if (name === 'result' && game.lastReward) return;
     offer({ screen: 'home', event: 'home' });
   });
-  for (const ev of ['start', 'ult_ready', 'pick', 'join', 'boss', 'won']) game.events.on('tutorial:' + ev, () => offer({ screen: 'battle', event: 'tutorial:' + ev }));
+  for (const ev of ['ult_ready', 'pick', 'join', 'boss', 'won']) game.events.on('tutorial:' + ev, () => offer({ screen: 'battle', event: 'tutorial:' + ev }));
+  // the first fight opens on the story; its first guide step comes when the story closes
+  game.events.on('tutorial:start', () => { if (story.want()) story.open(); else offer({ screen: 'battle', event: 'tutorial:start' }); });
 
   // ---- per frame ----
   const inter = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -261,6 +265,7 @@ export function createGuide(game) {
 
   function update(dt) {
     if (reveal) reveal.update(dt);
+    if (story.active()) { if (ui.isShown('guide')) ui.hide('guide', { transition: 'none' }); return; }
     if (!S.step) { if (ui.isShown('guide')) ui.hide('guide', { transition: 'none' }); if (S.queue.length && !reveal.busy()) drain(false); return; }
     if (reveal && reveal.active()) { if (ui.isShown('guide')) ui.hide('guide', { transition: 'none' }); return; }
     // a step offered at home waits while a fight is up (a quick tap on BẮT ĐẦU beats it): it must neither show over the
@@ -308,13 +313,48 @@ export function createGuide(game) {
     dbg() {
       const s = S.step, e = s ? entryOf(s, S.idx) : null;
       const parked = !!(s && S.home && game.B);
-      return { active: !!s && !parked, parked, id: s ? s.id : null, text: s ? (e && e.line) || s.text : '', target: s && !S.noTarget ? pathOf(s)[S.idx] : null, idx: S.idx, path: s ? pathOf(s) : [], noTarget: S.noTarget || !!(e && e.wait !== undefined), waiting: !!(e && e.wait !== undefined), rect: S.rect, allow: s ? s.allow || [] : [], skipVisible: skipBtn.visible, panel: toClient(panelAt), hand: toClient(handAt), bannerZone: toClient(BANNER_ZONE), frame: toClient({ x: 0, y: 0, w: 780, h: ui.H }), frozen: !!game.frozen, reveal: reveal ? reveal.dbg() : null };
+      return { active: !!s && !parked, parked, id: s ? s.id : null, text: s ? (e && e.line) || s.text : '', target: s && !S.noTarget ? pathOf(s)[S.idx] : null, idx: S.idx, path: s ? pathOf(s) : [], noTarget: S.noTarget || !!(e && e.wait !== undefined), waiting: !!(e && e.wait !== undefined), rect: S.rect, allow: s ? s.allow || [] : [], skipVisible: skipBtn.visible, panel: toClient(panelAt), hand: toClient(handAt), bannerZone: toClient(BANNER_ZONE), frame: toClient({ x: 0, y: 0, w: 780, h: ui.H }), frozen: !!game.frozen, reveal: reveal ? reveal.dbg() : null, story: story.dbg() };
     },
   };
   game.guide = api;
   reveal = createReveal(game, { onDone: () => drain(false), blocked: () => !!(S.step && S.step.later && S.idx > 0) });
-  return [api, reveal.api];
+  return [api, reveal.api, story.api];
 }
+// ---------- the opening story ----------
+// Two sentences over the frozen first fight, the very first time a fresh account starts it (SCOPE section 1). A tap
+// shows the second line, the next tap (or BỎ QUA) closes it and the fight starts with its first guide step. It never
+// comes back: it is shown only while the guide's first step ('intro') is not done.
+export const STORY = [
+  'Dịch xác sống tràn khắp các vùng đất, con người lui về những thành cuối cùng.',
+  'Muông thú rừng sâu thức tỉnh Mầm Sống, tiến hoá và lập nên Đội Hộ Vệ.',
+];
+function createStory(game, { onDone }) {
+  const ui = game.ui, meta = game.meta, THREE = ui.THREE, PAL = ui.PAL;
+  const scr = ui.screen('story', { modal: true });
+  const dim = new THREE.Mesh(new THREE.PlaneGeometry(1200, 800), new THREE.MeshBasicMaterial({ color: 0x0c0718, transparent: true, opacity: 0.86, depthWrite: false })); scr.put(dim, 390, 180, -5);
+  const band = ui.panel({ w: 620, h: 178, r: 22, color: 0x2a2150, depth: 5, bevel: 3 }); scr.put(band, 80, 78, 2);
+  const title = ui.text('Ải Sinh Tồn: Thú Hộ Vệ', { size: 15, color: PAL.gold, align: 'center' }); band.put(title, 310, 15, 8);
+  const lines = STORY.map((s, i) => { const n = ui.text(s, { size: 16, maxW: 570, lineH: 20, align: 'center' }); band.put(n, 310, 62 + i * 54, 8); n.setOpacity(0); return n; });
+  const hint = ui.text('Chạm để tiếp tục', { size: 11, color: 0xc8c0f0, align: 'center' }); scr.put(hint, 390, 270, 8);
+  const tapAll = ui.button({ id: 'story-next', w: 780, h: 360, flat: true, alpha: 0.001, label: '', onTap: () => next() }); scr.put(tapAll, 0, 0, 20);
+  const skipB = ui.button({ id: 'story-skip', w: 96, h: 44, r: 13, color: PAL.disabled, label: 'BỎ QUA', size: 14, onTap: () => close() }); scr.put(skipB, 664, 14, 40);
+  const S = { on: false, t: 0, shown: 0 };
+  const want = () => !meta.acc.ftue.done.intro && !meta.acc.ftue.session;
+  function open() { S.on = true; S.t = 0; S.shown = 1; game.frozen = true; lines.forEach((n) => n.setOpacity(0)); ui.show('story', { transition: 'none' }); }
+  function next() { if (!S.on) return; if (S.shown < STORY.length) { S.shown++; S.lineT = S.t; return; } close(); }
+  function close() { if (!S.on) return; S.on = false; game.frozen = false; ui.hide('story', { transition: 'pop' }); onDone(); }
+  function update(dt) {
+    if (!S.on) return; S.t += dt;
+    lines.forEach((n, i) => { const t0 = i === 0 ? 0.15 : S.lineT ?? 99; n.setOpacity(i < S.shown ? Math.min(1, Math.max(0, (S.t - t0) / 0.5)) : 0); });
+    hint.setOpacity(S.t > 0.8 ? 0.55 + 0.45 * Math.sin(S.t * 4) : 0);
+  }
+  return {
+    api: { name: 'story', show() {}, hide() {}, update },
+    want, open, active: () => S.on,
+    dbg: () => ({ on: S.on, shown: S.on ? S.shown : 0, lines: STORY.slice() }),
+  };
+}
+
 
 // ---------- unlock reveal ----------
 function buildPadlock(THREE) {

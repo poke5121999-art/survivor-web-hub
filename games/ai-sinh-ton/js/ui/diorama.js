@@ -161,7 +161,9 @@ export function createDiorama(ui, { w = 318, h = 212 } = {}) {
   }
 
   const cam = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
-  cam.position.set(0, 3.7, 11.2); cam.lookAt(0, 0.9, 0);
+  // the camera is outside the scene: its matrices are only made at its first render, which waits until the chapter view
+  // is shown (Ra Trận opens on the world map), so they are made here for anything that projects through it before
+  cam.position.set(0, 3.7, 11.2); cam.lookAt(0, 0.9, 0); cam.updateMatrixWorld(true);
   const node = ui.viewport(root, { w, h, r: 17, camera: cam, fps: 24, bg: 0x4e3aa0, key: 2.4, amb: 1.7, update: step });
   node.camera = cam;
   const api = { node, dress, step, get stage() { return cur; }, get boss() { return bossG; } };
