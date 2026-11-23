@@ -20,7 +20,7 @@ const BZ = window.BZ;
 const PITCH = 47 * Math.PI / 180; // MCD: block edges at 34-38 degrees on screen = sin(pitch) 0.73 at a 45-degree yaw
 const FOV_OVER = 27;              // MCD: vertical lens from the lean of upright posts at the frame side (26-28 degrees)
 const MCD_FILL = 0.107;           // MCD: its hero stands 0.10-0.12 of the frame height; the whole-pad fit is never closer than this
-const TIGHT_FILL = 0.175;         // the closest framing: a 2.7 m reference at the centre stands this share (a 1.4 m beast ~0.09, MCD's hero)
+const TIGHT_FILL = 0.19;          // the closest framing: a 2.7 m reference at the centre stands this share (a 1.0 m beast drawn at 1.35 ~28 px of 360)
 const HERO_H = 2.7;
 export const PLAY = {             // the play band in design px (frame 780 wide): what the HUD leaves to the fight
   top: 38,                        // under the top corner pieces (js/ui/hud.js, 3-33) and a margin
@@ -218,7 +218,7 @@ export function createCamera(H) {
       if (r || run) { const x = r ? r.x : u.x; const y = r ? r.y : 0; const z = r ? r.z : u.z; addPt(x, y, y + h, z, CL_SIDE, 1); take(x, z); continue; }
       const y0 = u.fly ? (FLY_Y[u.kind] || 3.2) : 0;
       const yb = !u.fly && u.z > 0 && Math.hypot(u.x / ARENA.x, u.z / ARENA.z) > 0.95 ? y0 - SINK : y0;
-      const hw = u.boss && C.bossFit ? Math.max(CL_SIDE, C.bossFit.wide / 2) : CL_SIDE;
+      const hw = u.boss && C.bossFit ? Math.max(CL_SIDE, C.bossFit.wide * 0.6) : CL_SIDE; // a boss swings wider than its width at the rise
       addPt(u.x, yb, y0 + h, u.z, hw, u.team === 0 || u.boss); take(u.x, u.z);
     }
     if (!run && B.queue && B.queue.length && B.plan && B.plan.rooms) {

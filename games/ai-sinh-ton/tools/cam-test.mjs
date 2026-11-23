@@ -166,7 +166,7 @@ try {
     const N = res[phone].N;
     check(Math.abs(N.pitch - MCD.pitch) <= 1.5, `${phone}: pitch ${N.pitch} within 1.5 deg of MCD's ${MCD.pitch}`);
     check(N.edge.every((e) => Math.abs(e - MCD.edge) <= 3), `${phone}: block edges at ${N.edge.join(' / ')} deg on screen, MCD ${MCD.edge} +- 3`);
-    check(N.heroFill >= 0.085 && N.heroFill <= 0.19, `${phone}: a 2.7 m reference ${N.heroFill} of the frame height at the start of stage 3 (MCD's hero ${MCD.heroFill}; the beasts are half its height, so the camera may close in to 0.175)`);
+    check(N.heroFill >= 0.085 && N.heroFill <= 0.2, `${phone}: a 2.7 m reference ${N.heroFill} of the frame height at the start of stage 3 (MCD's hero ${MCD.heroFill}; the beasts are half its height, so the camera may close in to 0.19)`);
     check(res[phone].next.mid && res[phone].next.mid.inside > 0, `${phone}: the next pad shows in the frame mid-run (${res[phone].next.mid ? res[phone].next.mid.inside : 0} samples)`);
   }
   fs.writeFileSync(path.join(OUT, `${TAG}.json`), JSON.stringify(res, null, 1));
