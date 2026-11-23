@@ -191,12 +191,14 @@ try {
     await page.waitForFunction(() => window.__G && window.__G.screens && window.__G.screens.home && window.__step, null, { timeout: 60000 });
     const res = await page.evaluate(() => {
       const G = window.__G, ui = window.__ui, out = [];
-      const cycle = (name) => { G.goto(name); window.__step(20); G.goto('home'); window.__step(20); };
+      // a screen about one beast opens on the first of the team, as its button on the beast page does
+      const argsOf = (name) => (name === 'evolve' ? { id: G.meta.acc.team[0] } : undefined);
+      const cycle = (name) => { G.goto(name, argsOf(name)); window.__step(20); G.goto('home'); window.__step(20); };
       // the home diorama draws some meshes for the first time only after a few hundred frames: let the count settle before measuring
       let last = -1, still = 0; for (let f = 0; f < 3000 && still < 400; f += 50) { window.__step(50); const g = ui.memory().geometries; still = g === last ? still + 50 : 0; last = g; }
       for (const name of Object.keys(G.screens).filter((n) => !['home', 'hud', 'result', 'stats', 'pick', 'battle'].includes(n))) {
         let err = '';
-        try { G.goto(name); window.__step(20); const dc = ui.drawCalls; G.goto('home'); window.__step(20); const m0 = ui.memory(), g = [], t = []; for (let k = 0; k < 20; k++) { cycle(name); const m = ui.memory(); g.push(m.geometries); t.push(m.textures); } out.push({ name, m0, g, t, dc }); } catch (e) { err = String(e && e.message); out.push({ name, err }); }
+        try { G.goto(name, argsOf(name)); window.__step(20); const dc = ui.drawCalls; G.goto('home'); window.__step(20); const m0 = ui.memory(), g = [], t = []; for (let k = 0; k < 20; k++) { cycle(name); const m = ui.memory(); g.push(m.geometries); t.push(m.textures); } out.push({ name, m0, g, t, dc }); } catch (e) { err = String(e && e.message); out.push({ name, err }); }
       }
       return out;
     });
