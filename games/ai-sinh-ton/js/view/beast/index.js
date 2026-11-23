@@ -12,10 +12,20 @@ import TEGIAP from './forms/tegiap.js?v=20261122a';
 import NHIM from './forms/nhim.js?v=20261122a';
 import LOC from './forms/loc.js?v=20261122a';
 import CHON from './forms/chon.js?v=20261122a';
+import ECH from './forms/ech.js?v=20261122a';
+import CU from './forms/cu.js?v=20261122a';
+import DUOI from './forms/duoi.js?v=20261122a';
+import KYDA from './forms/kyda.js?v=20261122a';
+import OC from './forms/oc.js?v=20261122a';
+import HAILY from './forms/haily.js?v=20261122a';
+import BOSAT from './forms/bosat.js?v=20261122a';
+import BAO from './forms/bao.js?v=20261122a';
+import NHEN from './forms/nhen.js?v=20261122a';
+import MUC from './forms/muc.js?v=20261122a';
 
 const THREE = window.THREE;
 
-export const FORMS = { ...TEGIAP, ...NHIM, ...LOC, ...CHON };
+export const FORMS = { ...TEGIAP, ...NHIM, ...LOC, ...CHON, ...ECH, ...CU, ...DUOI, ...KYDA, ...OC, ...HAILY, ...BOSAT, ...BAO, ...NHEN, ...MUC };
 // the human heroes the beasts replace (SCOPE section 3), for saves and sims that still carry the old ids
 export const LEGACY = { thep: 'tegiap', mua: 'nhim', yta: 'loc', gio: 'chon', phao: 'ech', bong: 'cu', bang: 'duoi', hoa: 'kyda', doc: 'oc', ky: 'haily', sam: 'bosat', soi: 'bao', nhen: 'nhen' };
 export const FAMILY = { tegiap: 'quad', nhim: 'quad', loc: 'quad', chon: 'quad', ech: 'amphib', cu: 'bird', duoi: 'fish', kyda: 'reptile', oc: 'mollusk', haily: 'quad', bosat: 'insect', bao: 'quad', nhen: 'insect', muc: 'mollusk' };
