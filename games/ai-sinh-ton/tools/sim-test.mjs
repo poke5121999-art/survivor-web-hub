@@ -37,8 +37,11 @@ function play(opts, until) {
 {
   const { B, log } = play({ stage: 8, seed: 3, team: team(START, 1.6), auto: { ult: true, pick: 'best' } });
   const waves = log.filter((e) => e.e === 'wave');
-  let wins = 0;
-  for (let seed = 1; seed <= 20; seed++) if (play({ stage: 8, seed, team: team(START, 1.6), auto: { ult: true, pick: 'best' } }).B.phase === 'won') wins++;
+  let wins = 0; const lowCasts = {};
+  for (let seed = 1; seed <= 20; seed++) {
+    const r = play({ stage: 8, seed, team: team(START, 1.6), auto: { ult: true, pick: 'best' } }); if (r.B.phase === 'won') wins++;
+    for (const u of r.B.heroes) for (const sl of ['s1', 's2']) lowCasts[u.slot + sl] = (lowCasts[u.slot + sl] || 0) + r.log.filter((e) => e.e === 'cast' && e.uid === u.uid && e.slot === sl).length;
+  }
   check(wins >= 18, `stage 8 with the four starters at level 8 is won on ${wins} of 20 seeds (at least 18; seed 3 here: ${B.phase}, wave ${B.wave})`);
   check(waves.length === 5 && waves.map((w) => w.n).join('') === '12345', 'five waves start in order');
   check(waves[4].boss === true && waves.slice(0, 4).every((w) => !w.boss), 'only wave 5 is the boss wave');
@@ -47,9 +50,10 @@ function play(opts, until) {
   check(!log.some((e) => e.e === 'spawn' && e.boss && e.t < waves[4].t), 'no boss before wave 5');
   for (const u of B.heroes) {
     const atk = log.filter((e) => e.e === 'attack' && e.uid === u.uid).length;
-    const s1 = log.filter((e) => e.e === 'cast' && e.uid === u.uid && e.slot === 's1').length;
-    const s2 = log.filter((e) => e.e === 'cast' && e.uid === u.uid && e.slot === 's2').length;
-    check(atk > 20 && s1 > 0 && s2 > 0, `${u.def.name} attacked ${atk} times and cast both skills by itself (${s1} / ${s2})`);
+    // a skill that waits for low health (Giáp Đá below 60%) may not come in one won run: it counts over the 20 seeds above
+    const n = (sl) => (u.def[sl].when && u.def[sl].when.hpBelow ? lowCasts[u.slot + sl] : log.filter((e) => e.e === 'cast' && e.uid === u.uid && e.slot === sl).length);
+    const s1 = n('s1'), s2 = n('s2'), low = ['s1', 's2'].filter((sl) => u.def[sl].when && u.def[sl].when.hpBelow);
+    check(atk > 20 && s1 > 0 && s2 > 0, `${u.def.name} attacked ${atk} times and cast both skills by itself (${s1} / ${s2}${low.length ? `; ${low.join(',')} over 20 seeds` : ''})`);
   }
   const targets = new Set(log.filter((e) => e.e === 'attack' && B.heroes.some((u) => u.uid === e.uid)).map((e) => e.to));
   check(targets.size > 30, `heroes spread their attacks over ${targets.size} different enemies`);
