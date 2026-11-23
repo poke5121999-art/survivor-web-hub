@@ -16,8 +16,9 @@ import { ARENA } from '../js/sim/battle.js';
 
 const argv = process.argv.slice(2); const arg = (k) => (argv.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.length + 3);
 const TO = +arg('to') || 50; const SHOTS = argv.includes('--shots');
-// sha1 of stages 1-30 (waves, multipliers, boss, slots) on main 28102a33, before the ten chapters
-const WAVES_HASH = 'f9ba9c8adfbd97c5';
+// sha1 of stages 1-30 (waves, multipliers, boss, slots) on main 28102a33, before the ten chapters (f9ba9c8adfbd97c5), with one
+// change since: HORDE.ccPow 0.7 -> 0.75 for the beasts (commit ba7c5586), which only shortens the control horde bodies put on heroes
+const WAVES_HASH = 'bbadfbd62b206c00';
 const { check, done } = checker();
 // themes.js is plain data; it reads no browser global, so the table can name each stage's theme
 const { themeOf, STAND_IN } = await import('../js/view/themes.js');

@@ -69,7 +69,7 @@ try {
       await setCleared(page, 12); await toHome(page);
       let st = await stageNow(page), line = await mui(page, 'chapterLine'), pips = await mui(page, 'pips');
       nx = await target(page, 'stage-next');
-      check(st === 13 && /chương 3/i.test(line) && /nhà máy lạnh/i.test(line), `${phone}: cleared 12 opens on stage ${st}, chapter line "${line}"`);
+      check(st === 13 && /chương 3/i.test(line) && /sa mạc mộ/i.test(line), `${phone}: cleared 12 opens on stage ${st}, chapter line "${line}"`);
       check(nx && !nx.enabled, `${phone}: stage-next is locked on stage 13 (${nx && nx.enabled})`);
       check(pips.map((p) => p.state).join() === 'cleared,cleared,current,locked,locked' && pips[2].sel && pips[4].spike && !pips[0].spike && pips.map((p) => p.n).join() === '11,12,13,14,15',
         `${phone}: pips for chapter 3 read ${pips.map((p) => p.n + ':' + p.state).join(' ')}, spike on the fifth`);
