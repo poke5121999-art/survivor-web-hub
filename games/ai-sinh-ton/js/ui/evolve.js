@@ -308,24 +308,26 @@ export function createEvolve(game) {
     const k = flashK(), ph = S.phase, t = S.t;
     const hO = oldS ? oldS.h * K : 1, hN = newS ? newS.h * K : hO, sp = (s) => s.span * K;
     if (ph !== 'ready') chevron.visible = false;
+    if (ph !== 'done') mound.visible = false;
     if (ph === 'ready') {
       S.orbit += dt * 0.25;
       cocoon.visible = false; shards.visible = false; glow.intensity = 0; rune.material.emissiveIntensity = 0.5 + Math.sin(ui.t * 2) * 0.15;
-      const hMax = Math.max(hO, hN), W = newS ? SEP + Math.max(sp(oldS), sp(newS)) / 2 : sp(oldS) / 2;
-      frame(Math.sin(S.orbit) * 0.22, W + 0.04, hMax / 2 + 0.1, hMax * 0.5 + (S.upMax || 0) * 0.5, 0.26);
+      // a form turned 0.55 rad shows more width than its rest box: about 0.68 of its span each side
+      const top = Math.max(hO, hN) + (S.upMax || 0), W = newS ? SEP + Math.max(sp(oldS), sp(newS)) * 0.62 : sp(oldS) * 0.62;
+      frame(Math.sin(S.orbit) * 0.22, W + 0.04, top / 2 + 0.1, top * 0.5, 0.26);
       const u0 = oldS ? drive(oldS, { anim: 'idle', animT: ui.t, dt }, { x: -SEP, yaw: newS ? 0.55 : 0.4 }) : 0;
       const u1 = newS ? drive(newS, { anim: 'idle', animT: ui.t + 0.7, dt }, { x: SEP, yaw: -0.55 }) : 0;
       S.upMax = Math.max(u0, u1);
       chevron.visible = !!newS; chevron.position.set(Math.sin(ui.t * 4) * 0.05, Math.min(hO + u0, hN + u1) * 0.45, 0.25); chevron.scale.setScalar(0.9 + Math.sin(ui.t * 4) * 0.1);
       return;
     }
-    const focus = (h, s) => frame(S.cam, Math.max(h, s) * 0.5 + 0.12, Math.max(h, s) * 0.5 + 0.12, Math.max(h * 0.5, 0.4));
+    const focus = (h, s) => { h += S.up || 0; frame(S.cam, Math.max(h, s * 1.2) * 0.5 + 0.12, Math.max(h, s) * 0.5 + 0.14, Math.max(h * 0.5, 0.4)); };
     if (ph === 'cocoon') {
       const e = ease(t / PHASES[0].dur), slide = ease(t / 0.45);
       if (newS) { newS.holder.visible = false; newS.sh.visible = false; }
       cocoon.visible = slide > 0.6; cocoon.material.opacity = 0.2 + 0.72 * e; cocoon.scale.setScalar(cocoon.userData.s * (0.3 + 0.7 * e));
       cocoon.rotation.y += dt * 1.6; glow.intensity = 1.5 * e * k; cocoonMat.emissiveIntensity = 0.4 + 0.5 * e * k;
-      if (oldS) drive(oldS, { anim: 'evolve', animT: t, dt }, { x: -SEP * (1 - slide), yaw: 0.55 * (1 - slide), vis: e < 0.85 });
+      S.up = oldS ? drive(oldS, { anim: 'evolve', animT: t, dt }, { x: -SEP * (1 - slide), yaw: 0.55 * (1 - slide), vis: e < 0.85 }) : 0;
       for (const c of cracks) c.scale.set(1, 0.001, 1);
       S.cam = t * 0.4; focus(hO, sp(oldS));
     } else if (ph === 'crack') {
@@ -341,12 +343,12 @@ export function createEvolve(game) {
       for (let i = 0; i < N_SHARD; i++) { v3.copy(shardV[i]).multiplyScalar(e * 0.9); v3.y += cocoon.position.y - 2.2 * e * e; q.setFromAxisAngle(one, e * 8 + i); m4.compose(v3, q, one.clone().multiplyScalar(Math.max(0.05, 1 - e * 0.8))); shards.setMatrixAt(i, m4); }
       shards.instanceMatrix.needsUpdate = true;
       glow.intensity = 6 * (1 - e) * k;
-      if (newS) drive(newS, { anim: 'evolve', animT: 0.2 + t, dt }, { yaw: e * 3 });
+      S.up = newS ? drive(newS, { anim: 'evolve', animT: 0.2 + t, dt }, { yaw: e * 3 }) : 0;
       S.cam = 0.82; focus(hN, newS ? sp(newS) : 1);
     } else if (ph === 'pose') {
       const e = ease(t / PHASES[3].dur);
       shards.visible = false; glow.intensity = 2 * (1 - e) * k;
-      if (newS) drive(newS, { anim: 'evolve', animT: 1 + t, dt }, { yaw: 3 + e * 3.1 });
+      S.up = newS ? drive(newS, { anim: 'evolve', animT: 1 + t, dt }, { yaw: 3 + e * 3.1 }) : 0;
       // the camera circles the new form once
       S.cam = 0.82 + e * 6.283; focus(hN, newS ? sp(newS) : 1);
     } else if (ph === 'done' && newS) {
