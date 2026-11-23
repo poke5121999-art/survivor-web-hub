@@ -1,6 +1,7 @@
 // Behaviour of the battle sim, in Node: what the player is promised, checked on real runs.
 // Usage: node games/ai-sinh-ton/tools/sim-test.mjs
-import { createBattle, step, castUlt, pickCard, arenaNorm, SPAWN_K, battleReport } from '../js/sim/battle.js';
+import { createBattle, step, castUlt, pickCard, arenaNorm, SPAWN_K, battleReport, _test } from '../js/sim/battle.js';
+import { heroDef, branchesOf, formKey } from '../js/data/beasts.js';
 import { HEROES, HERO } from '../js/data/heroes.js';
 import { ENEMIES, ENEMY } from '../js/data/enemies.js';
 import { stageDef, bossOf, bossTierOf, HORDE } from '../js/data/stages.js';
@@ -9,7 +10,7 @@ import { CARD, CARDS } from '../js/data/cards.js';
 const fails = [];
 const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
 const team = (ids, mul = 1) => ids.map((id) => ({ id, mul }));
-const START = ['thep', 'mua', 'yta', 'gio'];
+const START = ['tegiap', 'nhim', 'loc', 'chon'];
 
 function play(opts, until) {
   const log = [];
@@ -36,7 +37,9 @@ function play(opts, until) {
 {
   const { B, log } = play({ stage: 8, seed: 3, team: team(START, 1.6), auto: { ult: true, pick: 'best' } });
   const waves = log.filter((e) => e.e === 'wave');
-  check(B.phase === 'won', `stage 8 with the four starters at level 8 is won (${B.phase}, wave ${B.wave})`);
+  let wins = 0;
+  for (let seed = 1; seed <= 20; seed++) if (play({ stage: 8, seed, team: team(START, 1.6), auto: { ult: true, pick: 'best' } }).B.phase === 'won') wins++;
+  check(wins >= 18, `stage 8 with the four starters at level 8 is won on ${wins} of 20 seeds (at least 18; seed 3 here: ${B.phase}, wave ${B.wave})`);
   check(waves.length === 5 && waves.map((w) => w.n).join('') === '12345', 'five waves start in order');
   check(waves[4].boss === true && waves.slice(0, 4).every((w) => !w.boss), 'only wave 5 is the boss wave');
   const bossEv = log.find((e) => e.e === 'boss');
@@ -93,13 +96,14 @@ function play(opts, until) {
 // cards are lost when the stage ends: a new battle starts clean
 {
   const B = createBattle({ stage: 1, seed: 1, team: team(START) });
-  check(B.heroes.every((u) => u.cards.length === 0 && Object.keys(u.mods).filter((k) => !['dr', 'lifesteal'].includes(k)).length === 0), 'a new stage starts with no cards');
+  const own = (u) => { const m = {}; if (u.def.dr) m.dr = u.def.dr; if (u.def.lifesteal) m.lifesteal = u.def.lifesteal; for (const p of u.def.passives) for (const k in p.mods || {}) m[k] = (m[k] || 0) + p.mods[k]; if (u.mv && u.mv.kind === 'stomp') m.kbRes = 1; return m; };
+  check(B.heroes.every((u) => u.cards.length === 0 && JSON.stringify(u.mods) === JSON.stringify(own(u))), 'a new stage starts with no cards: the mods are the beast\'s own passives only');
 }
 
 // every hero: both skills and the ultimate fire in a real stage, units stay inside the arena
 {
   for (const h of HEROES) {
-    const ids = [h.id, ...['thep', 'yta', 'mua', 'gio'].filter((x) => x !== h.id)].slice(0, 4);
+    const ids = [h.id, ...['tegiap', 'loc', 'nhim', 'chon'].filter((x) => x !== h.id)].slice(0, 4);
     let out = 0;
     const { B, log } = play({ stage: 10, seed: 11, team: team(ids, 1.5), auto: { ult: true, pick: 'best' } }, (b) => { for (const u of b.heroes) if (arenaNorm(u.x, u.z) > 0.9 + 1e-6) out++; for (const e of b.enemies) if (arenaNorm(e.x, e.z) > SPAWN_K + 0.1) out++; return false; });
     const u = B.heroes[0];
@@ -120,7 +124,7 @@ function play(opts, until) {
   for (const e of ENEMIES.filter((x) => x.boss)) {
     const base = stageDef(1);
     const stage = { ...base, bossTier: 3, bossHp: 6, waves: [{ groups: [{ kind: e.id, n: 1, at: 0, ang: 0, spread: 0 }], boss: e.id }] };
-    const { log } = play({ stage, seed: 2, team: team(['thep', 'yta', 'mua', 'ky'], 4), auto: { ult: false, pick: 'best' } });
+    const { log } = play({ stage, seed: 2, team: team(['tegiap', 'loc', 'nhim', 'haily'], 4), auto: { ult: false, pick: 'best' } });
     const cast = new Set(log.filter((x) => x.e === 'cast' && x.boss).map((x) => x.name));
     const missing = e.skills.map((s) => s.name).filter((n) => !cast.has(n));
     check(missing.length === 0, `${e.name} (bậc 3) cast all ${e.skills.length} skills${missing.length ? ', missing: ' + missing.join(', ') : ''}`);
@@ -135,13 +139,13 @@ function play(opts, until) {
   check(ok, 'stages 1..60: enemy health and damage rise every stage, 5 waves, a boss on wave 5');
   check(stageDef(5).spike && stageDef(30).spike && !stageDef(4).spike, 'stages 5, 10, ... are the spike stages');
   check(JSON.stringify(stageDef(7)) === JSON.stringify(stageDef(7)), 'a stage is the same every time it is built');
-  check(CARDS.length === 62 && new Set(CARDS.map((c) => c.id)).size === 62, `62 cards with unique ids (${CARDS.length})`);
-  check(HEROES.length === 13 && HEROES.every((h) => HERO[h.id] && h.s1.ops.length && h.s2.ops.length && h.ult.ops.length), '13 heroes, each with two skills and an ultimate');
+  check(CARDS.length === 65 && new Set(CARDS.map((c) => c.id)).size === 65, `65 cards with unique ids (${CARDS.length})`);
+  check(HEROES.length === 14 && HEROES.every((h) => HERO[h.id] && h.s1.ops.length && h.s2.ops.length && h.ult.ops.length), '14 beasts, each with two skills and an ultimate');
 }
 
 // the end-of-stage report is counted by the sim: hero damage adds up to the health the enemies really lost
 {
-  for (const [stage, ids, mul] of [[8, START, 1.6], [15, ['hoa', 'doc', 'sam', 'yta'], 2.2], [30, START, 1]]) {
+  for (const [stage, ids, mul] of [[8, START, 1.6], [15, ['kyda', 'oc', 'bosat', 'loc'], 2.2], [30, START, 1]]) {
     const { B } = play({ stage, seed: 21, team: team(ids, mul), auto: { ult: true, pick: 'best' } });
     const R = battleReport(B);
     const heroDealt = R.reduce((s, r) => s + r.dealt, 0);
@@ -153,9 +157,9 @@ function play(opts, until) {
     check(Math.abs(R.reduce((s, r) => s + r.share, 0) - 1) < 1e-9 && R.filter((r) => r.mvp).length === 1, `stage ${stage}: shares add to 100% and one hero is marked as carrying (${R.find((r) => r.mvp).id}, ${Math.round(R.find((r) => r.mvp).share * 100)}%)`);
     check(R.every((r) => Math.abs(r.aliveT + r.downT - B.t) < 0.05 && r.over >= 0 && r.cards.length === B.heroes[r.slot].cards.length), `stage ${stage}: time alive + time down = stage time (${B.t.toFixed(1)}s) for every hero`);
     if (stage === 8) {
-      const mua = R.find((r) => r.id === 'mua'); const yta = R.find((r) => r.id === 'yta');
-      check(mua.bySrc.atk > 0 && mua.bySrc.s2 > 0 && mua.bySrc.ult > 0, `Mưa Đạn: attacks ${Math.round(mua.bySrc.atk)}, Lựu Đạn Chùm ${Math.round(mua.bySrc.s2)}, Mưa Thép (drones) ${Math.round(mua.bySrc.ult)} are booked under their own source`);
-      check(yta.healed > 0 && yta.bySrc.fx > 0, `Y Tá: healed allies ${Math.round(yta.healed)}, poison booked as effect damage ${Math.round(yta.bySrc.fx)}`);
+      const mua = R.find((r) => r.id === 'nhim'); const yta = R.find((r) => r.id === 'loc');
+      check(mua.bySrc.atk > 0 && mua.bySrc.s2 > 0 && mua.bySrc.ult > 0, `Nhím Gai: attacks ${Math.round(mua.bySrc.atk)}, Chùm Gai ${Math.round(mua.bySrc.s2)}, Mưa Kim (drones) ${Math.round(mua.bySrc.ult)} are booked under their own source`);
+      check(yta.healed > 0 && yta.bySrc.fx > 0, `Lộc Đèn: healed allies ${Math.round(yta.healed)}, poison booked as effect damage ${Math.round(yta.bySrc.fx)}`);
       check(R.every((r) => r.end.atk >= r.start.atk && r.end.hp >= r.start.hp), 'end-of-stage stats are at least the starting stats after four cards');
     }
   }
@@ -185,9 +189,137 @@ function play(opts, until) {
     return total;
   };
   let h = 0, flat = 0;
-  // twelve seeds: on three the sum swings by a factor of two with the arena shape alone (a longer fight freezes longer)
-  for (let seed = 3; seed < 15; seed++) { h += frozenTime(false, seed); flat += frozenTime(true, seed); }
-  check(flat > 1 && Math.abs(h - flat) <= 0.25 * flat, `stage 20, twelve seeds: hero freeze time with the horde ${h.toFixed(1)}s vs ${flat.toFixed(1)}s with the multiplier at 1 (within 25%)`);
+  // 160 seeds: one window of forty still swings by a third either way with nothing but the seeds changed
+  for (let seed = 3; seed < 163; seed++) { h += frozenTime(false, seed); flat += frozenTime(true, seed); }
+  check(flat > 1 && Math.abs(h - flat) <= 0.25 * flat, `stage 20, 160 seeds: hero freeze time with the horde ${h.toFixed(1)}s vs ${flat.toFixed(1)}s with the multiplier at 1 (within 25%)`);
+}
+
+
+// every form of every beast: its kit fires, its gait leaves its own mark, its hook passive acts
+const FORMS = HEROES.flatMap((h) => [{ id: h.id, form: 1 }, { id: h.id, form: 2 }, ...(branchesOf(h.id).length ? branchesOf(h.id).map((b) => ({ id: h.id, form: 3, branch: b })) : [{ id: h.id, form: 3 }])]);
+{
+  check(FORMS.length === 47 && new Set(FORMS.map((f) => formKey(f.id, f.form, f.branch))).size === 47, `47 forms (14 beasts x 3, five of them branching at form 3): ${FORMS.length}`);
+  const seenHooks = new Set();
+  for (const spec of FORMS) {
+    const def = heroDef(spec); const key = formKey(spec.id, spec.form, spec.branch);
+    const mates = ['tegiap', 'loc', 'nhim', 'chon'].filter((x) => x !== spec.id).slice(0, 3).map((id) => ({ id, mul: 1.5 }));
+    const air = []; const fx = new Set(); let out = 0;
+    const { B, log } = play({ stage: 10, seed: 11, team: [{ ...spec, mul: 1.5 }, ...mates], auto: { ult: true, pick: 'best' } }, (b) => {
+      const u = b.heroes[0]; if (u.alive) { air.push(!!u.air || !!u.mv.busy); if (u.moveFx) fx.add(u.moveFx); }
+      for (const h of b.heroes) if (arenaNorm(h.x, h.z) > 0.9 + 1e-6 && !h.mv.busy) out++;
+      return false;
+    });
+    const u = B.heroes[0];
+    const n = (e, f) => log.filter((x) => x.e === e && x.uid === u.uid && (!f || f(x))).length;
+    check(n('cast', (x) => x.slot === 's1') > 0 && n('cast', (x) => x.slot === 's2') > 0 && n('ult') > 0 && u.dealt > 0 && out === 0,
+      `${key} ${def.formName}: ${def.s1.name} x${n('cast', (x) => x.slot === 's1')}, ${def.s2.name} x${n('cast', (x) => x.slot === 's2')}, ${def.ult.name} x${n('ult')}, dealt ${Math.round(u.dealt)}, inside the arena`);
+    const k = def.move.kind; const mv = (m) => n('move', (x) => x.k === m);
+    const gait = {
+      walk: () => [!air.some(Boolean), 'on the ground'],
+      gallop: () => [!air.some(Boolean), 'on the ground'],
+      hop: () => [fx.has('hop'), `hops (${[...fx]})`],
+      leap: () => [mv('leap') > 0, `${mv('leap')} leaps`],
+      roll: () => [mv('roll') > 0, `${mv('roll')} rolls`],
+      slither: () => [!def.move.trail || log.some((x) => x.e === 'zone' && x.key === 'web'), def.move.trail ? 'leaves a trail' : 'slithers'],
+      fly: () => [air.length > 0 && air.every(Boolean) && (!def.move.blink || mv('blink') > 0), `airborne every tick${def.move.blink ? `, ${mv('blink')} blinks` : ''}`],
+      glide: () => [air.length > 0 && air.every(Boolean), 'airborne every tick'],
+      swimAir: () => [air.length > 0 && air.every(Boolean) && (!def.move.blink || mv('blink') > 0), `airborne every tick${def.move.blink ? `, ${mv('blink')} blinks` : ''}`],
+      blink: () => [mv('blink') > 0, `${mv('blink')} blinks`],
+      burrow: () => [mv('burrow') > 0 && mv('emerge') === mv('burrow') - (u.under ? 1 : 0), `${mv('burrow')} digs, ${mv('emerge')} come-ups`],
+      stomp: () => [fx.has('stomp') && u.mods.kbRes === 1, 'stomps and cannot be knocked back'],
+    }[k]();
+    check(gait[0], `${key} moves by ${k}: ${gait[1]}`);
+    for (const p of def.passives) if (p.hook && n('passive', (x) => x.k === p.hook) > 0) seenHooks.add(spec.id + ':' + p.hook);
+  }
+  // hooks that need a moment a stage may not bring (an ally falling, low health, standing in ink): forced below
+  const forced = new Set(['loc:guardian', 'kyda:rage', 'muc:inkRegen', 'tegiap:reflect']);
+  const want = [...new Set(FORMS.flatMap((f) => heroDef(f).passives.filter((p) => p.hook).map((p) => f.id + ':' + p.hook)))];
+  const missing = want.filter((h) => !seenHooks.has(h) && !forced.has(h));
+  check(missing.length === 0, `every hook passive acted in a real stage (${want.length - missing.length - [...forced].filter((h) => !seenHooks.has(h)).length} of ${want.length}${missing.length ? '; missing ' + missing.join(', ') : ''})`);
+}
+
+// the passives that need a set-up moment
+{
+  const fresh = (team) => createBattle({ stage: 10, seed: 4, team, auto: { ult: false, pick: 'best' } });
+  const ev = (B) => { const log = []; B.emit = (e) => { e.t = B.t; log.push(e); }; return log; };
+  // Đèn Giữ Hồn: an ally falling is stood up once per wave at 30%
+  {
+    const B = fresh([{ id: 'loc', form: 3, branch: 'a', mul: 2 }, { id: 'chon', mul: 2 }]); const log = ev(B);
+    const a = B.heroes[1]; const e = B.enemies.find((x) => x.alive) || B.camp[0];
+    _test.hurt(B, e, a, a.hp + a.shield + 10, { sure: true });
+    const up1 = a.alive && Math.abs(a.hp - a.maxHp * 0.3) < 1e-6;
+    a.state.invuln = 0; _test.hurt(B, e, a, a.hp + 10, { sure: true });
+    check(up1 && !a.alive && log.some((x) => x.e === 'passive' && x.k === 'guardian'), `Đèn Giữ Hồn: the first fall of a wave stands Chồn up at 30% (${up1}), the second one in the wave is a real fall (${!a.alive})`);
+  }
+  // Máu Sôi: below half health the lizard attacks 20% faster
+  {
+    const B = fresh([{ id: 'kyda', form: 2, mul: 2 }]); const u = B.heroes[0];
+    const before = _test.M(u, 'aspd'); u.hp = u.maxHp * 0.4; step(B);
+    check(before === 0 && Math.abs(_test.M(u, 'aspd') - 0.2) < 1e-9, `Máu Sôi: attack speed mod ${before} at full health, ${_test.M(u, 'aspd').toFixed(2)} below half`);
+  }
+  // Tắm Mực: inside its own ink it heals 1% a second
+  {
+    const B = fresh([{ id: 'muc', form: 2, mul: 2 }]); const u = B.heroes[0];
+    B.zones.push({ x: u.x, z: u.z, r: 3, t: 5, every: 0.5, tick: 9, dmg: 0, src: u.uid, team: 0, power: 1, atk: 1, ink: 0.1, vx: 0, vz: 0, id: 999 });
+    u.hp = u.maxHp * 0.5; u.lockT = 2; u.state.invuln = 2; const h0 = u.hp; for (let i = 0; i < 30; i++) step(B);
+    const got = (u.hp - h0) / u.maxHp;
+    check(got > 0.008 && got < 0.013, `Tắm Mực: one second in its ink heals ${(got * 100).toFixed(2)}% (1%)`);
+  }
+  // Phản Chấn: what the stone guard held back comes out as a wave when it drops
+  {
+    const B = fresh([{ id: 'tegiap', form: 2, mul: 2 }]); const log = ev(B); const u = B.heroes[0];
+    const e = B.camp[0] || B.enemies[0]; u.state.invuln = 0.2;
+    _test.hurt(B, e, u, 500, {}); const held = u.blocked;
+    const near = B.camp.slice(0, 3); for (const f of near) { B.enemies.push(f); f.x = u.x + 1; f.z = u.z; B.byUid.set(f.uid, f); }
+    for (let i = 0; i < 10; i++) step(B);
+    check(held === 500 && log.some((x) => x.e === 'passive' && x.k === 'reflect'), `Phản Chấn: 500 blocked under the guard (${held}) came back as a wave`);
+  }
+  // mods passives, checked on the damage they change
+  {
+    const B = fresh([{ id: 'tegiap', mul: 1 }, { id: 'cu', mul: 1 }, { id: 'duoi', form: 2, mul: 1 }, { id: 'muc', mul: 1 }]);
+    const [te, cu, duoi, muc] = B.heroes; const e = B.camp[0]; e.mods = {}; e.buffs = [];
+    check(Math.abs(_test.hurt(B, e, te, 100, {}) - 90) < 1e-9, 'Da Đá: Tê Giáp takes 90 of a 100 blow');
+    const t = B.camp[1]; t.hp = t.maxHp; const full = _test.hurt(B, cu, t, 10, {}); t.hp = t.maxHp * 0.4; const low = _test.hurt(B, cu, t, 10, {});
+    check(Math.abs(full - 10) < 1e-9 && Math.abs(low - 11.5) < 1e-9, `Mắt Đêm: Cú Bóng hits a foe under half health for ${low} instead of ${full}`);
+    t.hp = t.maxHp; t.status.freeze = { t: 2, v: 0 }; const fr = _test.hurt(B, duoi, t, 10, {}); delete t.status.freeze;
+    check(Math.abs(fr - 12) < 1e-9, `Băng Giòn: a frozen foe takes ${fr} of 10 from Đuối Gai Sương`);
+    t.inkT = B.t + 1; t.inkAmp = 0.1; const ink = _test.hurt(B, te, t, 10, {}); t.inkT = 0;
+    check(Math.abs(ink - 11) < 1e-9, `Mực Đánh Dấu: a foe in ink takes ${ink} of 10 from anyone`);
+  }
+  // a flier takes 80% of a melee blow; a blinded foe misses
+  {
+    const B = fresh([{ id: 'duoi', form: 3, mul: 1 }, { id: 'tegiap', mul: 1 }]); const [d, te] = B.heroes; const e = B.camp[0]; e.mods = {};
+    const air = _test.hurt(B, e, d, 100, { melee: true }); const ranged = _test.hurt(B, e, d, 100, { ranged: true });
+    check(d.air && Math.abs(air - 80) < 1e-9 && Math.abs(ranged - 100) < 1e-9, `fly: Đuối Băng Hà takes ${air} of a 100 bite, ${ranged} of a 100 shot`);
+    e.status.blind = { t: 9, v: 1 }; const miss = _test.hurt(B, e, te, 100, { melee: true }); delete e.status.blind;
+    check(miss === 0, 'a foe blinded at 100% misses its blow');
+  }
+  // a flier is not blocked by a ground body; a walker is
+  {
+    const shove = (spec) => { const B = fresh([{ ...spec, mul: 1 }]); const u = B.heroes[0]; const e = B.camp[0]; B.enemies.push(e); B.units.push(e); B.byUid.set(e.uid, e); e.x = u.x + 0.2; e.z = u.z; e.lockT = 9; u.lockT = 9; const x0 = u.x; step(B); return Math.abs(u.x - x0); };
+    const fl = shove({ id: 'duoi', form: 3 }); const wk = shove({ id: 'tegiap' });
+    check(fl < 1e-9 && wk > 0.05, `a flier overlapping a zombie is not pushed (${fl.toFixed(3)} m), a walker is (${wk.toFixed(3)} m)`);
+  }
+  // gallop: up to 15% faster after a second of running
+  {
+    // one zombie on the far side and nothing else: a long run across the arena
+    const B = fresh([{ id: 'chon', mul: 1 }]); const u = B.heroes[0]; B.queue = []; B.camp = [];
+    B.enemies.forEach((e, i) => { if (i) { e.alive = false; e.hp = 0; } else { e.x = 8.2; e.z = 0; e.lockT = 99; } }); u.x = -7.5; u.z = 0;
+    let best = 0; let px = u.x; let pz = u.z;
+    for (let i = 0; i < 90; i++) { step(B); const v = Math.hypot(u.x - px, u.z - pz) * 30; px = u.x; pz = u.z; if (u.anim === 'run' && !u.status.slow) best = Math.max(best, v / (u.base.speed * (1 + _test.M(u, 'speed')))); }
+    check(best > 1.13 && best < 1.17, `gallop: Chồn Gió runs at ${best.toFixed(3)}x its speed once in stride (1.15)`);
+  }
+}
+
+// evolved teams: same seed, same battle
+{
+  const T = [{ id: 'tegiap', form: 3, branch: 'b', mul: 2 }, { id: 'kyda', form: 3, branch: 'a', mul: 2 }, { id: 'muc', form: 3, mul: 2 }, { id: 'ech', form: 2, mul: 2 }];
+  const sig = (r) => `${r.B.phase}|${r.B.tick}|${r.B.kills}|${r.B.heroes.map((u) => Math.round(u.dealt)).join(',')}|${r.log.filter((e) => e.e === 'move').length}`;
+  const a = play({ stage: 12, seed: 7, team: T, auto: { ult: true, pick: 'best' } }); const b = play({ stage: 12, seed: 7, team: T, auto: { ult: true, pick: 'best' } });
+  check(sig(a) === sig(b) && a.log.some((e) => e.e === 'move'), `evolved team with roll, burrow, blink and leap: same seed gives the same battle (${sig(a)})`);
+  const d1 = heroDef({ id: 'tegiap' }); const d2 = heroDef({ id: 'tegiap', form: 2 }); const d3 = heroDef({ id: 'tegiap', form: 3, branch: 'a' });
+  check(d2.hp === 2000 && d3.hp === 2560 && d1.hp === 1600 && d3.passives.length === 3 && d3.s2.name === d2.s2.name && d3.ult.name !== d1.ult.name, `forms stack: health 1600 -> ${d2.hp} -> ${d3.hp}, three passives at form 3, form 3 keeps form 2's charge (${d3.s2.name})`);
+  check(heroDef({ id: 'thep' }) === d1 && heroDef({ id: 'gio' }).id === 'chon', 'an old hero id fights as its beast (thep -> tegiap, gio -> chon)');
 }
 
 // a wiped team loses
