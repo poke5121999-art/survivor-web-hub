@@ -33,7 +33,7 @@ const REFS = path.join(os.homedir(), 'handoff', 'ai-sinh-ton-refs');
 const REF_OF = { forest: 'look-9-horde-grass.webp', swamp: 'look-8.webp', street: 'look-7.webp', parking: 'look-5.webp', factory: 'look-6.webp', crypt: 'look-10-desert-temple.webp', landing: 'look-9-horde-grass.webp', void: 'look-11-lava-bridge.png' };
 const argv = process.argv.slice(2); const arg = (k) => (argv.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.length + 3);
 const QUICK = argv.includes('--quick'); const SHOTS = !argv.includes('--noshots');
-const STAGES = arg('stages') ? arg('stages').split(',').map(Number) : (QUICK ? [1, 4] : [1, 2, 3, 4, 16, 18]);
+const STAGES = arg('stages') ? arg('stages').split(',').map(Number) : (QUICK ? [1, 4] : [1, 2, 9, 4, 16, 18]);
 const DRAWS_MAX = +(arg('draws') || 340); const BUILD_MAX = 250; const ZMAX = +(arg('zmax') || 40);
 const ZOUT = path.join(ROOT, '.chk', 'maps', 'z'); fs.mkdirSync(ZOUT, { recursive: true });
 const zshot = (res, name) => { if (res.nz + res.nd > ZMAX) fs.writeFileSync(path.join(ZOUT, name + '.png'), Buffer.from(res.img.split(',')[1], 'base64')); };

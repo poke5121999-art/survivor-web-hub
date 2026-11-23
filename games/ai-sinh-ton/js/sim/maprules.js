@@ -1,7 +1,8 @@
 // Per-tick rules of the stage's map, read from B.plan.hazards (rooms.js): only the hazards of the room the current wave is
 // fought in act. Pure and deterministic: timing comes from B.waveT, nothing draws from B.rng.
-//   poison    the team's units inside take a damage over time of `dps` of their max health per second; monsters are at
-//             home in it (it would thin the horde the stage is balanced on)
+//   poison    the team's units inside take a damage over time of `dps` of their max health per second while above `floor`
+//             of it: it wears a unit down but never kills on its own, nor sets off a low-health skill by itself; monsters are
+//             at home in it (it would thin the horde the stage is balanced on)
 //   wind      every `every` s a gust (after `warn` s of warning) pushes units for `on` s at `push` m/s along `ang`
 //   current   a band |z - h.z| < r across the pad: units in it are slowed by `slow` and drift `drift` m/s along `ang`
 //   collapse  `warn` s before `at` the ground cracks; at `at` units inside lose `hit` of their max health and are thrown out,
@@ -9,6 +10,7 @@
 // The view reads the same timing through hazardState().
 import { _test } from './battle.js?v=20261122a';
 
+const POISON_FLOOR = 0.65;
 const roomNow = (B) => (B.plan.waveRoom ? B.plan.waveRoom[Math.max(0, B.wave - 1)] : B.wave - 1);
 // the first wave of the stage fought in hazard h's room: a collapse counts its time from that wave's start
 const isFirstIn = (B, h) => B.plan.firstWave && B.plan.firstWave[h.room] === B.wave - 1;
@@ -40,11 +42,13 @@ export function mapTick(B, dt) {
     const h = hz[i]; if (h.room !== room) continue;
     const st = B.mapState[i] || (B.mapState[i] = {});
     if (h.kind === 'poison') {
+      // the health is drained directly, not dealt as damage: a hit would charge the unit's ultimate (and the poison would
+      // speed the team up instead of wearing it down)
       for (const u of B.units) {
         if (!u.alive || u.team !== 0 || u.fly || u.air || !inDisc(h, u)) continue;
-        const dps = u.maxHp * h.dps; const cur = u.status.poison;
-        if (!cur) B.emit({ e: 'status', uid: u.uid, k: 'poison', dur: 0.6 });
-        if (!cur || cur.t < 0.6 || (cur.dps || 0) < dps) u.status.poison = { t: 0.6, v: 0, dps: Math.max(dps, cur ? cur.dps || 0 : 0), src: cur ? cur.src : 0 };
+        if (!u.status.poison) B.emit({ e: 'status', uid: u.uid, k: 'poison', dur: 0.6 });
+        u.status.poison = { t: 0.6, v: 0, dps: 0, src: 0 };
+        u.hp = Math.max(Math.min(u.hp, u.maxHp * POISON_FLOOR), u.hp - u.maxHp * h.dps * dt);
       }
     } else if (h.kind === 'wind') {
       const s = hazardState(B, h, i);

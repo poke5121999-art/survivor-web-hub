@@ -8,6 +8,7 @@
 //     boss is see-through and does not cover); the sight line from
 //     the camera to its chest must not cross a world block. Units still climbing over the rim (below the floor) count for
 //     the HUD and frame, not for the sight line (they climb out from behind the cliff on purpose).
+//    Mid-run the sim waits, and monsters standing in a room ahead of the team (its next camp) are not counted.
 //  3. the run between pads: the next pad shows at the frame edge while the team is on the bridge
 // Usage: PLAYWRIGHT_PATH=... timeout 1800 node games/ai-sinh-ton/tools/cam-test.mjs [--stages=3,8] [--phones=s22] [--quick]
 //        AST_BASE=http://... runs it on another build (the before numbers).
@@ -18,7 +19,7 @@ import { serve, launch, open as openPage, checker, ROOT } from './pw.mjs';
 const OUT = path.join(ROOT, '.chk', 'cam'); fs.mkdirSync(OUT, { recursive: true });
 const argv = process.argv.slice(2); const arg = (k) => (argv.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.length + 3);
 const QUICK = argv.includes('--quick');
-const STAGES = arg('stages') ? arg('stages').split(',').map(Number) : (QUICK ? [8] : [1, 3, 8, 10, 15, 24]);
+const STAGES = arg('stages') ? arg('stages').split(',').map(Number) : (QUICK ? [8] : [1, 3, 8, 10, 11, 15, 24]);
 const PHONES = arg('phones') ? arg('phones').split(',') : ['s22', 'xiaomi'];
 const TAG = arg('tag') || (process['env'].AST_BASE ? 'before' : 'after');
 const MCD = { pitch: 47, fov: 27, edge: 36, heroFill: 0.107, groundAcross: 32, feetY: 0.50 };
@@ -41,6 +42,8 @@ const SAMPLER = () => {
     if (rays) H.scene.updateMatrixWorld(true);
     for (const u of B.units) {
       if (!u.alive) continue; const n = G.actors.nodeOf(u.uid); if (!n) continue;
+      // mid-run the sim waits: a monster standing in a room the team has not reached yet is not in the fight
+      if (u.team === 1 && H.world.busy && u.room !== undefined && B.plan.waveRoom[u.room] !== H.world.sec) continue;
       const cat = u.boss ? 'boss' : u.hero ? 'hero' : u.team === 0 ? 'ally' : 'monster';
       if (!G.actors.headPos(u.uid, head)) continue;
       const tall = u.hero ? 2.6 : u.summon ? 1.6 : 2.05 * (G.actors.scaleOf(u.uid) || 1);

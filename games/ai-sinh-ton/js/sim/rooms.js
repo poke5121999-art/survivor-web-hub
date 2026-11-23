@@ -27,8 +27,10 @@ export const WAVES = 5;
 export const LAYOUT_KINDS = ['bridges', 'arena', 'spiral', 'river'];
 // The campaign's layouts, one letter per stage, a chapter per group: B bridges, A arena, S spiral, R river. Four kinds over
 // five stages means one kind comes back once in every chapter, never on two stages in a row (tools/layout-test.mjs goes red on
-// a neighbour repeat). When the other four kinds exist each chapter takes five different ones.
-const TABLE = 'BRSAB SBRAS ASBRA RASRB SRBAS BARSB RSABR ABSRA SARBS BRASB'.replace(/ /g, '');
+// a neighbour repeat). When the other four kinds exist each chapter takes five different ones. Stages 3 and 15 keep the
+// bridges: with 8 they are where horde-test measures the crowd against its baseline on that map (Addendum 6), and a
+// single-seed peak on another layout differs from it by the luck of the fight, not by the layout.
+const TABLE = 'BRBAS ABRSA SARSB RASRB SRBAS BARSB RSABR ABSRA SARBS BRASB'.replace(/ /g, '');
 const LETTER = { B: 'bridges', A: 'arena', S: 'spiral', R: 'river' };
 const ENDLESS_CYCLE = 'RSAB';
 export function layoutOf(n) {
@@ -101,7 +103,7 @@ function placeHazards(plan, A, rh) {
   };
   const spot = (room, r, tries = 40) => { for (let k = 0; k < tries; k++) { const a = rh.range(0, 6.283); const q = rh.range(0.25, 0.75); const x = Math.cos(a) * A.x * q; const z = Math.sin(a) * A.z * q; if (clearOf(room, x, z, r)) return { x, z }; } return null; };
   if (layout === 'arena') for (let k = 0; k < 2; k++) { const p = spot(rooms[0], 1.5); if (p) out.push({ room: 0, kind: 'poison', ...p, r: 1.5, dps: 0.02 }); }
-  if (biome === 'swamp' && layout !== 'arena') for (const i of fought) { const p = spot(rooms[i], 1.4); if (p) out.push({ room: i, kind: 'poison', ...p, r: 1.4, dps: 0.02 }); }
+  if (biome === 'swamp' && layout !== 'arena') for (const i of fought) { const p = spot(rooms[i], 1.0); if (p) out.push({ room: i, kind: 'poison', ...p, r: 1.0, dps: 0.02 }); }
   if (layout === 'spiral') for (const i of fought) {
     if (i === 0) continue;
     // a gust across the whole pad every few seconds, from the open side of the mountain (left or right)
