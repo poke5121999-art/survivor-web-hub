@@ -14,8 +14,8 @@ const SLOW = 0.28;          // time scale in the bung phase
 const AGAIN = 1.0;          // s: an ultimate this soon after the last close-up gets a short hold, no camera
 const SHORT = 0.14;         // s: that short hold
 const FOV = 40;
-const PITCH = 13 * Math.PI / 180;
-const FILL = 0.36;          // share of the frame height the beast stands tall
+const PITCH = 27 * Math.PI / 180; // high enough to see the beast over the heads of the foes crowding it
+const FILL = 0.42;          // share of the frame height the beast stands tall
 const SWING = 1.25;         // rad off the beast's facing: near side-on, so the foes it faces do not stand between it and the lens
 const BAR = { top: 30, bot: 44 }; // design px of the letterbox bars (over the top HUD band and the cards' upper edge)
 
@@ -73,7 +73,17 @@ export function createUltCam(game, J) {
   function frame(u) {
     const h = Math.max(1.2, (H.heightOf ? H.heightOf(u.uid) : 2) || 2);
     const D = h / (2 * Math.tan((FOV * Math.PI) / 360) * FILL);
-    const side = S.uid % 2 ? 1 : -1; const a = u.face + side * SWING;
+    // of the two side-on spots, the one with fewer foes standing between the lens and the beast (a crowd in front of the
+    // lens fills the close-up with bodies)
+    const between = (a) => {
+      const cx = u.x + Math.cos(a) * D; const cz = u.z + Math.sin(a) * D; let n = 0;
+      for (const f of game.B.enemies) {
+        if (!f.alive) continue; const vx = cx - u.x; const vz = cz - u.z; const t = Math.max(0, Math.min(1, ((f.x - u.x) * vx + (f.z - u.z) * vz) / (vx * vx + vz * vz)));
+        if (t > 0.08 && Math.hypot(f.x - u.x - vx * t, f.z - u.z - vz * t) < 1.4 + t * 1.5) n++;
+      }
+      return n;
+    };
+    const aL = u.face + SWING; const aR = u.face - SWING; const a = between(aL) <= between(aR) ? aL : aR;
     const node = game.actors.nodeOf ? game.actors.nodeOf(u.uid) : null;
     const bx = node ? node.position.x : u.x; const bz = node ? node.position.z : u.z; const by = node ? node.position.y : 0;
     S.base = { x: bx, y: by, z: bz, h, D, a, face: u.face };

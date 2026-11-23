@@ -228,7 +228,14 @@ export function createFxMap(H, marks, ctx) {
     return Math.atan2((b.y - a.y) * H.size.h, (b.x - a.x) * H.size.w);
   }
 
-  function pop(x, y, z, r, cols) { if (budget.pop-- > 0) G.fx.pop(V(x, y, z), r, cols); }
+  // BZ's pop has a white core at alpha 1.2: in the ultimate's close-up it is a white disc filling the middle of the frame, so
+  // there it is a smaller burst in the effect's own colours
+  function pop(x, y, z, r, cols) {
+    if (budget.pop-- <= 0) return;
+    const J = juice(); if (!(J && J.ult && J.ult.active)) { G.fx.pop(V(x, y, z), r, cols); return; }
+    G.fx.puff(V(x, y, z), { glow: true, s0: r * 0.5, s1: r * 2, life: 0.3, c0: cols[0], c1: cols[1] || cols[0], a0: 0.45, spin: 0 });
+    beats.sparks.burst(x, y, z, 6 + r * 4, { speed: [3, 7], up: 0.6, colors: cols, w: 0.08, len: 0.2, life: 0.4, grav: 4 });
+  }
   function boom(x, z, r) {
     if (budget.boom-- <= 0) return;
     if (reduceFlash()) { G.fx.pop(V(x, 0.3, z), r * 0.8, [0xffd070, 0xff6020]); return; }
@@ -269,7 +276,9 @@ export function createFxMap(H, marks, ctx) {
       const cols = teamCol(e.team, p); const style = k.bolt || 'tracer';
       const to = V(e.x, 1.2, e.z);
       if (style === 'sky') {
-        G.fx.bolt(V(e.x, 18, e.z), V(e.x, 0.2, e.z), cols[1]); G.fx.bolt(V(e.x + 0.2, 18, e.z), V(e.x, 0.2, e.z), cols[0]);
+        const J = juice();
+        if (J && J.ult && J.ult.active) beats.sparks.drop(e.x, e.z, 10, { colors: [cols[1], cols[0]], w: 0.35, n: 4 }); // BZ's bolt boxes are thick white bars up close
+        else { G.fx.bolt(V(e.x, 18, e.z), V(e.x, 0.2, e.z), cols[1]); G.fx.bolt(V(e.x + 0.2, 18, e.z), V(e.x, 0.2, e.z), cols[0]); }
         pop(e.x, 0.3, e.z, 1.4, cols); marks.ring(e.x, e.z, 0.3, 2.2, cols[1], 0.4, 0.9); snd(k.snd || 'thunder', e.x, e.z, 0.35); return;
       }
       if (e.key === 'blades' && cuts) cuts.q.push({ x: e.x, z: e.z });
@@ -425,7 +434,7 @@ export function createFxMap(H, marks, ctx) {
   // ---- event handlers: return nothing; ctx supplies unit lookups ----
   const ON = {
     fx(e) {
-      const hu = e.team === 0 && heroOf(e.by || e.uid);
+      const hu = e.team !== 1 && heroOf(e.by || e.uid);
       if (hu && instant(hu.uid) && !e.late) { beats.later(HOLD, () => ON.fx({ ...e, late: true })); return; }
       if (hu && PART_SHAPE[e.part]) heroBung(hu, e, PART_SHAPE[e.part]);
       const k = look(e.key); if (!k) { PART.burst(e, KEYS.slash, STYLE.steel); return; }
@@ -440,7 +449,7 @@ export function createFxMap(H, marks, ctx) {
       const k = look(e.key); marks.tele(e.team === 1 && BOSS_KEYS.has(e.key) ? { ...e, boss: true } : e, k && k.fall); if (k) bump(e.key);
     },
     zone(e) {
-      if (e.team === 0) { const B = window.__G && window.__G.B; const u = B && B.heroes.find((h) => h.alive && lastCast.has(h.uid) && lastCast.get(h.uid).t === ctx.time()); if (u) beats.later(e.delay || 0, () => beats.bung(u, 'zone', e.x, e.z, e.r, { color: ctx.colorOf(u.uid) })); }
+      if (e.team === 0) { const B = window.__G && window.__G.B; const u = B && B.heroes.find((h) => h.alive && lastCast.has(h.uid) && lastCast.get(h.uid).t === ctx.time()); if (u) beats.later(e.delay || (instant(u.uid) ? HOLD : 0), () => beats.bung(u, 'zone', e.x, e.z, e.r, { color: ctx.colorOf(u.uid) })); }
       const k = look(e.key); if (!k || !k.z) { if (k) bump(e.key); return; }
       marks.zoneStart(e, k.z); bump(e.key);
       const p = pal(k); marks.ring(e.x, e.z, 0.5, e.r, p[1], 0.5, 0.7);
@@ -463,7 +472,11 @@ export function createFxMap(H, marks, ctx) {
       lastCast.set(u.uid, { t: ctx.time(), slot: 'ult', wait: 0 });
       const J = juice(); const wait = J && J.ultBegin ? J.ultBegin(e) : 0;
       beats.gong(u, wait || HOLD, { ult: true, real: wait > 0, color: ctx.colorOf(u.uid) });
-      if (wait > 0) { hold(u.uid); held.get(u.uid).push({ ...e, e: 'ultFx' }); } else ON.ultFx(e);
+      if (wait > 0) {
+        hold(u.uid); held.get(u.uid).push({ ...e, e: 'ultFx' });
+        // a tracer still in flight would stand frozen through the hold and pass the close-up lens as a thick white bar
+        if (G.fx.dbgTracers) for (const t of G.fx.dbgTracers) { t.life = 0; t.m.visible = false; }
+      } else ON.ultFx(e);
     },
     // the ultimate's base look at the caster, drawn when its wind-up is over
     ultFx(e) {
@@ -473,7 +486,7 @@ export function createFxMap(H, marks, ctx) {
       marks.flare(u.x, u.z, 4.5, c, 0.9, 0.3); marks.ring(u.x, u.z, 0.5, ULT_SPAN, c, 0.7, 0.8); marks.ring(u.x, u.z, 0.3, ULT_SPAN * 0.6, c, 0.55, 0.4);
       pop(u.x, 1, u.z, 1.1, [col.getHex(), col.getHex()]); snd('wave_start', u.x, u.z, 0.4);
       const cc = { a: c, b: mixHex(c, 0xffffff, 0.35) }; marks.wash(c, 0.8, 0.22);
-      layers(GENERIC_ULT, u.x, u.z, cc, ULT_SPAN, e); layers(VERT[e.key] && VERT[e.key].ult, u.x, u.z, cc, ULT_SPAN, e);
+      const J = juice(); layers(J && J.ult && J.ult.active ? GENERIC_ULT.filter((L) => L[0] !== 'pillar') : GENERIC_ULT, u.x, u.z, cc, ULT_SPAN, e); layers(VERT[e.key] && VERT[e.key].ult, u.x, u.z, cc, ULT_SPAN, e);
     },
     dash(e) {
       const hu = heroOf(e.uid);
@@ -567,7 +580,13 @@ export function createFxMap(H, marks, ctx) {
     const tgt = V(e.tx, 1.0, e.tz); const kind = k.atk;
     if (e.kind === 'shot' || e.kind === 'cone') {
       const n = e.kind === 'cone' ? 3 : 1;
-      for (let i = 0; i < n; i++) G.fx.tracer(from.clone(), V(e.tx + G.rng.range(-0.3, 0.3) * (n > 1 ? 2 : 1), 1.0, e.tz + G.rng.range(-0.3, 0.3)), cols[1]);
+      // in the ultimate's close-up a tracer box passes near the lens as a thick white bar: a streak of light in its colour instead
+      const J = juice(); const close = J && J.ult && J.ult.active;
+      for (let i = 0; i < n; i++) {
+        const to = V(e.tx + G.rng.range(-0.3, 0.3) * (n > 1 ? 2 : 1), 1.0, e.tz + G.rng.range(-0.3, 0.3));
+        if (close) { const d = to.clone().sub(from); const L = d.length() || 1; beats.sparks.emit({ x: from.x, y: from.y, z: from.z, vx: d.x / 0.08, vy: d.y / 0.08, vz: d.z / 0.08, life: 0.08, w: 0.06, len: Math.min(2, L * 0.3), stretch: 0, color: cols[1], a: 0.8 }); }
+        else G.fx.tracer(from.clone(), to, cols[1]);
+      }
       G.fx.muzzle(from); if (e.key === 'shuriken' || e.key === 'javelin') pop(e.tx, 1, e.tz, 0.5, cols);
       if (!hero) snd(e.key === 'plasma' ? 'smg' : 'pistol', e.x, e.z, 0.3);
       return;

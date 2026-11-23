@@ -98,6 +98,8 @@ export function createDecals(H) {
   const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; mesh.renderOrder = 2; mesh.name = 'fx-decals'; scene.add(mesh);
   const recs = []; let next = 0; const col = new THREE.Color();
   const reduce = () => !!(window.__G && window.__G.settings && window.__G.settings.reduceFlash);
+  // in the ultimate's close-up everything is several times bigger on screen and overlaps more: dimmer, so it does not clip white
+  const closeK = () => { const J = window.__G && window.__G.juice; return J && J.ult && J.ult.active ? 0.65 : 1; };
 
   // o: { x z r (half size) | sx sz, rot, kind, color (mark tint), glow (light colour), life, real }
   function add(o) {
@@ -107,7 +109,7 @@ export function createDecals(H) {
     return r;
   }
   function update(dt, real) {
-    mat.uniforms.uFlash.value = reduce() ? 0.55 : 1;
+    mat.uniforms.uFlash.value = (reduce() ? 0.55 : 1) * closeK();
     let n = 0;
     for (const r of recs) {
       if (!r.on) continue; r.t += r.real ? real : dt; if (r.t >= r.life) { r.on = false; continue; }

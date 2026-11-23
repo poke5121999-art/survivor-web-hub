@@ -71,6 +71,8 @@ export function createSparks(H) {
   const col = new THREE.Color();
 
   const reduce = () => !!(window.__G && window.__G.settings && window.__G.settings.reduceFlash);
+  // in the ultimate's close-up everything is several times bigger on screen and overlaps more: dimmer, so it does not clip white
+  const closeK = () => { const J = window.__G && window.__G.juice; return J && J.ult && J.ult.active ? 0.65 : 1; };
 
   // o: { x y z vx vy vz life w len stretch color a grav drag kind real delay }
   function emit(o) {
@@ -125,7 +127,7 @@ export function createSparks(H) {
 
   function kill(i) { live--; if (i !== live) S.copyWithin(i * F, live * F, live * F + F); }
   function update(dt, real) {
-    mat.uniforms.uFlash.value = reduce() ? 0.5 : 1;
+    mat.uniforms.uFlash.value = (reduce() ? 0.5 : 1) * closeK();
     const P = aPos.array; const Vv = aVel.array; const Cc = aCol.array; const Sh = aShape.array; const Kk = aKind.array;
     let n = 0;
     for (let i = 0; i < live; i++) {

@@ -55,12 +55,12 @@ const SHAPE = {
   heal: { bung: [['sparks', 6, 4, 1], ['light', 0.9, 0.5], ['mark', 0.5, 2.2]] },
   ult: { bung: [['flash', 2.6], ['rays', 26, 1.2], ['shards', 18, 11], ['sparks', 20, 12, 0.8], ['front', 1.1], ['light', 1.6, 0.6], ['mark', 1, 4.5], ['smoke', 6, 3.4]] },
   // the moment the close-up lets go, at the caster: tall and thick enough to read from the low camera
-  release: { bung: [['flash', 2.6], ['nova', 34], ['shards', 16, 12], ['pillar', 7, 1.1], ['smoke', 5, 3], ['light', 2, 0.7], ['mark', 1.1, 4.5]] },
+  release: { bung: [['nova', 34], ['shards', 16, 12], ['smoke', 5, 3], ['light', 2, 0.7], ['mark', 1.1, 4.5]] },
 };
 // what each form adds to an impact: form 2 a second front of sparks in the hotter colour and a bigger mark, form 3 the
 // voice's own signature on top (crystal spikes, a flame column, a tesla crown, a funnel of wind...)
 const FORM = {
-  2: [['sparks', 10, 11, 0.7, 'core'], ['mark', 1.2, 3.6], ['rays', 8, 1.3, 'core']],
+  2: [['sparks', 10, 11, 0.7, 'core'], ['mark', 1.2, 3.6], ['rays', 8, 1.3, 'core'], ['pillar', 3.6, 0.55]],
   3: [['sparks', 12, 13, 0.8, 'core'], ['mark', 1.35, 4.2], ['rays', 12, 1.5, 'core'], ['sig']],
 };
 const SIG = {
@@ -76,6 +76,16 @@ export function createBeats(H, marks) {
   const V = new THREE.Vector3(); const UP = new THREE.Vector3(0, 1, 0);
   const rnd = (a, b) => a + (b - a) * G.rng.next();
   const reduce = () => !!(window.__G && window.__G.settings && window.__G.settings.reduceFlash);
+  // a bolt of light from a to b: short streaks along a jagged path (BZ's arc boxes turn into thick white bars up close)
+  function zap(ax, ay, az, bx, by, bz, color, real) {
+    const n = 5; let px = ax; let py = ay; let pz = az;
+    for (let i = 1; i <= n; i++) {
+      const t = i / n; const j = i < n ? 0.35 : 0;
+      const x = ax + (bx - ax) * t + rnd(-j, j); const y = ay + (by - ay) * t + rnd(-j, j) * 0.6; const z = az + (bz - az) * t + rnd(-j, j);
+      sparks.emit({ x: (px + x) / 2, y: (py + y) / 2, z: (pz + z) / 2, vx: (x - px) * 0.01, vy: (y - py) * 0.01, vz: (z - pz) * 0.01, life: 0.14, w: 0.07, len: Math.hypot(x - px, y - py, z - pz) * 1.1, stretch: 0, color, a: 0.9, real });
+      px = x; py = y; pz = z;
+    }
+  }
   const qual = () => Math.max(0.45, H.quality.particles);
   let puffBudget = 0;
   const queue = []; // { t, real, fn }
@@ -117,20 +127,20 @@ export function createBeats(H, marks) {
       const m = Math.round(n * c.s.tier.count * qual());
       for (let i = 0; i < m; i++) { const a = (i / m) * 6.283 * 2; const y = 0.2 + (i / m) * 4 * c.s.tier.size; const rr = 0.4 + y * 0.35; sparks.emit({ x: c.x + Math.cos(a) * rr, y, z: c.z + Math.sin(a) * rr, vx: -Math.sin(a) * 6, vy: 1.6, vz: Math.cos(a) * 6, life: 0.6, w: 0.3, len: 0.7, stretch: 0.08, color: i % 2 ? c.s.glow : c.s.edge, a: 0.55, kind: 3, real: c.real, delay: i * 0.012 }); }
     },
-    arcs(c, n) { for (let i = 0; i < n; i++) { const a = (i / n) * 6.283 + rnd(-0.4, 0.4); const d = Math.max(1.5, c.r * 0.8); G.fx.arc(new THREE.Vector3(c.x, 1.4, c.z), new THREE.Vector3(c.x + Math.cos(a) * d, 0.2, c.z + Math.sin(a) * d), c.s.edge); } },
+    arcs(c, n) { for (let i = 0; i < n; i++) { const a = (i / n) * 6.283 + rnd(-0.4, 0.4); const d = Math.max(1.5, c.r * 0.8); zap(c.x, 1.4, c.z, c.x + Math.cos(a) * d, 0.2, c.z + Math.sin(a) * d, c.s.edge, c.real); } },
     motes(c, n) { sparks.burst(c.x, 0.2, c.z, n * c.s.tier.count, { speed: [0.3, 1.2], up: 1, lift: 2.2, colors: [c.s.core, c.s.glow, c.s.edge], kind: 2, w: 0.2, life: 1.4, grav: -0.3, drag: 0.4, spread: 0.5, real: c.real }); },
     bubbles(c, n) { sparks.burst(c.x, 0.15, c.z, n * c.s.tier.count, { speed: [0.2, 1.4], up: 1, lift: 1.4, colors: [c.s.core, c.s.edge], kind: 2, w: 0.22, life: 1.1, grav: -0.2, drag: 0.8, spread: 0.7, real: c.real }); },
     stars(c, n) { sparks.burst(c.x, 1.2, c.z, n * c.s.tier.count, { speed: [0.5, 3], up: 0.7, colors: [0xffffff, c.s.core, c.s.edge], kind: 1, w: 0.2, len: 0.2, stretch: 0.01, life: 1.4, grav: 0, drag: 1.2, spread: 0.4, real: c.real }); },
     threads(c, n) { for (let i = 0; i < n; i++) { const a = (i / n) * 6.283; const R = Math.max(1.6, c.r); marks.streak(c.x, 0.5, c.z, c.x + Math.cos(a) * R, 0.15, c.z + Math.sin(a) * R, 0.1, 0xf0f0ff, 0.8, 0.7, { sweep: 0.08, k: [0.2, 1, 0.2], kind: 'hit' }); } },
-    static(c, n) { for (let i = 0; i < n; i++) later(0.12 + i * 0.14, () => { const a = rnd(0, 6.283); const d = rnd(0.3, 1) * Math.max(1, c.r * 0.7); G.fx.arc(new THREE.Vector3(c.x + Math.cos(a) * d * 0.4, 0.3, c.z + Math.sin(a) * d * 0.4), new THREE.Vector3(c.x + Math.cos(a) * d, 0.1, c.z + Math.sin(a) * d), c.s.edge); }, c.real); },
+    static(c, n) { for (let i = 0; i < n; i++) later(0.12 + i * 0.14, () => { const a = rnd(0, 6.283); const d = rnd(0.3, 1) * Math.max(1, c.r * 0.7); zap(c.x + Math.cos(a) * d * 0.4, 0.3, c.z + Math.sin(a) * d * 0.4, c.x + Math.cos(a) * d, 0.1, c.z + Math.sin(a) * d, c.s.edge, c.real); }, c.real); },
     dust(c, n) { for (let i = 0; i < n * c.s.tier.count && puffBudget-- > 0; i++) { const a = rnd(0, 6.283); const d = rnd(0.3, 1) * Math.max(1, c.r * 0.8); G.fx.puff(new THREE.Vector3(c.x + Math.cos(a) * d, 0.3, c.z + Math.sin(a) * d), { vel: new THREE.Vector3(Math.cos(a) * 0.4, 0.35, Math.sin(a) * 0.4), drag: 0.5, s0: 1, s1: 2.6, life: rnd(1.8, 2.6), c0: 0xa89e88, c1: 0x8a8272, a0: 0.32 }); } },
     wisp(c, n) { sparks.wisps(c.x, 0.3, c.z, n * c.s.tier.count, { colors: [c.s.glow, c.s.edge], rise: 0.8, out: 1.6, r: c.r * 0.5, w: 0.6, len: 1.4, life: 1.3, a: 0.35, spread: 0.5, real: c.real }); },
     sig(c) { run(SIG[c.vName] || [], c); },
     // a sphere of thick streaks bursting from the body (y 1.2), every direction, the hot colour inside the edge colour
     nova(c, n) {
       const m = Math.round(n * c.s.tier.count);
-      sparks.burst(c.x, 1.2, c.z, m, { speed: [9, 18 * c.s.tier.size], up: 1, flat: true, colors: [c.s.core, c.s.edge, c.s.glow], w: 0.26 * c.s.tier.size, len: 0.5, stretch: 0.06, life: 0.5 * c.s.tier.life, grav: 4, drag: 2.2, real: c.real });
-      sparks.burst(c.x, 1.0, c.z, Math.ceil(m / 2), { speed: [3, 7], up: 0.9, colors: [c.s.core, c.s.glow], kind: 1, w: 0.45 * c.s.tier.size, len: 0.45, stretch: 0.02, life: 0.7, grav: 6, drag: 1.2, real: c.real });
+      sparks.burst(c.x, 1.2, c.z, m, { speed: [9, 18 * c.s.tier.size], up: 1, flat: true, colors: [c.s.edge, c.s.glow, c.s.deep], a: 0.7, w: 0.26 * c.s.tier.size, len: 0.5, stretch: 0.06, life: 0.5 * c.s.tier.life, grav: 4, drag: 2.2, real: c.real });
+      sparks.burst(c.x, 1.0, c.z, Math.ceil(m / 2), { speed: [3, 7], up: 0.9, colors: [c.s.glow, c.s.edge], a: 0.75, kind: 1, w: 0.45 * c.s.tier.size, len: 0.45, stretch: 0.02, life: 0.7, grav: 6, drag: 1.2, real: c.real });
     },
   };
   // the after-image of an impact, by voice
