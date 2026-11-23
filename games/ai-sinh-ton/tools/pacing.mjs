@@ -1,14 +1,18 @@
 // Pacing of the first hours: a typical new player walks the stages with the real battle sim and the real
 // reward, XP, gift and unlock rules; the tool reports when each unlock opens (match number, minutes played, stage)
-// and how many tries each stage took. Usage: node tools/pacing.mjs [players] [maxMatches]
+// and how many tries each stage took. The evolution part runs the real account bot (tools/journey.mjs, equipment and all)
+// from a new account until its first form 3 or EVO_HOURS, and reports when the first beast reaches form 2 and form 3.
+// Usage: node tools/pacing.mjs [players] [maxMatches]
 import { createBattle, step, pickCard, makeRng } from '../js/sim/battle.js';
 import { stageDef } from '../js/data/stages.js';
 import { levelMul, levelCost, stageReward, lossReward, rollGacha, GACHA, HERO_RARITY } from '../js/data/economy.js';
 import { HEROES, HERO } from '../js/data/heroes.js';
 import { UNLOCKS, isUnlocked, teamSlots, addXp, xpForResult, tutorialStage, GIFTS, NEW_ACCOUNT, newUnlocks } from '../js/data/unlocks.js';
+import { journey } from './journey.mjs';
 
 const PLAYERS = +process.argv[2] || 5; const MAXM = +process.argv[3] || 60;
 const MENU_MIN = 0.7;
+const EVO_HOURS = 8;
 const roster = HEROES.map((h) => ({ id: h.id, rarity: h.rarity }));
 const fails = [];
 const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
@@ -48,7 +52,7 @@ function player(seed) {
     Object.assign(acc, addXp(acc.level, acc.xp, xpForResult({ won, wavesCleared: won ? 5 : Math.max(0, B.wave - 1), first })));
     if (first) acc.cleared = n;
     if (!won && n === next) lostRow++; else if (won) lostRow = 0;
-    if (tut && won) { own('yta'); own('mua'); }
+    if (tut && won) { own('loc'); own('nhim'); }
     for (const g of GIFTS) if (g.at.stage && first && n === g.at.stage) own(g.hero);
     note(before); spend();
   }
@@ -72,6 +76,11 @@ for (let n = 1; n <= 10; n++) { const t = runs.map((r) => r.tries[n] || 0); cons
 console.log(`hero levels of the team when stage 10 is first tried or at the end: ${runs.map((r) => Object.values(r.acc.heroes).map((h) => h.level).sort((a, b) => b - a).slice(0, 4).join('/')).join('  ')}`);
 console.log(`\nminutes to clear stage 10: ${med(runs.map((r) => (r.acc.cleared >= 10 ? Math.round(r.minutes) : 1e9)))}, matches ${med(runs.map((r) => r.matches))}`);
 
+const evo = []; for (let s = 1; s <= PLAYERS; s++) evo.push(journey(s, { to: 999, maxMatches: 2000, until: (st) => st.evolved[3] || st.minutes >= EVO_HOURS * 60 }));
+const evoMin = (f) => med(evo.map((r) => (r.evolved[f] ? r.evolved[f].min : 1e9)));
+const at = (e) => `${e.id} lv ${e.level}, stage ${e.stage}`;
+console.log(`\nfirst form 2 (real account bot): minute ${evo.map((r) => (r.evolved[2] ? `${Math.round(r.evolved[2].min)} (${at(r.evolved[2])})` : 'never')).join(', ')}`);
+console.log(`first form 3: hour ${evo.map((r) => (r.evolved[3] ? `${(r.evolved[3].min / 60).toFixed(1)} (${at(r.evolved[3])})` : `never (${(r.minutes / 60).toFixed(1)} h, stage ${r.cleared}, ${r.team})`)).join(', ')}`);
 const by = Object.fromEntries(rows.map((r) => [r.id, r]));
 const firstHour = rows.filter((r) => r.min <= 60).length;
 check(runs.every((r) => (r.tries[1] || 0) === 1), 'every player wins the tutorial stage at the first try');
@@ -82,5 +91,7 @@ const mins = rows.map((r) => r.min).filter((m) => m < 1e9).sort((a, b) => a - b)
 check(gap <= 25, `the longest wait between two unlocks is ${gap} minutes (at most 25)`);
 check(runs.every((r) => { for (let n = 1; n <= 8; n++) if ((r.tries[n] || 0) > 4) return false; return true; }), 'no stage from 1 to 8 takes any player more than 4 tries');
 check(med(runs.map((r) => r.acc.cleared)) >= 10, `most players clear stage 10 within ${MAXM} matches (median cleared ${med(runs.map((r) => r.acc.cleared))})`);
+check(evoMin(2) >= 40 && evoMin(2) <= 60, `the typical player evolves a first beast to form 2 within minutes 40-60 (median ${Math.round(evoMin(2))})`);
+check(evoMin(3) >= 240 && evoMin(3) <= 360, `the typical player reaches a first form 3 within hours 4-6 (median ${evoMin(3) < 1e9 ? (evoMin(3) / 60).toFixed(1) : 'never'})`);
 console.log(fails.length ? `\n${fails.length} FAILED` : '\nALL PASS');
 process.exit(fails.length ? 1 : 0);

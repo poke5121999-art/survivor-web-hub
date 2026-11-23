@@ -9,7 +9,7 @@ import { ENEMY } from '../data/enemies.js?v=20261122a';
 import { stageDef, MAX_ALIVE, BASE } from '../data/stages.js?v=20261122a';
 import { CARD, offerCards } from '../data/cards.js?v=20261122a';
 import { roomPlan } from './rooms.js?v=20261122a';
-import { moveUnit } from './move.js?v=20261122a';
+import { moveUnit, moveTick, moveEnter, moveAct } from './move.js?v=20261122a';
 import { mapTick } from './maprules.js?v=20261122a';
 import { heroDef } from '../data/beasts.js?v=20261122a';
 
@@ -59,18 +59,26 @@ function makeHero(B, slot, spec) {
   u.x = Math.cos(a) * 2.2; u.z = Math.sin(a) * 2.2;
   u.hero = true; u.slot = slot; u.def = def; u.role = def.role;
   u.base = { hp: def.hp * lv + (spec.hpFlat || 0), atk: def.atk * lv + (spec.atkFlat || 0), aspd: def.aspd, speed: def.speed };
-  u.atkScale = u.base.atk / def.atk;
+  // the ultimate charges by damage relative to the form-1 attack, so an evolved form fills it at the same pace
+  u.atkScale = u.base.atk / (def.atk0 || def.atk);
   u.mods = { ...(spec.perks || {}) };
+  u.hooks = {};
+  for (const p of def.passives || []) {
+    if (p.mods) for (const k in p.mods) u.mods[k] = (u.mods[k] || 0) + p.mods[k];
+    if (p.hook) u.hooks[p.hook] = p;
+  }
+  u.form = def.form || 1; u.branch = def.branch || null;
   if (def.dr) u.mods.dr = (u.mods.dr || 0) + def.dr;
   if (def.lifesteal) u.mods.lifesteal = (u.mods.lifesteal || 0) + def.lifesteal;
   u.taunt = def.taunt || 0;
-  u.attack = def.attack;
+  u.attack = u.mods.range ? { ...def.attack, range: def.attack.range + u.mods.range } : def.attack;
   u.skills = [{ def: def.s1, slot: 's1', cd: def.s1.cd * 0.4 }, { def: def.s2, slot: 's2', cd: def.s2.cd * 0.6 }];
   u.ult = u.mods.ultStart || 0; u.ultReady = false; u.cards = []; u.cheatLeft = u.mods.cheat ? 1 : 0;
   u.maxHp = maxHpOf(u); u.hp = u.maxHp;
   u.dealt = 0; u.over = 0; u.taken = 0; u.healed = 0; u.selfHeal = 0; u.shieldGiven = 0; u.aliveT = 0; u.downT = 0; u.downs = 0;
   u.bySrc = { atk: 0, s1: 0, s2: 0, ult: 0, fx: 0 };
   u.start = permStats(u);
+  moveEnter(B, u);
   return u;
 }
 
@@ -98,7 +106,7 @@ function makeSummon(B, owner, kind, dur, x, z) {
   const u = baseUnit(B, owner.team, kind, x, z);
   u.summon = true; u.owner = owner.uid; u.def = def; u.life = dur; u.r = 0.4;
   u.untargetable = !!def.untargetable; u.still = !!def.still; u.followOwner = !!def.follow; u.taunt = def.taunt || 0;
-  u.base = { hp: Math.max(1, owner.maxHp * def.hp), atk: atkOf(owner) * def.atk, aspd: def.aspd || 1, speed: def.speed || 5 };
+  u.base = { hp: Math.max(1, owner.maxHp * def.hp * (1 + M(owner, 'summonHp'))), atk: atkOf(owner) * def.atk, aspd: def.aspd || 1, speed: def.speed || 5 };
   u.attack = def.kind === 'none' ? null : { kind: def.kind, range: def.range, aoe: def.aoe, speed: def.speed, deg: 100, cleave: 1, fx: def.fx };
   u.maxHp = u.base.hp; u.hp = u.maxHp; u.credit = owner.uid; u.tag = B.tag;
   return u;
@@ -118,7 +126,7 @@ const speedOf = (u) => u.base.speed * (1 + M(u, 'speed')) * (u.status.slow ? 1 -
 const permStats = (u) => ({ atk: u.base.atk * (1 + (u.mods.atk || 0)), hp: maxHpOf(u), aspd: u.base.aspd * (1 + (u.mods.aspd || 0)), crit: Math.min(1, 0.05 + (u.mods.crit || 0)) });
 const stunned = (u) => !!(u.status.stun || u.status.freeze);
 const rooted = (u) => stunned(u) || !!u.status.root;
-const targetable = (u) => u.alive && !u.untargetable && !(u.state.stealth > 0) && !(u.spawnT > 0.3);
+const targetable = (u) => u.alive && !u.untargetable && !u.under && !(u.state.stealth > 0) && !(u.spawnT > 0.3);
 
 // ---------- queries ----------
 function foes(B, u) { return u.team === 0 ? B.enemies : B.allies; }
@@ -174,14 +182,22 @@ const CC_FLOOR = 0.25;
 function addStatus(B, src, dst, s, power) {
   if (!dst.alive || !s) return;
   const hard = s.k === 'stun' || s.k === 'freeze' || s.k === 'root';
-  if (hard && dst.state.invuln > 0) return;
+  if (hard && (dst.state.invuln > 0 || dst.state.unstop > 0)) return;
   let dur = s.dur;
+  let v = s.v || 0;
+  // the caster's passives that stretch its own statuses
+  const who = src && src.hero ? src : src && src.credit ? creditOf(B, src) : null;
+  if (who && who.hero) {
+    if (s.k === 'poison') dur *= 1 + M(who, 'dotDur');
+    if (s.k === 'root') dur += M(who, 'rootDur');
+    if (s.k === 'slow') v = Math.min(0.85, v + M(who, 'slowPow'));
+  }
   if ((hard || s.k === 'slow') && src && src.ccK < 1) dur = Math.max(Math.min(dur, CC_FLOOR), dur * src.ccK);
   if (hard || s.k === 'slow') dur *= dst.boss ? 0.35 : 1 - Math.min(0.8, M(dst, 'ccRes'));
   const cur = dst.status[s.k];
-  const dps = (s.v || 0) * power;
+  const dps = v * power;
   if (!cur || dur > cur.t || dps > (cur.dps || 0)) {
-    dst.status[s.k] = { t: Math.max(dur, cur ? cur.t : 0), v: Math.max(s.v || 0, cur ? cur.v : 0), dps: Math.max(dps, cur ? cur.dps || 0 : 0), src: src ? (src.credit || src.uid) : 0 };
+    dst.status[s.k] = { t: Math.max(dur, cur ? cur.t : 0), v: Math.max(v, cur ? cur.v : 0), dps: Math.max(dps, cur ? cur.dps || 0 : 0), src: src ? (src.credit || src.uid) : 0 };
     if (!cur) B.emit({ e: 'status', uid: dst.uid, k: s.k, dur });
   }
 }
@@ -190,19 +206,34 @@ function creditOf(B, src) { return src ? B.byUid.get(src.credit || src.uid) || s
 
 function hurt(B, src, dst, amount, o = {}) {
   if (!dst.alive || amount <= 0) return 0;
-  if (dst.state.invuln > 0) { B.emit({ e: 'block', uid: dst.uid }); return 0; }
+  if (dst.under) return 0;
+  if (dst.state.invuln > 0) { if (dst.hooks && dst.hooks.reflect && src && src.team !== dst.team) dst.blocked = (dst.blocked || 0) + amount; B.emit({ e: 'block', uid: dst.uid }); return 0; }
   const who = creditOf(B, src);
   let dmg = amount;
   let crit = false;
   if (who && !o.dot) {
-    if (o.canCrit && B.rng() < 0.05 + M(who, 'crit')) { crit = true; dmg *= 1.5 + M(who, 'critDmg'); }
+    // a blinded attacker misses part of its blows
+    if (who.status && who.status.blind && B.rng() < who.status.blind.v) { B.emit({ e: 'dodge', uid: dst.uid }); return 0; }
+    if (o.canCrit && who.sureCrit) { crit = true; who.sureCrit = false; dmg *= 1.5 + M(who, 'critDmg'); proc(B, who, 'blinkCrit'); }
+    else if (o.canCrit && B.rng() < 0.05 + M(who, 'crit')) { crit = true; dmg *= 1.5 + M(who, 'critDmg'); }
     dmg *= 1 + M(who, 'dmgMul');
     if (dst.boss) dmg *= 1 + M(who, 'bossDmg');
+    if (who.hero) {
+      if (dst.hp < dst.maxHp * 0.5) dmg *= 1 + M(who, 'lowHpDmg');
+      if (dst.status.freeze) dmg *= 1 + M(who, 'frozenAmp');
+      if (dst.status.stun) dmg *= 1 + M(who, 'stunAmp');
+      if (dst.status.root) dmg *= 1 + M(who, 'rootAmp');
+    }
   }
   if (!o.dot && !o.sure && B.rng() < M(dst, 'dodge')) { B.emit({ e: 'dodge', uid: dst.uid }); return 0; }
+  if (!o.dot && dst.dodgeLeft > 0) { dst.dodgeLeft--; B.emit({ e: 'dodge', uid: dst.uid }); proc(B, dst, 'waveDodge'); return 0; }
   let dr = M(dst, 'dr') + (o.ranged ? M(dst, 'rangedDr') : 0);
+  if (dst.hooks && dst.hooks.stillDr && dst.stillT > 0.5) { dr += dst.hooks.stillDr.dr; proc(B, dst, 'stillDr'); }
   dmg *= 1 - Math.min(0.85, dr);
+  // a flier is hard to reach for a claw or a bite
+  if (o.melee && dst.air && dst.team === 0) dmg *= 0.8;
   if (dst.amp > 0) dmg *= 1 + dst.amp;
+  if (dst.inkT > B.t) dmg *= 1 + dst.inkAmp;
   if (dst.shield > 0) { const s = Math.min(dst.shield, dmg); dst.shield -= s; dmg -= s; if (dmg <= 0) { B.emit({ e: 'hit', uid: dst.uid, by: src ? src.uid : 0, dmg: Math.round(s), shield: true, x: dst.x, z: dst.z }); return s; } }
   const real = Math.min(dmg, Math.max(0, dst.hp));
   dst.hp -= dmg;
@@ -215,7 +246,10 @@ function hurt(B, src, dst, amount, o = {}) {
     chargeUlt(B, who, dmg / (who.def.ult.cost * BASE.ultCost * who.atkScale));
     const ls = M(who, 'lifesteal');
     if (ls > 0 && !o.dot) heal(B, who, who, dmg * ls, true);
+    const td = M(who, 'teamDrain');
+    if (td > 0 && !o.dot) { const low = lowestAlly(B, who); if (low) heal(B, who, low, real * td, true); }
   }
+  if (dst.hooks && dst.hooks.spit && o.melee && src && src.alive && src.team !== dst.team && B.rng() < dst.hooks.spit.p) { addStatus(B, dst, src, { k: 'poison', dur: 4, v: 0.4 }, atkOf(dst)); proc(B, dst, 'spit'); }
   B.emit({ e: 'hit', uid: dst.uid, by: src ? src.uid : 0, dmg: Math.round(dmg), crit, dot: !!o.dot, x: dst.x, z: dst.z });
   if (o.melee && !o.dot && src && src.alive) { const th = M(dst, 'thorns'); if (th > 0) withTag(B, 'fx', () => hurt(B, dst, src, dmg * th, { dot: true })); }
   if (dst.hp <= 0) kill(B, dst, who);
@@ -225,13 +259,21 @@ function hurt(B, src, dst, amount, o = {}) {
 function kill(B, u, by) {
   if (u.team === 1 && !u.summon && u.hp > 0) { B.book.enemyLost += u.hp; B.book.other += u.hp; }
   if (u.hero && u.cheatLeft > 0) { u.cheatLeft--; u.hp = u.maxHp * 0.3; u.state.invuln = 1.5; B.emit({ e: 'cheat', uid: u.uid }); return; }
+  // a guardian lantern stands a fallen ally up once per wave
+  if (u.hero && u.saved !== B.wave) {
+    const g = B.heroes.find((h) => h.alive && h !== u && h.hooks.guardian);
+    if (g) { u.saved = B.wave; u.hp = u.maxHp * g.hooks.guardian.hp; u.state.invuln = 1.2; B.emit({ e: 'revive', uid: u.uid, x: u.x, z: u.z, by: g.uid }); proc(B, g, 'guardian'); return; }
+  }
   u.alive = false; u.hp = 0; u.anim = 'dead'; u.animT = 0; u.status = {}; u.buffs.length = 0;
+  if (u.summon) summonGone(B, u);
   if (u.hero) u.downs++;
   B.emit({ e: 'die', uid: u.uid, by: by ? by.uid : 0, x: u.x, z: u.z, boss: u.boss });
   if (u.team === 1 && !u.summon) {
     B.kills++;
     if (by && by.hero) {
       by.kills = (by.kills || 0) + 1;
+      if (by.hooks.killStealth) { proc(B, by, 'killStealth'); by.state.stealth = Math.max(by.state.stealth || 0, by.hooks.killStealth.dur); B.emit({ e: 'state', uid: by.uid, key: 'stealth', dur: by.hooks.killStealth.dur, fx: 'vanish' }); }
+      if (by.hooks.contagion && B.dotK === 'poison') { proc(B, by, 'contagion'); B.emit({ e: 'fx', key: 'plague', part: 'burst', x: u.x, z: u.z, r: 3, team: 0, by: by.uid }); for (const f of inRadius(B, 1, u.x, u.z, 3)) addStatus(B, by, f, { k: 'poison', dur: 5, v: 0.5 }, atkOf(by)); }
       const ex = M(by, 'explodeKill');
       if (ex > 0) { B.emit({ e: 'fx', key: 'kill_blast', x: u.x, z: u.z, r: 2.5 }); for (const f of inRadius(B, 1, u.x, u.z, 2.5)) withTag(B, 'fx', () => hurt(B, by, f, atkOf(by) * ex, { dot: true })); }
     }
@@ -251,6 +293,28 @@ function heal(B, src, dst, amount, quiet) {
   return a;
 }
 
+// a passive acted: one event per beast and passive per second, for the view and the tests
+function proc(B, u, k) {
+  const T = u.procT || (u.procT = {});
+  if ((T[k] || -9) + 1 > B.t) return;
+  T[k] = B.t; B.emit({ e: 'passive', uid: u.uid, k, x: u.x, z: u.z });
+}
+
+function lowestAlly(B, u) {
+  let best = null;
+  for (const f of friends(B, u)) if (f.alive && !f.summon && (!best || f.hp / f.maxHp < best.hp / best.maxHp)) best = f;
+  return best;
+}
+
+// a summon broken or run out: the owner's scrap blows up (Hải Ly Cơ Giáp)
+function summonGone(B, u) {
+  const o = B.byUid.get(u.owner);
+  if (!o || !o.alive || !o.hooks || !o.hooks.boomSummon || u.boomed) return;
+  u.boomed = true; const h = o.hooks.boomSummon; proc(B, o, 'boomSummon');
+  B.emit({ e: 'fx', key: 'kill_blast', part: 'burst', x: u.x, z: u.z, r: h.r, team: o.team, by: o.uid });
+  withTag(B, 'fx', () => { for (const f of inRadius(B, 1 - o.team, u.x, u.z, h.r)) hurt(B, o, f, atkOf(o) * h.dmg, {}); });
+}
+
 function chargeUlt(B, u, f) {
   if (!u.hero || !u.alive || u.ultLock > 0) return;
   u.ult = Math.min(1, u.ult + f * (1 + M(u, 'ultRate')));
@@ -262,6 +326,7 @@ function resolvePoint(B, u, at, r) {
   if (at === 'self' || !at) return { x: u.x, z: u.z };
   const t = B.byUid.get(u.target);
   if (at === 'cluster') { const c = clusterPoint(B, u, r || 3.5); if (c) return c; }
+  if (at === 'random') { const f = pickFoe(B, u, 'random', 14); if (f) return { x: f.x, z: f.z, unit: f }; }
   if (at === 'weak' || at === 'far') { const f = pickFoe(B, u, at, at === 'far' ? 40 : 10); if (f) return { x: f.x, z: f.z, unit: f }; }
   if (t && t.alive) return { x: t.x, z: t.z, unit: t };
   const n = nearestFoe(B, u);
@@ -282,7 +347,7 @@ const OPS = {
       for (const f of inRadius(B, 1 - u.team, p.x, p.z, r)) {
         hurt(B, u, f, C.power * op.dmg, { canCrit: true });
         addStatus(B, u, f, op.status, C.atk);
-        if (op.kb && f.alive && !f.boss && !M(f, 'kbRes')) push(f, p.x, p.z, op.kb);
+        if (op.kb && f.alive && !f.boss && !M(f, 'kbRes')) push(B, f, p.x, p.z, op.kb, u);
       }
     };
     if (op.delay) { B.emit({ e: 'tele', shape: 'circle', x: p.x, z: p.z, r, t: op.delay, team: u.team, key: C.fx }); later(B, op.delay, go); } else go();
@@ -296,16 +361,22 @@ const OPS = {
     };
     if (op.delay) { B.emit({ e: 'tele', shape: 'cone', x: u.x, z: u.z, r: op.r, ang, deg: op.deg, t: op.delay, team: u.team, key: C.fx }); later(B, op.delay, go); } else go();
   },
+  // n > 1 spreads n lines evenly over `fan` degrees around the target direction (fan 360: a full ring)
   line(B, u, op, C) {
     const p = resolvePoint(B, u, 'target');
-    const ang = Math.atan2(p.z - u.z, p.x - u.x);
-    const x2 = u.x + Math.cos(ang) * op.len; const z2 = u.z + Math.sin(ang) * op.len;
+    const a0 = Math.atan2(p.z - u.z, p.x - u.x);
+    const n = op.n || 1; const fan = ((op.fan || 0) * Math.PI) / 180;
+    const step = n > 1 ? (op.fan >= 360 ? fan / n : fan / (n - 1)) : 0;
     const x1 = u.x; const z1 = u.z;
-    const go = () => {
-      B.emit({ e: 'fx', key: C.fx, part: 'line', x: x1, z: z1, x2, z2, w: op.w, team: u.team, by: u.uid });
-      for (const f of onSegment(B, 1 - u.team, x1, z1, x2, z2, op.w / 2)) { hurt(B, u, f, C.power * op.dmg, { canCrit: true, ranged: true }); addStatus(B, u, f, op.status, C.atk); }
-    };
-    if (op.delay) { B.emit({ e: 'tele', shape: 'line', x: x1, z: z1, x2, z2, w: op.w, t: op.delay, team: u.team, key: C.fx }); later(B, op.delay, go); } else go();
+    for (let i = 0; i < n; i++) {
+      const ang = n > 1 ? (op.fan >= 360 ? a0 + step * i : a0 - fan / 2 + step * i) : a0;
+      const x2 = x1 + Math.cos(ang) * op.len; const z2 = z1 + Math.sin(ang) * op.len;
+      const go = () => {
+        B.emit({ e: 'fx', key: C.fx, part: 'line', x: x1, z: z1, x2, z2, w: op.w, team: u.team, by: u.uid });
+        for (const f of onSegment(B, 1 - u.team, x1, z1, x2, z2, op.w / 2)) { hurt(B, u, f, C.power * op.dmg, { canCrit: true, ranged: true }); addStatus(B, u, f, op.status, C.atk); }
+      };
+      if (op.delay) { B.emit({ e: 'tele', shape: 'line', x: x1, z: z1, x2, z2, w: op.w, t: op.delay, team: u.team, key: C.fx }); later(B, op.delay, go); } else go();
+    }
   },
   dash(B, u, op, C) {
     if (rooted(u) && !C.ult) return;
@@ -326,12 +397,24 @@ const OPS = {
     ({ x: tx, z: tz } = clampR(tx, tz, u.team === 0 ? HERO_K : 1));
     u.x = tx; u.z = tz; u.face = Math.atan2(tz - z1, tx - x1);
     B.emit({ e: 'dash', uid: u.uid, x: x1, z: z1, x2: tx, z2: tz, jump: !!op.jump, key: C.fx });
-    if (op.dmg) for (const f of onSegment(B, 1 - u.team, x1, z1, tx, tz, (op.w || 1.4) / 2)) { hurt(B, u, f, C.power * op.dmg, { canCrit: true, melee: true }); addStatus(B, u, f, op.status, C.atk); }
+    if (op.dmg) for (const f of onSegment(B, 1 - u.team, x1, z1, tx, tz, (op.w || 1.4) / 2)) {
+      hurt(B, u, f, C.power * op.dmg, { canCrit: true, melee: true }); addStatus(B, u, f, op.status, C.atk);
+      if (op.kb && f.alive && !f.boss && !M(f, 'kbRes')) pushAside(B, f, x1, z1, tx, tz, op.kb, u);
+    }
+    // a cutting wake along the path (Tê Thành Lũy's crack, Chồn Liềm's wind blade)
+    if (op.trail) addZone(B, u, C, { x: x1, z: z1, seg: { x2: tx, z2: tz }, r: op.trail.w / 2, dur: op.trail.dur, every: op.trail.every, dmg: op.trail.dmg, status: op.trail.status });
+    // chained charges: the next nearest foe after a short beat
+    const left = (C.times === undefined ? op.times || 1 : C.times) - 1;
+    if (left > 0) later(B, 0.35, () => { if (!u.alive) return; const n = nearestFoe(B, u, 12); if (n) { u.target = n.uid; OPS.dash(B, u, op, { ...C, times: left }); } });
   },
   heal(B, u, op, C) {
     const list = friends(B, u).filter((f) => f.alive && !f.summon);
-    const who = op.who === 'self' ? [u] : op.who === 'all' ? list : [list.reduce((a, b) => (b.hp / b.maxHp < a.hp / a.maxHp ? b : a), u)];
-    for (const f of who) { heal(B, u, f, f.maxHp * op.amt * (1 + (C.bonus || 0))); B.emit({ e: 'fx', key: C.fx, part: 'heal', x: f.x, z: f.z, uid: f.uid }); }
+    const who = op.who === 'self' ? [u] : op.who === 'all' ? list : op.n > 1 ? list.slice().sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp).slice(0, op.n) : [list.reduce((a, b) => (b.hp / b.maxHp < a.hp / a.maxHp ? b : a), u)];
+    const pow = (1 + (C.bonus || 0)) * (1 + M(u, 'healPow')); const hs = M(u, 'healShield');
+    for (const f of who) {
+      heal(B, u, f, f.maxHp * op.amt * pow); B.emit({ e: 'fx', key: C.fx, part: 'heal', x: f.x, z: f.z, uid: f.uid });
+      if (hs > 0 && f !== u) { const sh = f.maxHp * hs; u.shieldGiven += Math.max(0, sh - f.shield); f.shield = Math.max(f.shield, sh); f.shieldT = Math.max(f.shieldT, 4); }
+    }
   },
   shield(B, u, op, C) {
     const who = op.who === 'self' ? [u] : friends(B, u).filter((f) => f.alive && !f.summon);
@@ -347,12 +430,13 @@ const OPS = {
   },
   zone(B, u, op, C) {
     const p = resolvePoint(B, u, op.at, op.r);
-    const t = B.byUid.get(u.target);
-    const ang = t ? Math.atan2(t.z - u.z, t.x - u.x) : u.face;
-    const z = { x: p.x, z: p.z, r: op.r * (1 + M(u, 'aoe')), t: op.dur, every: op.every, tick: op.delay || 0, dmg: op.dmg, status: op.status, src: u.uid, team: u.team, power: C.power, atk: C.atk,
-      tag: B.tag, follow: op.follow ? u.uid : 0, cone: op.cone || 0, ang, vx: op.drift ? Math.cos(ang) * op.drift : 0, vz: op.drift ? Math.sin(ang) * op.drift : 0, key: C.fx, id: ++B.uidSeq };
-    B.zones.push(z);
-    B.emit({ e: 'zone', id: z.id, key: C.fx, x: z.x, z: z.z, r: z.r, dur: op.dur, follow: z.follow, cone: z.cone, ang, team: u.team, delay: op.delay || 0 });
+    const n = op.n || 1;
+    for (let i = 0; i < n; i++) {
+      // n zones scattered around the point (Nghìn Lưỡi Lốc's columns, Phun Trào's vents)
+      const a = (i / n) * 6.283 + B.rng() * 0.8; const d = n > 1 ? (op.scatter || 2) * (0.5 + B.rng() * 0.5) : 0;
+      const q = n > 1 ? clampR(p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, 1) : p;
+      addZone(B, u, C, { ...op, x: q.x, z: q.z });
+    }
   },
   rain(B, u, op, C) {
     const p = resolvePoint(B, u, op.at === 'front' ? 'target' : op.at, op.r);
@@ -366,7 +450,12 @@ const OPS = {
         B.emit({ e: 'tele', shape: 'circle', x, z, r, t: 0.6, team: u.team, key: C.fx, fall: true });
         later(B, 0.6, () => {
           B.emit({ e: 'fx', key: C.fx, part: 'burst', x, z, r, team: u.team, by: u.uid });
-          for (const g of inRadius(B, 1 - u.team, x, z, r)) { hurt(B, u, g, C.power * op.dmg, { canCrit: true, ranged: true }); addStatus(B, u, g, op.status, C.atk); }
+          for (const g of inRadius(B, 1 - u.team, x, z, r)) {
+            hurt(B, u, g, C.power * op.dmg, { canCrit: true, ranged: true }); addStatus(B, u, g, op.status, C.atk);
+            if (op.kb && g.alive && !g.boss && !M(g, 'kbRes')) push(B, g, x, z, op.kb, u);
+          }
+          if (op.healAlly) for (const g of inRadius(B, u.team, x, z, r + 1)) if (!g.summon) heal(B, u, g, g.maxHp * op.healAlly * (1 + M(u, 'healPow')), true);
+          if (op.pool) addZone(B, u, C, { x, z, ...op.pool });
         });
       });
     }
@@ -381,8 +470,9 @@ const OPS = {
         B.emit({ e: 'fx', key: C.fx, part: 'bolt', x: f.x, z: f.z, fromX: u.x, fromZ: u.z, team: u.team, by: u.uid, to: f.uid });
         const d = op.dmg ? hurt(B, u, f, C.power * op.dmg, { canCrit: true, ranged: !op.blink }) : 0;
         addStatus(B, u, f, op.status, C.atk);
-        if (op.drain && d > 0) heal(B, u, u, d * op.drain);
-        if (op.chain) chain(B, u, f, op.chain, C.power * op.dmg * 0.6, C.fx);
+        if (op.aoe) { B.emit({ e: 'fx', key: C.fx, part: 'burst', x: f.x, z: f.z, r: op.aoe, team: u.team, by: u.uid }); for (const g of inRadius(B, 1 - u.team, f.x, f.z, op.aoe)) if (g !== f) { hurt(B, u, g, C.power * op.dmg * 0.6, { ranged: true }); addStatus(B, u, g, op.status, C.atk); } }
+        if (op.drain && d > 0) heal(B, u, op.drainTeam ? lowestAlly(B, u) || u : u, d * op.drain);
+        if (op.chain) chain(B, u, f, op.chain + M(u, 'chainN'), C.power * op.dmg * 0.6, C.fx);
       });
     }
   },
@@ -391,27 +481,34 @@ const OPS = {
       const a = u.face + (i - (op.n - 1) / 2) * 1.2 + (op.kind === 'decoy' ? 3.14 : 0);
       const d = op.kind === 'decoy' ? 0 : 1.5;
       const p = clampR(u.x + Math.cos(a) * d, u.z + Math.sin(a) * d, HERO_K);
-      const s = makeSummon(B, u, op.kind, op.dur * (1 + (C.bonus || 0)), p.x, p.z);
+      const s = makeSummon(B, u, op.kind, op.dur * (1 + (C.bonus || 0)) * (1 + M(u, 'summonDur')), p.x, p.z);
       s.side = i;
       addUnit(B, s);
       B.emit({ e: 'summon', uid: s.uid, kind: op.kind, owner: u.uid, x: s.x, z: s.z, dur: s.life });
     }
   },
+  // zones built straight from parameters: x, z (and seg for a strip along a path), r, dur, every, dmg, status, ...
   mark(B, u, op, C) {
     const p = resolvePoint(B, u, op.at || 'self', op.r);
     B.emit({ e: 'fx', key: C.fx, part: 'mark', x: p.x, z: p.z, r: op.r, team: u.team, by: u.uid, dur: op.dur });
     for (const f of inRadius(B, 1 - u.team, p.x, p.z, op.r)) { f.amp = Math.max(f.amp || 0, op.amp); f.ampT = op.dur; if (op.status) { addStatus(B, u, f, op.status, C.atk); if (op.status.k === 'poison') f.plague = true; } }
   },
   pull(B, u, op, C) {
-    const p = resolvePoint(B, u, op.at, op.r);
-    B.emit({ e: 'fx', key: C.fx, part: 'pull', x: p.x, z: p.z, r: op.r, team: u.team, by: u.uid });
-    for (const f of inRadius(B, 1 - u.team, p.x, p.z, op.r)) {
-      if (!f.boss && !M(f, 'kbRes')) { f.x += (p.x - f.x) * 0.75; f.z += (p.z - f.z) * 0.75; }
-      hurt(B, u, f, C.power * op.dmg, { canCrit: true }); addStatus(B, u, f, op.status, C.atk);
+    const done = new Set();
+    for (let i = 0; i < (op.n || 1); i++) {
+      // the second point is the busiest spot outside the first pull
+      let p = resolvePoint(B, u, op.at, op.r);
+      if (i > 0) { const left = foes(B, u).filter((f) => targetable(f) && !done.has(f.uid) && dist(u, f) <= 14); if (!left.length) break; let best = left[0]; let bn = -1; for (const f of left) { let k = 0; for (const g of left) if (Math.hypot(g.x - f.x, g.z - f.z) <= op.r) k++; if (k > bn) { bn = k; best = f; } } p = { x: best.x, z: best.z }; }
+      B.emit({ e: 'fx', key: C.fx, part: 'pull', x: p.x, z: p.z, r: op.r, team: u.team, by: u.uid });
+      for (const f of inRadius(B, 1 - u.team, p.x, p.z, op.r)) {
+        if (done.has(f.uid)) continue; done.add(f.uid);
+        if (!f.boss && !M(f, 'kbRes')) { f.x += (p.x - f.x) * 0.75; f.z += (p.z - f.z) * 0.75; }
+        hurt(B, u, f, C.power * op.dmg, { canCrit: true }); addStatus(B, u, f, op.status, C.atk);
+      }
     }
   },
   revive(B, u, op, C) {
-    for (const f of friends(B, u)) if (!f.alive && f.hero) { f.alive = true; f.hp = f.maxHp * op.hp; f.anim = 'idle'; f.state.invuln = 1.5; B.emit({ e: 'revive', uid: f.uid, x: f.x, z: f.z }); }
+    for (const f of friends(B, u)) if (!f.alive && f.hero) { f.alive = true; f.hp = Math.min(f.maxHp, f.maxHp * op.hp * (1 + M(u, 'healPow'))); f.anim = 'idle'; f.state.invuln = 1.5; B.emit({ e: 'revive', uid: f.uid, x: f.x, z: f.z }); }
   },
   die(B, u) { if (u.alive) kill(B, u, null); },
   spawn(B, u, op) {
@@ -431,7 +528,28 @@ const OPS = {
 // pull a point back inside the fraction k of the arena ellipse
 function clampR(x, z, k) { const n = arenaNorm(x, z); return n > k ? { x: (x * k) / n, z: (z * k) / n } : { x, z }; }
 function rimPoint(a, k) { return { x: Math.cos(a) * ARENA.x * k, z: Math.sin(a) * ARENA.z * k }; }
-function push(f, x, z, k) { const d = Math.hypot(f.x - x, f.z - z) || 1; const p = clampR(f.x + ((f.x - x) / d) * k, f.z + ((f.z - z) / d) * k, 1); f.x = p.x; f.z = p.z; }
+// knock f away from (x, z); a knock by a hero with Gai Hồi Sức heals that hero
+function push(B, f, x, z, k, by) {
+  const d = Math.hypot(f.x - x, f.z - z) || 1; const p = clampR(f.x + ((f.x - x) / d) * k, f.z + ((f.z - z) / d) * k, 1); f.x = p.x; f.z = p.z;
+  if (by && by.hooks && by.hooks.kbHeal && f.team !== by.team) { heal(B, by, by, by.maxHp * by.hooks.kbHeal.amt, true); proc(B, by, 'kbHeal'); }
+}
+// knock f off a path to the side it stands on (a charge throws what it meets aside)
+function pushAside(B, f, x1, z1, x2, z2, k, by) {
+  const dx = x2 - x1; const dz = z2 - z1; const L = Math.hypot(dx, dz) || 1;
+  const side = ((f.x - x1) * -dz + (f.z - z1) * dx) >= 0 ? 1 : -1;
+  push(B, f, f.x - (-dz / L) * side, f.z - (dx / L) * side, k, by);
+}
+function addZone(B, u, C, op) {
+  const t = B.byUid.get(u.target);
+  const ang = (t ? Math.atan2(t.z - u.z, t.x - u.x) : u.face) + (op.spin || 0);
+  const r = op.r * (op.seg ? 1 : 1 + M(u, 'aoe'));
+  const z = { x: op.x, z: op.z, r, t: op.dur, every: op.every, tick: op.delay || 0, dmg: op.dmg, status: op.status, src: u.uid, team: u.team, power: C.power, atk: C.atk,
+    tag: B.tag, follow: op.follow ? u.uid : 0, cone: op.cone || 0, ang, vx: op.drift ? Math.cos(ang) * op.drift : 0, vz: op.drift ? Math.sin(ang) * op.drift : 0, key: op.key || C.fx, id: ++B.uidSeq,
+    seg: op.seg || null, suck: op.suck || 0, ink: op.ink ? M(u, 'inkAmp') || 0.0001 : 0 };
+  B.zones.push(z);
+  B.emit({ e: 'zone', id: z.id, key: z.key, x: z.x, z: z.z, r: z.r, dur: op.dur, follow: z.follow, cone: z.cone, ang, team: u.team, delay: op.delay || 0, ...(z.seg ? { x2: z.seg.x2, z2: z.seg.z2 } : {}) });
+  return z;
+}
 
 function inCone(B, u, ang, r, deg) {
   const out = []; const half = (deg * Math.PI) / 360;
@@ -535,6 +653,8 @@ function doAttack(B, u, t) {
     if (M(u, 'stunHit') && B.rng() < M(u, 'stunHit')) addStatus(B, u, f, { k: 'stun', dur: 1 }, atk);
     if (M(u, 'chain') && B.rng() < M(u, 'chain')) withTag(B, 'fx', () => chain(B, u, f, 2, atk * 0.5, 'chain'));
     if (f.alive && !f.boss && M(u, 'execute') && f.hp / f.maxHp < M(u, 'execute')) withTag(B, 'fx', () => hurt(B, u, f, f.hp + f.shield + 1, { dot: true }));
+    if (M(u, 'zapHit') && f.alive && B.rng() < M(u, 'zapHit')) { B.emit({ e: 'fx', key: 'smite', part: 'bolt', x: f.x, z: f.z, fromX: f.x, fromZ: f.z, team: u.team, by: u.uid, to: f.uid }); withTag(B, 'fx', () => hurt(B, u, f, atk * 1.2, { ranged: true })); }
+    if (M(u, 'kbHit') && f.alive && !f.boss && !M(f, 'kbRes')) push(B, f, u.x, u.z, M(u, 'kbHit'), u);
   };
   if (A.kind === 'melee') {
     const list = inCone(B, u, u.face, A.range + 0.3, A.deg).sort((a, b) => dist(u, a) - dist(u, b)).slice(0, (A.cleave || 1) + M(u, 'cleave'));
@@ -542,7 +662,9 @@ function doAttack(B, u, t) {
     for (const f of list) onHit(f, 1, { melee: true });
   } else if (A.kind === 'shot') {
     onHit(t, 1, { ranged: true });
-    const more = (A.chain || 0);
+    // Gai Thừa: now and then a second spike flies at another foe in reach
+    if (u.hero && M(u, 'extraShot') && B.rng() < M(u, 'extraShot')) { const o2 = foes(B, u).find((f) => f !== t && targetable(f) && dist(u, f) <= A.range + f.r); if (o2) { B.emit({ e: 'attack', uid: u.uid, to: o2.uid, key: A.fx, kind: A.kind, x: u.x, z: u.z, tx: o2.x, tz: o2.z }); onHit(o2, 1, { ranged: true }); } }
+    const more = A.chain ? A.chain + M(u, 'chainN') : 0;
     if (more) chain(B, u, t, more, atk * 0.6, A.fx);
     const pierce = M(u, 'pierce');
     if (pierce) { const ang = u.face; const hit = onSegment(B, 1 - u.team, t.x, t.z, t.x + Math.cos(ang) * 5, t.z + Math.sin(ang) * 5, 0.6).filter((f) => f !== t).slice(0, pierce); for (const f of hit) onHit(f, 0.7, { ranged: true }); }
@@ -552,13 +674,14 @@ function doAttack(B, u, t) {
     list.forEach((f, i) => onHit(f, i === 0 ? 1 : 0.6, { ranged: true }));
   } else if (A.kind === 'proj') {
     const d = dist(u, t);
-    B.projs.push({ id: ++B.uidSeq, x: u.x, z: u.z, tx: t.x, tz: t.z, speed: A.speed || 18, src: u.uid, team: u.team, dmg: atk, aoe: (A.aoe || 0) * (1 + M(u, 'aoe')), to: t.uid, key: A.fx, status: A.status, life: d / (A.speed || 18) + 0.05, tag: B.tag });
+    B.projs.push({ id: ++B.uidSeq, x: u.x, z: u.z, tx: t.x, tz: t.z, speed: A.speed || 18, src: u.uid, team: u.team, dmg: atk, aoe: (A.aoe || 0) * (1 + M(u, 'aoe')), to: t.uid, key: A.fx, status: A.status, life: d / (A.speed || 18) + 0.05, tag: B.tag, kb: u.hero ? M(u, 'kbHit') : 0, ox: u.x, oz: u.z });
   }
   B.tag = prevTag;
 }
 
 function think(B, u, dt) {
   if (u.spawnT > 0) { u.spawnT -= dt; }
+  if (u.hero && moveTick(B, u, dt)) return;
   if (u.lockT > 0) { u.lockT -= dt; return; }
   if (stunned(u)) { u.anim = 'stun'; return; }
 
@@ -583,6 +706,11 @@ function think(B, u, dt) {
     if (wants(B, u, s.def.when)) { castSkill(B, u, s); return; }
   }
   if (u.hero && B.auto.ult && u.ult >= 1 && t && B.t - u.ultReadyT >= B.auto.ultDelay) { castUlt(B, u.slot); return; }
+  if (u.hero && t) {
+    // Mở Màn: the first foe of a wave is met with a charge
+    if (u.openerReady) { u.openerReady = false; if (dist(u, t) > 3 && !rooted(u)) { proc(B, u, 'opener'); runOps(B, u, { ops: [{ op: 'dash', to: 'target', dmg: 1.2, w: 1.4 }], fx: 'pounce' }); return; } }
+    if (!rooted(u) && moveAct(B, u, t)) return;
+  }
 
   let mx = 0; let mz = 0;
   if (u.followOwner) {
@@ -633,7 +761,7 @@ function separate(B) {
     const a = L[i]; if (!a.alive || a.untargetable) continue;
     for (let j = i + 1; j < L.length; j++) {
       const b = L[j]; if (!b.alive || b.untargetable) continue;
-      if (a.fly !== b.fly) continue;
+      if (!!(a.fly || a.air) !== !!(b.fly || b.air) || a.ghost || b.ghost || a.under || b.under) continue;
       const dx = b.x - a.x; const dz = b.z - a.z; const min = a.r + b.r;
       const d2 = dx * dx + dz * dz;
       if (d2 >= min * min) continue;
@@ -660,15 +788,63 @@ function tickUnit(B, u, dt) {
   if (u.ampT > 0) { u.ampT -= dt; if (u.ampT <= 0) u.amp = 0; }
   if (u.ultLock > 0) u.ultLock -= dt;
   for (const s of u.skills) if (s.cd > 0) s.cd -= dt;
-  if (u.summon) { u.life -= dt; if (u.life <= 0) { u.alive = false; B.emit({ e: 'die', uid: u.uid, x: u.x, z: u.z, expire: true }); return; } }
+  if (u.summon) { u.life -= dt; if (u.life <= 0) { u.alive = false; summonGone(B, u); B.emit({ e: 'die', uid: u.uid, x: u.x, z: u.z, expire: true }); return; } }
   u.dotT -= dt;
   if (u.dotT <= 0) {
     u.dotT += DOT_EVERY;
-    for (const k of ['burn', 'poison', 'bleed']) { const s = u.status[k]; if (s && s.dps > 0) withTag(B, 'fx', () => hurt(B, B.byUid.get(s.src) || null, u, s.dps * DOT_EVERY, { dot: true })); if (!u.alive) return; }
+    for (const k of ['burn', 'poison', 'bleed']) { const s = u.status[k]; if (s && s.dps > 0) { B.dotK = k; withTag(B, 'fx', () => hurt(B, B.byUid.get(s.src) || null, u, s.dps * DOT_EVERY, { dot: true })); B.dotK = ''; } if (!u.alive) return; }
     const rg = M(u, 'regen'); if (rg > 0 && u.hp < u.maxHp) heal(B, null, u, u.maxHp * rg * DOT_EVERY, true);
   }
-  if (u.hero) chargeUlt(B, u, 0.008 * dt);
+  if (u.hero) { chargeUlt(B, u, 0.008 * dt); u.stillT = (u.stillT || 0) + dt; passiveTick(B, u, dt); if (!u.alive) return; }
   think(B, u, dt);
+}
+
+// the passives that act on their own clock (data: heroes.js passive.hook)
+function passiveTick(B, u, dt) {
+  const h = u.hooks;
+  if (h.reflect) {
+    // Phản Chấn: when the stone guard drops, what it held back comes out as a wave
+    const on = u.state.invuln > 0;
+    if (u.reflectOn && !on && u.blocked > 0) {
+      const r = h.reflect.r; const per = Math.min(u.blocked * h.reflect.k, atkOf(u) * 8);
+      B.emit({ e: 'fx', key: 'quake', part: 'burst', x: u.x, z: u.z, r, team: 0, by: u.uid });
+      withTag(B, 'fx', () => { for (const f of inRadius(B, 1, u.x, u.z, r)) hurt(B, u, f, per, { sure: true }); });
+      u.blocked = 0; proc(B, u, 'reflect');
+    }
+    u.reflectOn = on;
+  }
+  if (h.aura) {
+    u.auraT = (u.auraT || 0) - dt;
+    if (u.auraT <= 0) {
+      u.auraT = 0.5;
+      for (const f of inRadius(B, 0, u.x, u.z, h.aura.r)) {
+        if (f.summon || f === u) continue;
+        const b = f.buffs.find((x) => x.from === u.uid);
+        if (b) b.t = 0.6; else { f.buffs.push({ mods: { dr: h.aura.dr }, t: 0.6, key: 'aura', from: u.uid }); proc(B, u, 'aura'); }
+      }
+    }
+  }
+  if (h.volley) {
+    u.volT = (u.volT === undefined ? h.volley.every : u.volT) - dt;
+    if (u.volT <= 0 && nearestFoe(B, u, 12)) { u.volT = h.volley.every; proc(B, u, 'volley'); runOps(B, u, { ops: [{ op: 'bolts', n: h.volley.n, every: 0.08, dmg: h.volley.dmg, pick: 'near' }], fx: 'minigun' }); }
+  }
+  if (h.rage && u.hp < u.maxHp * h.rage.below) {
+    const b = u.buffs.find((x) => x.key === 'rage');
+    if (b) b.t = 0.5; else { u.buffs.push({ mods: { aspd: h.rage.aspd }, t: 0.5, key: 'rage' }); proc(B, u, 'rage'); }
+  }
+  if (h.inkRegen && u.hp < u.maxHp && B.zones.some((z) => z.ink && z.src === u.uid && Math.hypot(z.x - u.x, z.z - u.z) <= z.r)) { heal(B, u, u, u.maxHp * h.inkRegen.amt * dt, true); proc(B, u, 'inkRegen'); }
+  if (h.portal) {
+    u.portT = (u.portT === undefined ? h.portal.every : u.portT) - dt;
+    if (u.portT <= 0) {
+      const f = foes(B, u).filter((g) => targetable(g) && !g.boss && dist(u, g) < 8).sort((a, b) => dist(u, a) - dist(u, b))[0];
+      if (f) {
+        u.portT = h.portal.every;
+        const a = Math.atan2(f.z - u.z, f.x - u.x); const p = clampR(u.x + Math.cos(a) * 9, u.z + Math.sin(a) * 9, 0.97);
+        const x0 = f.x; const z0 = f.z; f.x = p.x; f.z = p.z; f.target = 0;
+        B.emit({ e: 'move', uid: f.uid, k: 'blink', x: x0, z: z0, tx: p.x, tz: p.z, by: u.uid }); proc(B, u, 'portal');
+      }
+    }
+  }
 }
 
 function addUnit(B, u) {
@@ -740,6 +916,9 @@ function startWave(B, n) {
   for (const u of B.heroes) {
     if (!u.alive) continue;
     const sw = M(u, 'shieldWave'); if (sw > 0) { u.shield = u.maxHp * sw; u.shieldT = 12; }
+    if (u.hooks.waveDodge) u.dodgeLeft = 1;
+    if (u.hooks.waveUnstop) { proc(B, u, 'waveUnstop'); u.state.unstop = u.hooks.waveUnstop.dur; delete u.status.stun; delete u.status.freeze; delete u.status.root; }
+    if (u.hooks.opener) u.openerReady = true;
   }
 }
 
@@ -838,7 +1017,7 @@ export function step(B) {
       const src = B.byUid.get(p.src) || { uid: p.src, team: p.team, mods: {}, buffs: [], alive: false };
       B.emit({ e: 'fx', key: p.key, part: 'burst', x: p.tx, z: p.tz, r: p.aoe || 0.8, team: p.team, by: p.src });
       const list = p.aoe ? inRadius(B, 1 - p.team, p.tx, p.tz, p.aoe) : [B.byUid.get(p.to)].filter((f) => f && f.alive && Math.hypot(f.x - p.tx, f.z - p.tz) < 1.6);
-      withTag(B, p.tag, () => { for (const f of list) { hurt(B, src, f, p.dmg, { canCrit: true, ranged: true }); addStatus(B, src, f, p.status, p.dmg); } });
+      withTag(B, p.tag, () => { for (const f of list) { hurt(B, src, f, p.dmg, { canCrit: true, ranged: true }); addStatus(B, src, f, p.status, p.dmg); if (p.kb && f.alive && !f.boss && !M(f, 'kbRes')) push(B, f, p.ox, p.oz, p.kb, src); } });
     } else { p.x += ((p.tx - p.x) / d) * s; p.z += ((p.tz - p.z) / d) * s; }
   }
 
@@ -848,10 +1027,13 @@ export function step(B) {
     const src = B.byUid.get(z.src);
     if (z.follow) { if (!src || !src.alive) { z.t = 0; } else { z.x = src.x; z.z = src.z; if (z.cone) { const t = B.byUid.get(src.target); if (t) { let da = Math.atan2(t.z - src.z, t.x - src.x) - z.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); z.ang += clamp(da, -2.4 * dt, 2.4 * dt); src.face = z.ang; } } } }
     z.x += z.vx * dt; z.z += z.vz * dt;
+    // a vortex drags what stands in it toward the middle (bosses and the unshakeable stay)
+    if (z.suck && z.tick > -dt) for (const f of inRadius(B, 1 - z.team, z.x, z.z, z.r)) { if (f.boss || M(f, 'kbRes')) continue; const d = Math.hypot(z.x - f.x, z.z - f.z); if (d > 0.4) { const k = Math.min(d - 0.4, z.suck * dt); f.x += ((z.x - f.x) / d) * k; f.z += ((z.z - f.z) / d) * k; } }
     if (z.tick <= 0 && z.t > -dt) {
       z.tick += z.every;
       const by = src || { uid: z.src, team: z.team, mods: {}, buffs: [], alive: false };
-      const list = z.cone ? inCone(B, { x: z.x, z: z.z, team: z.team }, z.ang, z.r, z.cone) : inRadius(B, 1 - z.team, z.x, z.z, z.r);
+      const list = z.seg ? onSegment(B, 1 - z.team, z.x, z.z, z.seg.x2, z.seg.z2, z.r) : z.cone ? inCone(B, { x: z.x, z: z.z, team: z.team }, z.ang, z.r, z.cone) : inRadius(B, 1 - z.team, z.x, z.z, z.r);
+      if (z.ink) for (const f of list) { f.inkT = B.t + z.every + 0.15; f.inkAmp = z.ink < 0.001 ? 0 : z.ink; }
       withTag(B, z.tag, () => { for (const f of list) { hurt(B, by, f, z.power * z.dmg, { dot: !z.cone && z.dmg < 0.5 }); addStatus(B, by, f, z.status, z.atk); } });
     }
     if (z.t <= 0) { B.zones.splice(i, 1); B.emit({ e: 'zone_end', id: z.id }); }
@@ -879,6 +1061,8 @@ export function createBattle(opts) {
     auto: { ult: false, ultDelay: 0.6, pick: false, ...(opts.auto || {}) },
     emit: () => {}, teamSize: opts.team.length, joinSpec: opts.joinSpec || null,
   };
+  // what move.js needs from the sim without importing it back
+  B.fn = { hurt, addStatus, push, inRadius, heal, atkOf, clampR, M, withTag, lowestAlly, zone: (B2, u, op) => addZone(B2, u, { fx: op.key, power: atkOf(u), atk: atkOf(u) }, op) };
   // every event carries the game time it happened at
   if (opts.onEvent) B.emit = (e) => { e.t = B.t; opts.onEvent(e, B); };
   opts.team.slice(0, 4).forEach((spec, i) => { const u = makeHero(B, i, spec); B.heroes.push(u); addUnit(B, u); });

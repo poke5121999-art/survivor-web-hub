@@ -131,7 +131,7 @@ export function createHeroes(game) {
     tgBtn.setLabel(inTeam ? 'RỜI ĐỘI' : 'VÀO ĐỘI'); tgBtn.setEnabled(own && !(inTeam && acc.team.length <= 1));
   }
   function refreshEvolve(h, own) {
-    const open = meta.unlocked('evolve'), mats = meta.acc.mats || {}, stone = mats.stone || null;
+    const open = meta.unlocked('evolve'), mats = meta.acc.evo || {}, stone = mats.stone || null;
     const el = h.element && STONE[h.element] ? h.element : null;
     let line = '';
     if (!open) line = meta.lockText('evolve');

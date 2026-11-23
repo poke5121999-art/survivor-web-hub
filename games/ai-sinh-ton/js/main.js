@@ -12,7 +12,7 @@ import { createOrient } from './orient.js?v=20261122a';
 import { createPerf } from './view/perf.js?v=20261122a';
 import { createBossIntro } from './view/bossintro.js?v=20261122a';
 
-const DEFAULT_TEAM = ['thep', 'mua', 'yta', 'gio'];
+const DEFAULT_TEAM = ['tegiap', 'nhim', 'loc', 'chon'];
 const MAX_CATCHUP = 8;
 
 const q = new URLSearchParams(location.search);
