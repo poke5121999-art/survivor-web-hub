@@ -1,13 +1,13 @@
 // Before | after pictures of the fight camera at the same moments, one stage per map layout, S22 and Xiaomi, HUD on.
 // "before" is another build served at AST_BEFORE (for W-cam2: `git archive` of the commit before the cluster camera,
 // served with any static server); "after" is this tree. Each moment also prints the camera distance and the on-screen
-// height of the four beasts. Out: .chk/a10/cam2/ab-<phone>-<moment>.png (before left, after right) and the raw frames.
+// height of the four beasts. Out: .chk/a10/<AB_SUB or cam2>/ab-<phone>-<moment>.png (before left, after right) and the raw frames.
 // Usage: AST_BEFORE=http://127.0.0.1:8123 PLAYWRIGHT_PATH=... timeout 900 node games/ai-sinh-ton/tools/cam-ab.mjs [--phones=s22] [--only=maze,boss]
 import fs from 'node:fs';
 import path from 'node:path';
 import { serve, launch, open as openPage, sheet, ROOT } from './pw.mjs';
 
-const OUT = path.join(ROOT, '.chk', 'a10', 'cam2'); fs.mkdirSync(OUT, { recursive: true });
+const OUT = path.join(ROOT, '.chk', 'a10', process['env'].AB_SUB || 'cam2'); fs.mkdirSync(OUT, { recursive: true });
 const argv = process.argv.slice(2); const arg = (k) => (argv.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.length + 3);
 const PHONES = arg('phones') ? arg('phones').split(',') : ['s22', 'xiaomi'];
 const BEFORE = (process['env'].AST_BEFORE || '').replace(/\/$/, '');
@@ -19,6 +19,9 @@ const MOMENTS = [
   { name: 'rail', stage: 9, wave: 2, secs: 8 },
   { name: 'horde', stage: 15, wave: 3, secs: 14 },
   { name: 'boss', stage: 8, wave: 5, secs: 9 },
+  { name: 'forest', stage: 2, wave: 1, secs: 6 },
+  { name: 'chase-snow', stage: 27, wave: 2, secs: 5 },
+  { name: 'swamp-rail', stage: 16, wave: 1, secs: 4 },
 ].filter((m) => !arg('only') || arg('only').split(',').includes(m.name));
 
 const LOOK = () => {
