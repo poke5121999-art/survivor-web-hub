@@ -1,7 +1,7 @@
 // Shared chrome of the menu screens in landscape (the left rail of five tabs, the settings gear, the counters with the
 // account level top-right, the warm backdrop) and the Ra Trận tab. The other menu screens (heroes.js, gacha.js, soon.js)
 // never draw the chrome: they only name themselves in MENU. Their content lives right of RAIL.right (106) and below the
-// counters (y 48) on the right; the toast sits top-centre (ui.toastAt).
+// counters (y 48) on the right; the toast sits top-centre (ui.toastAt) unless text or a button is there (kit toastSpot).
 import { stageDef, expectedLevel, CHAPTERS } from '../data/stages.js?v=20261122a';
 import { HERO } from '../data/heroes.js?v=20261122a';
 import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261122a';

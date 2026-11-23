@@ -480,10 +480,33 @@ export function createUI({ THREE, renderer, frame }) {
     if (toast) { toast.g.dispose(); toast = null; }
     const t = ui.text(str, { size: 13, valign: 'mid', align: 'center' }), w = Math.min(330, t.w + 34), h = 34, g = new THREE.Group(), holder = new THREE.Group();
     const p = ui.panel({ w, h, r: 17, color: 0x3a2a70, depth: 4, bevel: 2.4, ow: 2.4 }); holder.add(p); holder.add(t); t.pos(w / 2, h / 2 + 1, 10); holder.position.set(-w / 2, h / 2, 0); g.add(holder);
-    g.position.set(ui.toastAt.x, -ui.toastAt.y, 0); g.dispose = () => { p.dispose(); t.dispose(); g.parent && g.parent.remove(g); }; overlay.add(g); toast = { g, t: 0, w };
+    toastY = toastSpot(w, h); g.position.set(ui.toastAt.x, -toastY, 0); g.dispose = () => { p.dispose(); t.dispose(); g.parent && g.parent.remove(g); }; overlay.add(g); toast = { g, t: 0, w };
     g.scale.setScalar(0.01);
   };
-  ui.toastRect = () => (toast ? { x: ui.toastAt.x - toast.w / 2, y: ui.toastAt.y - 17, w: toast.w, h: 34 } : null);
+  ui.toastRect = () => (toast ? { x: ui.toastAt.x - toast.w / 2, y: toastY - 17, w: toast.w, h: 34 } : null);
+  // the toast goes to the height nearest ui.toastAt.y where it covers no text and no live button on screen;
+  // if every height covers something it takes the one that covers least
+  let toastY = ui.toastAt.y;
+  const _tb = new THREE.Box3();
+  function toastSpot(w, h) {
+    const keep = []; scene.updateMatrixWorld(true);
+    scene.traverse((o) => {
+      const n = o.parent; if (!(o.isMesh && n && n.mesh === o && n.canvas && n.str) || !shown(o)) return;
+      const s = screenOf(o); if (!s || s.hiding || o.material.opacity <= 0.05) return;
+      _tb.setFromObject(o); keep.push({ x: _tb.min.x, y: -_tb.max.y, w: _tb.max.x - _tb.min.x, h: _tb.max.y - _tb.min.y });
+    });
+    for (const e of liveTargets()) if (e.t.enabled) keep.push(e.vb);
+    const x0 = ui.toastAt.x - w / 2, ys = [];
+    for (let y = h / 2 + 4; y + h / 2 <= ui.H - 4; y += 4) ys.push(y);
+    ys.sort((a, b) => Math.abs(a - ui.toastAt.y) - Math.abs(b - ui.toastAt.y));
+    let best = ys[0], least = Infinity;
+    for (const y of ys) {
+      let a = 0; const y0 = y - h / 2;
+      for (const r of keep) { const ox = Math.min(x0 + w, r.x + r.w) - Math.max(x0, r.x), oy = Math.min(y0 + h, r.y + r.h) - Math.max(y0, r.y); if (ox > 1 && oy > 1) a += ox * oy; }
+      if (a < least) { least = a; best = y; } if (a === 0) break;
+    }
+    return best;
+  }
   const flies = [];
   ui.fly = (str, x, y, o = {}) => {
     const t = ui.text(str, { size: o.size ?? 20, color: o.color ?? PAL.gold, align: 'center', valign: 'mid', outlineW: 2.6 }); overlay.add(t); t.pos(x, y, 0); flies.push({ n: t, x, y, t: 0 });
