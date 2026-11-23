@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Xưởng Thú</title>
+<link rel="icon" href="data:,">
+<style>
+  html, body { margin: 0; height: 100%; background: #10141c; overflow: hidden; font: 13px/1.3 system-ui, sans-serif; color: #e8ecf4; }
+  #frame { position: absolute; inset: 0; }
+  #frame canvas { width: 100%; height: 100%; display: block; }
+  #bar { position: absolute; left: 8px; top: 8px; right: 8px; display: flex; flex-wrap: wrap; gap: 4px; pointer-events: none; }
+  #bar button, #bar select { pointer-events: auto; background: #1d2433cc; color: #e8ecf4; border: 1px solid #3a4560; border-radius: 6px; padding: 4px 8px; font: inherit; }
+  #bar button.on { background: #3a6ad8; }
+  #info { position: absolute; left: 8px; bottom: 8px; background: #0008; padding: 4px 8px; border-radius: 6px; }
+  body.shot #bar, body.shot #info { display: none; }
+</style>
+</head>
+<body>
+<div id="frame"></div>
+<div id="bar"></div>
+<div id="info"></div>
+<script type="module">
+import * as THREE from './vendor/three.module.min.js?v=20261122a';
+window.THREE = THREE;
+const { buildBeast, FORMS } = await import('./js/view/beast/index.js?v=20261122a');
+
+const Q = new URLSearchParams(location.search);
+if (Q.get('shot') === '1') document.body.classList.add('shot');
+const frame = document.getElementById('frame');
+// tools shoot with MSAA off: on this box's headless GPU path MSAA sometimes drops a whole skinned mesh
+const renderer = new THREE.WebGLRenderer({ antialias: Q.get('shot') !== '1' && Q.get('aa') !== '0' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+frame.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a2634);
+scene.add(new THREE.HemisphereLight(0xbcd0f0, 0x3a3020, 1.1));
+const sun = new THREE.DirectionalLight(0xfff0d8, 1.8); sun.position.set(3, 6, 4); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 48).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x3a4250 })); scene.add(ground);
+const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
+
+const ALL = Object.keys(FORMS);
+const S = { keys: (Q.get('keys') || Q.get('key') || ALL.join(',')).split(','), anim: Q.get('anim') || 'idle', lod: Q.get('lod') || 'portrait', yaw: +(Q.get('yaw') || 0.6), spin: Q.get('spin') === '1', speed: +(Q.get('speed') || 0), move: Q.get('move') || null };
+let beasts = []; let T = 0;
+
+function layout(keys, o = {}) {
+  for (const b of beasts) { scene.remove(b.holder); b.beast.dispose(); }
+  beasts = keys.map((k, i) => {
+    const [id, f] = k.split('.'); const form = +f[0]; const branch = f[1] || null;
+    const beast = buildBeast({ id, form, branch }, { lod: o.lod || S.lod });
+    const holder = new THREE.Group(); holder.add(beast.root); scene.add(holder);
+    return { key: k, beast, holder, animT: 0 };
+  });
+  const gap = o.gap || 1.9; const cols = o.cols || Math.min(keys.length, 7); const rows = Math.ceil(keys.length / cols);
+  beasts.forEach((b, i) => { const c = i % cols; const r = Math.floor(i / cols); b.holder.position.set((c - (cols - 1) / 2) * gap, 0, -r * gap * 1.2); });
+  const w = cols * gap; const h = rows * 2.2;
+  fit(Math.max(w * 0.62, h * 1.1, 2.2), -((rows - 1) * gap * 1.2) / 2);
+  info();
+}
+function fit(d, zc = 0) { camera.position.set(0, d * 0.55 + 0.6, zc + d * 1.6); camera.lookAt(0, 0.55, zc); }
+function resize() { const w = frame.clientWidth; const h = frame.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+function info() { document.getElementById('info').textContent = beasts.map((b) => `${b.key} ${b.beast.height}m ${b.beast.drawCalls}dc`).join(' · '); }
+
+// silhouette seen from the side (camera on +x), the beast fitted to a unit height and centred: for the IoU between forms
+const rt = new THREE.WebGLRenderTarget(128, 128); const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+function silhouette(key, view = 'side') {
+  const [id, f] = key.split('.'); const beast = buildBeast({ id, form: +f[0], branch: f[1] || null }, { lod: 'battle' });
+  beast.update({ anim: 'idle', animT: 0, speed: 0 }, 0.016);
+  const sc = new THREE.Scene(); sc.background = new THREE.Color(0); sc.add(beast.root); sc.overrideMaterial = white;
+  for (const m of beast.root.children) if (m.name === 'beast.line') m.visible = false;
+  beast.root.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(beast.root, true);
+  const H = box.max.y - box.min.y; const cz = (box.min.z + box.max.z) / 2; const cx = (box.min.x + box.max.x) / 2;
+  const half = H * 0.75; const cam = new THREE.OrthographicCamera(-half, half, half, -half, 0.01, 50);
+  if (view === 'side') { cam.position.set(20, box.min.y + half * 0.95, cz); cam.lookAt(0, box.min.y + half * 0.95, cz); } else { cam.position.set(cx, box.min.y + half * 0.95, 20); cam.lookAt(cx, box.min.y + half * 0.95, 0); }
+  renderer.setRenderTarget(rt); renderer.render(sc, cam); const px = new Uint8Array(128 * 128 * 4); renderer.readRenderTargetPixels(rt, 0, 0, 128, 128, px); renderer.setRenderTarget(null);
+  beast.dispose(); const m = new Uint8Array(128 * 128); for (let i = 0; i < m.length; i++) m[i] = px[i * 4] > 127 ? 1 : 0; return m;
+}
+function iou(a, b) { const A = silhouette(a); const B = silhouette(b); let i = 0; let u = 0; for (let k = 0; k < A.length; k++) { if (A[k] && B[k]) i++; if (A[k] || B[k]) u++; } return i / Math.max(1, u); }
+
+// draw calls of one beast at a lod, counted by the renderer
+function drawCalls(key, lod = 'battle') {
+  const [id, f] = key.split('.'); const beast = buildBeast({ id, form: +f[0], branch: f[1] || null }, { lod });
+  const sc = new THREE.Scene(); sc.add(beast.root); beast.update({ anim: 'idle', animT: 0 }, 0.016);
+  renderer.info.autoReset = false; renderer.info.reset(); renderer.render(sc, camera); const n = renderer.info.render.calls; renderer.info.autoReset = true;
+  const box = new THREE.Box3().setFromObject(beast.root, true); const h = box.max.y - box.min.y;
+  beast.dispose(); return { calls: n, height: +h.toFixed(3), meshes: beast.drawCalls };
+}
+
+window.__demo = {
+  keys: ALL, iou, drawCalls, beasts: () => beasts, scene, renderer, layout: (keys, o) => layout(keys, o),
+  set(o) { Object.assign(S, o); for (const b of beasts) b.animT = 0; }, step(dt, n = 1) { for (let i = 0; i < n; i++) tick(dt); render(); },
+  view(yaw, d, zc) { S.yaw = yaw; if (d) fit(d, zc); }, camera,
+};
+
+// buttons
+const bar = document.getElementById('bar');
+const sel = document.createElement('select'); sel.innerHTML = `<option value="${ALL.join(',')}">tất cả</option>` + ALL.map((k) => `<option>${k}</option>`).join('') + [...new Set(ALL.map((k) => k.split('.')[0]))].map((id) => `<option value="${ALL.filter((k) => k.startsWith(id + '.')).join(',')}">${id} (cả cây)</option>`).join('');
+sel.onchange = () => layout(sel.value.split(',')); bar.appendChild(sel);
+for (const a of ['idle', 'run', 'attack', 'cast', 'ult', 'hit', 'stun', 'die', 'evolve']) { const b = document.createElement('button'); b.textContent = a; b.onclick = () => { S.anim = a; S.speed = a === 'run' ? 3 : 0; for (const x of beasts) x.animT = 0; }; bar.appendChild(b); }
+for (const l of ['battle', 'portrait']) { const b = document.createElement('button'); b.textContent = l; b.onclick = () => { S.lod = l; layout(beasts.map((x) => x.key)); }; bar.appendChild(b); }
+{ const b = document.createElement('button'); b.textContent = 'xoay'; b.onclick = () => { S.spin = !S.spin; }; bar.appendChild(b); }
+
+function tick(dt) {
+  T += dt; if (S.spin) S.yaw += dt * 0.6;
+  for (const b of beasts) {
+    b.animT += dt; if (b.animT > 2.2 && S.anim !== 'die' && S.anim !== 'evolve') b.animT = 0;
+    const anim = S.anim === 'run' ? 'run' : S.anim;
+    b.holder.rotation.y = S.yaw;
+    b.beast.update({ anim, animT: b.animT, speed: S.anim === 'run' ? (S.speed || 3) : S.speed, move: S.move || b.beast.move }, dt);
+  }
+}
+function render() { renderer.render(scene, camera); }
+layout(S.keys);
+let last = performance.now();
+function loop(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; if (!Q.get('freeze')) { tick(dt); render(); } requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+window.__ready = true;
+</script>
+</body>
+</html>
