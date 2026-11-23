@@ -2,10 +2,11 @@
 // account level top-right, the warm backdrop) and the Ra Trận tab. The other menu screens (heroes.js, gacha.js, soon.js)
 // never draw the chrome: they only name themselves in MENU. Their content lives right of RAIL.right (106) and below the
 // counters (y 48) on the right; the toast sits top-centre (ui.toastAt).
-import { stageDef, expectedLevel } from '../data/stages.js?v=20261122a';
+import { stageDef, expectedLevel, CHAPTERS } from '../data/stages.js?v=20261122a';
 import { HERO } from '../data/heroes.js?v=20261122a';
 import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261122a';
 import { createDiorama } from './diorama.js?v=20261122a';
+import { createWorldMap, STORY } from './worldmap.js?v=20261122a';
 import { lockButton } from './guide.js?v=20261122a';
 import { xpNeed } from '../data/unlocks.js?v=20261122a';
 import { installBeastPortraits } from './beast-ui.js?v=20261122a';
@@ -66,7 +67,8 @@ export function buildRail(ui, game, screen, active = 'tab-battle') {
 
 const VISIT = { gacha: 'gacha', heroes: 'heroes', hero: 'heroes', equip: 'equip', rewards: 'rewards' };
 const SLOT_UNLOCK = [null, 'slot2', 'slot3', 'slot4'];
-const STAGES_PER_CHAPTER = 5, CAMPAIGN_CHAPTERS = 6;
+const STAGES_PER_CHAPTER = 5, CAMPAIGN_CHAPTERS = CHAPTERS.length;
+export const GAME_TITLE = 'Ải Sinh Tồn: Thú Hộ Vệ';
 const chapterOf = (n) => Math.floor((n - 1) / STAGES_PER_CHAPTER);
 const chapterStart = (k) => k * STAGES_PER_CHAPTER + 1;
 
@@ -197,9 +199,10 @@ export function createHome(game) {
   const CX = 338, COL = 576, COLW = 176;
   let sel = 0, lastMax = 0; mui.stage = () => sel;
   const maxStage = () => meta.acc.cleared + 1;
-  const chapLine = ui.text('CHƯƠNG 1: PHỐ HOANG', { size: 11.5, color: 0xffe9a8, align: 'center', upper: true, outlineW: 2 }); home.put(chapLine, CX, 2, 6); mui.regTitle('home', chapLine);
+  const chapLine = ui.text('CHƯƠNG 1: PHỐ HOANG', { size: 11.5, color: 0xffe9a8, align: 'center', upper: true, outlineW: 2 }); home.put(chapLine, CX, 4, 6); mui.regTitle('home', chapLine);
   const title = ui.text('ẢI 1', { size: 30, color: PAL.gold, align: 'center', upper: true, outlineW: 3.6, shadow: 2.5 }); home.put(title, CX, 20, 6); mui.regTitle('home', title);
   const stageName = ui.text('PHỐ HOANG 1', { size: 14, align: 'center', upper: true, outlineW: 2.2 }); home.put(stageName, CX, 57, 6); mui.regTitle('home', stageName);
+  const storyTxt = ui.text(' ', { size: 13, align: 'center', color: 0xffe9a8, outlineW: 2.2 }); home.put(storyTxt, CX, 59, 6);
   const bossPill = ui.panel({ w: 200, h: 26, r: 13, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(bossPill, 238, 78);
   const skull = ui.icon('skull', { size: 28 }); bossPill.put(skull, -6, -1, 4);
   const bossTxt = ui.text('Boss: Khổng Lồ', { size: 13, align: 'left', valign: 'mid' }); bossPill.put(bossTxt, 28, 14);
@@ -207,25 +210,37 @@ export function createHome(game) {
   spikeTag.put(ui.text('ẢI GẮT', { size: 13, align: 'center', upper: true, valign: 'mid' }), 40, 14);
 
   const DW = 344, DH = 224, FX = 160, FY = 108;
-  const dio = createDiorama(ui, { w: DW, h: DH });
+  // The frame shows the world map (the ten regions; a tap on an open one opens its stages) or one chapter (the stage
+  // diorama under a row of its five stages). The stage arrows step through stages in both.
+  let view = 'world'; mui.view = () => view;
   const frameP = ui.panel({ w: DW + 12, h: DH + 12, r: 22, color: 0x5a3fa0, depth: 5, bevel: 3 }); home.put(frameP, FX, FY);
+  const dio = createDiorama(ui, { w: DW, h: DH });
   frameP.put(dio.node, 6, 6, 1);
+  const world = createWorldMap(ui, meta, { w: DW, h: DH, onPick: pickRegion });
+  frameP.put(world.node, 6, 6, 1);
   const hint = ui.text('', { size: 12, align: 'center', color: 0xffe9a8, outlineW: 2 }); frameP.put(hint, (DW + 12) / 2, DH - 14, 10);
-  // five pips of the chapter under the diorama's top edge: cleared, next to play, locked; the fifth is the boss spike
-  const pipBar = ui.panel({ w: 186, h: 34, r: 17, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(pipBar, CX - 93, FY + 6, 12);
-  const pipRing = ui.panel({ w: 30, h: 30, r: 15, color: 0xffffff, depth: 1, bevel: 0.5, ow: 2, shadow: false }); pipBar.put(pipRing, 0, 2, 1);
+  const gameTitle = ui.text(GAME_TITLE, { size: 11, align: 'center', color: 0xffe9a8, upper: true, outlineW: 2 }); frameP.put(gameTitle, (DW + 12) / 2, DH - 12, 10);
+  // the chapter's five stages along the diorama's top edge: cleared, next to play, locked; the fifth is the boss spike.
+  // Each is a tap area that selects its stage.
+  const PIP = { n: 5, gap: 44, d: 30 }, PIPW = PIP.n * PIP.gap + 8;
+  const pipBar = ui.panel({ w: PIPW, h: 42, r: 21, color: 0x2a2150, depth: 3, bevel: 2, ow: 2.2, shadow: false }); home.put(pipBar, CX - PIPW / 2, FY + 4, 12);
+  const pipRing = ui.panel({ w: PIP.d + 6, h: PIP.d + 6, r: PIP.d / 2 + 3, color: 0xffffff, depth: 1, bevel: 0.5, ow: 2, shadow: false }); pipBar.put(pipRing, 0, 3, 1);
   const pips = [0, 1, 2, 3, 4].map((i) => {
-    const spike = i === STAGES_PER_CHAPTER - 1, p = ui.panel({ w: 24, h: 24, r: 12, color: PAL.disabled, depth: 2, bevel: 1.2, ow: 2, shadow: false }); pipBar.put(p, 13 + i * 34, 5, 3);
-    if (spike) { const sk = ui.icon('skull', { size: 24, sway: false }); p.put(sk, 0, 0, 4); }
-    return { p, x: 13 + i * 34 };
+    const spike = i === STAGES_PER_CHAPTER - 1, x = 4 + i * PIP.gap + (PIP.gap - PIP.d) / 2;
+    const p = ui.panel({ w: PIP.d, h: PIP.d, r: PIP.d / 2, color: PAL.disabled, depth: 2, bevel: 1.2, ow: 2, shadow: false }); pipBar.put(p, x, 6, 3);
+    let num = null;
+    if (spike) p.put(ui.icon('skull', { size: PIP.d, sway: false }), 0, 0, 4);
+    else { num = ui.text('', { size: 12, align: 'center', valign: 'mid', outlineW: 1.8 }); p.put(num, PIP.d / 2, PIP.d / 2 + 1, 5); }
+    const hs = ui.hotspot({ id: 'stage-pip-' + i, w: PIP.gap, h: 42, onTap: () => pickPip(i) }); pipBar.put(hs, 4 + i * PIP.gap, 0, 6);
+    return { p, x, num };
   });
-  mui.pips = []; mui.chapterLine = '';
+  mui.pips = []; mui.chapterLine = ''; mui.story = '';
   const AX = RAIL.content, BX = FX + DW + 12 + 4;
   const prev = ui.button({ id: 'stage-prev', w: 48, h: 56, r: 14, color: PAL.blue, icon: 'left', onTap: () => setStage(sel - 1) }); home.put(prev, AX, 138, 6);
   const next = ui.button({ id: 'stage-next', w: 48, h: 56, r: 14, color: PAL.blue, icon: 'right', onTap: () => setStage(sel + 1) }); home.put(next, BX, 138, 6);
   const lockI = ui.icon('lock', { size: 22 }); home.put(lockI, BX + 13, 152, 20);
-  const chapPrev = ui.button({ id: 'chapter-prev', w: 48, h: 56, r: 14, color: PAL.purple, icon: 'left', label: 'CHƯƠNG', stack: true, size: 8.5, onTap: () => setStage(chapterStart(chapterOf(sel) - 1)) }); home.put(chapPrev, AX, 208, 6);
-  const chapNext = ui.button({ id: 'chapter-next', w: 48, h: 56, r: 14, color: PAL.purple, icon: 'right', label: 'CHƯƠNG', stack: true, size: 8.5, onTap: () => setStage(chapterStart(chapterOf(sel) + 1)) }); home.put(chapNext, BX, 208, 6);
+  const toWorld = ui.button({ id: 'view-world', w: 48, h: 56, r: 14, color: PAL.purple, icon: 'back', label: 'BẢN ĐỒ', stack: true, size: 8.5, onTap: () => setView('world') }); home.put(toWorld, AX, 208, 6);
+  const toChapter = ui.button({ id: 'view-chapter', w: 48, h: 56, r: 14, color: PAL.purple, icon: 'sword', label: 'CÁC ẢI', stack: true, size: 8.5, onTap: () => setView('chapter') }); home.put(toChapter, AX, 208, 6);
 
   home.put(ui.text('ĐỘI HÌNH', { size: 12, color: 0xffe9a8, outlineW: 2 }), COL, 48, 6);
   const powTxt = ui.text('', { size: 12, align: 'left', color: 0xffe9a8, outlineW: 1.8 }); home.put(powTxt, COL, 64, 6);
@@ -255,26 +270,50 @@ export function createHome(game) {
     }
   }
   let teamKey = '';
+  // the region a stage belongs to on the map: stages past the campaign stay on the last region
+  const regionOf = (n) => Math.min(CAMPAIGN_CHAPTERS - 1, chapterOf(n));
+  function pickRegion(k) {
+    const max = maxStage(), open = regionOf(max) + 1;
+    if (k >= open) { ui.toast('Qua ải ' + k * STAGES_PER_CHAPTER + ' để mở ' + CHAPTERS[k].name); return; }
+    const n = regionOf(sel) === k ? sel : regionOf(max) === k ? max : chapterStart(k);
+    setView('chapter'); setStage(n);
+  }
+  function pickPip(i) {
+    const n = chapterStart(chapterOf(sel)) + i;
+    if (n > maxStage()) { ui.toast('Thắng ải ' + (n - 1) + ' để mở ải ' + n); return; }
+    setStage(n);
+  }
+  function setView(v) {
+    view = v; const w = v === 'world';
+    world.node.setVisible(w); dio.node.setVisible(!w); pipBar.setVisible(!w); gameTitle.setVisible(w);
+    toWorld.setVisible(!w); toChapter.setVisible(w);
+    if (w) world.focus(regionOf(sel), true);
+    setStage(sel);
+  }
   function setStage(n) {
     const max = maxStage(); n = Math.max(1, Math.min(max, n)); const same = n === sel; sel = n;
-    const def = stageDef(n); dio.dress(n);
-    const k = chapterOf(n), endless = k >= CAMPAIGN_CHAPTERS;
+    const def = stageDef(n); if (view === 'chapter') dio.dress(n);
+    const k = chapterOf(n), endless = k >= CAMPAIGN_CHAPTERS, story = STORY[regionOf(n)];
     mui.chapterLine = endless ? 'Vô Tận: ải ' + n : 'Chương ' + (k + 1) + ': ' + def.chapterName; chapLine.set(mui.chapterLine);
-    title.set('ẢI ' + n); stageName.set(def.name);
+    title.set('ẢI ' + n);
+    mui.story = view === 'chapter' && !endless ? story : '';
+    stageName.set(def.name); stageName.setVisible(!mui.story); storyTxt.set(mui.story || ' '); storyTxt.setVisible(!!mui.story); fitW(storyTxt, 380);
     mui.pips = pips.map((pp, i) => {
       const m = chapterStart(k) + i, st = m <= meta.acc.cleared ? 'cleared' : m <= max ? 'current' : 'locked', spike = i === STAGES_PER_CHAPTER - 1;
       pp.p.setColor(st === 'cleared' ? PAL.green : st === 'current' ? PAL.gold : spike ? 0x6a3040 : PAL.disabled);
+      if (pp.num) pp.num.set(String(m));
       return { n: m, state: st, spike, sel: m === n };
     });
-    pipRing.pos(pips[(n - 1) % STAGES_PER_CHAPTER].x - 3, 2);
+    pipRing.pos(pips[(n - 1) % STAGES_PER_CHAPTER].x - 3, 3);
+    world.set({ open: regionOf(max) + 1, current: regionOf(max), sel: regionOf(n), team: meta.acc.team.filter(Boolean) });
+    if (view === 'world') world.focus(regionOf(n));
 
     bossTxt.set('Boss: ' + def.bossName);
     spikeTag.setVisible(def.spike); bossPill.pos(def.spike ? 194 : 238, 78);
     const best = meta.acc.best[n]; bestTxt.set(best ? 'Kỷ lục: ' + fmtTime(best) : 'Chưa có kỷ lục');
     prev.setEnabled(n > 1);
     const lockedNext = n >= max; next.setEnabled(!lockedNext); lockI.setVisible(lockedNext);
-    chapPrev.setEnabled(k > 0); chapNext.setEnabled(chapterStart(k + 1) <= max);
-    hint.set(n >= max ? 'Thắng ải này để mở ải kế tiếp' : '');
+    hint.set(view === 'chapter' && n >= max ? 'Thắng ải này để mở ải kế tiếp' : '');
     start.setSub('Ải ' + n);
     refreshTeam(false); return !same;
   }
@@ -289,12 +328,12 @@ export function createHome(game) {
   const showHome = () => {
     const max = maxStage();
     if (!sel || sel === lastMax || sel > max) sel = max;
-    lastMax = max; ui.show('home', { transition: 'none' }); setStage(sel); rail.dirty();
+    lastMax = max; ui.show('home', { transition: 'none' }); setView('world'); rail.dirty();
   };
   const hideHome = () => ui.hide('home', { transition: 'none' });
   meta.on(() => { if (ui.isShown('home')) { const m = maxStage(); if (sel === lastMax) sel = m; lastMax = m; setStage(sel); } });
 
-  const screenApi = { name: 'home', show: showHome, hide: hideHome, update() { if (ui.isShown('home')) bd.tick(ui.t); } };
+  const screenApi = { name: 'home', show: showHome, hide: hideHome, update(dt) { if (ui.isShown('home')) { bd.tick(ui.t); if (view === 'world') world.update(dt || 0.016); } } };
 
   const chromeApi = {
     name: 'chrome', show() {}, hide() {},
