@@ -352,8 +352,10 @@ export function createMarks(H) {
   // holds its position, scale, colour and opacity (the tools read those), copied into the batch every frame.
   const colB = batch(cylGeo, { map: gradTex, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }, VCAP.pillar + VCAP.wall, 6);
   const flashB = batch(planeGeo, { map: BZtex('glow'), blending: THREE.AdditiveBlending }, VCAP.flash, 6);
-  const writeCol = (r, M, C) => { if (!r.on || !r.mesh.visible) return 0; const m = r.mesh; M.makeScale(m.scale.x, m.scale.y, m.scale.z); M.setPosition(m.position); C.copy(m.material.color); return m.material.opacity; };
-    const writeFlash = (r, M, C) => { if (!r.on || !r.mesh.visible) return 0; const m = r.mesh; M.makeRotationFromQuaternion(H.camera.quaternion); M.scale(bS.set(m.scale.x, m.scale.y, 1)); M.setPosition(m.position); C.copy(m.material.color); return m.material.opacity; };
+  // in the ultimate's close-up (ultcam.js) columns, walls and flashes stand several times bigger and stack to white: halved there
+  const closeK = () => { const J = window.__G && window.__G.juice; return J && J.ult && J.ult.active ? 0.5 : 1; };
+  const writeCol = (r, M, C) => { if (!r.on || !r.mesh.visible) return 0; const m = r.mesh; M.makeScale(m.scale.x, m.scale.y, m.scale.z); M.setPosition(m.position); C.copy(m.material.color); return m.material.opacity * closeK(); };
+    const writeFlash = (r, M, C) => { if (!r.on || !r.mesh.visible) return 0; const m = r.mesh; M.makeRotationFromQuaternion(H.camera.quaternion); M.scale(bS.set(m.scale.x, m.scale.y, 1)); M.setPosition(m.position); C.copy(m.material.color); return m.material.opacity * closeK(); };
   const colItems = [];
   function flushVertical() { colItems.length = 0; colItems.push(...vpool.pillar, ...vpool.wall); colB.flush(colItems, writeCol); flashB.flush(vpool.flash, writeFlash); }
   // upright additive columns and walls stand about a quarter taller on screen at the 42 to 50 degree overview: dimmed to

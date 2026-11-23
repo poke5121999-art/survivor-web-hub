@@ -33,7 +33,7 @@ const SAFE = 28, BAR_Y = 3, CARD_W = 72, CARD_PITCH = 75, CARD_H = 68, PW = 48, 
 const CX = CARD_W / 2, CY = PY + PW / 2;
 const rowW = (n) => n * CARD_PITCH - (CARD_PITCH - CARD_W);
 const HP_COLORS = { ok: 0x35d65a, mid: 0xff9a1f, low: 0xff3b52 };
-const MERGE = 0.15, MERGE_GROUP = 0.3, NUMBER_LIFE = 0.95, BIG_HIT = 3, STREAK_MIN = 8;
+const CRIT_SHAKE = 0.25, MERGE = 0.15, MERGE_GROUP = 0.3, NUMBER_LIFE = 0.95, BIG_HIT = 3, STREAK_MIN = 8;
 // Wave, boss, rage and ultimate names: one line each, a chip in the bottom-right corner beside the hero cards, the part of
 // the frame units reach least (measured over six stages: under 0.1 unit boxes per sample there, 1 to 2 in the middle); the
 // newest at the bottom, older ones pushed up, at most three, the oldest leaves first
@@ -336,13 +336,15 @@ export function createHud(game) {
   const twin = (q) => live.find((o) => o !== q && o.text === q.text && Math.abs(o.x - q.x) < 40 && Math.abs(o.y - q.y) < RISE + 40);
   function spawn(key, str, nx, ny, o, w, h) {
     const node = ui.text(str, { size: o.size ?? 20, color: o.color ?? PAL.gold, align: 'center', valign: 'mid', outlineW: 2.6 }); scr.put(node, nx, ny, 50);
-    const q = { node, key, text: str, x: nx, y: ny, w, h, age: 0, born: clock, base: o.size ?? 20, size: o.size ?? 20, sum: o.sum, n: o.n, heal: o.heal, merged: o.merged, color: o.color };
+    const q = { node, key, text: str, x: nx, y: ny, w, h, age: 0, born: clock, base: o.size ?? 20, size: o.size ?? 20, sum: o.sum, n: o.n, heal: o.heal, merged: o.merged, color: o.color, crit: !!o.crit };
     live.push(q); drawNumber(q); return q;
   }
   function drawNumber(q) {
     const k = q.age / NUMBER_LIFE, e = easeOut(k);
     const sc = (k < 0.15 ? 0.6 + easeBack(k / 0.15) * 0.5 : 1.1 - 0.1 * Math.min(1, (k - 0.15) * 4)) * (q.size / q.base);
-    q.node.pos(q.x, q.y - e * RISE); q.node.scale.setScalar(sc); q.node.setOpacity(k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4);
+    // a critical shakes for its first CRIT_SHAKE seconds, a few px side to side and dying out
+    const jx = q.crit && q.age < CRIT_SHAKE ? Math.sin(q.age * 90) * 2.2 * (1 - q.age / CRIT_SHAKE) : 0;
+    q.node.pos(q.x + jx, q.y - e * RISE); q.node.scale.setScalar(sc); q.node.setOpacity(k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4);
   }
   function updateNumbers(dt) {
     for (let i = live.length - 1; i >= 0; i--) {
@@ -409,12 +411,14 @@ export function createHud(game) {
   function flushNumbers() {
     const B = game.B;
     if (!B || B.phase !== 'fight') { pending.clear(); deaths.length = 0; return; }
+    // an ultimate winding up (ultcam.js) holds the world: its hits show when the impact lands, not before it
+    if (game.juice && game.juice.ult && game.juice.ult.holding()) { for (const p of pending.values()) p.t0 = clock; return; }
     for (const [key, p] of pending) {
       if (clock - p.t0 < (p.merged ? MERGE_GROUP : MERGE)) continue; pending.delete(key);
       const u = B.byUid.get(p.uid), hero = !!(u && u.hero);
       const at = p.merged ? game.project(p.sx / p.n, p.sz / p.n, 1.6) : game.project(p.x, p.z, hero ? 1.9 : (u && u.boss ? 3.2 : 1.6));
       if (at.behind || at.x < -10 || at.x > W + 10 || at.y < 40) continue;
-      const o = p.heal ? { color: PAL.green, size: 18 } : hero ? { color: 0xff7468, size: 15 } : p.merged ? { color: 0xffffff, size: clamp(17 + 2.2 * Math.log2(p.n), 17, 29) } : p.crit ? { color: PAL.gold, size: 27 } : { color: 0xffffff, size: 17 };
+      const o = p.heal ? { color: PAL.green, size: 18 } : hero ? { color: 0xff7468, size: 15 } : p.merged ? { color: 0xffffff, size: clamp(17 + 2.2 * Math.log2(p.n), 17, 29) } : p.crit ? { color: PAL.gold, size: 27, crit: true } : { color: 0xffffff, size: 17 };
       Object.assign(o, { sum: p.sum, n: p.n, heal: p.heal, merged: p.merged });
       const old = p.merged ? live.find((q) => q.key === key) : null;
       if (old) { refresh(old, p); continue; }
