@@ -8,6 +8,7 @@ import { serve, launch, open, checker, sheet, ROOT } from './pw.mjs';
 import { HERO } from '../js/data/heroes.js';
 import { UNLOCK } from '../js/data/unlocks.js';
 import { itemStat } from '../js/data/equip.js';
+import { beastWords } from '../js/ui/words.js';
 
 const OUT = path.join(ROOT, '.chk', 'ftue-run-' + process.pid); fs.mkdirSync(OUT, { recursive: true });
 const LAND = path.join(ROOT, '.chk', 'landscape'); fs.mkdirSync(LAND, { recursive: true });
@@ -162,7 +163,7 @@ for (PHONE of PHONE_LIST) {
   check(!!resultInfo && resultInfo.won && resultInfo.xp === 140 && resultInfo.lb === 1 && resultInfo.la === 2, `tutorial result: won, 140 xp, level 1 -> 2 (${JSON.stringify(resultInfo && [resultInfo.won, resultInfo.xp, resultInfo.lb, resultInfo.la])})`);
   check(!!resultInfo && resultInfo.xpText === '+140 XP' && resultInfo.lvUp === 'LÊN CẤP 2!' && resultInfo.gifts.join() === HERO.yta.name, `tutorial result screen shows "${resultInfo && resultInfo.xpText}", "${resultInfo && resultInfo.lvUp}" and the gift ${resultInfo && resultInfo.gifts}`);
   check(JSON.stringify(resultInfo && resultInfo.unlocked) === JSON.stringify(['slot2', 'levelup', 'gacha']), 'tutorial result lists the three new unlocks');
-  check(labels.join('|') === ['slot2', 'levelup', 'gacha'].map((id) => 'MỞ KHOÁ: ' + UNLOCK[id].name.toLocaleUpperCase('vi')).join('|'), `the reveal played once per unlock (${labels.join(' | ')})`);
+  check(labels.join('|') === ['slot2', 'levelup', 'gacha'].map((id) => 'MỞ KHOÁ: ' + beastWords(UNLOCK[id].name).toLocaleUpperCase('vi')).join('|'), `the reveal played once per unlock (${labels.join(' | ')})`);
   const fin = await page.evaluate(() => ({ heroes: Object.keys(__G.meta.acc.heroes).filter((k) => __G.meta.acc.heroes[k].level > 0).sort(), team: __G.meta.acc.team, level: __G.meta.acc.level, stage: __G.stageN, battle: !!__G.B, session: __G.meta.acc.ftue.session, freePull: __G.meta.acc.freePull, tutorial: __G.B && !!__G.B.stage.tutorial }));
   check(fin.heroes.join() === 'gio,mua,yta' && fin.team.join() === 'gio,mua' && fin.level === 2 && fin.stage === 2 && fin.battle && fin.session && !fin.freePull && !fin.tutorial, `after the session: gio, yta and mua owned, team gio+mua, level 2, stage 2 started (${JSON.stringify(fin)})`);
   await snap(page, 'stage2-started');
