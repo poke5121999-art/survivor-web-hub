@@ -3,6 +3,8 @@
 // their skills names a pose here; the six kit bosses play their own moves and only get a body lean on top.
 // Data shape: SKILL_POSE[enemy kind][i] is the pose of ENEMY[kind].skills[i]; POSES[name](b, k, w) edits the limbs the pool
 // just posed, k the progress of the cast over its lock (0..1, past 1 while it eases out) and w the blend weight.
+import { dressBoss } from './foe/bosses.js?v=20261122a';
+
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -187,6 +189,11 @@ export function bossModel(kind) {
   const X = b.x;
   out.x = { spider: at.get(X.spider), abd: at.get(X.abd), ceph: at.get(X.ceph), legU: at.get(X.legU), legL: at.get(X.legL), legs: X.legs.map((l) => ({ ...l, hip: at.get(l.hip), knee: at.get(l.knee) })) };
   if (out.x.spider && out.x.spider.visible) { for (const l of out.x.legs) { l.hip.rotation.set(0, l.spread, l.s * 0.6); l.knee.rotation.z = -l.s * 0.3; } legMats(out.x); }
+  // a kit boss's own rig nodes, mapped onto the copy (arrays and tables of nodes kept in shape)
+  const R = X[kind]; const map = (v) => (v && v.isObject3D ? at.get(v) || null : Array.isArray(v) ? v.map(map) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k2, w]) => [k2, map(w)])) : null);
+  if (R && R.n) out.x[kind] = { n: map(R.n) };
+  // the battle's new body (foe/bosses.js) on the copy's joints
+  out.shell = dressBoss(out, kind);
   return out;
 }
 // the miniature's idle: the pool's zombie reach and shuffle, the wings beating. It sets every channel a skill pose writes, so
