@@ -14,7 +14,7 @@ export function createAccountPanel(game) {
   const texts = [];
   const put = (t, x, y, z = 14) => { texts.push(t); scr.put(t, x, y, z); return t; };
   put(ui.text('XOÁ TÀI KHOẢN?', { size: 26, align: 'center', valign: 'mid', color: 0xffd0d0 }), 390, 82);
-  put(ui.text('Mất toàn bộ tướng, trang bị, vàng, kim cương và tiến trình trên máy này. Không khôi phục được.', { size: 16, align: 'left', maxW: 270, lineH: 23 }), 132, 124);
+  put(ui.text('Mất toàn bộ thú, trang bị, vàng, kim cương và tiến trình trên máy này. Không khôi phục được.', { size: 16, align: 'left', maxW: 270, lineH: 23 }), 132, 124);
   put(ui.text('Tài khoản đăng nhập vào hub được giữ nguyên.', { size: 13, align: 'left', maxW: 270, lineH: 19, color: 0xffe9a8, outlineW: 1.4 }), 132, 250);
   const holdBtn = ui.button({ id: 'acct-hold', w: 250, h: 56, r: 18, color: PAL.red, label: 'GIỮ 2 GIÂY ĐỂ XOÁ', size: 17, onTap: () => ui.toast('Giữ nút 2 giây liên tục') }); scr.put(holdBtn, 410, 120, 14);
   const bar = ui.bar({ w: 250, h: 14, color: PAL.gold, value: 0 }); scr.put(bar, 410, 190, 14); bar.set(0, true);

@@ -223,7 +223,7 @@ try {
       check(btn1 && !btn1.enabled, P('MẶC TỐT NHẤT is disabled when nothing would change'));
       await snap(page, phone, 'equip-best');
       await tap(page, 'stat-panel', 10);
-      check((await eu(page)).toasts.slice(-1)[0] === 'Công và Máu của tướng, đã cộng trang bị', P('tapping the stat panel explains it in one line'));
+      check((await eu(page)).toasts.slice(-1)[0] === 'Công và Máu của thú, đã cộng trang bị', P('tapping the stat panel explains it in one line'));
     }
 
     // ---------- save across reload

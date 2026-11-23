@@ -36,7 +36,7 @@ const REPLAY = ([n, ticks]) => {
   G.paused = true; window.__step(20);
   const B = G.B; const horde = G.actors.horde;
   const cost = horde.cost(); const hordeCalls = cost.calls; const hordeTris = Math.round(cost.tris);
-  return { hordeCalls, hordeTris, living: B.enemies.filter((e) => e.alive).length, puppets: G.host.G.zombies.list.filter((z) => z.alive && !z.dying && z.body.root.visible).length, inst: horde ? horde.stats.units : 0, draws: window.__stats.draws, tris: window.__stats.tris, wave: B.wave, t: +B.t.toFixed(1), kinds: [...new Set(B.enemies.filter((e) => e.alive).map((e) => e.kind))] };
+  return { hordeCalls, hordeTris, living: B.enemies.filter((e) => e.alive).length, puppets: G.host.G.zombies.list.filter((z) => z.alive && !z.dying && z.body.root.visible).length, inst: horde ? horde.stats.units : 0, hk: horde ? horde.stats.kinds : 0, draws: window.__stats.draws, tris: window.__stats.tris, wave: B.wave, t: +B.t.toFixed(1), kinds: [...new Set(B.enemies.filter((e) => e.alive).map((e) => e.kind))] };
 };
 // real frames with the sim paused: mean and 95th percentile of the gap between animation frames
 const FRAMES = (n) => new Promise((res) => {
@@ -182,8 +182,10 @@ try {
   // of game time over the whole stage N played with seed N, automatic ultimates and the best card, q=low on s22.
   // Floors are the owner's numbers from rev 20261120a; rev 20261120e measured 11, 45, 120 with this same tool.
   for (const [st, floor] of [[3, 10], [8, 37], [15, 102]]) check(after[st].peak >= floor, `stage ${st} peak alive ${after[st].peak} (>= ${floor})`);
-  for (const s of STAGES) check(after[s].at.hordeCalls <= 8, `stage ${s} q=low horde draw calls ${after[s].at.hordeCalls} (<= 8; whole frame ${after[s].at.draws} against ${before.s22[s] ? before.s22[s].draws + ' before' : 'no before'}, the frame total moves with HUD and fx state; horde triangles ${after[s].at.hordeTris})`);
-  check(hi.at.hordeCalls <= 14, `stage 15 high horde draw calls ${hi.at.hordeCalls} (<= 14)`);
+  // the horde draws two calls (toon body, outline) per kind on screen plus shards and splats (foe/zombies.js models)
+  for (const s of STAGES) check(after[s].at.hordeCalls <= 2 * after[s].at.hk + 2, `stage ${s} q=low horde draw calls ${after[s].at.hordeCalls} (<= ${2 * after[s].at.hk + 2} for ${after[s].at.hk} kinds drawn, live or dying; whole frame ${after[s].at.draws} against ${before.s22[s] ? before.s22[s].draws + ' before' : 'no before'}, the frame total moves with HUD and fx state; horde triangles ${after[s].at.hordeTris})`);
+  check(hi.at.hordeCalls <= 2 * hi.at.hk + 2, `stage 15 high horde draw calls ${hi.at.hordeCalls} (<= ${2 * hi.at.hk + 2})`);
+  check(xi.at.draws <= 250, `stage 15 q=low xiaomi whole frame ${xi.at.draws} draw calls (<= 250, Addendum 6)`);
   check(a15.fHigh.mean <= a15.fFew.t.mean * 1.5, `frame time mean with ${a15.at.living} bodies ${a15.fHigh.mean.toFixed(2)} ms <= 1.5 x ${a15.fFew.t.mean.toFixed(2)} ms with ${a15.fFew.n} bodies`);
 
   const nt = await numbersTest(br, srv.base);

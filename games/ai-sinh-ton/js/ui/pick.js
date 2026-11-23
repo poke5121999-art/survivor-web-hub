@@ -67,7 +67,7 @@ export function createPick(game) {
     if (u.cards.length) { content.put(ui.text('Đang có:', { size: 11, align: 'left', valign: 'mid', color: 0xffe9a6, outlineW: 1.3 }), 28, 226, 2); content.put(heldRow(u), 28, 236, 0); }
     else content.put(ui.text('Chưa có thẻ nào', { size: 11, align: 'center', valign: 'mid', color: 0xb9b3cc, outlineW: 1.3 }), 92, 232, 2);
     cardNodes = B.offers[slot].map((id, k) => { const b = cardButton(slot, k, id); b.homeX = CARDS_X + k * (CARD_W + CARD_GAP); content.put(b, b.homeX, CARDS_Y, 0); return b; });
-    shown = slot; sub.set(`Sau đợt ${B.wave}  ·  Tướng ${slot + 1}/${B.heroes.length}`);
+    shown = slot; sub.set(`Sau đợt ${B.wave}  ·  Thú ${slot + 1}/${B.heroes.length}`);
   }
 
   function choose(slot, k) {

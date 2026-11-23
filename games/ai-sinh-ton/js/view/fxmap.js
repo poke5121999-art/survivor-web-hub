@@ -60,8 +60,8 @@ const STATE = { invuln: STYLE.holy, stealth: STYLE.void, taunt: STYLE.steel };
 const PROJ = {
 };
 const ULT_SPAN = 6;
-// Gió: the whirlwind lasts as long as the stun it casts (the sim's aoe is instant); the ultimate is ten cuts over the sim's own window
-const GIO = HEROES.find((h) => h.id === 'gio');
+// Chồn Gió (was Gió): the whirlwind lasts as long as the stun it casts (the sim's aoe is instant); the ultimate is ten cuts over the sim's own window
+const GIO = HEROES.find((h) => h.id === 'chon');
 const WHIRL_DUR = GIO.s2.ops[0].status.dur;
 const ULT_CUTS = GIO.ult.ops.find((o) => o.op === 'bolts');
 const SLASH_N = 10;

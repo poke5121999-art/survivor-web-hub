@@ -96,5 +96,31 @@ export function lossReward(stage, wavesCleared) {
   return { gold: Math.round((120 + 30 * stage) * 0.12 * wavesCleared), gems: 0, teamShards: wavesCleared >= 3 ? 1 : 0, items: 0, mats: 0 };
 }
 
-export const DAILY = { gems: 150, gold: 500, shards: 10 };
-export const START = { gold: 1500, gems: 1000, heroes: ['thep', 'mua', 'yta', 'gio'] };
+export const DAILY = { gems: 150, gold: 500, shards: 10, stones: 2 };
+export const START = { gold: 1500, gems: 1000, heroes: ['tegiap', 'nhim', 'loc', 'chon'] };
+
+// ---- evolution (SCOPE section 4) ----
+// what reaching form 2 and form 3 asks: beast level, shards, gold, Đá Mầm of the beast's element, Lõi Cổ, stages cleared.
+// The levels are set by tools/pacing.mjs (first form 2 in minutes 40-60, first form 3 in hours 4-6): the real account bot
+// reaches level 10 only after 1.5-3 hours and level 13-16 after 8, so SCOPE's 10 and 25 became 8 and 13; the form-3 price is 20000 gold and 25 Đá Mầm (SCOPE 30000 and 30): what the bot gathers in hours 4-6.
+export const EVOLVE = {
+  2: { level: 8, shards: 30, gold: 5000, stones: 10, cores: 0, cleared: 0 },
+  3: { level: 13, shards: 80, gold: 20000, stones: 25, cores: 3, cleared: 15 },
+};
+// changing the form-3 branch afterwards costs this share of the form-3 price, Lõi Cổ excepted
+export const REBRANCH = 0.5;
+export const rebranchCost = () => { const c = EVOLVE[3]; return { level: 0, shards: Math.ceil(c.shards * REBRANCH), gold: Math.ceil(c.gold * REBRANCH), stones: Math.ceil(c.stones * REBRANCH), cores: 0, cleared: 0 }; };
+export const STONE_IDS = ['dat', 'lua', 'bang', 'gio', 'set', 'moc'];
+// the two elements each chapter's biome drops (SCOPE section 8); chapter c = ceil(stage / 5), cycling after 10
+export const CHAPTER_STONES = [['moc', 'dat'], ['dat', 'set'], ['lua', 'dat'], ['moc', 'bang'], ['lua', 'set'], ['bang', 'gio'], ['bang', 'moc'], ['set', 'dat'], ['gio', 'set'], ['lua', 'gio']];
+export const chapterOf = (stage) => Math.max(1, Math.ceil(stage / 5));
+export const stonesOf = (stage) => CHAPTER_STONES[(chapterOf(stage) - 1) % CHAPTER_STONES.length];
+export const STONE_DROP = { first: 4, again: 1, coreFirst: 3, coreAgain: 1 };
+// what a won stage drops for evolution: Đá Mầm of the chapter's two elements, Lõi Cổ from the chapter's last (boss) stage
+export function evoDrop(stage, first, rng) {
+  const els = stonesOf(stage); const stone = {};
+  const n = first ? STONE_DROP.first : STONE_DROP.again;
+  for (let i = 0; i < n; i++) { const e = els[Math.floor(rng() * els.length) % els.length]; stone[e] = (stone[e] || 0) + 1; }
+  const core = stage % 5 === 0 ? (first ? STONE_DROP.coreFirst : STONE_DROP.coreAgain) : 0;
+  return { stone, core };
+}
