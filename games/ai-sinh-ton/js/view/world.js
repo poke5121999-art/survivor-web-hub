@@ -355,7 +355,7 @@ export function createWorld(H) {
     for (let j = -1; j < N(); j++) drop(j);
     W.key = k; stageN = n;
     W.theme = th; W.map = layoutMap(th, n); W.abyss = W.map.L.abyss(th); rng = rngOf(n * 131 + 7); W.buildMs = 0;
-    const sec = secOf();
+    const sec = secOf(); followSec = sec;
     secs = {}; for (let i = -1; i < N(); i++) secs[i] = { i, c: cen(i), main: null, sats: [], lights: [], bridges: [], walk: null, group: null, buildMs: 0, spots: [], gfx: null };
     dMat.color.setRGB(th.amb.sky[0] * 0.9, th.amb.sky[1] * 0.9, th.amb.sky[2] * 0.9);
     const uv = voxAtlas().uv(th.side.rows[0][0]); const U = dGeo.attributes.uv; for (let i = 0; i < U.count; i++) U.setXY(i, uv[0] + (uv[2] - uv[0]) * (i % 2), uv[1] + (uv[3] - uv[1]) * ((i >> 1) % 2)); U.needsUpdate = true;
