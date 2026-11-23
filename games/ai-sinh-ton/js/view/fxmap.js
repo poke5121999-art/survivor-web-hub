@@ -440,7 +440,7 @@ export function createFxMap(H, marks, ctx) {
       const k = look(e.key); marks.tele(e.team === 1 && BOSS_KEYS.has(e.key) ? { ...e, boss: true } : e, k && k.fall); if (k) bump(e.key);
     },
     zone(e) {
-      if (e.team === 0) { const B = window.__G && window.__G.B; const u = B && B.heroes.find((h) => h.alive && lastCast.has(h.uid) && lastCast.get(h.uid).t === ctx.time()); if (u && bungLeft-- > 0) beats.bung(u, 'zone', e.x, e.z, e.r, { color: ctx.colorOf(u.uid) }); }
+      if (e.team === 0) { const B = window.__G && window.__G.B; const u = B && B.heroes.find((h) => h.alive && lastCast.has(h.uid) && lastCast.get(h.uid).t === ctx.time()); if (u) beats.later(e.delay || 0, () => beats.bung(u, 'zone', e.x, e.z, e.r, { color: ctx.colorOf(u.uid) })); }
       const k = look(e.key); if (!k || !k.z) { if (k) bump(e.key); return; }
       marks.zoneStart(e, k.z); bump(e.key);
       const p = pal(k); marks.ring(e.x, e.z, 0.5, e.r, p[1], 0.5, 0.7);

@@ -123,13 +123,13 @@ try {
         for (const slot of ['s1', 's2', 'ult']) {
           const p = await page.evaluate(PREP, [h.id, form, branch]);
           if (form > 1 && p.form !== form) { check(false, `${h.id}.${fk}: the sim made form ${p.form}, not ${form} (forms not merged yet?)`); break; }
-          const N = slot === 'ult' ? 150 : 90;
+          const N = slot === 'ult' ? 150 : 170;
           const c = await page.evaluate(CAST, [slot, N]);
           if (!c.ok) { check(false, `${h.id}.${fk} ${slot}: no cast (${c.why || 'cast never seen'})`); continue; }
           const rows = c.rows.slice(c.castF);
           // the wind-up: the first frames after the cast; the impact: the frame where the beats peak; the after-image: 0.9 s after it
           const gongF = slot === 'ult' ? Math.max(1, rows.findIndex((x) => x.phase === 'gong' && x.f - c.castF >= 14)) : 2;
-          let peak = gongF + 1; for (let i = gongF + 1; i < Math.min(rows.length, gongF + 60); i++) if (rows[i].sparks + rows[i].vert * 8 > rows[peak].sparks + rows[peak].vert * 8) peak = i;
+          let peak = gongF + 1; for (let i = gongF + 1; i < rows.length - 54; i++) if (rows[i].sparks + rows[i].vert * 8 > rows[peak].sparks + rows[peak].vert * 8) peak = i;
           const after = Math.min(rows.length - 1, peak + 54);
           const g = rows[gongF] || rows[0]; const b = rows[peak]; const a = rows[after];
           check(g.sparks > 0 || g.decals > 0, `${h.id}.${fk} ${slot}: wind-up draws (${g.sparks} particles, ${g.decals} floor marks at frame ${gongF})`);

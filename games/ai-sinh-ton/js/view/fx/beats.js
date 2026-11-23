@@ -49,10 +49,10 @@ const SHAPE = {
   cone: { bung: [['rays', 10, 0.8], ['sparks', 12, 10, 0.3], ['smoke', 3, 2.2], ['mark', 0.6, 2.6], ['light', 1, 0.3]] },
   line: { bung: [['sparks', 10, 8, 0.4], ['shards', 6, 7], ['mark', 1, 2.6], ['smoke', 2, 1.8], ['light', 1, 0.3]] },
   bolt: { bung: [['flash', 1.6], ['sparks', 7, 8, 0.5], ['shards', 4, 6], ['light', 0.9, 0.25], ['mark', 0.5, 2]] },
-  zone: { bung: [['rays', 12, 1], ['sparks', 8, 6, 0.6], ['smoke', 3, 2.4], ['light', 1.1, 0.5]] },
+  zone: { bung: [['rays', 12, 1], ['sparks', 8, 6, 0.6], ['smoke', 3, 2.4], ['light', 1.1, 0.5], ['mark', 0.8, 3]] },
   dash: { bung: [['sparks', 10, 8, 0.4], ['shards', 6, 7], ['smoke', 3, 2], ['mark', 1, 2.4]] },
   self: { bung: [['rays', 10, 1], ['sparks', 12, 7, 0.9], ['light', 1.2, 0.45], ['flash', 1.8], ['mark', 0.6, 2.4]] },
-  heal: { bung: [['sparks', 6, 4, 1], ['light', 0.9, 0.5]] },
+  heal: { bung: [['sparks', 6, 4, 1], ['light', 0.9, 0.5], ['mark', 0.5, 2.2]] },
   ult: { bung: [['flash', 2.6], ['rays', 26, 1.2], ['shards', 18, 11], ['sparks', 20, 12, 0.8], ['front', 1.1], ['light', 1.6, 0.6], ['mark', 1, 4.5], ['smoke', 6, 3.4]] },
   // the moment the close-up lets go, at the caster: tall and thick enough to read from the low camera
   release: { bung: [['flash', 2.6], ['nova', 34], ['shards', 16, 12], ['pillar', 7, 1.1], ['smoke', 5, 3], ['light', 2, 0.7], ['mark', 1.1, 4.5]] },
