@@ -5,7 +5,7 @@ import { HEROES, HERO } from '../data/heroes.js?v=20261122a';
 import { beastModel } from './beast-ui.js?v=20261122a';
 import { openEvolve } from './evolve.js?v=20261122a';
 import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261122a';
-import { makeBackdrop, makeBurst, fmt, rarityColor } from './home.js?v=20261122a';
+import { makeBackdrop, makeBurst, fmt, fmtShort, rarityColor } from './home.js?v=20261122a';
 
 const FRAME_H = 188;
 const STONE = { dat: 'Đất', lua: 'Lửa', bang: 'Băng', gio: 'Gió', set: 'Sét', moc: 'Mộc' };
@@ -90,7 +90,7 @@ export function createHeroes(game) {
     skillRows.push({ n, d });
   }
   const shBar = ui.bar({ w: L.rw, h: 16, color: PAL.purple, r: 8, ghost: true, value: 0 }); scr.put(shBar, L.rx, 280, 6);
-  const shT = ui.text('', { size: 11, align: 'center', valign: 'mid', outlineW: 1.6 }); shBar.put(shT, L.rw / 2, 8.4, 2);
+  const shT = ui.text('', { size: 10, align: 'center', valign: 'mid', outlineW: 1.4 }); shBar.put(shT, L.rw / 2, 8.4, 2);
   const lvBtn = ui.button({ id: 'levelup', w: L.rw, h: 48, r: 16, color: PAL.green, label: 'LÊN CẤP', sub: ' ', size: 18, onTap: doLevel }); scr.put(lvBtn, L.rx, 300, 6);
   const lvLock = ui.icon('lock', { size: 28, sway: false }); lvBtn.put(lvLock, L.rw - 30, -10, 14); lvLock.setVisible(false);
   const tgBtn = ui.button({ id: 'team-toggle', w: L.mw, h: 48, r: 16, color: PAL.blue, label: 'VÀO ĐỘI', size: 16, onTap: doTeam }); scr.put(tgBtn, L.mx, 300, 6);
@@ -119,7 +119,7 @@ export function createHeroes(game) {
     sA.n.set(own ? '» ' + fmt(s.atk + nA) : ''); sH.n.set(own ? '» ' + fmt(s.hp + nH) : '');
     [h.s1, h.s2, h.ult].forEach((k, i) => { skillRows[i].n.set((i === 2 ? 'Tối thượng' : 'Kỹ năng ' + (i + 1)) + ' · ' + k.name); skillRows[i].d.set(k.desc); });
     const cost = own ? levelCost(st.level) : null, need = own ? cost.shards : HERO_RARITY[h.rarity].craft;
-    shBar.set(Math.min(1, st.shards / need)); shT.set(own ? `Mảnh ${fmt(st.shards)}/${fmt(need)}   ·   Vàng ${fmt(acc.gold)}` : `Mảnh ghép thú ${st.shards}/${need}`);
+    shBar.set(Math.min(1, st.shards / need)); shT.set(own ? `Mảnh ${fmt(st.shards)}/${fmt(need)}   ·   Vàng ${fmtShort(acc.gold)}` : `Mảnh ghép thú ${st.shards}/${need}`);
     const c = meta.canLevelUp(id); let line;
     if (!own) line = `Còn thiếu ${need - st.shards} mảnh`; else if (c.ok) line = `${fmt(cost.shards)} mảnh · ${fmt(cost.gold)} vàng`;
     else line = c.why === 'thiếu mảnh' ? `Thiếu ${cost.shards - st.shards} mảnh` : `Thiếu ${fmt(cost.gold - acc.gold)} vàng`;

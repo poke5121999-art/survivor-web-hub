@@ -168,7 +168,8 @@ function AUDIT(opts) {
   {
     const shows = (t) => t.clip && !t.tiny && !t.nopaint && !t.partial && (t.share ?? 1) >= 0.5;
     const kf = fr.width / 780, tnodes = new Map();
-    for (const q of ui.targets()) if (q.enabled && !/^(guide-block|guide-skip|reveal-tap)$/.test(q.id)) { const n = ui.node(q.id); let drawn = false; if (n) n.traverse((o) => { if (o.isMesh && o.visible) drawn = true; }); if (n && drawn) tnodes.set(n, { id: q.id, box: { x: (q.vx - fr.left) / kf, y: (q.vy - fr.top) / kf, w: q.vw / kf, h: q.vh / kf } }); }
+    const tq = ui.targets(), tn = ui.targetNodes();
+    tq.forEach((q, i) => { if (!q.enabled || /^(guide-block|guide-skip|reveal-tap)$/.test(q.id)) return; const n = tn[i] && tn[i].id === q.id ? tn[i].node : null; let drawn = false; if (n) n.traverse((o) => { if (o.isMesh && o.visible) drawn = true; }); if (n && drawn) tnodes.set(n, { id: q.id, box: { x: (q.vx - fr.left) / kf, y: (q.vy - fr.top) / kf, w: q.vw / kf, h: q.vh / kf } }); });
     const out = (a, b) => Math.max(b.x - a.x, a.x + a.w - (b.x + b.w), b.y - a.y, a.y + a.h - (b.y + b.h));
     // panels drawn on each screen, for texts that sit straight on a screen over a panel
     const panels = new Map();
@@ -186,7 +187,8 @@ function AUDIT(opts) {
         const hb = boxOf(holder.matrixWorld, [[0, 0], [holder.w, 0], [holder.w, -holder.h], [0, -holder.h]]), by2 = out(t.clip, hb);
         if (by2 > 1.5) res.T7.push({ str: t.str, screen: t.screen, by: Math.round(by2 * 10) / 10, box: [t.clip.x, t.clip.y, t.clip.x + t.clip.w, t.clip.y + t.clip.h].map((v) => Math.round(v)), holder: [hb.x, hb.y, hb.x + hb.w, hb.y + hb.h].map((v) => Math.round(v)) });
       }
-      for (const [n, q] of tnodes) {
+      // the guide's speech panel lies over the dimmed, blocked screen on purpose (O1 keeps it off the battle banners)
+      if (t.screen !== 'guide') for (const [n, q] of tnodes) {
         if (anc.has(n)) continue; const c = cross(t.clip, q.box);
         if (c && c.w > 1.5 && c.h > 1.5) res.T8.push({ str: t.str, screen: t.screen, id: q.id, by: [Math.round(c.w * 10) / 10, Math.round(c.h * 10) / 10] });
       }

@@ -154,6 +154,7 @@ export function createUI({ THREE, renderer, frame }) {
     return liveTargets().map((e) => ({ id: e.t.id, x: r.left + e.hb.x * k, y: r.top + e.hb.y * k, w: e.hb.w * k, h: e.hb.h * k, enabled: e.t.enabled, screen: e.s.screenName, vx: r.left + e.vb.x * k, vy: r.top + e.vb.y * k, vw: e.vb.w * k, vh: e.vb.h * k }));  // v*: the visible box, h-box above is grown to 48 px
   };
   ui.node = (id) => { for (const t of targets) if (t.id === id) return t.node; return null; };
+  ui.targetNodes = () => liveTargets().map((e) => ({ id: e.t.id, node: e.t.node, enabled: e.t.enabled })); // live targets with their nodes (ids can repeat across screens); read by tools/text-fit-test.mjs
   function fire(t) { if (t.enabled && t.onTap) t.onTap(); }
   ui.tapId = (id) => {
     const e = liveTargets().find((q) => q.t.id === id); if (!e) return false;
