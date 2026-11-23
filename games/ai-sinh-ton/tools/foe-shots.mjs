@@ -100,13 +100,15 @@ async function bosses(br, base, phone) {
   check(!errs.length, `${phone} bosses: no console problems ${errs.slice(0, 3).join(' | ')}`);
 }
 
-// a live fight (stage 8, the real loop path): eight frames 0.12 s apart, hits, throws, falls and dissolves as they happen
+// a live fight (stage 3, the real loop path): eight frames 0.1 s apart from the first deaths on, hits, throws, falls and dissolves as they happen
 async function fight(br, base, phone) {
-  const r = await open(br, base, phone, 'autostart=1&stage=8&autoult=1&autopick=1&noaudio=1&seed=8&q=medium');
-  await r.page.evaluate(() => { window.__sim(26); });
+  const r = await open(br, base, phone, 'autostart=1&stage=3&autoult=1&autopick=1&noaudio=1&seed=3&q=medium');
+  // play on until bodies are falling in view: corpses dissolving, shards in the air
+  const ok = await r.page.evaluate(() => { window.__sim(8); const h = window.__G.actors.horde; for (let i = 0; i < 1200; i++) { window.__frame(1 / 30); if (h.stats.corpses >= 2 && h.stats.units >= 3) return true; } return false; });
+  check(ok, `${phone} fight: bodies dying in view`);
   const files = [];
   for (let i = 0; i < 8; i++) {
-    await r.page.evaluate(() => { for (let k = 0; k < 4; k++) window.__frame(1 / 30); });
+    await r.page.evaluate(() => { for (let k = 0; k < 3; k++) window.__frame(1 / 30); });
     const f = path.join(OUT, `${phone}-fight-${i}.png`); await r.page.locator('#frame').screenshot({ path: f }); files.push(f);
   }
   const errs = r.problems; await r.ctx.close();
