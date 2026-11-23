@@ -140,7 +140,7 @@ async function run(phone) {
   const url = new URL(page.url());
   check(/[?&]preset=vet/.test(urlBefore) && !url.searchParams.has('preset') && !url.searchParams.has('autostart'), `${phone}: the page reloaded without preset (${url.search})`);
   const st = await page.evaluate(() => ({ acc: JSON.parse(JSON.stringify(__G.meta.acc)), readOnly: __G.meta.readOnly, settings: { ...__G.settings }, screen: __G.screen, guide: __G.guide.dbg(), next: __G.meta.ftueNext({ screen: 'home', event: 'home' }), tutorial: !__G.meta.acc.ftue.session && __G.meta.acc.cleared === 0 }));
-  check(st.acc.gold === 500 && st.acc.gems === 300 && Object.keys(st.acc.heroes).join() === 'gio' && st.acc.cleared === 0 && !st.acc.ftue.session && st.acc.bag.length === 0 && !st.readOnly, `${phone}: fresh account (gold ${st.acc.gold}, gems ${st.acc.gems}, heroes ${Object.keys(st.acc.heroes)}, cleared ${st.acc.cleared}, session ${st.acc.ftue.session})`);
+  check(st.acc.gold === 500 && st.acc.gems === 300 && Object.keys(st.acc.heroes).join() === 'chon' && st.acc.cleared === 0 && !st.acc.ftue.session && st.acc.bag.length === 0 && !st.readOnly, `${phone}: fresh account (gold ${st.acc.gold}, gems ${st.acc.gems}, heroes ${Object.keys(st.acc.heroes)}, cleared ${st.acc.cleared}, session ${st.acc.ftue.session})`);
   check(st.settings.shake !== false && !st.settings.autoUlt && st.settings.quality === '' && st.settings.sound === true, `${phone}: settings are back to defaults (${JSON.stringify(st.settings)})`);
   check(st.tutorial && st.screen === 'home', `${phone}: the player is on a first-time start (screen ${st.screen}, tutorial stage 1 pending)`);
   await snap(page, phone, '4-fresh-start');
@@ -156,7 +156,7 @@ async function run(phone) {
   // ---- reload once more: nothing comes back ----
     await page.reload(); await page.waitForFunction('window.__ready === true', null, { timeout: 90000 }); await step(page, 20);
   const again = await page.evaluate(() => ({ gold: __G.meta.acc.gold, gems: __G.meta.acc.gems, heroes: Object.keys(__G.meta.acc.heroes), cleared: __G.meta.acc.cleared, ftue: __G.meta.acc.ftue.session, settings: { ...__G.settings } }));
-  check(again.gold === 500 && again.gems === 300 && again.heroes.join() === 'gio' && again.cleared === 0 && !again.ftue && again.settings.quality === '' && again.settings.shake !== false, `${phone}: a second reload still shows the fresh account (${JSON.stringify(again)})`);
+  check(again.gold === 500 && again.gems === 300 && again.heroes.join() === 'chon' && again.cleared === 0 && !again.ftue && again.settings.quality === '' && again.settings.shake !== false, `${phone}: a second reload still shows the fresh account (${JSON.stringify(again)})`);
   const keys2 = await keysOf(page);
   check(!keys2.includes('aisinhton.bz.best.v1') && Object.keys(KEPT).every((k) => keys2.includes(k)), `${phone}: nothing was resurrected, the kept keys are still there`);
   check(problems.length === 0, `${phone}: no console errors (${problems.slice(0, 3).join(' | ') || 'none'})`);

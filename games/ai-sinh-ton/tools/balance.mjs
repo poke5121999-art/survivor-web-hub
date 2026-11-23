@@ -6,10 +6,10 @@ import { levelMul } from '../js/data/economy.js';
 
 const from = +process.argv[2] || 1; const to = +process.argv[3] || 30; const RUNS = +process.argv[4] || 8; const OFF = +process.argv[5] || 0;
 export const TEAMS = {
-  start: ['thep', 'mua', 'yta', 'gio'],
-  ranged: ['thep', 'phao', 'yta', 'ky'],
-  melee: ['hoa', 'bang', 'doc', 'yta'],
-  ssr: ['soi', 'sam', 'nhen', 'yta'],
+  start: ['tegiap', 'nhim', 'loc', 'chon'],
+  ranged: ['tegiap', 'ech', 'loc', 'haily'],
+  melee: ['kyda', 'duoi', 'oc', 'loc'],
+  ssr: ['bao', 'bosat', 'nhen', 'loc'],
 };
 // flat equipment a player at stage n is expected to wear (see SCOPE: about one tier per chapter)
 const gear = (n) => ({ atkFlat: 6 * n, hpFlat: 40 * n });

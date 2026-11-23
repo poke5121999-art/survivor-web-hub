@@ -205,11 +205,14 @@ try {
       await cp.evaluate(() => { __G.startBattle(1, { seed: 7, teamSpec: __G.meta.teamSpec() }); __G.paused = true; __step(2); });
       await cp.evaluate(() => __sim(2));
       const out = { max: 0, travel: 0, mode: '', watching: 0 };
-      if (watch) { check(await tapId(cp, 'eye1'), `${phone}: eye1 is live`); await step(cp, 3); const s = await cp.evaluate(() => ({ mode: __G.cam.mode, w: __G.watching, uid: __G.B.heroes[1].uid })); out.mode = s.mode; out.watching = s.w === s.uid; }
+      if (watch) { check(await tapId(cp, 'eye3'), `${phone}: eye3 is live`); await step(cp, 3); const s = await cp.evaluate(() => ({ mode: __G.cam.mode, w: __G.watching, uid: __G.B.heroes[3].uid })); out.mode = s.mode; out.watching = s.w === s.uid; }
       const pos = [];
       let last = null;
-      for (let i = 0; i < 10; i++) {
-        const r = await cp.evaluate(() => { __sim(0.5); const B = __G.B, h = B.heroes[1], cam = __G.host.camera; return { hx: h.x, hz: h.z, cd: Math.hypot(cam.position.x - h.x, cam.position.z - h.z) }; });
+      // the melee beast of the team (slot 3, Chồn Gió) runs: a ranged one may shoot from one spot for the whole wave
+      // 5 s at least, on to 10 s until the hero has moved
+      for (let i = 0; i < 20 && (i < 10 || out.travel < 1); i++) {
+        out.secs = (i + 1) * 0.5;
+        const r = await cp.evaluate(() => { __sim(0.5); const B = __G.B, h = B.heroes[3], cam = __G.host.camera; return { hx: h.x, hz: h.z, cd: Math.hypot(cam.position.x - h.x, cam.position.z - h.z) }; });
         if (last) out.travel += Math.hypot(r.hx - last.hx, r.hz - last.hz); last = r; out.max = Math.max(out.max, r.cd);
         if (watch && i === 3) {
           const k = await frameK(cp), box = await cp.locator('#frame').boundingBox();
@@ -222,26 +225,26 @@ try {
       if (watch) {
         await shot(cp, phone, 'spec');
         // wave 1 can end inside the sampled 5 s: the card pick is modal and hides the eye buttons, so pick a card and
-        // wait until the fight is back and eye1 is a live target again before tapping it the second time
+        // wait until the fight is back and eye3 is a live target again before tapping it the second time
         for (let g = 0; g < 40; g++) {
-          const st = await cp.evaluate(() => ({ ph: __G.B.phase, eye: __ui.targets().some((q) => q.id === 'eye1') }));
+          const st = await cp.evaluate(() => ({ ph: __G.B.phase, eye: __ui.targets().some((q) => q.id === 'eye3') }));
           if (st.ph === 'fight' && st.eye) break;
           if (st.ph === 'pick' && (await tapId(cp, 'card0'))) out.picked = (out.picked || 0) + 1;
           await cp.evaluate(() => { __sim(0.1); __step(3); });
         }
         out.before = await cp.evaluate(() => ({ ph: __G.B.phase, mode: __G.cam.mode, w: __G.watching }));
-        const again = await tapId(cp, 'eye1'); await step(cp, 5); out.back = await cp.evaluate(() => ({ mode: __G.cam.mode, w: __G.watching })); out.again = again;
+        const again = await tapId(cp, 'eye3'); await step(cp, 5); out.back = await cp.evaluate(() => ({ mode: __G.cam.mode, w: __G.watching })); out.again = again;
       }
       out.snap = snap; out.problems = c.problems.filter((s) => !foreign(s)); out.errors = await cp.evaluate(() => (window.__errors || []).length);
       await c.ctx.close(); return out;
     };
     const A = await run(true), T = await run(false);
-    check(A.mode === 'spectate' && A.watching, `${phone}: tapping eye1 puts the camera in spectate on that hero (mode ${A.mode}, watching hero ${A.watching})`);
-    check(A.max < 9 && A.travel >= 1, `${phone}: the camera stays within ${A.max.toFixed(1)} m of the hero (limit 9) while it travels ${A.travel.toFixed(1)} m over 5 s (at least 1)`);
+    check(A.mode === 'spectate' && A.watching, `${phone}: tapping eye3 puts the camera in spectate on that hero (mode ${A.mode}, watching hero ${A.watching})`);
+    check(A.max < 9 && A.travel >= 1, `${phone}: the camera stays within ${A.max.toFixed(1)} m of the hero (limit 9) while it travels ${A.travel.toFixed(1)} m over ${A.secs} s (at least 1)`);
     const same = A.snap.length === T.snap.length && A.snap.every((r, i) => r.every((v, j) => Math.abs(v - T.snap[i][j]) < 1e-9));
     check(same, `${phone}: taps and drags while spectating leave every sim position unchanged against a twin run (${A.snap.length} units compared)`);
-    check(A.before && A.before.ph === 'fight' && A.before.mode === 'spectate' && A.again, `${phone}: back in the fight (phase ${A.before && A.before.ph}, ${A.picked || 0} taps on the pick card) the camera still spectates (mode ${A.before && A.before.mode}) and eye1 is tappable (${A.again})`);
-    check(A.back && A.back.mode === 'overview' && A.back.w === 0, `${phone}: tapping eye1 again returns to the overview (mode ${A.back && A.back.mode})`);
+    check(A.before && A.before.ph === 'fight' && A.before.mode === 'spectate' && A.again, `${phone}: back in the fight (phase ${A.before && A.before.ph}, ${A.picked || 0} taps on the pick card) the camera still spectates (mode ${A.before && A.before.mode}) and eye3 is tappable (${A.again})`);
+    check(A.back && A.back.mode === 'overview' && A.back.w === 0, `${phone}: tapping eye3 again returns to the overview (mode ${A.back && A.back.mode})`);
     check(A.problems.length === 0 && A.errors === 0 && T.errors === 0, `${phone}: spectate runs have no errors`);
 
     // damage numbers: a burst is one number, never two with the same text side by side

@@ -1,8 +1,9 @@
 // The player's account: its shape, its save and every command that changes it. Pure logic over the rule modules
 // (no DOM), so tools/meta-test.mjs runs the same code as the browser.
 //
-// Account (version 1):
-//   { v, gold, gems, pity, heroes: {id: {level, shards}}, team: [id x1..4], cleared, best: {stage: seconds},
+// Account (version 2; version 1 held the human heroes under their old ids and is moved over by repair()):
+//   { v, gold, gems, pity, heroes: {id: {level, shards, form: 1|2|3, branch: null|'a'|'b'}}, team: [id x1..4],
+//     evo: {stone: {dat, lua, bang, gio, set, moc}, core} (Đá Mầm and Lõi Cổ; kept apart from mats, the forge stock by slot), cleared, best: {stage: seconds},
 //     bag: [{uid, item, tier, lv}], equip: {heroId: {slot: uid|0}}, mats: {slot: n}, uidSeq, seed,
 //     daily: 'YYYY-MM-DD'|'', chapters: {c: true}, stats: {pulls, wins, losses}, seen: {key: true},
 //     level, xp (account level), ftue: {done: {stepId: true}, session}, seenUnlock: {id: true}, visited: {id: true},
@@ -10,13 +11,15 @@
 //     equipAt (stages cleared when Trang Bị opened), mergeOpen (latched once the bag held 3 identical items) }
 // stats also counts upgrades and merges (manual) for the equipment unlocks.
 
-import { GACHA, HERO_RARITY, rollGacha, rollTen, levelCost, levelMul, stageReward, lossReward, DAILY, START } from './data/economy.js?v=20261122a';
+import { GACHA, HERO_RARITY, rollGacha, rollTen, levelCost, levelMul, stageReward, lossReward, DAILY, START, EVOLVE, rebranchCost, STONE_IDS, evoDrop } from './data/economy.js?v=20261122a';
+import { heroDef, beastId, branchesOf, maxForm } from './data/beasts.js?v=20261122a';
 import { SLOTS, TIERS, ITEMS, ITEM, itemStat, upgradeCost, mergeProblem, merge as mergeItems, autoMergePlan, equipBonus, baseWorth } from './data/equip.js?v=20261122a';
-import { HEROES, HERO } from './data/heroes.js?v=20261122a';
+import { HEROES, HERO, LEGACY_IDS, ELEMENTS } from './data/heroes.js?v=20261122a';
+export { LEGACY_IDS };
 import { UNLOCKS, UNLOCK, isUnlocked, lockText, teamSlots, newUnlocks, addXp, xpForResult, NEW_ACCOUNT, GIFTS, FTUE, LATER_GUIDES, mergeTriples, wornOf, slotOpen, openSlots, slotLine, EQUIP_GOLD } from './data/unlocks.js?v=20261122a';
 import { makeRng } from './sim/battle.js?v=20261122a';
 
-const VERSION = 1;
+const VERSION = 2;
 const TEAM_MAX = 4;
 const CHAPTER_STAGES = 5;
 const CHAPTER_GEMS = 300;
@@ -25,7 +28,7 @@ const ROSTER = HEROES.map((h) => ({ id: h.id, rarity: h.rarity }));
 const FTUE_IDS = FTUE.map((s) => s.id);
 const GUIDE_IDS = [...FTUE_IDS, ...Object.keys(LATER_GUIDES)];
 // the home tab that shows a red dot while a feature is open and not yet visited
-const UNLOCK_TAB = { gacha: 'gacha', levelup: 'heroes', slot2: 'heroes', slot3: 'heroes', slot4: 'heroes', daily: 'rewards', chapter: 'rewards' };
+const UNLOCK_TAB = { gacha: 'gacha', levelup: 'heroes', evolve: 'heroes', slot2: 'heroes', slot3: 'heroes', slot4: 'heroes', daily: 'rewards', chapter: 'rewards' };
 // features that came with Trang Bị before it was staged: a save that already had it must not replay their reveals
 const STAGED = ['upgrade', 'slot_armor', 'slot_hands', 'slot_charm', 'merge'];
 const LEGACY_EQUIP_AT = -99;
@@ -44,6 +47,8 @@ const dayOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDat
 const pick = (rng, list) => list[Math.floor(rng() * list.length) % list.length];
 const emptyMats = () => Object.fromEntries(SLOT_IDS.map((s) => [s, 0]));
 const emptySlots = () => Object.fromEntries(SLOT_IDS.map((s) => [s, 0]));
+const emptyEvo = () => ({ stone: Object.fromEntries(STONE_IDS.map((e) => [e, 0])), core: 0 });
+const newHero = (level = 1, shards = 0) => ({ level, shards, form: 1, branch: null });
 
 const allTrue = (ids) => Object.fromEntries(ids.map((id) => [id, true]));
 const openAtStart = () => UNLOCKS.filter((u) => !Object.keys(u.need).length).map((u) => u.id);
@@ -53,8 +58,8 @@ function freshAccount(now, preset) {
   const heroes = vet ? START.heroes : NEW_ACCOUNT.heroes;
   const acc = {
     v: VERSION, gold: vet ? START.gold : NEW_ACCOUNT.gold, gems: vet ? START.gems : NEW_ACCOUNT.gems, pity: 0,
-    heroes: Object.fromEntries(heroes.map((id) => [id, { level: 1, shards: 0 }])),
-    team: heroes.slice(), cleared: 0, best: {}, bag: [], equip: {}, mats: emptyMats(), uidSeq: 0,
+    heroes: Object.fromEntries(heroes.map((id) => [id, newHero()])),
+    team: heroes.slice(), cleared: 0, best: {}, bag: [], equip: {}, mats: emptyMats(), evo: emptyEvo(), uidSeq: 0,
     seed: (now().getTime() ^ 0x9e3779b9) >>> 0 || 1, mergeOpen: false, daily: '', chapters: {}, stats: { pulls: 0, wins: 0, losses: 0, upgrades: 0, merges: 0 }, seen: {},
     level: vet ? 10 : 1, xp: 0, ftue: { done: {}, session: false }, seenUnlock: allTrue(openAtStart()), visited: allTrue(openAtStart()), freePull: !vet,
   };
@@ -80,15 +85,21 @@ function repair(raw, now, preset) {
   acc.cleared = num(a.cleared, 0);
   acc.seed = num(a.seed, base.seed) || 1;
   acc.daily = typeof a.daily === 'string' ? a.daily : '';
+  // heroes: a version-1 id is the human hero; beastId() gives the beast that replaced it. A beast already under its new id wins.
   acc.heroes = {};
   if (a.heroes && typeof a.heroes === 'object') {
     for (const [id, h] of Object.entries(a.heroes)) {
-      if (!HERO[id] || !h || typeof h !== 'object') continue;
-      acc.heroes[id] = { level: num(h.level, 0), shards: num(h.shards, 0) };
+      const bid = beastId(id);
+      if (!bid || !h || typeof h !== 'object') continue;
+      if (acc.heroes[bid] && id !== bid) continue;
+      const form = Math.min(maxForm(bid), Math.max(1, num(h.form, 1)));
+      const br = branchesOf(bid);
+      const branch = form === 3 && br.length ? (br.includes(h.branch) ? h.branch : br[0]) : null;
+      acc.heroes[bid] = { level: num(h.level, 0), shards: num(h.shards, 0), form, branch };
     }
   }
   if (!Object.values(acc.heroes).some((h) => h.level > 0)) {
-    for (const id of Object.keys(base.heroes)) acc.heroes[id] = { level: 1, shards: acc.heroes[id] ? acc.heroes[id].shards : 0 };
+    for (const id of Object.keys(base.heroes)) acc.heroes[id] = newHero(1, acc.heroes[id] ? acc.heroes[id].shards : 0);
   }
   const owned = (id) => acc.heroes[id] && acc.heroes[id].level > 0;
   if (a.cheatUnlock === true || base.cheatUnlock) acc.cheatUnlock = true; else delete acc.cheatUnlock;
@@ -97,7 +108,7 @@ function repair(raw, now, preset) {
   const lv = Number.isFinite(a.level) ? addXp(Math.max(1, Math.floor(a.level)), num(a.xp, 0), 0) : fromStages;
   acc.level = lv.level; acc.xp = lv.xp;
   const team = [];
-  for (const id of Array.isArray(a.team) ? a.team : []) if (owned(id) && !team.includes(id) && team.length < slotsFor(acc)) team.push(id);
+  for (const raw of Array.isArray(a.team) ? a.team : []) { const id = beastId(raw); if (owned(id) && !team.includes(id) && team.length < slotsFor(acc)) team.push(id); }
   if (!team.length) for (const id of Object.keys(acc.heroes)) if (owned(id) && team.length < slotsFor(acc)) team.push(id);
   acc.team = team;
   acc.best = {};
@@ -116,8 +127,9 @@ function repair(raw, now, preset) {
   acc.equip = {};
   const worn = new Set();
   if (a.equip && typeof a.equip === 'object') {
-    for (const [hid, slots] of Object.entries(a.equip)) {
-      if (!owned(hid) || !slots || typeof slots !== 'object') continue;
+    for (const [raw, slots] of Object.entries(a.equip)) {
+      const hid = beastId(raw);
+      if (!owned(hid) || acc.equip[hid] || !slots || typeof slots !== 'object') continue;
       const out = emptySlots();
       for (const s of SLOT_IDS) {
         const it = acc.bag.find((i) => i.uid === slots[s]);
@@ -128,6 +140,11 @@ function repair(raw, now, preset) {
   }
   acc.mats = emptyMats();
   if (a.mats && typeof a.mats === 'object') for (const s of SLOT_IDS) acc.mats[s] = num(a.mats[s], 0);
+  acc.evo = emptyEvo();
+  if (a.evo && typeof a.evo === 'object') {
+    if (a.evo.stone && typeof a.evo.stone === 'object') for (const e of STONE_IDS) acc.evo.stone[e] = num(a.evo.stone[e], 0);
+    acc.evo.core = num(a.evo.core, 0);
+  }
   acc.chapters = {};
   if (a.chapters && typeof a.chapters === 'object') for (const [k, v] of Object.entries(a.chapters)) if (v && Number.isFinite(+k)) acc.chapters[k] = true;
   acc.stats = { pulls: 0, wins: 0, losses: 0, upgrades: 0, merges: 0 };
@@ -213,7 +230,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
   const randomItem = (rng, tier, slots) => newItem(pick(rng, slots ? slots.flatMap((s) => ITEMS_BY_SLOT[s]) : ITEMS).id, tier);
 
   function addShards(id, n) {
-    const h = M.acc.heroes[id] || (M.acc.heroes[id] = { level: 0, shards: 0 });
+    const h = M.acc.heroes[id] || (M.acc.heroes[id] = newHero(0));
     h.shards += n;
     const need = HERO_RARITY[HERO[id].rarity].craft;
     if (h.level === 0 && h.shards >= need) { h.shards -= need; h.level = 1; return true; }
@@ -225,7 +242,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     const h = HERO[FIRST_PULL];
     const isNew = !owned(FIRST_PULL);
     const r = { row: 'hero_free', kind: 'hero', rarity: h.rarity, hero: FIRST_PULL, n: 0, isNew, dupe: !isNew, item: null };
-    if (isNew) M.acc.heroes[FIRST_PULL] = { level: 1, shards: M.acc.heroes[FIRST_PULL] ? M.acc.heroes[FIRST_PULL].shards : 0 };
+    if (isNew) M.acc.heroes[FIRST_PULL] = newHero(1, M.acc.heroes[FIRST_PULL] ? M.acc.heroes[FIRST_PULL].shards : 0);
     else { r.kind = 'shard'; r.n = HERO_RARITY[h.rarity].dupe; addShards(FIRST_PULL, r.n); }
     M.acc.freePull = false; M.acc.stats.pulls += 1;
     return done('pull', { results: [r], free: true });
@@ -250,7 +267,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
         const r = { row: o.row, kind: o.kind, rarity: o.rarity, hero: o.hero, n: o.n, isNew: o.isNew, dupe: !!o.dupe, item: null };
         M.acc.pity = o.row === 'hero_ssr' ? 0 : M.acc.pity + 1;
         if (o.kind === 'hero' && o.isNew) {
-          const h = M.acc.heroes[o.hero] || (M.acc.heroes[o.hero] = { level: 0, shards: 0 });
+          const h = M.acc.heroes[o.hero] || (M.acc.heroes[o.hero] = newHero(0));
           h.level = 1;
         } else if (o.kind === 'shard') {
           if (addShards(o.hero, o.n)) r.isNew = true;
@@ -319,10 +336,15 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     });
     acc.gold += r.gold + paidGold; acc.gems += r.gems;
     for (const id of acc.team) addShards(id, r.teamShards);
+    // Đá Mầm of the chapter's biome and, from its boss stage, Lõi Cổ
+    let evo = { stone: {}, core: 0 };
+    if (won) withRng((rng) => { evo = evoDrop(stage, first, rng); });
+    for (const [e, n] of Object.entries(evo.stone)) acc.evo.stone[e] += n;
+    acc.evo.core += evo.core;
     const xp = xpForResult({ won: !!won, wavesCleared: Math.max(0, wavesCleared), first });
     Object.assign(acc, addXp(acc.level, acc.xp, xp));
     const gifts = [];
-    const give = (id) => { if (!owned(id)) { acc.heroes[id] = { level: 1, shards: acc.heroes[id] ? acc.heroes[id].shards : 0 }; gifts.push(id); } };
+    const give = (id) => { if (!owned(id)) { acc.heroes[id] = newHero(1, acc.heroes[id] ? acc.heroes[id].shards : 0); gifts.push(id); } };
     if (first) {
       for (const g of GIFTS) {
         const crossed = typeof g.at === 'object' && before.cleared < g.at.stage && stage >= g.at.stage;
@@ -342,7 +364,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     }
     latch();
     const unlocked = newUnlocks(before, acc);
-    return done('finishStage', { won: !!won, first, stage, gold: r.gold + paidGold, itemGold: paidGold, gems: r.gems, teamShards: r.teamShards, mats, items, gift, xp, levelBefore: before.level, levelAfter: acc.level, unlocked, gifts });
+    return done('finishStage', { won: !!won, first, stage, gold: r.gold + paidGold, itemGold: paidGold, gems: r.gems, teamShards: r.teamShards, mats, items, gift, xp, stones: evo.stone, cores: evo.core, levelBefore: before.level, levelAfter: acc.level, unlocked, gifts });
   };
   M.canClaimDaily = () => M.acc.daily !== dayOf(now());
   M.claimDaily = () => {
@@ -350,10 +372,11 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     const today = dayOf(now());
     if (M.acc.daily === today) return fail('hôm nay đã nhận rồi');
     M.acc.daily = today; M.acc.gems += DAILY.gems; M.acc.gold += DAILY.gold;
-    let hero = null;
-    withRng((rng) => { hero = pick(rng, M.acc.team); });
+    let hero = null; const stones = {};
+    withRng((rng) => { hero = pick(rng, M.acc.team); for (let i = 0; i < DAILY.stones; i++) { const e = pick(rng, STONE_IDS); stones[e] = (stones[e] || 0) + 1; } });
     addShards(hero, DAILY.shards);
-    return done('claimDaily', { gems: DAILY.gems, gold: DAILY.gold, shards: DAILY.shards, hero });
+    for (const [e, n] of Object.entries(stones)) M.acc.evo.stone[e] += n;
+    return done('claimDaily', { gems: DAILY.gems, gold: DAILY.gold, shards: DAILY.shards, hero, stones });
   };
   M.canClaimChapter = (c) => Number.isInteger(c) && c >= 0 && !M.acc.chapters[c] && M.acc.cleared >= (c + 1) * CHAPTER_STAGES;
   M.claimChapter = (c) => {
@@ -467,17 +490,72 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     return done('autoMerge', { merges });
   };
 
+  // ---- evolution
+  // { ok, why, cost, form, branch }: the next form of a beast and what it takes. `branch` picks the form-3 path ('a' | 'b');
+  // a beast with two paths cannot reach form 3 without one. cost = { level, shards, gold, stones, cores, cleared, element }.
+  const priceOf = (c, el) => ({ level: c.level, shards: c.shards, gold: c.gold, stones: c.stones, cores: c.cores, cleared: c.cleared, element: el });
+  const shortOf = (h, cost) => {
+    if (h.level < cost.level) return `chưa đủ cấp ${cost.level}`;
+    if (M.acc.cleared < cost.cleared) return `chưa qua ải ${cost.cleared}`;
+    if (h.shards < cost.shards) return `thiếu ${cost.shards - h.shards} mảnh`;
+    if (M.acc.gold < cost.gold) return `thiếu ${cost.gold - M.acc.gold} vàng`;
+    if (M.acc.evo.stone[cost.element] < cost.stones) return `thiếu ${cost.stones - M.acc.evo.stone[cost.element]} Đá Mầm ${ELEMENTS[cost.element].name}`;
+    if (M.acc.evo.core < cost.cores) return `thiếu ${cost.cores - M.acc.evo.core} Lõi Cổ`;
+    return '';
+  };
+  const pay = (h, cost) => { h.shards -= cost.shards; M.acc.gold -= cost.gold; M.acc.evo.stone[cost.element] -= cost.stones; M.acc.evo.core -= cost.cores; };
+  M.canEvolve = (id, branch) => {
+    if (!M.unlocked('evolve')) return { ok: false, why: M.lockText('evolve'), cost: null };
+    if (!owned(id)) return { ok: false, why: 'chưa có thú này', cost: null };
+    const h = M.acc.heroes[id]; const form = (h.form || 1) + 1;
+    if (form > maxForm(id)) return { ok: false, why: 'đã ở dạng cuối', cost: null };
+    const cost = priceOf(EVOLVE[form], HERO[id].element);
+    const br = form === 3 ? branchesOf(id) : [];
+    if (br.length && !br.includes(branch)) return { ok: false, why: branch ? 'nhánh không có' : 'chưa chọn nhánh', cost, form, branch: null };
+    const why = shortOf(h, cost);
+    return { ok: !why, why, cost, form, branch: br.length ? branch : null };
+  };
+  M.evolve = (id, branch) => {
+    const c = M.canEvolve(id, branch);
+    if (!c.ok) return fail(c.why);
+    const h = M.acc.heroes[id]; const from = h.form;
+    pay(h, c.cost); h.form = c.form; h.branch = c.branch;
+    return done('evolve', { id, from, form: h.form, branch: h.branch, cost: c.cost });
+  };
+  // switching an evolved beast to its other form-3 path: half the form-3 price, no Lõi Cổ
+  M.canRebranch = (id, branch) => {
+    if (!M.unlocked('evolve')) return { ok: false, why: M.lockText('evolve'), cost: null };
+    if (!owned(id)) return { ok: false, why: 'chưa có thú này', cost: null };
+    const h = M.acc.heroes[id]; const br = branchesOf(id);
+    if (h.form !== 3 || !br.length) return { ok: false, why: 'thú này chưa ở dạng rẽ nhánh', cost: null };
+    if (!br.includes(branch)) return { ok: false, why: 'nhánh không có', cost: null };
+    if (h.branch === branch) return { ok: false, why: 'đang ở nhánh này rồi', cost: null };
+    const cost = priceOf(rebranchCost(), HERO[id].element);
+    const why = shortOf(h, cost);
+    return { ok: !why, why, cost, form: 3, branch };
+  };
+  M.rebranch = (id, branch) => {
+    const c = M.canRebranch(id, branch);
+    if (!c.ok) return fail(c.why);
+    const h = M.acc.heroes[id]; const from = h.branch;
+    pay(h, c.cost); h.branch = branch;
+    return done('rebranch', { id, from, branch, cost: c.cost });
+  };
+  // beasts whose next form is affordable now; a beast at a fork counts when either path is
+  const canEvolveAny = (id) => { const h = M.acc.heroes[id]; const f = (h && h.form) || 1; if (!h || f >= maxForm(id)) return false; const br = f === 2 ? branchesOf(id) : []; return br.length ? br.some((b) => M.canEvolve(id, b).ok) : M.canEvolve(id).ok; };
+  M.evoMats = () => ({ stone: { ...M.acc.evo.stone }, core: M.acc.evo.core });
+
   // ---- numbers for the battle and the UI
   M.heroStats = (id) => {
-    const def = HERO[id];
     const h = M.acc.heroes[id];
+    const def = h && heroDef({ id, form: h.form, branch: h.branch });
     if (!def || !h) return null;
     const e = M.acc.equip[id] || {};
     const bonus = equipBonus(SLOT_IDS.map((s) => findItem(e[s])));
     const mul = levelMul(Math.max(h.level, 1));
-    return { level: h.level, mul, atk: Math.round(def.atk * mul + bonus.atk), hp: Math.round(def.hp * mul + bonus.hp), atkFlat: bonus.atk, hpFlat: bonus.hp, perks: bonus.perks };
+    return { level: h.level, form: def.form, branch: def.branch, mul, atk: Math.round(def.atk * mul + bonus.atk), hp: Math.round(def.hp * mul + bonus.hp), atkFlat: bonus.atk, hpFlat: bonus.hp, perks: bonus.perks };
   };
-  M.teamSpec = () => M.acc.team.map((id) => { const s = M.heroStats(id); return { id, mul: s.mul, atkFlat: s.atkFlat, hpFlat: s.hpFlat, perks: s.perks }; });
+  M.teamSpec = () => M.acc.team.map((id) => { const s = M.heroStats(id); return { id, form: s.form, branch: s.branch, mul: s.mul, atkFlat: s.atkFlat, hpFlat: s.hpFlat, perks: s.perks }; });
   M.power = (id) => { const s = M.heroStats(id); return s ? Math.round(s.atk * 4 + s.hp / 2) : 0; };
   M.teamPower = () => M.acc.team.reduce((sum, id) => sum + M.power(id), 0);
 
@@ -556,7 +634,10 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     const equip = why.better || why.upgrade || why.merge;
     let rewards = M.unlocked('daily') && M.canClaimDaily();
     if (M.unlocked('chapter')) for (let c = 0; c * CHAPTER_STAGES < acc.cleared; c++) if (M.canClaimChapter(c)) rewards = true;
-    const out = { gacha: M.unlocked('gacha') && (acc.freePull || acc.gems >= GACHA.cost), heroes, equip, rewards, heroIds, equipWhy: why, slotDots, best, merge: why.merge };
+    const evoIds = {};
+    if (M.unlocked('evolve')) for (const id of Object.keys(acc.heroes)) if (owned(id) && canEvolveAny(id)) evoIds[id] = true;
+    const evolve = Object.keys(evoIds).length > 0;
+    const out = { gacha: M.unlocked('gacha') && (acc.freePull || acc.gems >= GACHA.cost), heroes: heroes || evolve, equip, rewards, heroIds: { ...heroIds, ...evoIds }, equipWhy: why, slotDots, best, merge: why.merge, evolve, evoIds };
     for (const [id, tab] of Object.entries(UNLOCK_TAB)) if (M.unlocked(id) && !acc.visited[id]) out[tab] = true;
     return out;
   };
