@@ -471,7 +471,7 @@ export function buildBridge(a, b, theme, { width = 1.3, steps = false } = {}) {
       }
       for (const k of [0.5, L / 2, L - 0.5]) for (const side of [-1, 1]) {
         const t = k / L; const y = a.y + (b.y - a.y) * t; const px = a.x + ux * k - uz * side * HW; const pz = a.z + uz * k + ux * side * HW;
-        M.box(px, y - 0.4, pz, 0.14, 1.4, 0.14, { side: 'log' }, [0.6, 0.5, 0.42]);
+        M.box(px, y - 0.4, pz, 0.14, 1.4, 0.14, 0, { side: 'log' }, [0.6, 0.5, 0.42]);
       }
       const nr = Math.ceil(L / 0.5);
       for (const side of [-1, 1]) for (let i = 0; i < nr; i++) { const t = (i + 0.5) / nr; const y = a.y + (b.y - a.y) * t; M.box(a.x + dx * t - uz * side * HW, y + 0.75, a.z + dz * t + ux * side * HW, L / nr, 0.07, 0.07, rot, { side: 'log' }, [0.55, 0.45, 0.38]); }
