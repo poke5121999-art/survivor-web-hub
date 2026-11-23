@@ -191,8 +191,9 @@ function AUDIT(opts) {
       { const tz = Vz.setFromMatrixPosition(t.t.o.matrixWorld).z;
         for (const f of fronts.get(t.screen) || []) { if (anc.has(f.node) || f.z <= tz + 0.01) continue; let inside = false; for (let a = f.node; a; a = a.parent) if (a === t.t.n) inside = true; if (inside) continue; const c = cross(t.clip, f.box); if (c && c.w > 1.5 && c.h > 1.5) res.T9.push({ str: t.str, screen: t.screen, by: [Math.round(c.w * 10) / 10, Math.round(c.h * 10) / 10] }); } }
       // the guide's speech panel lies over the dimmed, blocked screen on purpose (O1 keeps it off the battle banners)
+      // a tap-anywhere layer over the whole frame (story-next, evolve-skip) has no ink to cover
       if (t.screen !== 'guide') for (const [n, q] of tnodes) {
-        if (anc.has(n)) continue; const c = cross(t.clip, q.box);
+        if (anc.has(n) || (q.box.w >= 770 && q.box.h >= 340)) continue; const c = cross(t.clip, q.box);
         if (c && c.w > 1.5 && c.h > 1.5) res.T8.push({ str: t.str, screen: t.screen, id: q.id, by: [Math.round(c.w * 10) / 10, Math.round(c.h * 10) / 10] });
       }
     }

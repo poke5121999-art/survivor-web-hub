@@ -363,7 +363,7 @@ export function createEvolve(game) {
       S.lapP = L1.pop;
       mound.visible = L1.under || (kind === 'burrow' && L1.y < -0.02); mound.position.set(x, 0, z); mound.rotation.y = -L1.a;
       mound.children.forEach((l, i) => { l.position.y = 0.02 + Math.abs(Math.sin(S.lapT * 14 + i)) * 0.04; });
-      frame(0.35 + Math.sin(S.lapT * 0.2) * 0.25, LAP_R + sp(newS) / 2, (hN + up) / 2 + 0.2, (hN + up) * 0.4, 0.42);
+      frame(0.35 + Math.sin(S.lapT * 0.2) * 0.25, LAP_R + sp(newS) / 2, (hN + up) / 2 + 0.3, (hN + up) * 0.45, 0.42);
     }
   }
   // ---------- open and close ----------
