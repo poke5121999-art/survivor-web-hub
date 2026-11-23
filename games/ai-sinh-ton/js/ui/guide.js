@@ -332,10 +332,10 @@ function createStory(game, { onDone }) {
   const ui = game.ui, meta = game.meta, THREE = ui.THREE, PAL = ui.PAL;
   const scr = ui.screen('story', { modal: true });
   const dim = new THREE.Mesh(new THREE.PlaneGeometry(1200, 800), new THREE.MeshBasicMaterial({ color: 0x0c0718, transparent: true, opacity: 0.86, depthWrite: false })); scr.put(dim, 390, 180, -5);
-  const band = ui.panel({ w: 600, h: 150, r: 22, color: 0x2a2150, depth: 5, bevel: 3 }); scr.put(band, 90, 92, 2);
-  const title = ui.text('Ải Sinh Tồn: Thú Hộ Vệ', { size: 15, color: PAL.gold, align: 'center' }); band.put(title, 300, 16, 8);
-  const lines = STORY.map((s, i) => { const n = ui.text(s, { size: 16, maxW: 556, lineH: 20, align: 'center' }); band.put(n, 300, 48 + i * 46, 8); n.setOpacity(0); return n; });
-  const hint = ui.text('Chạm để tiếp tục', { size: 11, color: 0xc8c0f0, align: 'center' }); scr.put(hint, 390, 256, 8);
+  const band = ui.panel({ w: 620, h: 178, r: 22, color: 0x2a2150, depth: 5, bevel: 3 }); scr.put(band, 80, 78, 2);
+  const title = ui.text('Ải Sinh Tồn: Thú Hộ Vệ', { size: 15, color: PAL.gold, align: 'center' }); band.put(title, 310, 15, 8);
+  const lines = STORY.map((s, i) => { const n = ui.text(s, { size: 16, maxW: 570, lineH: 20, align: 'center' }); band.put(n, 310, 62 + i * 54, 8); n.setOpacity(0); return n; });
+  const hint = ui.text('Chạm để tiếp tục', { size: 11, color: 0xc8c0f0, align: 'center' }); scr.put(hint, 390, 270, 8);
   const tapAll = ui.button({ id: 'story-next', w: 780, h: 360, flat: true, alpha: 0.001, label: '', onTap: () => next() }); scr.put(tapAll, 0, 0, 20);
   const skipB = ui.button({ id: 'story-skip', w: 96, h: 44, r: 13, color: PAL.disabled, label: 'BỎ QUA', size: 14, onTap: () => close() }); scr.put(skipB, 664, 14, 40);
   const S = { on: false, t: 0, shown: 0 };

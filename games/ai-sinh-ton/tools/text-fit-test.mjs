@@ -370,6 +370,11 @@ async function ftue(br, srv, phone) {
   for (let it = 0; it < 1500 && audited < 8; it++) {
     const st = await page.evaluate(() => ({ d: __G.guide.dbg(), screen: __G.screen, phase: __G.B && __G.B.phase, inB: !!__G.B, cleared: __G.meta.acc.cleared, session: __G.meta.acc.ftue.session }));
     const d = st.d;
+    if (d.story && d.story.on) {
+      // the opening story: both lines up, read like any screen, then on through BỎ QUA
+      if (last !== 'story') { last = 'story'; await tap(page, 'story-next', 40); seen.push('story'); audited++; await inspect(page, phone, `ftue-${String(audited).padStart(2, '0')}-story`, { battle: true }); }
+      await tap(page, 'story-skip', 10); continue;
+    }
     if (d.reveal) { await tap(page, 'reveal-tap', 6); continue; }
     if (d.active) {
       const key = d.id + ':' + (d.target || 'free');
@@ -564,6 +569,7 @@ async function overlays(br, srv, phone) {
       const st = await page.evaluate(() => ({ d: __G.guide.dbg(), screen: __G.screen, phase: __G.B && __G.B.phase, inB: !!__G.B, cleared: __G.meta.acc.cleared, session: __G.meta.acc.ftue.session }));
       const d = st.d;
       if (st.cleared >= 1 && !st.inB) { done1 = true; break; }
+      if (d.story && d.story.on) { await tap(page, 'story-skip', 10); continue; }
       if (st.inB) { for (let f = 0; f < 4; f++) { await look(); await step(page, 3); } }
       if (d.reveal) { await tap(page, 'reveal-tap', 6); continue; }
       if (d.active) {
