@@ -10,7 +10,7 @@ import { heroDef, branchesOf, maxForm } from '../data/beasts.js?v=20261122a';
 import { levelMul } from '../data/economy.js?v=20261122a';
 import { buildBeast } from '../view/beast/index.js?v=20261122a';
 
-export const MOVE_NAME = { walk: 'Đi bộ', gallop: 'Phi nước đại', hop: 'Nhảy cóc', leap: 'Nhảy xa', roll: 'Lăn tròn', slither: 'Trườn', fly: 'Bay', glide: 'Lướt', swimAir: 'Bơi trong không khí', blink: 'Dịch chuyển', burrow: 'Đào đất', stomp: 'Dậm đất' };
+export const MOVE_NAME = { walk: 'Đi bộ', gallop: 'Phi nước đại', hop: 'Nhảy cóc', leap: 'Nhảy xa', roll: 'Lăn tròn', slither: 'Trườn', fly: 'Bay', glide: 'Lướt', swimAir: 'Bơi trên không', blink: 'Dịch chuyển', burrow: 'Đào đất', stomp: 'Dậm đất' };
 // the moment, in order; `dur` in seconds
 const PHASES = [{ k: 'cocoon', dur: 1.3 }, { k: 'crack', dur: 1.0 }, { k: 'burst', dur: 0.5 }, { k: 'pose', dur: 1.8 }];
 const AIR = new Set(['fly', 'glide', 'swimAir']);
@@ -227,20 +227,28 @@ export function createEvolve(game) {
     reg.from = { name: nameA, hp: Math.round(a.hp), atk: Math.round(a.atk), move: a.def.move.kind };
     reg.to = b ? { name: nameB, hp: Math.round(b.hp), atk: Math.round(b.atk), move: b.def.move.kind, skills: changed, passive: p.name } : null;
   }
-  // the lower block follows what is above it: skills used, then the passive, then the price, all above the buttons
   const BUTTON_TOP = 246;
   reg.buttonTop = BUTTON_TOP;
-  function layoutText(nSkills) {
+  // the lower block follows what is above it: skills used, then the passive, then the price, all above the buttons; when the
+  // full spacing would reach under them (three changed skills, a two-line passive and a two-line price) it packs tighter
+  let nSk = 0;
+  function layoutText(nSkills = nSk) {
+    nSk = nSkills;
     const z = right.top + 6;
     // below the stat rows, whose values may wrap (a long gait name on the left of a final form)
     const last = ROWS[ROWS.length - 1], rowsEnd = 96 + Math.max(13, last.a.h, last.b.h) + 6;
-    let y = Math.max(120, rowsEnd);
-    skillHead.pos(14, y, z); skillLines.forEach((n, i) => n.pos(14, y + 17 + i * 15, z));
-    y += (nSkills ? 17 + nSkills * 15 : 0) + 4;
-    passHead.pos(14, y, z); y += 16;
-    passDesc.pos(14, y, z); y += Math.max(13, passDesc.h) + 4;
-    costT.pos(14, y, z);
+    const place = (head, pitch, gap) => {
+      let y = Math.max(120, rowsEnd);
+      skillHead.pos(14, y, z); skillLines.forEach((n, i) => n.pos(14, y + head + i * pitch, z));
+      y += (nSkills ? head + nSkills * pitch : 0) + gap;
+      passHead.pos(14, y, z); y += head - 1;
+      passDesc.pos(14, y, z); y += Math.max(13, passDesc.h) + gap;
+      costT.pos(14, y, z);
+      return y + Math.max(13, costT.h);
+    };
+    if (place(17, 15, 4) > BUTTON_TOP - 2) place(15, 13, 1);
   }
+
   function target() {
     const h = meta.acc.heroes[S.id];
     if (S.mode === 'rebranch') return { from: formSpec(3, h.branch), to: formSpec(3, S.branch) };
@@ -260,7 +268,7 @@ export function createEvolve(game) {
     if (S.phase === 'done') { costT.set(S.mode === 'rebranch' ? 'Đã đổi nhánh!' : 'Tiến hoá thành công!'); goB.setVisible(false); closeB.setLabel('XONG'); return; }
     goB.setVisible(true); closeB.setLabel('ĐÓNG');
     if (!tg.to) { costT.set('Đã ở dạng cuối.'); goB.setEnabled(false); goB.setLabel('TIẾN HOÁ'); return; }
-    const c = check(); costT.set(costLine(c)); goB.setEnabled(c.ok); reg.goLabel = S.mode === 'rebranch' ? 'ĐỔI NHÁNH' : 'TIẾN HOÁ'; goB.setLabel(reg.goLabel);
+    const c = check(); costT.set(costLine(c)); layoutText(); goB.setEnabled(c.ok); reg.goLabel = S.mode === 'rebranch' ? 'ĐỔI NHÁNH' : 'TIẾN HOÁ'; goB.setLabel(reg.goLabel);
     reg.ok = c.ok; reg.why = c.why;
   }
   function pickBranch(b) {
@@ -293,7 +301,7 @@ export function createEvolve(game) {
     const r = reg.result, h = meta.acc.heroes[S.id];
     const from = S.mode === 'rebranch' ? formSpec(3, r.from) : formSpec(r.from, null), to = formSpec(h.form, h.branch);
     fill(from, to);
-    costT.set(S.mode === 'rebranch' ? 'Đã đổi nhánh!' : 'Tiến hoá thành công!'); goB.setVisible(false); closeB.setLabel('XONG');
+    costT.set(S.mode === 'rebranch' ? 'Đã đổi nhánh!' : 'Tiến hoá thành công!'); layoutText(); goB.setVisible(false); closeB.setLabel('XONG');
     branchB.forEach((n) => n.setVisible(false));
   }
   function tick3d(dt) {
