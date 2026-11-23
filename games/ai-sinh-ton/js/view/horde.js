@@ -1,187 +1,98 @@
-// The horde on screen: every ordinary enemy the sim marks `horde` (and any enemy that finds the zombie pool full) is drawn by
-// instancing, not by a Blockade Z body. One blocky body in Blockade Z's proportions, cut into torso / head / arms / legs
-// (+ wings), each an InstancedMesh shared by all kinds: a kind is its own scale, pose, colour tint and gait. Whatever the
-// count, the cost is a fixed handful of draw calls: torso, head (skin + face), arms, legs, wings, death cubes, ground splats.
-// Deaths are pooled: a corpse record plays out through the same meshes, a few cubes fly from a ring buffer, a splat every
-// few deaths. No per-unit object, no per-death allocation.
-// A monster belongs to a room (its pad, e.room): one in a room the team has not reached yet, a camp still waiting (B.camp) or
-// a pack woken while the run is on, is drawn on that room's pad through world.roomOffset, and not at all while that pad is
-// not built.
+// Every ordinary enemy on screen (all but the bosses) is drawn here by instancing: one code-built body per kind
+// (foe/zombies.js), one InstancedMesh pair per kind (toon body + inverted-hull outline), animated in the vertex shader
+// from a few numbers per instance (foe/kit.js): gait phase, attack swing, hit recoil, fall, dissolve, flash, launch spin.
+// Draw calls: two per kind on screen, plus death shards and ground splats. Deaths are pooled: a corpse record falls and
+// dissolves (blocky holes with glowing edges) through the same meshes, shards fly from a ring buffer, smoke from G.fx.
+// A monster belongs to a room (its pad, e.room): one in a room the team has not reached yet, a camp still waiting (B.camp)
+// or a pack woken while the run is on, is drawn on that room's pad through world.roomOffset, and not at all while that pad
+// is not built.
 import { FLY_Y } from './keys.js?v=20261122a';
 import { arrive } from './arrival.js?v=20261122a';
+import { foeMesh } from './foe/kit.js?v=20261122a';
+import { KINDS, zombieGeos } from './foe/zombies.js?v=20261122a';
 
 const THREE = window.THREE;
 const BZ = window.BZ;
 
-const CAP = 360;           // bodies drawable at once (live + dying); the sim holds 120 live
-const CORPSES = 56;
-const CUBES = 240;
+const CAP = 240;           // bodies of one kind drawable at once (live + dying)
+const CORPSES = 64;
+const SHARDS = 200;
 const SPLATS = 28;
 const SPAWN_T = 0.6;
+const ELITE = 1.3;         // an elite is drawn this much bigger, brighter
 const yawOf = (face) => Math.PI / 2 - face;
 const wrap = BZ.wrapAngle;
 
-// per-tier death: cubes per kill, seconds a body takes to go, ground splat every N kills, the fall or the pop
+// per tier: shards per kill, seconds a body takes to fall and dissolve, a ground splat every N kills, smoke puffs per kill
 const TIER = {
-  low: { cubes: 3, dur: 0.32, splatEvery: 9, fall: false },
-  medium: { cubes: 5, dur: 0.6, splatEvery: 6, fall: true },
-  high: { cubes: 7, dur: 0.75, splatEvery: 4, fall: true },
+  low: { shards: 3, dur: 0.7, splatEvery: 9, smoke: 1 },
+  medium: { shards: 5, dur: 0.9, splatEvery: 6, smoke: 1 },
+  high: { shards: 7, dur: 1.05, splatEvery: 4, smoke: 2 },
 };
-
-// Colours are the colour a part should END UP, as a hex; the instance tint is that over the texture's own average.
-// base: the texture each part is mapped with (BZ.tex keys of Blockade Z's own zombie art).
-const BASE = { skin: 0x9db08a, shirt: 0x3a3a44, pants: 0x6a4a2c };
-// s scale, w width, h height, hip hip height, lean forward pitch, mode (walk | quad | spider | fly), sw swing speed, amp leg swing,
-// arm base pitch, glow brightness boost, burst colour
-const ST = {
-  walker: { s: 1, w: 1, h: 1, lean: 0.1, mode: 'walk', sw: 1, amp: 0.7, arm: -0.6, skin: 0x9db08a, shirts: [0xb03d3d, 0x55566a, 0xe5762a, 0x4f7f8f], pants: [0x7d6c48, 0x2c2a2a, 0x6a4a2c], burst: 0x7e9a62 },
-  runner: { s: 0.92, w: 0.9, h: 1, lean: 0.42, mode: 'walk', sw: 1.7, amp: 1.0, arm: -0.15, swingArm: 0.9, skin: 0xd8e048, shirts: [0xf03020, 0xf0b020], pants: [0x2c2a2a, 0x3a3a50], burst: 0xb4cc55 },
-  spider: { s: 0.6, w: 1.6, h: 0.5, hip: 0.42, lean: 0.1, mode: 'spider', sw: 2.4, amp: 0.5, arm: 0, skin: 0x42305a, shirts: [0x2e2040], pants: [0x6a3a8a], burst: 0x6a3a8a },
-  flyer: { s: 0.85, w: 1, h: 1, lean: 0.35, mode: 'fly', sw: 1, amp: 0.4, arm: -0.3, skin: 0xd0c0ea, shirts: [0x4a3a6a], pants: [0x3a2a5a], burst: 0xc060f0 },
-  hound: { s: 0.85, w: 0.95, h: 1.05, hip: 0.46, lean: 1.28, mode: 'quad', sw: 2.2, amp: 0.9, arm: 0, skin: 0xb07c46, shirts: [0x7a4a24], pants: [0x8a5a30], burst: 0xb07c46 },
-  spitter: { s: 0.98, w: 1, h: 1, lean: 0.28, mode: 'walk', sw: 0.9, amp: 0.6, arm: -0.9, skin: 0x7ed02e, shirts: [0x4a7a20], pants: [0x3a5a18], burst: 0x9aff40 },
-  bloater: { s: 1.2, w: 1.6, h: 0.98, lean: -0.05, mode: 'walk', sw: 0.7, amp: 0.45, arm: -0.4, skin: 0xdcc84a, shirts: [0xc8a030], pants: [0x7a6a30], burst: 0xdcc84a },
-  shielder: { s: 1.1, w: 1.2, h: 1, lean: 0.08, mode: 'walk', sw: 0.8, amp: 0.55, arm: -1.2, skin: 0x9db08a, shirts: [0x3a78e0], pants: [0x2a3a78], burst: 0x6aa0f0 },
-  brute: { s: 1.45, w: 1.3, h: 1, lean: 0.15, mode: 'walk', sw: 0.6, amp: 0.5, arm: -0.45, skin: 0x5d7f4f, shirts: [0x4a4048], pants: [0x2c2a2a], burst: 0x5d7f4f },
-  shrieker: { s: 1.05, w: 0.82, h: 1.14, lean: 0.3, mode: 'walk', sw: 1, amp: 0.7, arm: -1.5, skin: 0xece4f4, shirts: [0xc8588a], pants: [0x7d6c48], burst: 0xf0e0ff },
-  armored: { s: 1.25, w: 1.3, h: 1, lean: 0.12, mode: 'walk', sw: 0.65, amp: 0.5, arm: -0.5, skin: 0x8a9aa8, shirts: [0xd8e0f0], pants: [0x8890a0], burst: 0xc8d0e0 },
-  burner: { s: 1.05, w: 1, h: 1, lean: 0.12, mode: 'walk', sw: 1, amp: 0.7, arm: -0.6, glow: 1.5, skin: 0xff7a28, shirts: [0xe04010], pants: [0x501808], burst: 0xffa030 },
-  frost: { s: 1.1, w: 1, h: 1, lean: 0.08, mode: 'walk', sw: 0.85, amp: 0.65, arm: -0.6, skin: 0xa8dcf4, shirts: [0x78b8f0], pants: [0x4a78b0], burst: 0xc8f0ff },
-};
-const DEFAULT = ST.walker;
-const FLASH = [2, 2, 2];
-
-const lin = (hex) => { const c = new THREE.Color(hex); return [c.r, c.g, c.b]; };
-const BASE_LIN = { skin: lin(BASE.skin), shirt: lin(BASE.shirt), pants: lin(BASE.pants) };
-const tintOf = (hex, base) => { const c = lin(hex); return [Math.min(9, c[0] / base[0]), Math.min(9, c[1] / base[1]), Math.min(9, c[2] / base[2])]; };
-for (const k of Object.keys(ST)) {
-  const o = ST[k]; o.hip = o.hip || 0.75; o.sk = tintOf(o.skin, BASE_LIN.skin);
-  o.sh = o.shirts.map((h) => tintOf(h, BASE_LIN.shirt)); o.pa = o.pants.map((h) => tintOf(h, BASE_LIN.pants)); o.bc = new THREE.Color(o.burst);
-}
-const STATUS_TINT = { freeze: [0.55, 1, 1.9], burn: [1.7, 0.8, 0.35], poison: [0.7, 1.4, 0.5], slow: [0.8, 0.95, 1.35] };
-
-function mergeGeo(parts) {
-  let nv = 0; let ni = 0;
-  const gs = parts.map(([g, m]) => { const c = g.clone(); c.applyMatrix4(m); nv += c.attributes.position.count; ni += c.index.count; return c; });
-  const P = new Float32Array(nv * 3); const N = new Float32Array(nv * 3); const U = new Float32Array(nv * 2); const Cc = new Float32Array(nv * 3); const I = new Uint32Array(ni);
-  let v = 0; let k = 0;
-  for (const g of gs) {
-    const n = g.attributes.position.count;
-    P.set(g.attributes.position.array, v * 3); N.set(g.attributes.normal.array, v * 3); U.set(g.attributes.uv.array, v * 2); Cc.set(g.attributes.color.array, v * 3);
-    for (let i = 0; i < g.index.count; i++) I[k++] = g.index.array[i] + v;
-    v += n;
-  }
-  const out = new THREE.BufferGeometry();
-  out.setAttribute('position', new THREE.BufferAttribute(P, 3)); out.setAttribute('normal', new THREE.BufferAttribute(N, 3));
-  out.setAttribute('uv', new THREE.BufferAttribute(U, 2)); out.setAttribute('color', new THREE.BufferAttribute(Cc, 3)); out.setIndex(new THREE.BufferAttribute(I, 1));
-  out.computeBoundingSphere(); return out;
-}
+const STATUS_TINT = { freeze: [0.6, 1, 1.8], burn: [1.6, 0.85, 0.45], poison: [0.75, 1.35, 0.55], slow: [0.82, 0.95, 1.3] };
+const ONE = [1, 1, 1];
 
 export function createHorde(H) {
   const { G, scene } = H;
   const tier = TIER[H.quality.name] || TIER.medium;
-  const proto = G.zombies.list[0].body;
-  const M = (x = 0, y = 0, z = 0, rx = 0) => new THREE.Matrix4().makeTranslation(x, y, z).multiply(new THREE.Matrix4().makeRotationX(rx));
-  const legGeo = mergeGeo([[proto.legL.geometry, M()], [proto.kneeL.geometry, M(0, -0.38, 0)]]);
-  const armGeo = mergeGeo([[proto.armL.geometry, M()], [proto.elbowL.geometry, M(0, -0.32, 0, -0.5)]]);
+  const geos = zombieGeos();
+  const ST = {}; const kinds = Object.keys(KINDS);
+  const meshes = [];
+  for (const id of kinds) {
+    const K = KINDS[id]; const m = foeMesh(geos[id].geo, K.gait, CAP);
+    m.body.name = 'horde.' + id; m.line.name = 'horde.' + id + '.line';
+    scene.add(m.body); scene.add(m.line); m.body.visible = m.line.visible = false;
+    meshes.push(m.body, m.line);
+    ST[id] = { id, K, m, n: 0, s: K.s, top: geos[id].top, sw: K.sw, mode: K.gait.mode, burst: new THREE.Color(K.gait.burst), cloth: K.cloth.map((h) => { const c = new THREE.Color(h); return [c.r, c.g, c.b]; }) };
+  }
+  const DEFAULT = ST.walker;
+  const F = meshes[0].position; // where the world has moved the horde's frame (world.follow)
 
-  const tex = (key) => new THREE.MeshLambertMaterial({ map: BZ.tex(key), vertexColors: true });
-  const mats = { skin: tex('z_skin'), face: tex('z_face'), shirt: tex('z_shirt_dark'), pants: tex('z_pants_brown') };
-  const wingMat = new THREE.MeshLambertMaterial({ map: BZ.tex('z_wing'), side: THREE.DoubleSide, emissive: 0x6a2a9a, emissiveMap: BZ.tex('z_wing'), transparent: true, alphaTest: 0.5 });
-  const inst = (geo, mat, n) => {
-    const m = new THREE.InstancedMesh(geo, mat, n); m.frustumCulled = false; m.count = 0; m.castShadow = false; m.receiveShadow = false;
-    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3); m.instanceColor.setUsage(THREE.DynamicDrawUsage);
-    scene.add(m); return m;
-  };
-  const torso = inst(proto.torso.geometry, mats.shirt, CAP);
-  const head = inst(proto.head.geometry, [mats.skin, mats.face], CAP);
-  const arms = inst(armGeo, mats.skin, CAP * 2);
-  const legs = inst(legGeo, mats.pants, CAP * 2);
-  const wings = inst(proto.wingL.geometry, wingMat, CAP * 2);
-  const meshes = [torso, head, arms, legs, wings];
-  const F = torso.position; // where the world has moved the horde's frame (world.follow)
-
-  // death cubes
-  const cubes = inst(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({}), CUBES);
-  const cb = { x: new Float32Array(CUBES), y: new Float32Array(CUBES), z: new Float32Array(CUBES), vx: new Float32Array(CUBES), vy: new Float32Array(CUBES), vz: new Float32Array(CUBES), life: new Float32Array(CUBES), max: new Float32Array(CUBES), size: new Float32Array(CUBES), rot: new Float32Array(CUBES), col: new Float32Array(CUBES * 3) };
+  // death shards: flat chips of the body's colour that tumble and bounce
+  const shardGeo = new THREE.OctahedronGeometry(0.5, 0); shardGeo.scale(1, 0.45, 0.8);
+  const shards = new THREE.InstancedMesh(shardGeo, new THREE.MeshLambertMaterial({}), SHARDS);
+  shards.frustumCulled = false; shards.count = 0; shards.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  shards.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(SHARDS * 3), 3); scene.add(shards);
+  const cb = { x: new Float32Array(SHARDS), y: new Float32Array(SHARDS), z: new Float32Array(SHARDS), vx: new Float32Array(SHARDS), vy: new Float32Array(SHARDS), vz: new Float32Array(SHARDS), life: new Float32Array(SHARDS), size: new Float32Array(SHARDS), rot: new Float32Array(SHARDS), col: new Float32Array(SHARDS * 3) };
   let cbHead = 0;
   // ground splats
   const splatGeo = new THREE.PlaneGeometry(1, 1); splatGeo.rotateX(-Math.PI / 2);
   const splatMat = new THREE.MeshBasicMaterial({ map: BZ.tex('blood'), transparent: true, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
-  const splats = inst(splatGeo, splatMat, SPLATS); splats.renderOrder = 1;
+  const splats = new THREE.InstancedMesh(splatGeo, splatMat, SPLATS); splats.frustumCulled = false; splats.count = 0; splats.renderOrder = 1;
+  splats.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(SPLATS * 3), 3); scene.add(splats);
   const sp = { x: new Float32Array(SPLATS), z: new Float32Array(SPLATS), t: new Float32Array(SPLATS), size: new Float32Array(SPLATS), rot: new Float32Array(SPLATS), col: new Float32Array(SPLATS * 3) };
   sp.t.fill(99); let spHead = 0;
-  meshes.push(cubes, splats);
+  const extras = [shards, splats];
 
   const states = new Map();
   const corpses = [];
   let showcase = [];
-  let hk = null; let B = null; let clock = 0; let frame = 0; let nDeaths = 0; let deathsWin = []; let soundWin = []; let cubeBudget = 0;
-  const stats = { units: 0, corpses: 0, cubes: 0, splats: 0 };
+  let hk = null; let B = null; let clock = 0; let frame = 0; let nDeaths = 0; let deathsWin = []; let soundWin = []; let shardBudget = 0; let smokeBudget = 0;
+  const stats = { units: 0, corpses: 0, cubes: 0, splats: 0, kinds: 0 };
 
-  // ---- scratch ----
-  const M0 = new THREE.Matrix4(); const Hm = new THREE.Matrix4(); const Q = new THREE.Matrix4(); const A = new THREE.Matrix4(); const T = new THREE.Matrix4(); const R = new THREE.Matrix4(); const S3 = new THREE.Matrix4();
-  const V = new THREE.Vector3(); const col = new THREE.Color();
-  let nTorso = 0; let nArm = 0; let nWing = 0;
-  const tmpPos = new THREE.Vector3();
-
+  const M0 = new THREE.Matrix4(); const Q = new THREE.Matrix4(); const V = new THREE.Vector3(); const tmpPos = new THREE.Vector3(); const tmpV = new THREE.Vector3();
   const hash = (n) => { let h = Math.imul(n | 0, 0x9e3779b1); h ^= h >>> 15; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
 
-  // body o: x y z yaw, sty, sc (scale mult), ph, lean+, nod, armA (extra arm pitch), swing 0..1 (<0 none), fall, tint [r,g,b], k brightness, shirt/pants/skin tints, wing flap
+  // one body: o = { x y z yaw sty sc ph swing hit die fall flash lean spin tint k cloth }
   function put(o) {
-    if (nTorso >= CAP) return;
-    const sty = o.sty; const s = sty.s * o.sc; const mode = sty.mode;
-    const i = nTorso++;
-    M0.makeRotationY(o.yaw); M0.scale(V.set(s * sty.w, s * sty.h, s * sty.w)); M0.setPosition(o.x, o.y, o.z);
-    if (o.fall) M0.multiply(R.makeRotationX(-o.fall));
-    const bob = mode === 'fly' ? Math.sin(o.ph * 0.5) * 0.12 : Math.abs(Math.sin(o.ph)) * 0.05 * Math.min(1, sty.sw);
-    Hm.copy(M0).multiply(T.makeTranslation(0, sty.hip + bob, 0));
-    const swing = o.swing; const lunge = swing >= 0 ? Math.sin(Math.PI * swing) : 0;
-    const lean = sty.lean + o.lean + lunge * 0.3;
-    Q.copy(Hm).multiply(R.makeRotationX(lean)); torso.setMatrixAt(i, Q);
-    A.copy(Q).multiply(T.makeTranslation(0, 0.7, 0)).multiply(R.makeRotationX(o.nod - (mode === 'quad' || mode === 'spider' ? lean * 0.6 : 0) + (mode === 'walk' ? Math.sin(o.ph * 0.5) * 0.06 : 0))); head.setMatrixAt(i, A);
-    const phs = Math.sin(o.ph); const arm0 = sty.arm + (swing >= 0 ? -1.5 * lunge : 0) + o.armA;
-    const spread = mode === 'fly' ? 1.0 : mode === 'spider' ? 0.9 : 0;
-    for (let k = 0; k < 2; k++) {
-      const side = k ? 1 : -1; const j = i * 2 + k;
-      let ang = arm0 + (sty.swingArm ? phs * side * sty.swingArm : phs * side * 0.12);
-      if (mode === 'quad' || mode === 'spider') ang = -lean + phs * side * 0.8 + (mode === 'spider' ? 0.25 : 0);
-      if (mode === 'fly') ang = -0.4 + Math.sin(o.ph * 0.5 + k) * 0.15;
-      A.copy(Q).multiply(T.makeTranslation(side * 0.36 * (mode === 'spider' ? 1.5 : 1), 0.64, 0));
-      if (spread) A.multiply(R.makeRotationZ(side * spread));
-      A.multiply(R.makeRotationX(ang)); arms.setMatrixAt(j, A);
-      let la = phs * side * sty.amp;
-      if (mode === 'fly') la = 0.7 + Math.sin(o.ph * 0.5 + k * 2) * 0.12;
-      if (mode === 'spider') la = -phs * side * 0.5 + 0.3;
-      A.copy(Hm).multiply(T.makeTranslation(side * 0.13 * (mode === 'spider' ? 2.2 : 1), 0, 0));
-      if (mode === 'spider') A.multiply(R.makeRotationZ(side * 0.8));
-      A.multiply(R.makeRotationX(la)); legs.setMatrixAt(j, A);
-    }
-    const t = o.tint; const sh = o.sh; const pa = o.pa; const sk = o.sk; const kk = o.k;
-    paint(torso, i, sh, t, kk); paint(head, i, sk, t, kk); paint(arms, i * 2, sk, t, kk); paint(arms, i * 2 + 1, sk, t, kk); paint(legs, i * 2, pa, t, kk); paint(legs, i * 2 + 1, pa, t, kk);
-    if (mode === 'fly') {
-      const flap = Math.sin(o.ph * 3.2) * 0.7 + 0.25;
-      for (let k = 0; k < 2; k++) {
-        const side = k ? 1 : -1; const j = nWing++;
-        A.copy(Hm).multiply(T.makeTranslation(side * 0.2, 0.6, -0.12)).multiply(R.makeRotationZ(side * flap)); if (side > 0) A.multiply(S3.makeScale(-1, 1, 1));
-        wings.setMatrixAt(j, A); paint(wings, j, [1, 1, 1], [1, 1, 1], 1.1);
-      }
-    }
-    nArm = i * 2 + 2;
+    const S = o.sty; if (S.n >= CAP) return;
+    const i = S.n++; const m = S.m; const s = S.s * o.sc;
+    M0.makeRotationY(o.yaw); M0.scale(V.set(s, s, s)); M0.setPosition(o.x, o.y, o.z); m.body.setMatrixAt(i, M0);
+    const a = m.iA; a[i * 4] = o.ph; a[i * 4 + 1] = o.swing; a[i * 4 + 2] = o.hit; a[i * 4 + 3] = o.die;
+    const b = m.iB; b[i * 4] = o.fall; b[i * 4 + 1] = o.flash; b[i * 4 + 2] = o.lean; b[i * 4 + 3] = o.spin;
+    const c = m.iC; c[i * 3] = o.cloth[0]; c[i * 3 + 1] = o.cloth[1]; c[i * 3 + 2] = o.cloth[2];
+    const ic = m.body.instanceColor.array; const t = o.tint; const k = o.k; ic[i * 3] = t[0] * k; ic[i * 3 + 1] = t[1] * k; ic[i * 3 + 2] = t[2] * k;
   }
-  function paint(mesh, i, c, t, k) { const a = mesh.instanceColor.array; a[i * 3] = c[0] * t[0] * k; a[i * 3 + 1] = c[1] * t[1] * k; a[i * 3 + 2] = c[2] * t[2] * k; }
 
-  const ONE = [1, 1, 1];
-  function look(u) { // colours of one unit: stable per uid
-    const sty = u.sty; const r = hash(u.uid);
-    u.sh = sty.sh[Math.floor(r * 7.3) % sty.sh.length]; u.pa = sty.pa[Math.floor(r * 13.1) % sty.pa.length];
-    const v = 0.88 + hash(u.uid + 77) * 0.24; u.sk = [sty.sk[0] * v, sty.sk[1] * v, sty.sk[2] * v]; u.sc = 0.92 + hash(u.uid + 191) * 0.16;
+  function look(u) { // per-uid look: cloth tint, brightness, size
+    const S = u.sty; const r = hash(u.uid);
+    u.cloth = S.cloth[Math.floor(r * 7.3) % S.cloth.length]; u.sc = 0.93 + hash(u.uid + 191) * 0.14; u.bright = 0.9 + hash(u.uid + 77) * 0.2;
   }
 
   function stateOf(e) {
     let st = states.get(e.uid);
     if (!st) {
-      st = { uid: e.uid, sty: ST[e.kind] || DEFAULT, x: e.x, z: e.z, px: e.x, pz: e.z, py: 0, yaw: yawOf(e.face), ph: hash(e.uid) * 6.28, spd: 0, swing: -1, hit: 0, seen: 0, node: null };
+      st = { uid: e.uid, sty: ST[e.kind] || DEFAULT, x: e.x, z: e.z, px: e.x, pz: e.z, py: 0, sx: e.x, sz: e.z, yaw: yawOf(e.face), ph: hash(e.uid) * 6.28, spd: 0, swing: -1, hit: 0, flash: 0, kx: 0, kz: 0, air: 0, vy: 0, spin: 0, seen: 0, node: null, elite: !!e.elite, born: false };
       look(st); states.set(e.uid, st);
     }
     return st;
@@ -189,47 +100,70 @@ export function createHorde(H) {
 
   const NO_OFF = { x: 0, y: 0, z: 0 }; let followed = false;
   function drawLive(st, e, dt, off) {
-    const sty = st.sty;
+    const S = st.sty;
     if (dt > 0.002) {
+      // a jump of the sim position in one frame is a shove (knockback, a skill's push): the body is thrown along it
+      const jump = Math.hypot(e.x - st.sx, e.z - st.sz); st.sx = e.x; st.sz = e.z;
+      if (jump > 0.45 && st.air <= 0 && e.spawnT <= 0 && !e.fly) launch(st, Math.min(1.6, jump));
       const k = 1 - Math.exp(-26 * dt); const bx = st.x; const bz = st.z;
       st.x += (e.x - st.x) * k; st.z += (e.z - st.z) * k;
       st.spd += (Math.min(9, Math.hypot(st.x - bx, st.z - bz) / dt) - st.spd) * Math.min(1, dt * 10);
       st.yaw += wrap(yawOf(e.face) - st.yaw) * Math.min(1, dt * 14);
-      st.ph += st.spd * dt * 2.1 * sty.sw + (sty.mode === 'fly' ? dt * 9 : 0) + (st.spd < 0.3 ? dt * 0.8 : 0);
-      if (st.swing >= 0) { st.swing += dt / 0.34; if (st.swing >= 1) st.swing = -1; }
-      st.hit = Math.max(0, st.hit - dt * 8);
+      st.ph += st.spd * dt * 2.1 * S.sw + (S.mode === 3 ? dt * 9 : 0) + (st.spd < 0.3 ? dt * 0.8 : 0);
+      if (st.swing >= 0) { st.swing += dt / 0.36; if (st.swing >= 1) st.swing = -1; }
+      st.hit = Math.max(0, st.hit - dt * 5); st.flash = Math.max(0, st.flash - dt * 9);
+      const kd = Math.exp(-10 * dt); st.kx *= kd; st.kz *= kd;
+      if (st.air > 0 || st.vy > 0) { st.vy -= 22 * dt; st.air = Math.max(0, st.air + st.vy * dt); st.spin += dt * 12 * Math.sign(st.spin || 1); if (st.air <= 0) { st.vy = 0; st.spin = 0; dust(st.px, st.pz, 1); } }
     }
     let rise = 1; let sink = 0; let ax = 0; let az = 0; let up = 1;
-    if (e.spawnT > 0) { const ar = arrive(H, e, st.x, st.z); rise = ar.s; sink = ar.y / sty.s; ax = ar.ox; az = ar.oz; up = ar.g; }
+    if (e.spawnT > 0) {
+      const ar = arrive(H, e, st.x, st.z); rise = ar.s; sink = ar.y / S.s; ax = ar.ox; az = ar.oz; up = ar.g;
+      if (!st.born) { st.born = true; if (sink < -0.2) dust(st.x + off.x, st.z + off.z, 2); }
+    }
     const L = hk && hk.lift ? hk.lift(st.uid) : null;
-    // a flyer leaves its gate low and climbs to its height on the way out
-    const y = (e.fly ? (FLY_Y[e.kind] || 3) * up : 0) + sink * sty.s + (L ? L.y : 0) + off.y;
+    const y = (e.fly ? (FLY_Y[e.kind] || 3) * up : 0) + sink * S.s + (L ? L.y : 0) + off.y + st.air;
     let tint = ONE;
     if (e.status) { for (const k in e.status) { if (STATUS_TINT[k]) { tint = STATUS_TINT[k]; break; } } }
     // climbing out of the abyss: dark toward the abyss colour while the rise runs
     let fk = 0;
     if (e.spawnT > 0 && H.world) { fk = Math.pow(Math.max(0, e.spawnT) / SPAWN_T, 1.2) * 0.6; const c = H.world.spawnTint; tint = [tint[0] + (Math.min(1.8, c.r * 1.6) - tint[0]) * fk, tint[1] + (Math.min(1.8, c.g * 1.6) - tint[1]) * fk, tint[2] + (Math.min(1.8, c.b * 1.6) - tint[2]) * fk]; }
-    put({ x: st.x + ax + off.x + (L ? L.ox : 0), y, z: st.z + az + off.z + (L ? L.oz : 0), yaw: st.yaw + (L ? L.yaw : 0), sty, sc: st.sc * rise, ph: st.ph, lean: -st.hit * 0.28, nod: st.hit * 0.3, armA: 0, swing: st.swing, fall: L ? L.tilt : 0, tint, k: (sty.glow || 1) * (1 + st.hit * 1.4 + fk * 0.5), sh: st.sh, pa: st.pa, sk: st.sk });
-    st.sc2 = rise; st.px = st.x + ax + off.x; st.pz = st.z + az + off.z; st.py = y; st.tint = tint;
+    const el = st.elite ? ELITE : 1;
+    put({ x: st.x + ax + off.x + st.kx + (L ? L.ox : 0), y, z: st.z + az + off.z + st.kz + (L ? L.oz : 0), yaw: st.yaw + (L ? L.yaw : 0), sty: S, sc: st.sc * rise * el, ph: st.ph, swing: st.swing, hit: st.hit, die: 0, fall: L ? L.tilt : 0, flash: st.flash, lean: 0, spin: st.spin, tint, k: st.bright * (st.elite ? 1.18 : 1) * (1 + fk * 0.5), cloth: st.cloth });
+    st.sc2 = rise * el; st.px = st.x + ax + off.x + st.kx; st.pz = st.z + az + off.z + st.kz; st.py = y; st.tint = tint;
   }
+  function launch(st, k) { st.vy = 4.5 + k * 2.5; st.air = 0.01; st.spin = (hash(st.uid + frame) < 0.5 ? -1 : 1) * 0.1; st.hit = 1; }
 
   function drawCorpse(c, dt) {
     c.t += dt; const u = c.t / tier.dur; if (u >= 1) return false;
-    const sty = c.sty; let sc = c.sc; let fall = 0; let y = c.y; const k = 1 + (1 - u) * 1.8;
-    if (tier.fall) { fall = Math.min(1.45, c.t * 6); if (u > 0.55) y -= (u - 0.55) / 0.45 * 1.2 * sty.s; }
-    else { sc *= u < 0.25 ? 1 + u / 0.25 * 0.22 : 1.22 * (1 - (u - 0.25) / 0.75); }
-    put({ x: c.x + c.dx * Math.min(c.t, 0.25), y, z: c.z + c.dz * Math.min(c.t, 0.25), yaw: c.yaw, sty, sc: Math.max(0.01, sc), ph: c.ph, lean: 0, nod: 0, armA: -0.6 * (1 - u), swing: -1, fall, tint: ONE, k, sh: c.sh, pa: c.pa, sk: c.sk });
+    const S = c.sty;
+    // thrown back along the killing blow, falling over, then coming apart from 30% on
+    const push = Math.min(c.t, 0.3);
+    let y = c.y; if (c.vy !== 0 || y > 0.01) { c.vy -= 20 * dt; y = c.y = Math.max(0, c.y + c.vy * dt); if (c.y <= 0) c.vy = 0; }
+    const fall = S.mode === 3 ? Math.min(1.2, c.t * 3) : Math.min(1.5, c.t * 5.5);
+    put({ x: c.x + c.dx * push, y, z: c.z + c.dz * push, yaw: c.yaw, sty: S, sc: c.sc, ph: c.ph, swing: -1, hit: Math.max(0, 1 - c.t * 4), die: Math.max(0, (u - 0.3) / 0.7), fall, flash: Math.max(0, 1 - c.t * 8), lean: 0, spin: 0, tint: ONE, k: 1, cloth: c.cloth });
+    if (!c.smoked && u > 0.35) { c.smoked = true; smoke(c.x + c.dx * push, y, c.z + c.dz * push, S, c.sc); }
     return true;
   }
 
-  function addCube(x, y, z, vx, vy, vz, size, c, life) {
-    const i = cbHead; cbHead = (cbHead + 1) % CUBES;
-    cb.x[i] = x; cb.y[i] = y; cb.z[i] = z; cb.vx[i] = vx; cb.vy[i] = vy; cb.vz[i] = vz; cb.size[i] = size; cb.life[i] = life; cb.max[i] = life; cb.rot[i] = Math.random() * 6.28;
+  function addShard(x, y, z, vx, vy, vz, size, c, life) {
+    const i = cbHead; cbHead = (cbHead + 1) % SHARDS;
+    cb.x[i] = x; cb.y[i] = y; cb.z[i] = z; cb.vx[i] = vx; cb.vy[i] = vy; cb.vz[i] = vz; cb.size[i] = size; cb.life[i] = life; cb.rot[i] = Math.random() * 6.28;
     cb.col[i * 3] = c.r; cb.col[i * 3 + 1] = c.g; cb.col[i * 3 + 2] = c.b;
   }
   function addSplat(x, z, c, size) {
     const i = spHead; spHead = (spHead + 1) % SPLATS; sp.x[i] = x; sp.z[i] = z; sp.t[i] = 0; sp.size[i] = size; sp.rot[i] = Math.random() * 6.28;
     const dark = 0.55; sp.col[i * 3] = c.r * dark; sp.col[i * 3 + 1] = c.g * dark; sp.col[i * 3 + 2] = c.b * dark;
+  }
+  // a few dust puffs at the feet (a landing, a body climbing out of the ground)
+  function dust(x, z, n) {
+    if (!G.fx || !G.fx.puff || smokeBudget <= 0) return; smokeBudget--;
+    for (let i = 0; i < n; i++) { const a = Math.random() * 6.28; G.fx.puff(tmpPos.set(x + F.x + Math.cos(a) * 0.3, 0.15 + F.y, z + F.z + Math.sin(a) * 0.3), { vel: tmpV.set(Math.cos(a) * 1.2, 0.6, Math.sin(a) * 1.2), drag: 2, s0: 0.35, s1: 0.9, life: 0.5, c0: 0x8a7a68, c1: 0x5a5048, a0: 0.5 }); }
+  }
+  // the body comes apart into a puff of its own colour, dark at the end
+  function smoke(x, y, z, S, sc) {
+    if (!G.fx || !G.fx.puff || smokeBudget <= 0) return; smokeBudget--;
+    const h = S.top * S.s * sc;
+    for (let i = 0; i < tier.smoke; i++) G.fx.puff(tmpPos.set(x + F.x, y + F.y + h * (0.25 + 0.3 * i), z + F.z), { vel: tmpV.set((Math.random() - 0.5) * 0.6, 0.9, (Math.random() - 0.5) * 0.6), drag: 1.2, s0: 0.5 * h, s1: 1.1 * h, life: 0.75, c0: S.burst.getHex(), c1: 0x2a2630, a0: 0.55 });
   }
 
   function die(e) {
@@ -237,36 +171,40 @@ export function createHorde(H) {
     const by = B && B.byUid.get(e.by); let dx = 0; let dz = 0;
     if (by) { dx = st.px - by.x; dz = st.pz - by.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; } else { const a = Math.random() * 6.28; dx = Math.cos(a); dz = Math.sin(a); }
     if (corpses.length >= CORPSES) corpses.shift();
-    corpses.push({ x: st.px, y: st.py, z: st.pz, yaw: st.yaw, sty: st.sty, sc: st.sc * (st.sc2 || 1), ph: st.ph, t: 0, dx: dx * 1.4, dz: dz * 1.4, sh: st.sh, pa: st.pa, sk: st.sk });
+    // the body falls away from the blow: its yaw turned so its back faces the hit
+    const yaw = Math.atan2(-dx, -dz);
+    corpses.push({ x: st.px, y: st.py, vy: st.py > 0.2 ? 0 : 0, z: st.pz, yaw, sty: st.sty, sc: st.sc * (st.sc2 || 1), ph: st.ph, t: 0, dx: dx * 1.6, dz: dz * 1.6, cloth: st.cloth, smoked: false });
     nDeaths++; deathsWin.push(clock);
     const crowd = deathsWin.length;
-    const n = Math.min(tier.cubes, Math.max(1, Math.round(cubeBudget / 4)));
-    if (cubeBudget > 0) {
-      cubeBudget -= n;
+    const n = Math.min(tier.shards, Math.max(1, Math.round(shardBudget / 4)));
+    if (shardBudget > 0) {
+      shardBudget -= n; const S = st.sty; const h = S.top * S.s * st.sc;
       for (let i = 0; i < n; i++) {
-        const a = Math.random() * 6.28; const sp2 = 1.5 + Math.random() * 2.6; const sz = 0.1 + Math.random() * 0.1 * st.sty.s;
-        addCube(st.px, st.py + 0.7 * st.sty.s, st.pz, Math.cos(a) * sp2 + dx * 2.2, 2.6 + Math.random() * 2.6, Math.sin(a) * sp2 + dz * 2.2, sz, st.sty.bc, 0.45 + Math.random() * 0.3);
+        const a = Math.random() * 6.28; const v = 1.4 + Math.random() * 2.4; const sz = (0.1 + Math.random() * 0.1) * S.s;
+        addShard(st.px, st.py + h * (0.3 + Math.random() * 0.5), st.pz, Math.cos(a) * v + dx * 2.4, 2.4 + Math.random() * 2.8, Math.sin(a) * v + dz * 2.4, sz, i % 2 ? S.burst : col.setRGB(st.cloth[0] * 0.5, st.cloth[1] * 0.5, st.cloth[2] * 0.5), 0.55 + Math.random() * 0.35);
       }
     }
-    if (nDeaths % tier.splatEvery === 0 && st.sty.mode !== 'fly') addSplat(st.px, st.pz, st.sty.bc, 0.9 + st.sty.s * 0.5);
+    if (nDeaths % tier.splatEvery === 0 && st.sty.mode !== 3) addSplat(st.px, st.pz, st.sty.burst, 0.9 + st.sty.s * 0.5);
     // sound: at most about 8 a second, louder when the floor is emptying fast
     while (soundWin.length && clock - soundWin[0] > 1) soundWin.shift();
     if (soundWin.length < 8 && G.audio && G.audio.playAt) { soundWin.push(clock); tmpPos.set(st.px, 0, st.pz); G.audio.playAt('die', tmpPos, { gain: crowd >= 6 ? 0.5 : 0.26 }); }
   }
+  const col = new THREE.Color();
 
-  function tickCubes(dt) {
+  function tickShards(dt) {
     let n = 0;
-    for (let i = 0; i < CUBES; i++) {
+    for (let i = 0; i < SHARDS; i++) {
       if (cb.life[i] <= 0) continue;
       cb.life[i] -= dt; if (cb.life[i] <= 0) continue;
       cb.vy[i] -= 14 * dt; cb.x[i] += cb.vx[i] * dt; cb.y[i] += cb.vy[i] * dt; cb.z[i] += cb.vz[i] * dt;
-      if (cb.y[i] < 0.06) { cb.y[i] = 0.06; cb.vy[i] *= -0.25; cb.vx[i] *= 0.6; cb.vz[i] *= 0.6; }
-      const sc = cb.size[i] * Math.min(1, cb.life[i] / 0.2 + 0.05);
-      Q.makeRotationY(cb.rot[i] + cb.life[i] * 6); Q.scale(V.set(sc, sc, sc)); Q.setPosition(cb.x[i], cb.y[i], cb.z[i]);
-      cubes.setMatrixAt(n, Q); const a = cubes.instanceColor.array; a[n * 3] = cb.col[i * 3]; a[n * 3 + 1] = cb.col[i * 3 + 1]; a[n * 3 + 2] = cb.col[i * 3 + 2]; n++;
+      if (cb.y[i] < 0.05) { cb.y[i] = 0.05; cb.vy[i] *= -0.3; cb.vx[i] *= 0.55; cb.vz[i] *= 0.55; }
+      const sc = cb.size[i] * Math.min(1, cb.life[i] / 0.25 + 0.05); const r = cb.rot[i] + cb.life[i] * 7;
+      Q.makeRotationFromEuler(eul.set(r, r * 0.7, r * 0.4)); Q.scale(V.set(sc, sc, sc)); Q.setPosition(cb.x[i], cb.y[i], cb.z[i]);
+      shards.setMatrixAt(n, Q); const a = shards.instanceColor.array; a[n * 3] = cb.col[i * 3]; a[n * 3 + 1] = cb.col[i * 3 + 1]; a[n * 3 + 2] = cb.col[i * 3 + 2]; n++;
     }
-    cubes.count = n; cubes.instanceMatrix.needsUpdate = true; cubes.instanceColor.needsUpdate = true; stats.cubes = n;
+    shards.count = n; shards.visible = n > 0; shards.instanceMatrix.needsUpdate = true; shards.instanceColor.needsUpdate = true; stats.cubes = n;
   }
+  const eul = new THREE.Euler();
   function tickSplats(dt) {
     let n = 0;
     for (let i = 0; i < SPLATS; i++) {
@@ -275,46 +213,63 @@ export function createHorde(H) {
       Q.makeRotationY(sp.rot[i]); Q.scale(V.set(sc, 1, sc)); Q.setPosition(sp.x[i], 0.03, sp.z[i]);
       splats.setMatrixAt(n, Q); const a = splats.instanceColor.array; a[n * 3] = sp.col[i * 3]; a[n * 3 + 1] = sp.col[i * 3 + 1]; a[n * 3 + 2] = sp.col[i * 3 + 2]; n++;
     }
-    splats.count = n; splats.instanceMatrix.needsUpdate = true; splats.instanceColor.needsUpdate = true; stats.splats = n;
+    splats.count = n; splats.visible = n > 0; splats.instanceMatrix.needsUpdate = true; splats.instanceColor.needsUpdate = true; stats.splats = n;
+  }
+  function flush() {
+    let nk = 0;
+    for (const id of kinds) {
+      const S = ST[id]; const m = S.m; const on = S.n > 0;
+      m.body.count = m.line.count = S.n; m.body.visible = m.line.visible = on;
+      if (!on) continue; nk++;
+      m.body.instanceMatrix.needsUpdate = true; m.body.instanceColor.needsUpdate = true;
+      for (const a of m.attrs) a.needsUpdate = true;
+    }
+    stats.kinds = nk;
   }
 
   const api = {
-    meshes, stats, states,
-    // the units drawn here this frame: horde units plus enemies the zombie pool had no body for
+    meshes: [...meshes, ...extras], stats, states,
+    // every enemy but the bosses (actors.js draws those)
     sync(batl, dt, overflow, hooks) {
-      B = batl; hk = hooks; frame++; clock += dt; cubeBudget = 36;
+      B = batl; hk = hooks; frame++; clock += dt; shardBudget = 36; smokeBudget = 6;
       while (deathsWin.length && clock - deathsWin[0] > 0.5) deathsWin.shift();
-      nTorso = 0; nWing = 0; nArm = 0; let units = 0; let camp = 0;
+      for (const id of kinds) ST[id].n = 0;
+      let units = 0; let camp = 0;
       const W = H.world;
-      if (W && W.follow && !followed) { followed = true; for (const m of [...meshes, cubes, splats]) W.follow(m); }
+      if (W && W.follow && !followed) { followed = true; for (const m of [...meshes, ...extras]) W.follow(m); }
       if (W && W.syncFrame) W.syncFrame();
       for (const list of [B.enemies, B.camp || []]) for (const e of list) {
-        if (!e.alive || !(e.horde || overflow.has(e.uid))) continue;
+        if (!e.alive || e.boss) continue;
         const off = W && W.roomBase ? W.roomBase(e.room) : NO_OFF; if (!off) continue;
         const st = stateOf(e); st.seen = frame; drawLive(st, e, dt, off); if (list === B.enemies) units++; else camp++;
         if (st.node) st.node.position.set(st.px + F.x, off.y + F.y, st.pz + F.z);
-        hooks.blob(st.px + F.x, st.pz + F.z, 1.7 * st.sty.s * st.sc, st.py + F.y);
-        hooks.rim(st.px + F.x, st.pz + F.z, 0.9 * st.sty.s);
+        const sz = st.sty.s * st.sc * (st.elite ? ELITE : 1);
+        hooks.blob(st.px + F.x, st.pz + F.z, (st.sty.mode === 2 ? 2.2 : 1.6) * sz, st.py + F.y);
+        hooks.rim(st.px + F.x, st.pz + F.z, 0.9 * sz, st.elite);
       }
       for (const [uid, st] of states) if (st.seen !== frame) states.delete(uid);
-      for (const w of showcase) { w.st.ph += dt * 4 * w.st.sty.sw; put({ x: w.x, y: w.y, z: w.z, yaw: w.yaw, sty: w.st.sty, sc: w.st.sc, ph: w.st.ph, lean: 0, nod: 0, armA: 0, swing: -1, fall: 0, tint: ONE, k: w.st.sty.glow || 1, sh: w.st.sh, pa: w.st.pa, sk: w.st.sk }); }
+      for (const w of showcase) { w.st.ph += dt * 4 * w.st.sty.sw; put({ x: w.x, y: w.y, z: w.z, yaw: w.yaw, sty: w.st.sty, sc: w.st.sc, ph: w.st.ph, swing: -1, hit: 0, die: 0, fall: 0, flash: 0, lean: 0, spin: 0, tint: ONE, k: w.st.bright, cloth: w.st.cloth }); }
       for (let i = corpses.length - 1; i >= 0; i--) if (!drawCorpse(corpses[i], dt)) corpses.splice(i, 1);
-      torso.count = head.count = nTorso; arms.count = legs.count = nTorso * 2; wings.count = nWing;
-      for (const m of [torso, head, arms, legs, wings]) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }
-      tickCubes(dt); tickSplats(dt);
+      flush(); tickShards(dt); tickSplats(dt);
       // units: the enemies of the fight; camp: bodies waiting in rooms ahead
       stats.units = units; stats.camp = camp; stats.corpses = corpses.length;
     },
     onEvent(e) {
       if (e.e === 'spawn') { if (e.gate !== undefined && H.world && H.world.gateFlash && B) H.world.gateFlash(B.wave - 1, e.gate); }
       else if (e.e === 'die') die(e);
-      else if (e.e === 'hit') { if (e.dot || !e.dmg) return; const st = states.get(e.uid); if (st && st.hit <= 0.05) st.hit = 1; }
-      else if (e.e === 'attack') { const st = states.get(e.uid); if (st && st.swing < 0) st.swing = 0; }
+      else if (e.e === 'hit') {
+        if (e.dot || !e.dmg) return; const st = states.get(e.uid); if (!st) return;
+        // recoil away from the hitter; a crit or a blow worth a big share of the body's life throws it
+        st.flash = 1; if (st.hit <= 0.3) st.hit = e.crit ? 1 : 0.7;
+        const by = B && B.byUid.get(e.by); const u = B && B.byUid.get(e.uid);
+        if (by && u) { let dx = u.x - by.x; let dz = u.z - by.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; const k = e.crit ? 0.32 : 0.18; st.kx += dx * k; st.kz += dz * k; }
+        if (u && !u.fly && st.air <= 0 && e.dmg >= u.maxHp * 0.35) launch(st, 0.6);
+      } else if (e.e === 'attack') { const st = states.get(e.uid); if (st && st.swing < 0) st.swing = 0; }
     },
     has: (uid) => states.has(uid),
-    scaleOf: (uid) => { const st = states.get(uid); return st ? st.sty.s : 1; },
+    scaleOf: (uid) => { const st = states.get(uid); return st ? st.sty.s * (st.elite ? ELITE : 1) : 1; },
     nodeOf(uid) { const st = states.get(uid); if (!st) return null; if (!st.node) { st.node = new THREE.Object3D(); st.node.position.set(st.px + F.x, F.y, st.pz + F.z); } return st.node; },
-    headPos(uid, out) { const st = states.get(uid); return st ? out.set(st.px + F.x, st.py + 2 * st.sty.s + F.y, st.pz + F.z) : null; },
+    headPos(uid, out) { const st = states.get(uid); return st ? out.set(st.px + F.x, st.py + st.sty.top * st.sty.s * st.sc * (st.elite ? ELITE : 1) + F.y, st.pz + F.z) : null; },
     // test hook: a static pack of one kind, drawn through the same meshes
     showcase(kind, n, cx, cz, cols = 4) {
       showcase = [];
@@ -323,11 +278,10 @@ export function createHorde(H) {
         showcase.push({ st, x: cx + ((i % cols) - (cols - 1) / 2) * 1.1, z: cz + (Math.floor(i / cols) - (Math.ceil(n / cols) - 1) / 2) * 1.1, y: kind === 'flyer' ? 3 : 0, yaw: 0 });
       }
     },
-    kinds: Object.keys(ST),
+    kinds,
     // draw calls and triangles the horde meshes cost right now
-    cost() { let calls = 0; let tris = 0; for (const m of meshes) { if (!m.visible || !m.count) continue; calls += Array.isArray(m.material) ? m.material.length : 1; tris += m.count * m.geometry.index.count / 3; } return { calls, tris }; },
-    clear() { states.clear(); corpses.length = 0; showcase = []; deathsWin = []; soundWin = []; cb.life.fill(0); sp.t.fill(99); for (const m of meshes) m.count = 0; B = null; },
+    cost() { let calls = 0; let tris = 0; for (const m of [...meshes, ...extras]) { if (!m.visible || !m.count) continue; calls++; tris += m.count * (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; } return { calls, tris }; },
+    clear() { states.clear(); corpses.length = 0; showcase = []; deathsWin = []; soundWin = []; cb.life.fill(0); sp.t.fill(99); for (const m of [...meshes, ...extras]) { m.count = 0; m.visible = false; } for (const id of kinds) ST[id].n = 0; B = null; },
   };
-  void CORPSES;
   return api;
 }

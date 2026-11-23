@@ -183,10 +183,13 @@ try {
           D.dress(n2); await new Promise((res) => setTimeout(res, 700));
           const b = D.boss; if (!b) return { err: 'no boss' };
           // the boss's visible geometries against a battle body of the same zombie type
-          const geos = new Set(); b.updateMatrixWorld(true); b.traverseVisible((o) => { if (o.isMesh && o.geometry) geos.add(o.geometry.uuid); });
+          // (only meshes on the camera's layer: the pool meshes a shell replaces stay in the tree, off the layer)
+          const geos = new Set(); b.updateMatrixWorld(true); b.traverseVisible((o) => { if (o.isMesh && o.geometry && (o.layers.mask & 1)) geos.add(o.geometry.uuid); });
           const pool = H.G.zombies.list; const T = window.BZ.ZOMBIES[k];
           const ref = pool.find((z) => z.T === T) || null; const refGeos = new Set();
           if (ref) ref.body.root.traverse((o) => { if (o.isMesh && o.geometry) refGeos.add(o.geometry.uuid); });
+          const qv = (document.querySelector('script[src*="main.js"]').src.match(/\?.*$/) || [''])[0];
+          const FB = await import(new URL('js/view/foe/bosses.js' + qv, location.href).href); for (const g of FB.shellGeos(k)) refGeos.add(g.uuid);
           let same = 0; for (const g of geos) if (refGeos.has(g)) same++;
           // the boss's box corners through the diorama camera, in the camera's -1..1 frame
           const box = new THREE.Box3(); b.traverseVisible((o) => { if (o.isMesh) box.expandByObject(o); }); const v = new THREE.Vector3(); let lo = [9, 9], hi = [-9, -9];
