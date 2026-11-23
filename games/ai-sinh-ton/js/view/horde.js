@@ -260,7 +260,8 @@ export function createHorde(H) {
       else if (e.e === 'hit') {
         if (e.dot || !e.dmg) return; const st = states.get(e.uid); if (!st) return;
         // recoil away from the hitter; a crit or a blow worth a big share of the body's life throws it
-        st.flash = 1; if (st.hit <= 0.3) st.hit = e.crit ? 1 : 0.7;
+        // an ultimate close-up holds then slows the world (ultcam.js): a full white flash would stand still on screen for half a second
+        const J = window.__G && window.__G.juice; st.flash = J && J.ult && (J.ult.active || J.ult.holding()) ? 0.35 : 1; if (st.hit <= 0.3) st.hit = e.crit ? 1 : 0.7;
         const by = B && B.byUid.get(e.by); const u = B && B.byUid.get(e.uid);
         if (by && u) { let dx = u.x - by.x; let dz = u.z - by.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; const k = e.crit ? 0.32 : 0.18; st.kx += dx * k; st.kz += dz * k; }
         if (u && !u.fly && st.air <= 0 && e.dmg >= u.maxHp * 0.35) launch(st, 0.6);
