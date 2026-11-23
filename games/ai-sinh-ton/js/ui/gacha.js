@@ -161,7 +161,7 @@ export function createGacha(game) {
   }
 
   function showCard(r) {
-    clearCard(); frameP.setVisible(false); card = ui.group(); ov.add(card); card.pos(390, 168, 4); cardT = 0;
+    clearCard(); frameP.setVisible(false); card = ui.group(); ov.add(card); card.pos(390, 168, 14); cardT = 0; // z 44: above the burst's sparks (32 + their own 4)
     const c = colorOf(r), nm = r.hero ? HERO[r.hero].name : '';
     const isHero = r.kind === 'hero' || r.isNew;
     scrim.material.color.setHex(0x120a24); rays.material.color.setHex(c);
@@ -227,7 +227,8 @@ export function createGacha(game) {
     else if (p === 'crack') { if (S.t >= d) { S.phase = 'reveal'; S.t = 0; clearCap(); showCard(S.results[S.i]); if (!S.ten) { skip.setVisible(false); done.setVisible(true); } } }
     else if (p === 'reveal') { if (S.ten && S.t >= d) advance(); }
     if (card) {
-      cardT += dt; const k = easeBack(cardT / 0.38); card.scale.setScalar(Math.max(0.01, k));
+      // the pop scales x and y only: a squashed z let the labels sink into their ribbon's face while the card grew
+      cardT += dt; const k = Math.max(0.01, easeBack(cardT / 0.38)); card.scale.set(k, k, 1);
       scrim.material.opacity = Math.min(0.62, cardT * 3); rays.material.opacity = Math.min(game.settings.reduceFlash ? 0.25 : 0.5, cardT * 2); rays.rotation.z -= dt * 0.35;
     }
   }
