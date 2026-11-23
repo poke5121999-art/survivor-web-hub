@@ -1,6 +1,6 @@
 // Looks at the evolution screen with the real beast models: for every step of every beast (form 1 -> 2, 2 -> 3 on each
 // path) it shoots the ready screen (old and new side by side), the crack, the pose and two moments of the lap in the
-// new gait, then lays them out in sheets. The four starters also get whole-screen shots on S22 and Xiaomi 17T.
+// new gait, then lays them out in sheets; every ready screen is also shot whole (the comparison panel) on S22 and Xiaomi 17T.
 // Out: .chk/a10/polish/evo/. Usage: PLAYWRIGHT_PATH=... timeout 900 node games/ai-sinh-ton/tools/evolve-shots.mjs [ids,...]
 import path from 'node:path';
 import fs from 'node:fs';
@@ -19,7 +19,7 @@ async function steps(page, phone, full) {
     return HEROES.map((h) => ({ id: h.id, br: bz.branchesOf(h.id) }));
   });
   const box = await page.evaluate(() => { const r = document.getElementById('frame').getBoundingClientRect(), k = r.width / 780; return { x: r.x + 30 * k, y: r.y + 36 * k, width: 344 * k, height: 240 * k }; });
-  const files = [];
+  const files = [], fulls = [];
   for (const { id, br: brs } of all) {
     if (only ? !only.includes(id) : !full && !STARTERS.includes(id)) continue;
     const plan = [[1, null, null], ...(brs.length ? brs.map((b) => [2, null, b]) : [[2, null, null]])];
@@ -33,7 +33,7 @@ async function steps(page, phone, full) {
       const tag = `${id}-${form}${pick || ''}`;
       const snap = async (name) => {
         const f = path.join(OUT, `${phone}-${tag}-${name}.png`);
-        if (STARTERS.includes(id) && name === '1ready') await page.locator('#frame').screenshot({ path: f.replace('.png', '-full.png') });
+        if (name === '1ready') { const ff = f.replace('.png', '-full.png'); await page.locator('#frame').screenshot({ path: ff }); fulls.push(ff); }
         await page.screenshot({ path: f, clip: box }); files.push(f);
       };
       await snap('1ready');
@@ -51,13 +51,14 @@ async function steps(page, phone, full) {
       await page.evaluate(() => __G.screens.evolve.hide()); await step(page, 2);
     }
   }
-  return files;
+  return { files, fulls };
 }
 
 for (const phone of ['s22', 'xiaomi']) {
   const { page, problems, ctx } = await open(br, srv.base, phone, 'noaudio=1&q=low', { freeze: true });
-  const files = await steps(page, phone, phone === 's22');
+  const { files, fulls } = await steps(page, phone, true);
   for (let i = 0; i < files.length; i += 40) sheet(files.slice(i, i + 40), path.join(OUT, `sheet-${phone}-${i / 40 + 1}.png`), 5, 300);
+  for (let i = 0; i < fulls.length; i += 12) sheet(fulls.slice(i, i + 12), path.join(OUT, `ready-${phone}-${i / 12 + 1}.png`), 3, 520);
   console.log(`${phone}: ${files.length} shots, console problems: ${problems.length ? problems.slice(0, 3).join(' | ') : 'none'}`);
   await ctx.close();
 }

@@ -39,11 +39,11 @@ export function createEvolve(game) {
   { const m = new THREE.Mesh(new THREE.PlaneGeometry(1200, 700), new THREE.MeshBasicMaterial({ color: 0x0c0718, transparent: true, opacity: 0.82, depthWrite: false })); scr.put(m, 390, 180, -10); }
   const L = { lx: 24, ly: 30, lw: 356, lh: 300, rx: 392, rw: 364 };
   const left = ui.panel({ w: L.lw, h: L.lh, r: 18, color: 0x2a2150, depth: 5, bevel: 3 }); scr.put(left, L.lx, L.ly, 2);
-  const right = ui.panel({ w: L.rw, h: L.lh, r: 18, color: PAL.panel, depth: 5, bevel: 3 }); scr.put(right, L.rx, L.ly, 2);
+  const right = ui.panel({ w: L.rw, h: L.lh, r: 18, color: PAL.panel, depth: 5, bevel: 3, gloss: false }); scr.put(right, L.rx, L.ly, 2);
   // text ink against its panel, in the panel's frame: the strings that stick out
   const _v = new THREE.Vector3();
   reg.audit = () => {
-    const bad = [];
+    const bad = [], inks = [];
     for (const t of reg.texts) {
       const n = t.node, b = t.box; if (!n.parent || !n.str) continue; let on = true; for (let a = n; a; a = a.parent) if (a.visible === false) on = false; if (!on) continue;
       const slot = b.slot || b; n.updateWorldMatrix(true, false); slot.updateWorldMatrix(true, false);
@@ -54,15 +54,30 @@ export function createEvolve(game) {
       if (b.top !== undefined && n.position.z < b.top) bad.push(`${n.str}: at depth ${n.position.z.toFixed(1)}, behind the panel face at ${b.top.toFixed(1)}`);
       if (b === right && n !== skipHint && -lo[1] > BUTTON_TOP - 1 && closeB.visible) bad.push(`${n.str}: reaches y ${(-lo[1]).toFixed(1)}, under the buttons at ${BUTTON_TOP}`);
       if (lo[0] < -0.6 || hi[0] > b.w + 0.6 || hi[1] > 0.6 || lo[1] < -b.h - 0.6) bad.push(`${n.str}: x ${lo[0].toFixed(1)}..${hi[0].toFixed(1)} of 0..${b.w}, y ${(-hi[1]).toFixed(1)}..${(-lo[1]).toFixed(1)} of 0..${b.h}`);
+      if (b === right) inks.push({ s: n.str, x0: lo[0], x1: hi[0], y0: -hi[1], y1: -lo[1] });
     }
+    // no two texts of the comparison share ink (a wrapped title line once fell on the line under it)
+    for (let i = 0; i < inks.length; i++) for (let j = i + 1; j < inks.length; j++) {
+      const A = inks[i], B = inks[j], ox = Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0), oy = Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0);
+      if (ox > 1.5 && oy > 1.5) bad.push(`"${A.s}" and "${B.s}" overlap by ${ox.toFixed(1)}x${oy.toFixed(1)}`);
+    }
+    // the title is one line: a name too long for the panel is drawn smaller, never wrapped or clipped
+    if (title.str && (title.h > 17 * 1.25 * 1.15 || title.w > TITLE_W + 0.5)) bad.push(`title "${title.str}" is ${title.w.toFixed(1)} wide, ${title.h.toFixed(1)} high: not one line inside ${TITLE_W}`);
     return bad;
   };
   const T = (parent, str, o, x, y, z = 6) => { const n = ui.text(str, o); parent.put(n, x, y, z); reg.texts.push({ node: n, box: parent, align: o.align }); return n; };
-  const title = T(right, '', { size: 17, maxW: 336, outlineW: 2.6 }, 14, 10);
+  // the title in three sizes, one line each: the largest that fits the panel is shown (a long pair of names gets smaller)
+  const TITLE_W = 336, titles = [17, 15, 13].map((sz) => T(right, '', { size: sz, outlineW: sz * 0.153 }, 14, 10 + (17 - sz) * 0.6));
+  let title = titles[0];
+  function setTitle(str) {
+    for (const n of titles) n.set(str);
+    title = titles.find((n) => n.w <= TITLE_W) || titles[titles.length - 1];
+    for (const n of titles) n.setVisible(n === title);
+  }
   const sub = T(right, '', { size: 11, color: 0xc8c0f0, maxW: 336 }, 14, 34);
   const ROWS = ['Máu', 'Công', 'Di chuyển'].map((lab, i) => {
     const y = 54 + i * 21;
-    return { l: T(right, lab, { size: 12, color: 0xc8c0f0 }, 14, y), a: T(right, '', { size: 12, maxW: 96 }, 96, y), arrow: T(right, '→', { size: 12, color: 0xffd25a }, 196, y), b: T(right, '', { size: 12, color: 0x8dff9a, maxW: 140 }, 214, y) };
+    return { l: T(right, lab, { size: 12, color: 0xc8c0f0 }, 14, y), a: T(right, '', { size: 12, maxW: 118 }, 84, y), arrow: T(right, '→', { size: 12, color: 0xffd25a }, 204, y), b: T(right, '', { size: 12, color: 0x8dff9a, maxW: 132 }, 220, y) };
   });
   const skillHead = T(right, 'Chiêu mới', { size: 12, color: 0xffd25a }, 14, 120);
   const skillLines = [0, 1, 2].map((i) => T(right, '', { size: 11, maxW: 336 }, 14, 137 + i * 15));
@@ -132,6 +147,7 @@ export function createEvolve(game) {
     cam.position.set(Math.sin(a) * d * Math.cos(elev), cy + Math.sin(elev) * d, Math.cos(a) * d * Math.cos(elev)); cam.lookAt(0, cy, 0);
   }
 
+  const READY_YAW = 0.45;
   // a form on the stage: the model inside a holder that sets its size and place, its rest box measured from the mesh
   let oldS = null, newS = null, K = 1, SEP = 0, vp = null;
   function stand(spec) {
@@ -143,17 +159,19 @@ export function createEvolve(game) {
     // the pivot goes to the middle of the footprint: long fish and spiders turn about their centre
     b.root.position.set(-(box.min.x + box.max.x) / 2, 0, -(box.min.z + box.max.z) / 2);
     const sh = new THREE.Mesh(shadowGeo, new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false })); sh.position.y = 0.012; root.add(sh);
-    return { b, holder, sh, h: Math.max(0.2, box.max.y), span: Math.max(0.2, box.max.x - box.min.x, box.max.z - box.min.z) };
+    const wx = box.max.x - box.min.x, lz = box.max.z - box.min.z;
+    return { b, holder, sh, h: Math.max(0.2, box.max.y), span: Math.max(0.2, wx, lz), wide: (yaw) => Math.max(0.2, wx * Math.cos(yaw) + lz * Math.abs(Math.sin(yaw))) };
   }
   function drop(s) { if (!s) return; root.remove(s.holder); root.remove(s.sh); s.sh.material.dispose(); s.b.dispose(); }
   function setBeasts(spec0, spec1) {
     drop(oldS); drop(newS);
     oldS = stand(spec0); newS = spec1 ? stand(spec1) : null;
     // one scale for both, so the new form shows how much it grew; side by side each gets half the pedestal
-    const hMax = Math.max(oldS.h, newS ? newS.h : 0), span = Math.max(oldS.span, newS ? newS.span : 0);
-    K = Math.min(1.25 / hMax, (newS ? 1.15 : 1.7) / span);
+    // sized by how wide each form shows turned to its ready angle: a long lizard faces the camera and keeps its size
+    const hMax = Math.max(oldS.h, newS ? newS.h : 0), wide = Math.max(oldS.wide(READY_YAW), newS ? newS.wide(READY_YAW) : 0);
+    K = Math.min(1.25 / hMax, (newS ? 1.15 : 1.7) / wide);
     for (const s of [oldS, newS]) if (s) s.holder.scale.setScalar(K);
-    SEP = newS ? Math.max(0.5, (span * K) / 2 + 0.12) : 0;
+    SEP = newS ? Math.max(0.5, (wide * K) / 2 + 0.12) : 0;
     const r = Math.max(0.5, Math.max(oldS.h, oldS.span * 0.8) * K * 0.62);
     cocoon.userData.s = r / 0.75; cocoon.scale.setScalar(cocoon.userData.s); cocoon.position.set(0, r * 0.85, 0);
     mound.scale.setScalar(Math.max(0.8, (newS || oldS).span * K * 0.9));
@@ -196,7 +214,7 @@ export function createEvolve(game) {
   function fill(from, to) {
     const a = stats(from), b = to ? stats(to) : null;
     const nameA = a.def.formName, nameB = b ? b.def.formName : '';
-    title.set(b ? `${nameA} → ${nameB}` : nameA);
+    setTitle(b ? `${nameA} → ${nameB}` : nameA);
     sub.set(b ? `${HERO[S.id].name} · Dạng ${from.form}${from.branch ? from.branch.toUpperCase() : ''} → Dạng ${to.form}${to.branch ? to.branch.toUpperCase() : ''}` : `${HERO[S.id].name} · Dạng ${from.form} (dạng cuối)`);
     const vals = [[fmt(a.hp), b && fmt(b.hp)], [fmt(a.atk), b && fmt(b.atk)], [a.move, b && b.move]];
     ROWS.forEach((r, i) => { r.a.set(vals[i][0]); r.b.set(b ? vals[i][1] : ''); r.arrow.setVisible(!!b); });
@@ -213,8 +231,12 @@ export function createEvolve(game) {
   const BUTTON_TOP = 246;
   reg.buttonTop = BUTTON_TOP;
   function layoutText(nSkills) {
-    let y = 120 + (nSkills ? 17 + nSkills * 15 : 0) + 4;
     const z = right.top + 6;
+    // below the stat rows, whose values may wrap (a long gait name on the left of a final form)
+    const last = ROWS[ROWS.length - 1], rowsEnd = 96 + Math.max(13, last.a.h, last.b.h) + 6;
+    let y = Math.max(120, rowsEnd);
+    skillHead.pos(14, y, z); skillLines.forEach((n, i) => n.pos(14, y + 17 + i * 15, z));
+    y += (nSkills ? 17 + nSkills * 15 : 0) + 4;
     passHead.pos(14, y, z); y += 16;
     passDesc.pos(14, y, z); y += Math.max(13, passDesc.h) + 4;
     costT.pos(14, y, z);
@@ -312,11 +334,10 @@ export function createEvolve(game) {
     if (ph === 'ready') {
       S.orbit += dt * 0.25;
       cocoon.visible = false; shards.visible = false; glow.intensity = 0; rune.material.emissiveIntensity = 0.5 + Math.sin(ui.t * 2) * 0.15;
-      // a form turned 0.55 rad shows more width than its rest box: about 0.68 of its span each side
-      const top = Math.max(hO, hN) + (S.upMax || 0), W = newS ? SEP + Math.max(sp(oldS), sp(newS)) * 0.62 : sp(oldS) * 0.62;
+      const wd = (s) => s.wide(READY_YAW) * K, top = Math.max(hO, hN) + (S.upMax || 0), W = newS ? SEP + Math.max(wd(oldS), wd(newS)) / 2 + 0.05 : wd(oldS) / 2 + 0.05;
       frame(Math.sin(S.orbit) * 0.22, W + 0.04, top / 2 + 0.1, top * 0.5, 0.26);
-      const u0 = oldS ? drive(oldS, { anim: 'idle', animT: ui.t, dt }, { x: -SEP, yaw: newS ? 0.55 : 0.4 }) : 0;
-      const u1 = newS ? drive(newS, { anim: 'idle', animT: ui.t + 0.7, dt }, { x: SEP, yaw: -0.55 }) : 0;
+      const u0 = oldS ? drive(oldS, { anim: 'idle', animT: ui.t, dt }, { x: -SEP, yaw: READY_YAW }) : 0;
+      const u1 = newS ? drive(newS, { anim: 'idle', animT: ui.t + 0.7, dt }, { x: SEP, yaw: -READY_YAW }) : 0;
       S.upMax = Math.max(u0, u1);
       chevron.visible = !!newS; chevron.position.set(Math.sin(ui.t * 4) * 0.05, Math.min(hO + u0, hN + u1) * 0.45, 0.25); chevron.scale.setScalar(0.9 + Math.sin(ui.t * 4) * 0.1);
       return;
@@ -327,7 +348,7 @@ export function createEvolve(game) {
       if (newS) { newS.holder.visible = false; newS.sh.visible = false; }
       cocoon.visible = slide > 0.6; cocoon.material.opacity = 0.2 + 0.72 * e; cocoon.scale.setScalar(cocoon.userData.s * (0.3 + 0.7 * e));
       cocoon.rotation.y += dt * 1.6; glow.intensity = 1.5 * e * k; cocoonMat.emissiveIntensity = 0.4 + 0.5 * e * k;
-      S.up = oldS ? drive(oldS, { anim: 'evolve', animT: t, dt }, { x: -SEP * (1 - slide), yaw: 0.55 * (1 - slide), vis: e < 0.85 }) : 0;
+      S.up = oldS ? drive(oldS, { anim: 'evolve', animT: t, dt }, { x: -SEP * (1 - slide), yaw: READY_YAW * (1 - slide), vis: e < 0.85 }) : 0;
       for (const c of cracks) c.scale.set(1, 0.001, 1);
       S.cam = t * 0.4; focus(hO, sp(oldS));
     } else if (ph === 'crack') {
