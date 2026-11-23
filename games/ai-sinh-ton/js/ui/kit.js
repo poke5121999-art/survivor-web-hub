@@ -4,6 +4,7 @@
 import { makeGeo } from './kit-geo.js?v=20261122a';
 import { makeText } from './kit-text.js?v=20261122a';
 import { makeIcons } from './icons.js?v=20261122a';
+import { beastWords } from './words.js?v=20261122a';
 
 export const PAL = {
   gold: 0xffc21f, orange: 0xff8a1f, red: 0xff3b52, green: 0x35d65a, blue: 0x2f7bff, purple: 0x8f4dff, teal: 0x20c7c0, pink: 0xff5fa8,
@@ -379,21 +380,17 @@ export function createUI({ THREE, renderer, frame }) {
   }
   const vp = { keep: null };
 
-  const PORTRAIT_ST = () => ({ speed: 0, air: 0, vy: 0, swing: -1, mode: 'none', draw: 1, pitch: 0, kick: 0, kickL: 0, sprint: false, crouch: 0, hurt: 0 });
   ui.portrait = (heroId, o = {}) => {
     const size = o.size ?? 56, col = o.color ?? PAL.rarity.rare, ins = Math.max(4, size * 0.085), vw = size - ins * 2;
     const { root: g, pivot, holder } = centred(size, size);
     const frameP = ui.panel({ w: size, h: size, r: size * 0.2, color: col, depth: 4, bevel: 2.4, shadow: o.shadow !== false, shadowY: 3, ow: 2.4 }); holder.add(frameP); g.top = 8;
     let view;
-    const BZ = typeof window !== 'undefined' ? window.BZ : null;
     let m = null;
-    if (BZ && BZ.heroModel) { try { m = BZ.heroModel(heroId); } catch (e) { console.warn('[ui] hero model failed: ' + e.message); } }
+    if (ui.portraitModel) { try { m = ui.portraitModel(heroId); } catch (e) { console.warn('[ui] portrait model failed: ' + e.message); } }
     if (m) {
-      const root = new THREE.Group(); root.add(m.root); const bb = new THREE.Box3().setFromObject(m.root), sz = bb.getSize(new THREE.Vector3());
-      const st = PORTRAIT_ST(); let tt = Math.random() * 5;
-      const cam = new THREE.PerspectiveCamera(26, 1, 0.1, 60), vh = sz.y * (o.bust ?? 0.5), d = vh / 2 / Math.tan(cam.fov * Math.PI / 360) + sz.z * 0.4;
-      cam.position.set(0, bb.max.y - vh / 2 + sz.y * 0.03, d); cam.lookAt(0, bb.max.y - vh / 2 + sz.y * 0.03, 0);
-      view = ui.viewport(root, { w: vw, h: vw, r: size * 0.12, camera: cam, bg: geo.mix(col, 0x1b1236, 0.55), fps: o.fps ?? 14, update: (dt) => { tt += dt; m.root.rotation.y = 0.35 + Math.sin(tt * 0.9) * 0.3; BZ.animHero(m, st, dt); } });
+      let tt = Math.random() * 5;
+      view = ui.viewport(m.root, { w: vw, h: vw, r: size * 0.12, fov: 26, bg: geo.mix(col, 0x1b1236, 0.55), fps: o.fps ?? 14, update: (dt) => { tt += dt; m.root.rotation.y = 0.45 + Math.sin(tt * 0.9) * 0.3; m.update(dt); } });
+      const vd = view.dispose; view.dispose = () => { m.dispose(); vd(); };
     } else {
       const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
       const grd = x.createLinearGradient(0, 0, 0, 128); const hx = (n) => '#' + n.toString(16).padStart(6, '0'); grd.addColorStop(0, hx(geo.mix(col, 0x1b1236, 0.35))); grd.addColorStop(1, hx(geo.mix(col, 0x1b1236, 0.7)));
@@ -473,6 +470,7 @@ export function createUI({ THREE, renderer, frame }) {
   let toast = null;
   ui.toastAt = { x: 390, y: 62 };
   ui.toast = (str) => {
+    str = beastWords(str);
     if (toast) { toast.g.dispose(); toast = null; }
     const t = ui.text(str, { size: 13, valign: 'mid', align: 'center' }), w = Math.min(330, t.w + 34), h = 34, g = new THREE.Group(), holder = new THREE.Group();
     const p = ui.panel({ w, h, r: 17, color: 0x3a2a70, depth: 4, bevel: 2.4, ow: 2.4 }); holder.add(p); holder.add(t); t.pos(w / 2, h / 2 + 1, 10); holder.position.set(-w / 2, h / 2, 0); g.add(holder);

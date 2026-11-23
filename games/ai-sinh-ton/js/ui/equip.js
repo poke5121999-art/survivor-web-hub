@@ -4,6 +4,7 @@
 // All account changes go through meta.*; this screen only reads meta.acc and rebuilds after each command.
 import { SLOTS, TIERS, ITEM, itemStat, upgradeCost, refundOf, autoMergePlan } from '../data/equip.js?v=20261122a';
 import { HERO } from '../data/heroes.js?v=20261122a';
+import { beastModel } from './beast-ui.js?v=20261122a';
 import { makeBackdrop, makeBurst, fmt, rarityColor } from './home.js?v=20261122a';
 import { ITEM_ICON } from './itemicons.js?v=20261122a';
 
@@ -26,7 +27,7 @@ const dim = (hex, k) => { const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b =
 const ease2 = (e) => e * e * (3 - 2 * e);
 
 export function createEquip(game) {
-  const ui = game.ui, meta = game.meta, PAL = ui.PAL, THREE = ui.THREE, mui = game.metaUi, BZ = window.BZ;
+  const ui = game.ui, meta = game.meta, PAL = ui.PAL, THREE = ui.THREE, mui = game.metaUi;
   const eq = ui.screen('equip'), sheet = ui.screen('item', { modal: true }), autoS = ui.screen('auto', { modal: true });
   const bd = makeBackdrop(ui, 'equip'); eq.put(bd, 0, 0, -40);
   const S = { hero: '', mode: 'normal', sort: 0, main: 0, picks: [], sheet: 0 };
@@ -66,13 +67,13 @@ export function createEquip(game) {
     return { v, b, x };
   };
   const sA = stat(8, 'atk'), sH = stat(122, 'hp');
-  heroG.put(tapArea('stat-panel', STATP.w, 48, () => say('Công và Máu của tướng, đã cộng trang bị')), STATP.x, STATP.y - 2, 9);
+  heroG.put(tapArea('stat-panel', STATP.w, 48, () => say('Công và Máu của thú, đã cộng trang bị')), STATP.x, STATP.y - 2, 9);
 
   // stage panel with the hero and the six slots
   const stage = ui.panel({ w: STAGE.w, h: STAGE.h, r: 22, color: 0x5a3fa0, depth: 5, bevel: 3 }); heroG.put(stage, STAGE.x, STAGE.y, 4);
   const nameT = ui.text('', { size: 13, align: 'center', outlineW: 2.4, maxW: 120 }); heroG.put(nameT, 226, 22, 24);
   const prev = ui.button({ id: 'hero-prev', w: 44, h: 40, r: 12, color: PAL.blue, icon: 'left', shadow: false, onTap: () => cycle(-1) }); heroG.put(prev, 112, 10, 22);
-  heroG.put(tapArea('equip-hero', 116, 48, () => say(heroIds().length > 1 ? 'Chạm mũi tên để đổi tướng' : 'Tướng đang mặc trang bị')), 168, 8, 20);
+  heroG.put(tapArea('equip-hero', 116, 48, () => say(heroIds().length > 1 ? 'Chạm mũi tên để đổi thú' : 'Thú đang mặc trang bị')), 168, 8, 20);
   const next = ui.button({ id: 'hero-next', w: 44, h: 40, r: 12, color: PAL.blue, icon: 'right', shadow: false, onTap: () => cycle(1) }); heroG.put(next, 292, 10, 22);
 
   // bag header
@@ -130,12 +131,9 @@ export function createEquip(game) {
   let vpNode = null, modelM = null, rotY = 0.4, dragging = false, builtFor = '';
   function buildModel() {
     if (vpNode) { vpNode.dispose(); vpNode = null; }
-    const bz = BZ && BZ.HEROES && BZ.HEROES.find((h) => h.id === S.hero), root = new THREE.Group(); modelM = null;
-    if (bz && BZ.heroModel) { try { const m = BZ.heroModel(S.hero); try { BZ.equipWeapon(m, bz.weapon); } catch (e) { /* weapon is decoration here */ } root.add(m.root); modelM = m; } catch (e) { console.warn('[equip] model failed: ' + e.message); } }
-    if (!modelM) root.add(new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.6), new THREE.MeshStandardMaterial({ color: rarityColor(S.hero) })));
-    const st = { speed: 0, air: 0, vy: 0, swing: -1, mode: 'none', draw: 1, pitch: 0, kick: 0, kickL: 0, sprint: false, crouch: 0, hurt: 0 };
-    const col = rarityColor(S.hero);
-    vpNode = ui.viewport(root, { w: VP.w, h: VP.h, r: 16, bg: dim(col, 0.32), fps: 24, fov: 26, update: (dt) => { if (modelM) { if (!dragging) rotY += dt * 0.35; modelM.root.rotation.y = rotY; BZ.animHero(modelM, st, dt); } } });
+    modelM = beastModel(meta, S.hero); const col = rarityColor(S.hero);
+    vpNode = ui.viewport(modelM.root, { w: VP.w, h: VP.h, r: 16, bg: dim(col, 0.32), fps: 24, fov: 26, update: (dt) => { if (!dragging) rotY += dt * 0.35; modelM.root.rotation.y = rotY; modelM.update(dt); } });
+    { const m = modelM, vd = vpNode.dispose; vpNode.dispose = () => { m.dispose(); vd(); }; }
     heroG.put(vpNode, VP.x, VP.y, 14); stage.setColor(col); builtFor = S.hero;
   }
   function cycle(d) {

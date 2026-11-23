@@ -8,6 +8,7 @@ import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261122a';
 import { createDiorama } from './diorama.js?v=20261122a';
 import { lockButton } from './guide.js?v=20261122a';
 import { xpNeed } from '../data/unlocks.js?v=20261122a';
+import { installBeastPortraits } from './beast-ui.js?v=20261122a';
 
 export const MENU = ['home', 'heroes', 'hero', 'gacha', 'equip', 'rewards'];
 // rail geometry in design units: buttons start at x, the backdrop panel ends at right; content starts at right + 8
@@ -16,7 +17,7 @@ const TAB_OF = { home: 'tab-battle', heroes: 'tab-heroes', hero: 'tab-heroes', g
 const GO = { 'tab-gacha': 'gacha', 'tab-equip': 'equip', 'tab-battle': 'home', 'tab-heroes': 'heroes', 'tab-rewards': 'rewards' };
 const DOT_OF = { 'tab-gacha': 'gacha', 'tab-equip': 'equip', 'tab-heroes': 'heroes', 'tab-rewards': 'rewards' };
 const TAB_LOCK = { 'tab-gacha': 'gacha', 'tab-equip': 'equip' };
-const TABS = [['tab-gacha', 'Triệu Hồi', null], ['tab-equip', 'Trang Bị', 'armor'], ['tab-battle', 'Ra Trận', 'sword'], ['tab-heroes', 'Tướng', 'shield'], ['tab-rewards', 'Thưởng', 'chest']];
+const TABS = [['tab-gacha', 'Triệu Hồi', null], ['tab-equip', 'Trang Bị', 'armor'], ['tab-battle', 'Ra Trận', 'sword'], ['tab-heroes', 'Thú', 'shield'], ['tab-rewards', 'Thưởng', 'chest']];
 
 // The left rail. Built once per game into `screen` (the shared chrome, which is shown above every MENU screen, so the
 // other screens get it without calling this); a later call only sets the active tab and returns the same rail.
@@ -157,6 +158,7 @@ function recPower(meta, n) {
 
 export function createHome(game) {
   const ui = game.ui, meta = game.meta, PAL = ui.PAL, THREE = ui.THREE;
+  installBeastPortraits(ui, meta);
   const mui = (game.metaUi = { titles: [], barText: { gold: '', gems: '' }, rates: [], regTitle(screen, node, str) { mui.titles.push({ screen, node, str }); } });
   const chrome = ui.screen('chrome'), home = ui.screen('home');
   const chromeShown = () => MENU.some((n) => ui.isShown(n));

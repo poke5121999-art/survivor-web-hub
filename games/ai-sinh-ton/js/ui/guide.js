@@ -6,6 +6,7 @@
 // meta.ftueNext() says what to show, game.events says when; pressing the target (a pointer press on it) completes a step.
 import { UNLOCK } from '../data/unlocks.js?v=20261122a';
 import { clamp, easeOut, easeBack } from './hud.js?v=20261122a';
+import { beastWords } from './words.js?v=20261122a';
 
 const GIVE_UP = 8;
 const HAND_LEN = 46, HAND_HALF = 17, HAND_GAP = 4, HAND_BOB = 7;
@@ -109,6 +110,7 @@ export function createGuide(game) {
 
   // ---- the speech panel: short and wide, the skip button sits inside it at the right ----
   function buildPanel(text, hint) {
+    text = beastWords(text);
     const withSkip = !!meta.acc.ftue.session, key = text + '|' + hint + '|' + withSkip + '|' + narrow; if (key === panelKey) return; panelKey = key;
     if (panel) { panel.dispose(); panel = null; }
     const t = ui.text(text, { size: 17, align: 'center', maxW: narrow ? 150 : 320, lineH: 22 });
@@ -358,10 +360,10 @@ function createReveal(game, { onDone, blocked }) {
     const u = UNLOCK[id], ic = FEATURE_ICON[id] || 'star';
     R.icon = ui.icon(ic, { size: 104 }); scr.put(R.icon, LK.x - 52, LK.y - 52, 36); R.icon.visible = false;
     R.head = ui.text('MỞ KHOÁ', { size: 18, align: 'center', color: 0xffd860, outlineW: 3 }); scr.put(R.head, 470, CARD.y + 34, 36);
-    R.name = ui.text(u.name.toLocaleUpperCase('vi'), { size: 28, align: 'center', maxW: 280, lineH: 36, outlineW: 3.4 }); scr.put(R.name, 470, CARD.y + 74, 36);
+    R.name = ui.text(beastWords(u.name).toLocaleUpperCase('vi'), { size: 28, align: 'center', maxW: 280, lineH: 36, outlineW: 3.4 }); scr.put(R.name, 470, CARD.y + 74, 36);
     R.hint = ui.text('Chạm để tiếp tục', { size: 13, align: 'center', color: 0xffe9a8, outlineW: 1.6 }); scr.put(R.hint, 470, CARD.y + CARD.h - 34, 36);
     R.nodes = [R.icon, R.head, R.name, R.hint];
-    R.label = 'MỞ KHOÁ: ' + u.name.toLocaleUpperCase('vi');
+    R.label = 'MỞ KHOÁ: ' + beastWords(u.name).toLocaleUpperCase('vi');
     for (const n of [R.head, R.name, R.hint]) n.setOpacity(0);
     lock.visible = true; lock.scale.setScalar(0.01);
   }

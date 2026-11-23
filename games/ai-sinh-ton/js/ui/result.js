@@ -117,7 +117,7 @@ export function createResult(game) {
       for (const gid of r.gifts || []) {
         const gp = ui.panel({ w: MW, h: 48, r: 16, color: 0x7a2fa8, depth: 4, bevel: 2.6, ow: 2.6 }); rg.put(gp, MX, y, 12);
         gp.put(ui.portrait(gid, { size: 38, color: heroColor(gid), fps: 6, shadow: false }), 8, 5, 3);
-        gp.put(ui.text('TƯỚNG MỚI: ' + (HERO[gid] ? HERO[gid].name : gid).toLocaleUpperCase('vi'), { size: 17, valign: 'mid', outlineW: 2.6 }), 56, 24, 3);
+        gp.put(ui.text('THÚ MỚI: ' + (HERO[gid] ? HERO[gid].name : gid).toLocaleUpperCase('vi'), { size: 17, valign: 'mid', outlineW: 2.6 }), 56, 24, 3);
         gifts.push(HERO[gid] ? HERO[gid].name : gid); y += 54;
       }
       y += 8;
