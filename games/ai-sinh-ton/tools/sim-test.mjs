@@ -37,8 +37,11 @@ function play(opts, until) {
 {
   const { B, log } = play({ stage: 8, seed: 3, team: team(START, 1.6), auto: { ult: true, pick: 'best' } });
   const waves = log.filter((e) => e.e === 'wave');
-  let wins = 0;
-  for (let seed = 1; seed <= 20; seed++) if (play({ stage: 8, seed, team: team(START, 1.6), auto: { ult: true, pick: 'best' } }).B.phase === 'won') wins++;
+  let wins = 0; const lowCasts = {};
+  for (let seed = 1; seed <= 20; seed++) {
+    const r = play({ stage: 8, seed, team: team(START, 1.6), auto: { ult: true, pick: 'best' } }); if (r.B.phase === 'won') wins++;
+    for (const u of r.B.heroes) for (const sl of ['s1', 's2']) lowCasts[u.slot + sl] = (lowCasts[u.slot + sl] || 0) + r.log.filter((e) => e.e === 'cast' && e.uid === u.uid && e.slot === sl).length;
+  }
   check(wins >= 18, `stage 8 with the four starters at level 8 is won on ${wins} of 20 seeds (at least 18; seed 3 here: ${B.phase}, wave ${B.wave})`);
   check(waves.length === 5 && waves.map((w) => w.n).join('') === '12345', 'five waves start in order');
   check(waves[4].boss === true && waves.slice(0, 4).every((w) => !w.boss), 'only wave 5 is the boss wave');
@@ -47,9 +50,10 @@ function play(opts, until) {
   check(!log.some((e) => e.e === 'spawn' && e.boss && e.t < waves[4].t), 'no boss before wave 5');
   for (const u of B.heroes) {
     const atk = log.filter((e) => e.e === 'attack' && e.uid === u.uid).length;
-    const s1 = log.filter((e) => e.e === 'cast' && e.uid === u.uid && e.slot === 's1').length;
-    const s2 = log.filter((e) => e.e === 'cast' && e.uid === u.uid && e.slot === 's2').length;
-    check(atk > 20 && s1 > 0 && s2 > 0, `${u.def.name} attacked ${atk} times and cast both skills by itself (${s1} / ${s2})`);
+    // a skill that waits for low health (Giáp Đá below 60%) may not come in one won run: it counts over the 20 seeds above
+    const n = (sl) => (u.def[sl].when && u.def[sl].when.hpBelow ? lowCasts[u.slot + sl] : log.filter((e) => e.e === 'cast' && e.uid === u.uid && e.slot === sl).length);
+    const s1 = n('s1'), s2 = n('s2'), low = ['s1', 's2'].filter((sl) => u.def[sl].when && u.def[sl].when.hpBelow);
+    check(atk > 20 && s1 > 0 && s2 > 0, `${u.def.name} attacked ${atk} times and cast both skills by itself (${s1} / ${s2}${low.length ? `; ${low.join(',')} over 20 seeds` : ''})`);
   }
   const targets = new Set(log.filter((e) => e.e === 'attack' && B.heroes.some((u) => u.uid === e.uid)).map((e) => e.to));
   check(targets.size > 30, `heroes spread their attacks over ${targets.size} different enemies`);
@@ -211,8 +215,15 @@ const FORMS = HEROES.flatMap((h) => [{ id: h.id, form: 1 }, { id: h.id, form: 2 
     });
     const u = B.heroes[0];
     const n = (e, f) => log.filter((x) => x.e === e && x.uid === u.uid && (!f || f(x))).length;
-    check(n('cast', (x) => x.slot === 's1') > 0 && n('cast', (x) => x.slot === 's2') > 0 && n('ult') > 0 && u.dealt > 0 && out === 0,
-      `${key} ${def.formName}: ${def.s1.name} x${n('cast', (x) => x.slot === 's1')}, ${def.s2.name} x${n('cast', (x) => x.slot === 's2')}, ${def.ult.name} x${n('ult')}, dealt ${Math.round(u.dealt)}, inside the arena`);
+    // a skill gated on a moment (Giáp Đá below 60% health) may not come in one won run: seeds 12 and 13 add their casts
+    const kit = { s1: n('cast', (x) => x.slot === 's1'), s2: n('cast', (x) => x.slot === 's2'), ult: n('ult') }; let seeds = 1;
+    for (let sd = 12; sd <= 13 && !(kit.s1 && kit.s2 && kit.ult); sd++, seeds++) {
+      const r = play({ stage: 10, seed: sd, team: [{ ...spec, mul: 1.5 }, ...mates], auto: { ult: true, pick: 'best' } });
+      const m = (e, f) => r.log.filter((x) => x.e === e && x.uid === r.B.heroes[0].uid && (!f || f(x))).length;
+      kit.s1 += m('cast', (x) => x.slot === 's1'); kit.s2 += m('cast', (x) => x.slot === 's2'); kit.ult += m('ult');
+    }
+    check(kit.s1 > 0 && kit.s2 > 0 && kit.ult > 0 && u.dealt > 0 && out === 0,
+      `${key} ${def.formName}: ${def.s1.name} x${kit.s1}, ${def.s2.name} x${kit.s2}, ${def.ult.name} x${kit.ult} over ${seeds} seed${seeds > 1 ? 's' : ''}, dealt ${Math.round(u.dealt)}, inside the arena`);
     const k = def.move.kind; const mv = (m) => n('move', (x) => x.k === m);
     const gait = {
       walk: () => [!air.some(Boolean), 'on the ground'],

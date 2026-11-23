@@ -52,10 +52,13 @@ export const MAX_ALIVE = 120;
 // ccK: each horde body's crowd control (slow, stun, freeze, root) lasts m^-ccPow of its normal time (never below CC_FLOOR seconds, see
 // battle.js addStatus). Bodies freeze the same area at once and their durations overlap rather than add, so 1/m would cut the total
 // control time to a third; the exponent is tuned so a stage 20 run freezes heroes about as long as the same waves without the horde
-// (0.75 since the beasts: their gaits put the back line closer to the dying frost bodies; 160 seeds, 1.05x).
+// (0.62: denser packs below put more frost bodies round the team; 160 seeds, 1.11x).
+// The owner's crowd (10, 37, 102 alive at once on stages 3, 8, 15, Addendum 6) is met on the mean over 16 seeds: more bodies per
+// pack (base 4, +1.25 a wave) with hpPow/atkPow raised so a pack's total health and damage stay where they were, and packs released
+// over a tighter span so they overlap. The old 3/1/0.45 met it only on lucky seeds (stage 15: 68..108 over seeds 1-20, mean 83).
 // hordeOf(wave) = how many bodies stand in for one; big kinds (cost above 1.5) multiply less.
-export const HORDE = { base: 3, perWave: 1, bossWave: 5, bigDiv: 2.5, hpPow: 0.62, atkPow: 1.12, ccPow: 0.75, span: 0.45 };
-export function hordeOf(w, cost) { const m = w >= 5 ? HORDE.bossWave : HORDE.base + HORDE.perWave * w; return cost > 1.5 ? Math.max(1, Math.round(m / HORDE.bigDiv)) : m; }
+export const HORDE = { base: 4, perWave: 1.25, bossWave: 6, bigDiv: 2.5, hpPow: 0.66, atkPow: 1.107, ccPow: 0.62, span: 0.32 };
+export function hordeOf(w, cost) { const m = Math.round(w >= 5 ? HORDE.bossWave : HORDE.base + HORDE.perWave * w); return cost > 1.5 ? Math.max(1, Math.round(m / HORDE.bigDiv)) : m; }
 // early stages are met with fewer team slots open (unlocks.js): wave size and boss health shrink to match
 export const TEAM_K = { 1: 0.3, 2: 0.36, 3: 0.65, 4: 0.92 };
 // fewer heroes also share the same blows between fewer bodies

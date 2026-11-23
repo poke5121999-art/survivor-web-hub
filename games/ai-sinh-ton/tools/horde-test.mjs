@@ -1,5 +1,5 @@
 // The horde on screen. For stages 3, 8, 15 and 30 (autoult, autopick) finds the moment of most living enemies, replays to it,
-// and asserts: bodies drawn (zombie puppets + horde instances) equal the sim's living enemies; stage 15 peaks at 90 or more;
+// and asserts: bodies drawn (zombie puppets + horde instances) equal the sim's living enemies; the mean peak over 16 seeds of stages 3, 8, 15 meets 10, 37, 102;
 // draw calls at q=low stay within the old build's plus 20; frame time with ~110 bodies is at most 1.5x with ~10; damage numbers stay under
 // the cap and never overlap; every ordinary kind is told apart (silhouette or colour) in a pack of 12.
 // The old build (deployed site, AST_BASE-like AST_BEFORE) is measured once per stage and cached in .chk/horde/before.json
@@ -9,6 +9,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { serve, launch, open as openPage, checker, sheet, ROOT } from './pw.mjs';
+import { createBattle, step as simStep, DT } from '../js/sim/battle.js';
+import { expectedLevel } from '../js/data/stages.js';
+import { levelMul } from '../js/data/economy.js';
 
 const OUT = path.join(ROOT, '.chk', 'horde');
 fs.mkdirSync(OUT, { recursive: true });
@@ -19,6 +22,22 @@ const REFRESH = argv.includes('--refresh-before'); const SHOTS = !argv.includes(
 const STAGES = [3, 8, 15, 30]; const BEFORE_STAGES = [3, 8, 15];
 const { check, done } = checker();
 const T0 = Date.now();
+const SEEDS = 16;
+// the page's default team at stage n, as main.js start() builds it
+const SIM_TEAM = ['tegiap', 'nhim', 'loc', 'chon'];
+function simPeaks(n) {
+  const L = Math.max(1, expectedLevel(n)); const out = [];
+  for (let seed = 1; seed <= SEEDS; seed++) {
+    const B = createBattle({ stage: n, seed, auto: { ult: true, pick: 'best' }, team: SIM_TEAM.map((id) => ({ id, mul: levelMul(L), atkFlat: 6 * n, hpFlat: 40 * n })) });
+    let best = 0;
+    for (let t = 0; t < 420 && (B.phase === 'fight' || B.phase === 'pick'); t += 0.5) {
+      for (let i = 0; i < Math.round(0.5 / DT) && B.phase === 'fight'; i++) simStep(B);
+      best = Math.max(best, B.enemies.filter((e) => e.alive).length);
+    }
+    out.push(best);
+  }
+  return out;
+}
 
 // sim the stage to its end in 0.5 s slices; remember the slice with the most living enemies
 const FIND = ([n, limit]) => {
@@ -125,7 +144,10 @@ async function kindsTest(br, base) {
   const r = await openPage(br, base, 's22', 'autostart=1&stage=3&noaudio=1&seed=3&q=low');
   const info = await r.page.evaluate(() => {
     const G = window.__G; G.start(3, { seed: 3 }); G.paused = true; window.__step(4);
-    const H = G.host; const v = new H.THREE.Vector3(0, 1, -1.5).project(H.camera);
+    const H = G.host;
+    // the fight camera eases out to its framing over a few seconds: the empty and the pack shot of a kind must share one view
+    for (let i = 0, last = null; i < 300; i++) { window.__step(8); const p = H.camera.position.clone(); if (last && p.distanceTo(last) < 1e-3) break; last = p; }
+    const v = new H.THREE.Vector3(0, 1, -1.5).project(H.camera);
     return { kinds: G.actors.horde.kinds, cx: (v.x + 1) / 2 * H.size.w, cy: (1 - v.y) / 2 * H.size.h };
   });
   const shoot = async (name) => { await r.page.evaluate(() => window.__step(8)); const f = path.join(OUT, `kind-${name}.png`); await r.page.locator('#frame').screenshot({ path: f }); return f; };
@@ -179,9 +201,14 @@ try {
     check(m.problems.length === 0 && m.errs === 0, `stage 15 ${lab}: no console problems ${m.problems.slice(0, 2).join(' | ')}`);
   }
   // The crowd must not shrink (owner, Addendum 6). Peak = the most enemies alive in the sim at once, sampled every 0.5 s
-  // of game time over the whole stage N played with seed N, automatic ultimates and the best card, q=low on s22.
-  // Floors are the owner's numbers from rev 20261120a; rev 20261120e measured 11, 45, 120 with this same tool.
-  for (const [st, floor] of [[3, 10], [8, 37], [15, 102]]) check(after[st].peak >= floor, `stage ${st} peak alive ${after[st].peak} (>= ${floor})`);
+  // of game time over the whole stage played with automatic ultimates and the best card. Floors are the owner's numbers
+  // from rev 20261120a. One seed is not a measure of the crowd: with nothing changed, stage 15 peaks anywhere from 68 to 108
+  // over seeds 1-20, and Chrome and node (last-bit float differences from tick 133 on) give 81 and 68 for the same seed 14.
+  // So the floor holds for the mean over SEEDS seeds, played by the sim itself with the page's default team (main.js start).
+  for (const [st, floor] of [[3, 10], [8, 37], [15, 102]]) {
+    const p = simPeaks(st); const mean = p.reduce((a, b) => a + b, 0) / p.length;
+    check(mean >= floor, `stage ${st} peak alive, mean over seeds 1-${p.length}: ${mean.toFixed(1)} (>= ${floor}; min ${Math.min(...p)}, max ${Math.max(...p)}; this page with seed ${st}: ${after[st].peak})`);
+  }
   // the horde draws two calls (toon body, outline) per kind on screen plus shards and splats (foe/zombies.js models)
   for (const s of STAGES) check(after[s].at.hordeCalls <= 2 * after[s].at.hk + 2, `stage ${s} q=low horde draw calls ${after[s].at.hordeCalls} (<= ${2 * after[s].at.hk + 2} for ${after[s].at.hk} kinds drawn, live or dying; whole frame ${after[s].at.draws} against ${before.s22[s] ? before.s22[s].draws + ' before' : 'no before'}, the frame total moves with HUD and fx state; horde triangles ${after[s].at.hordeTris})`);
   check(hi.at.hordeCalls <= 2 * hi.at.hk + 2, `stage 15 high horde draw calls ${hi.at.hordeCalls} (<= ${2 * hi.at.hk + 2})`);
