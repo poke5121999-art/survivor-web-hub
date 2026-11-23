@@ -164,7 +164,7 @@ for (PHONE of PHONE_LIST) {
   check(JSON.stringify(resultInfo && resultInfo.unlocked) === JSON.stringify(['slot2', 'levelup', 'gacha']), 'tutorial result lists the three new unlocks');
   check(labels.join('|') === ['slot2', 'levelup', 'gacha'].map((id) => 'MỞ KHOÁ: ' + UNLOCK[id].name.toLocaleUpperCase('vi')).join('|'), `the reveal played once per unlock (${labels.join(' | ')})`);
   const fin = await page.evaluate(() => ({ heroes: Object.keys(__G.meta.acc.heroes).filter((k) => __G.meta.acc.heroes[k].level > 0).sort(), team: __G.meta.acc.team, level: __G.meta.acc.level, stage: __G.stageN, battle: !!__G.B, session: __G.meta.acc.ftue.session, freePull: __G.meta.acc.freePull, tutorial: __G.B && !!__G.B.stage.tutorial }));
-  check(fin.heroes.join() === 'gio,mua,yta' && fin.team.join() === 'gio,mua' && fin.level === 2 && fin.stage === 2 && fin.battle && fin.session && !fin.freePull && !fin.tutorial, `after the session: gio, yta and mua owned, team gio+mua, level 2, stage 2 started (${JSON.stringify(fin)})`);
+  check(fin.heroes.join() === 'chon,loc,nhim' && fin.team.join() === 'chon,nhim' && fin.level === 2 && fin.stage === 2 && fin.battle && fin.session && !fin.freePull && !fin.tutorial, `after the session: chon, loc and nhim owned, team chon+nhim, level 2, stage 2 started (${JSON.stringify(fin)})`);
   await snap(page, 'stage2-started');
   await page.evaluate(() => __sim(3)); await step(page, 5);
   const hud2 = await page.evaluate(() => __G.screens.hud.dbg());

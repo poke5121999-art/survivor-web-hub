@@ -123,6 +123,8 @@ try {
     check(cells === 14, `${phone}: the hero grid builds ${cells} tiles (want 14)`);
     await page.evaluate(() => { const A = __G.meta.acc; A.heroes.tegiap.shards = 100; A.gold = 5000; });
     await page.evaluate(() => __G.goto('heroes')); await step(page, 10);
+    // with fourteen beasts owned the R tiles sit below the fold: scroll the grid to the tile first, as a player would
+    await page.evaluate(() => { let c = __ui.node('hero-tegiap'); while (c && !(c.parent && c.parent.parent && c.parent.parent.isScroll)) c = c.parent; if (c) c.parent.parent.scrollTo(c.uy - 4); }); await step(page, 10);
     check(await tap(page, 'hero-tegiap'), `${phone}: hero tile hero-tegiap can be tapped`); await step(page, 30);
     const selA = await page.evaluate(() => ({ s: __G.screen, id: __G.metaUi.heroSel() }));
     check(selA.s === 'heroes' && selA.id === 'tegiap', `${phone}: tapping a tile selects the hero on the same screen ("${selA.s}", selected "${selA.id}")`);
