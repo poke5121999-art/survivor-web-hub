@@ -16,9 +16,9 @@ import { ARENA } from '../js/sim/battle.js';
 
 const argv = process.argv.slice(2); const arg = (k) => (argv.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.length + 3);
 const TO = +arg('to') || 50; const SHOTS = argv.includes('--shots');
-// sha1 of stages 1-30 (waves, multipliers, boss, slots) as feat/ai-sinh-ton has them after W-integ2 retuned HORDE (3e9e973d):
-// the map work must leave them alone
-const WAVES_HASH = 'bbadfbd62b206c00';
+// sha1 of stages 1-30 (waves, multipliers, boss, slots) after W-integ2 retuned HORDE for the owner's crowd (denser, tighter packs,
+// same total health and damage per pack; stages.js HORDE): the map work must leave them alone
+const WAVES_HASH = '282f53bd74a07ac2';
 const { check, done } = checker();
 // themes.js is plain data; it reads no browser global, so the table can name each stage's theme
 const { themeOf, STAND_IN } = await import('../js/view/themes.js');
