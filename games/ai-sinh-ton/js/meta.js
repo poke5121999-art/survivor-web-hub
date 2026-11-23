@@ -507,7 +507,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
   M.canEvolve = (id, branch) => {
     if (!M.unlocked('evolve')) return { ok: false, why: M.lockText('evolve'), cost: null };
     if (!owned(id)) return { ok: false, why: 'chưa có thú này', cost: null };
-    const h = M.acc.heroes[id]; const form = h.form + 1;
+    const h = M.acc.heroes[id]; const form = (h.form || 1) + 1;
     if (form > maxForm(id)) return { ok: false, why: 'đã ở dạng cuối', cost: null };
     const cost = priceOf(EVOLVE[form], HERO[id].element);
     const br = form === 3 ? branchesOf(id) : [];
@@ -542,7 +542,7 @@ export function createMeta({ storage = globalThis.localStorage, now = () => new 
     return done('rebranch', { id, from, branch, cost: c.cost });
   };
   // beasts whose next form is affordable now; a beast at a fork counts when either path is
-  const canEvolveAny = (id) => { const h = M.acc.heroes[id]; if (!h || h.form >= maxForm(id)) return false; const br = h.form === 2 ? branchesOf(id) : []; return br.length ? br.some((b) => M.canEvolve(id, b).ok) : M.canEvolve(id).ok; };
+  const canEvolveAny = (id) => { const h = M.acc.heroes[id]; const f = (h && h.form) || 1; if (!h || f >= maxForm(id)) return false; const br = f === 2 ? branchesOf(id) : []; return br.length ? br.some((b) => M.canEvolve(id, b).ok) : M.canEvolve(id).ok; };
   M.evoMats = () => ({ stone: { ...M.acc.evo.stone }, core: M.acc.evo.core });
 
   // ---- numbers for the battle and the UI
