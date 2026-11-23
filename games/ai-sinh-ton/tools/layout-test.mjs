@@ -16,8 +16,9 @@ import { ARENA } from '../js/sim/battle.js';
 
 const argv = process.argv.slice(2); const arg = (k) => (argv.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.length + 3);
 const TO = +arg('to') || 50; const SHOTS = argv.includes('--shots');
-// sha1 of stages 1-30 (waves, multipliers, boss, slots) on main 28102a33, before the ten chapters
-const WAVES_HASH = 'f9ba9c8adfbd97c5';
+// sha1 of stages 1-30 (waves, multipliers, boss, slots) as feat/ai-sinh-ton has them after W-integ2 retuned HORDE (3e9e973d):
+// the map work must leave them alone
+const WAVES_HASH = 'bbadfbd62b206c00';
 const { check, done } = checker();
 // themes.js is plain data; it reads no browser global, so the table can name each stage's theme
 const { themeOf, STAND_IN } = await import('../js/view/themes.js');
