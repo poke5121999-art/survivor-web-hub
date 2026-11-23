@@ -22,14 +22,17 @@ void main() {
 }`;
 const CRACK_F = `uniform float uTime; uniform float uS; uniform float uK; varying float vR; varying float vP; varying vec2 vW;
 void main() {
-  vec2 g = vW * 2.0; vec2 f = fract(g); float line = 1.0 - smoothstep(0.0, 0.09, min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y)));
-  float crack = line * step(0.45, fract(sin(dot(floor(g), vec2(12.9898, 78.233))) * 43758.5453));
-  if (uS > 2.5) { vec3 h = mix(vec3(0.01), vec3(0.08, 0.05, 0.04), smoothstep(0.75, 1.0, vR)); gl_FragColor = vec4(h, 0.96); }
-  else {
-    float hot = uS > 0.5 ? (0.5 + 0.5 * sin(uTime * (8.0 + 10.0 * uK))) * (0.4 + 0.6 * uK) : 0.0;
-    vec3 c = mix(vec3(0.05, 0.03, 0.02), vec3(1.6, 0.6, 0.12), hot);
-    gl_FragColor = vec4(c, crack * (0.55 + 0.45 * hot));
-  }
+  vec2 g = vW * 2.0; vec2 f = fract(g); float line = 1.0 - smoothstep(0.0, 0.11, min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y)));
+  float crack = line * step(0.35, fract(sin(dot(floor(g), vec2(12.9898, 78.233))) * 43758.5453));
+  float rim = smoothstep(0.72, 0.95, vR);
+  if (uS > 2.5) { vec3 h = mix(vec3(0.01), vec3(0.12, 0.07, 0.05), rim); gl_FragColor = vec4(h, 0.97); }
+  else if (uS > 0.5) {
+    // the warning: the whole spot darkens, its ragged rim and the cracks burn orange, pulsing faster as the fall nears
+    float pulse = 0.6 + 0.4 * sin(uTime * (7.0 + 12.0 * uK));
+    vec3 hot = vec3(1.9, 0.75, 0.15) * pulse * (0.7 + 0.5 * uK);
+    float a = max(0.38, max(crack, rim) * 0.95);
+    gl_FragColor = vec4(mix(vec3(0.06, 0.03, 0.02), hot, max(crack, rim)), a);
+  } else gl_FragColor = vec4(vec3(0.05, 0.035, 0.025), crack * 0.5);
   #include <colorspace_fragment>
 }`;
 const WATER_F = `uniform float uTime; varying float vR; varying float vP; varying vec2 vW;
@@ -47,18 +50,19 @@ const WIND_V = `attribute vec4 aS; uniform float uTime; uniform float uK; unifor
 void main() {
   vUv = uv; float sp = 4.0 + 10.0 * uK; float t = fract(aS.x + uTime * sp / uSpan);
   vec2 side = vec2(-uDir.y, uDir.x); vec2 c = uDir * (t - 0.5) * uSpan + side * aS.y;
-  float len = 0.8 + 2.4 * uK; vec2 p = c + uDir * position.x * len + side * position.y * 0.07;
+  float len = 0.8 + 2.4 * uK; vec2 p = c + uDir * position.x * len + side * position.y * 0.16;
   vA = sin(t * 3.14159) * (0.12 + 0.88 * uK);
   gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(p.x, aS.z, p.y, 1.0);
 }`;
 const WIND_F = `varying float vA; varying vec2 vUv;
-void main() { float a = vA * (1.0 - abs(vUv.y - 0.5) * 2.0) * smoothstep(0.0, 0.4, vUv.x) * (1.0 - smoothstep(0.6, 1.0, vUv.x)); gl_FragColor = vec4(vec3(0.85, 0.95, 1.0) * a, 0.0);
+void main() { float a = vA * (1.0 - abs(vUv.y - 0.5) * 2.0) * smoothstep(0.0, 0.4, vUv.x) * (1.0 - smoothstep(0.6, 1.0, vUv.x)); gl_FragColor = vec4(vec3(0.95, 1.0, 1.05), min(1.0, a * 1.3));
   #include <colorspace_fragment>
 }`;
 
 function mat(frag, extra = {}, vert = FLOOR_V, blend = 'alpha') {
   const m = new THREE.ShaderMaterial({ vertexShader: vert, fragmentShader: frag, uniforms: { uTime: { value: 0 }, uS: { value: 0 }, uK: { value: 0 }, ...extra }, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
-  if (blend === 'add') { m.blending = THREE.AdditiveBlending; }
+  // the streaks are laid flat from an XY quad: seen from above that is their back face
+  if (blend === 'add') { m.blending = THREE.AdditiveBlending; m.side = THREE.DoubleSide; }
   return m;
 }
 // floor cells of a ragged blob around (cx, cz) of radius r: one quad per 0.5 m cell, aR = how far out (0 centre, 1 edge)
@@ -83,12 +87,17 @@ function band(z, r, x0, x1) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aR', new THREE.Float32BufferAttribute(aR, 1)); g.setAttribute('aP', new THREE.Float32BufferAttribute(aP, 1)); g.setIndex(idx); g.computeBoundingSphere();
   return g;
 }
+// n streak quads in one plain geometry: each vertex carries its streak's seed (aS: phase, offset across, height, spare)
 function streaks(n, r, seed) {
-  const base = new THREE.PlaneGeometry(1, 1); const g = new THREE.InstancedBufferGeometry(); g.index = base.index; g.setAttribute('position', base.attributes.position); g.setAttribute('uv', base.attributes.uv);
-  const S = new Float32Array(n * 4); let s = seed;
+  const pos = []; const uv = []; const S = []; const idx = []; let s = seed;
   const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
-  for (let i = 0; i < n; i++) { S[i * 4] = rnd(); S[i * 4 + 1] = (rnd() * 2 - 1) * r * 0.5; S[i * 4 + 2] = 0.3 + rnd() * 1.9; S[i * 4 + 3] = rnd(); }
-  g.setAttribute('aS', new THREE.InstancedBufferAttribute(S, 4)); g.instanceCount = n; return g;
+  for (let i = 0; i < n; i++) {
+    const a = [rnd(), (rnd() * 2 - 1) * r * 0.5, 0.3 + rnd() * 1.9, rnd()]; const b = pos.length / 3;
+    for (const [x, y] of [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]]) { pos.push(x, y, 0); uv.push(x + 0.5, y + 0.5); S.push(...a); }
+    idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('aS', new THREE.Float32BufferAttribute(S, 4)); g.setIndex(idx);
+  return g;
 }
 
 export function createHazards(H, curB) {
@@ -102,7 +111,7 @@ export function createHazards(H, curB) {
         if (h.kind === 'poison') m = new THREE.Mesh(blob(h.x, h.z, h.r, k + 1), mat(POISON_F));
         else if (h.kind === 'collapse') m = new THREE.Mesh(blob(h.x, h.z, h.r, k + 5, 0.03), mat(CRACK_F));
         else if (h.kind === 'current') { m = new THREE.Mesh(band(h.z, h.r, -10.2, 10.2), mat(WATER_F)); m.position.set(0, 0, 0); }
-        else if (h.kind === 'wind') { m = new THREE.Mesh(streaks(28, 9, k * 97 + 11), mat(WIND_F, { uDir: { value: new THREE.Vector2(Math.cos(h.ang), Math.sin(h.ang)) }, uSpan: { value: h.r * 2 } }, WIND_V, 'add')); m.frustumCulled = false; }
+        else if (h.kind === 'wind') { m = new THREE.Mesh(streaks(40, 9, k * 97 + 11), mat(WIND_F, { uDir: { value: new THREE.Vector2(Math.cos(h.ang), Math.sin(h.ang)) }, uSpan: { value: h.r * 2 } }, WIND_V, 'add')); m.frustumCulled = false; }
         if (!m) return;
         if (h.kind === 'poison' || h.kind === 'collapse') m.position.set(h.x, 0, h.z);
         m.name = 'hazard'; m.userData.ownMat = true; m.userData.h = h; m.userData.k = k; m.renderOrder = 2; m.matrixAutoUpdate = true;

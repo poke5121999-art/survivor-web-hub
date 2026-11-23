@@ -144,7 +144,8 @@ const PROPS = {
   bush: { h: 0.9, b(B, th, r) { const lf = th.day ? 'leaves' : 'leaves_teal'; B(0, 0, 0, 0.9, 0.7, 0.9, { side: lf }, C.leaf); if (r.chance(0.6)) B(0.5, 0, 0.3, 0.6, 0.5, 0.6, { side: lf }, C.leaf); } },
   urn: { h: 0.85, b(B) { B(0, 0, 0, 0.4, 0.12, 0.4, { side: 'sandstone' }, C.stone); B(0, 0.12, 0, 0.55, 0.5, 0.55, { side: 'sand_tile' }, [0.9, 0.7, 0.55]); B(0, 0.62, 0, 0.3, 0.2, 0.3, { side: 'sand_tile' }, [0.9, 0.7, 0.55]); } },
   // forest: a giant trunk on flared roots under a wide stepped canopy
-  oldtree: { h: 8, b(B, th, r) {
+  // canopy: the crown overhangs the rim terraces; only the trunk and roots count for where it may stand
+  oldtree: { h: 8, canopy: true, b(B, th, r) {
     B(0, 0, 0, 1.3, 0.6, 1.3, { side: 'bark_old', top: 'moss_floor' }, C.wood); B(0, 0.6, 0, 1.1, 4.0, 1.1, { side: 'bark_old', top: 'bark_old' }, C.wood);
     for (const [x, z, sx, sz] of [[0.6, 0.1, 0.5, 0.36], [-0.6, -0.1, 0.5, 0.36], [0.1, 0.6, 0.36, 0.5], [-0.1, -0.6, 0.36, 0.5]]) { B(x, 0, z, sx, 0.4, sz, { side: 'roots', top: 'bark_old' }, C.wood); B(x * 1.3, 0, z * 1.3, sx * 0.6, 0.22, sz * 0.6, { side: 'roots', top: 'moss_floor' }, C.moss); }
     B(0.9, 3.2, 0, 1.0, 0.4, 0.5, { side: 'bark_old', top: 'bark_old' }, C.wood); B(-0.9, 3.7, 0.1, 1.0, 0.4, 0.5, { side: 'bark_old', top: 'bark_old' }, C.wood);
@@ -160,7 +161,7 @@ const PROPS = {
   fern: { h: 0.7, b(B, th, r) { for (let i = 0; i < 4; i++) B(r.range(-0.4, 0.4), 0, r.range(-0.4, 0.4), r.range(0.5, 0.8), r.range(0.3, 0.6), r.range(0.5, 0.8), { side: 'leaves_old' }, [0.9, 1.1, 0.8]); } },
   stump: { h: 1.2, b(B, th, r) { for (const [x, z, sx, sz] of [[0.6, 0, 0.5, 1.4], [-0.6, 0, 0.5, 1.4], [0, 0.6, 1.0, 0.5], [0, -0.6, 1.0, 0.5]]) B(x, 0, z, sx, 0.8 + r.range(0, 0.4), sz, { side: 'bark_old', top: 'bark_old' }, C.wood); B(0, 0, 0, 0.7, 0.2, 0.7, { side: 'moss_floor', top: 'moss_floor' }, C.moss); } },
   // swamp: stilt roots arching over the water under a flat crown, reeds, rotten logs, wisps
-  mangrove: { h: 5.4, b(B, th, r) {
+  mangrove: { h: 5.4, canopy: true, b(B, th, r) {
     for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { B(sx * 0.65, 0, sz * 0.65, 0.34, 0.9, 0.34, { side: 'bark_wet' }, C.wood); B(sx * 0.55, 0.9, sz * 0.55, 0.34, 0.7, 0.34, { side: 'bark_wet' }, C.wood); B(sx * 0.42, 1.6, sz * 0.42, 0.42, 0.55, 0.42, { side: 'bark_wet' }, C.wood); }
     B(0, 1.9, 0, 1.0, 0.5, 1.0, { side: 'bark_wet', top: 'bark_wet' }, C.wood); B(0, 2.4, 0, 0.8, 1.6, 0.8, { side: 'bark_wet', top: 'bark_wet' }, C.wood);
     B(0, 3.8, 0, 4.2, 0.9, 4.2, { side: 'leaves_dark' }, [0.7, 0.85, 0.5]); B(r.range(-0.3, 0.3), 4.6, r.range(-0.3, 0.3), 3.0, 0.8, 3.0, { side: 'leaves_dark' }, [0.7, 0.85, 0.5]);
@@ -267,7 +268,8 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
   // ---- props on the rim, lights first ----
   const props = []; const lights = []; const boxes = [];
   const free = (x, z, r) => props.every((p) => Math.hypot(p.x - x, p.z - z) > p.r + r + 0.3);
-  const near = (x, z) => z - cz > 0 && Math.abs(x - cx) < E.x * 0.8;
+  // 0.9 of the half width, not the 0.8 the look test measures: a tall prop just outside could lean its arm or crown in
+  const near = (x, z) => z - cz > 0 && Math.abs(x - cx) < E.x * 0.9;
   // the corridors heroes run through to the neighbouring pads stay free of props
   const inGate = (x, z, r) => gates.some((a) => { const ux = Math.cos(a); const uz = Math.sin(a); return (x - cx) * ux + (z - cz) * uz > 0 && Math.abs(-(x - cx) * uz + (z - cz) * ux) < GATE_W / 2 + r; });
   const cellAt = (x, z) => { const [u, v] = G(x, z); return cells.get(key(Math.floor(u), Math.floor(v))); };
@@ -284,7 +286,7 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
   const th2 = { ...theme, wall: theme.side.rows[0][0], rock: theme.name === 'crypt' ? 'sandstone' : 'rock' };
   const propRng = (x, z) => rngOf(Math.round(x * 100) * 31 + Math.round(z * 100) + seed);
   // a dry run of the prop's boxes: its radius about the origin and its height
-  const extent = (kind, x, z) => { let r = 0; let h = 0; PROPS[kind].b((lx, ly, lz, sx, sy, sz) => { if (ly < 2.6) r = Math.max(r, Math.hypot(Math.abs(lx) + sx / 2, Math.abs(lz) + sz / 2)); h = Math.max(h, ly + sy); }, th2, propRng(x, z)); return { r, h }; };
+  const extent = (kind, x, z) => { let r = 0; let h = 0; PROPS[kind].b((lx, ly, lz, sx, sy, sz) => { if (ly < 2.6 || !PROPS[kind].canopy) r = Math.max(r, Math.hypot(Math.abs(lx) + sx / 2, Math.abs(lz) + sz / 2)); h = Math.max(h, ly + sy); }, th2, propRng(x, z)); return { r, h }; };
   const place = (kind, x, z, rot) => {
     const X = extent(kind, x, z); const r = Math.max(0.5, X.r);
     if (!free(x, z, r)) return false; const c = spotOk(x, z, r, X.r + 0.05); if (!c) return false;
