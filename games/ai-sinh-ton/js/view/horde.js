@@ -101,6 +101,9 @@ export function createHorde(H) {
   const NO_OFF = { x: 0, y: 0, z: 0 }; let followed = false;
   function drawLive(st, e, dt, off) {
     const S = st.sty;
+    // the hit flash is a pulse of the picture, timed on the real clock: a hit-stop or an ultimate's held wind-up (juice) would
+    // otherwise keep a body burning white for as long as the world stands still
+    const J = window.__G && window.__G.juice; st.flash = Math.max(0, st.flash - Math.max(dt, (J && J.realDt) || 0) * 9);
     if (dt > 0.002) {
       // a jump of the sim position in one frame is a shove (knockback, a skill's push): the body is thrown along it
       const jump = Math.hypot(e.x - st.sx, e.z - st.sz); st.sx = e.x; st.sz = e.z;
@@ -111,7 +114,7 @@ export function createHorde(H) {
       st.yaw += wrap(yawOf(e.face) - st.yaw) * Math.min(1, dt * 14);
       st.ph += st.spd * dt * 2.1 * S.sw + (S.mode === 3 ? dt * 9 : 0) + (st.spd < 0.3 ? dt * 0.8 : 0);
       if (st.swing >= 0) { st.swing += dt / 0.36; if (st.swing >= 1) st.swing = -1; }
-      st.hit = Math.max(0, st.hit - dt * 5); st.flash = Math.max(0, st.flash - dt * 9);
+      st.hit = Math.max(0, st.hit - dt * 5);
       const kd = Math.exp(-10 * dt); st.kx *= kd; st.kz *= kd;
       if (st.air > 0 || st.vy > 0) { st.vy -= 22 * dt; st.air = Math.max(0, st.air + st.vy * dt); st.spin += dt * 12 * Math.sign(st.spin || 1); if (st.air <= 0) { st.vy = 0; st.spin = 0; dust(st.px, st.pz, 1); } }
     }
@@ -135,12 +138,12 @@ export function createHorde(H) {
 
   function drawCorpse(c, dt) {
     c.t += dt; const u = c.t / tier.dur; if (u >= 1) return false;
-    const S = c.sty;
+    const S = c.sty; const J = window.__G && window.__G.juice; c.ft = (c.ft || 0) + Math.max(dt, (J && J.realDt) || 0); // flash on the real clock (see drawLive)
     // thrown back along the killing blow, falling over, then coming apart from 30% on
     const push = Math.min(c.t, 0.3);
     let y = c.y; if (c.vy !== 0 || y > 0.01) { c.vy -= 20 * dt; y = c.y = Math.max(0, c.y + c.vy * dt); if (c.y <= 0) c.vy = 0; }
     const fall = S.mode === 3 ? Math.min(1.2, c.t * 3) : Math.min(1.5, c.t * 5.5);
-    put({ x: c.x + c.dx * push, y, z: c.z + c.dz * push, yaw: c.yaw, sty: S, sc: c.sc, ph: c.ph, swing: -1, hit: Math.max(0, 1 - c.t * 4), die: Math.max(0, (u - 0.3) / 0.7), fall, flash: Math.max(0, 1 - c.t * 8), lean: 0, spin: 0, tint: ONE, k: 1, cloth: c.cloth });
+    put({ x: c.x + c.dx * push, y, z: c.z + c.dz * push, yaw: c.yaw, sty: S, sc: c.sc, ph: c.ph, swing: -1, hit: Math.max(0, 1 - c.t * 4), die: Math.max(0, (u - 0.3) / 0.7), fall, flash: Math.max(0, 1 - c.ft * 8), lean: 0, spin: 0, tint: ONE, k: 1, cloth: c.cloth });
     if (!c.smoked && u > 0.35) { c.smoked = true; smoke(c.x + c.dx * push, y, c.z + c.dz * push, S, c.sc); }
     return true;
   }
@@ -260,7 +263,8 @@ export function createHorde(H) {
       else if (e.e === 'hit') {
         if (e.dot || !e.dmg) return; const st = states.get(e.uid); if (!st) return;
         // recoil away from the hitter; a crit or a blow worth a big share of the body's life throws it
-        st.flash = 1; if (st.hit <= 0.3) st.hit = e.crit ? 1 : 0.7;
+        // an ultimate close-up holds then slows the world (ultcam.js): a full white flash would stand still on screen for half a second
+        const J = window.__G && window.__G.juice; st.flash = J && J.ult && (J.ult.active || J.ult.holding()) ? 0.35 : 1; if (st.hit <= 0.3) st.hit = e.crit ? 1 : 0.7;
         const by = B && B.byUid.get(e.by); const u = B && B.byUid.get(e.uid);
         if (by && u) { let dx = u.x - by.x; let dz = u.z - by.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; const k = e.crit ? 0.32 : 0.18; st.kx += dx * k; st.kz += dz * k; }
         if (u && !u.fly && st.air <= 0 && e.dmg >= u.maxHp * 0.35) launch(st, 0.6);

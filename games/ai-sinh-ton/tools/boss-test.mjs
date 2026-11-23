@@ -227,7 +227,7 @@ try {
       const G = window.__G; const J = G.juice;
       const sc = G.screens && G.screens[G.screen]; if (sc && sc.hide) sc.hide();
       G.start(3, { seed: 9, wave: 3, team: ['thep', 'mua', 'yta', 'gio'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } });
-      window.__sim(4); J.reset(); J.enabled = true; G.paused = false; G.speed = 1;
+      window.__sim(4); J.reset(); J.stops.length = 0; J.enabled = true; G.paused = false; G.speed = 1;
       const B = G.B; const rows = []; let game = 0; let last = 0; let hitAt = -1; let stallNext = false;
       const raf = () => new Promise((r) => requestAnimationFrame(r));
       last = await raf();
@@ -240,7 +240,9 @@ try {
       G.paused = true;
       // sim clock minus game clock, averaged before the stop and well after it: the drop is the time the stop took
       const off = (a, b) => { let s = 0; for (let i = a; i < b; i++) s += rows[i].Bt - rows[i].game; return s / (b - a); };
-      const lost = (off(5, hitAt) - off(hitAt + 30, rows.length)) * 1000;
+      // the fight goes on around the forced stop: a kill streak or a wide skill burst takes its own stop, which is not this one's
+      const others = J.stops.filter((st) => !st.force).reduce((a, st) => a + (st.real ?? st.ms), 0);
+      const lost = (off(5, hitAt) - off(hitAt + 30, rows.length)) * 1000 - others;
       const cut = rows.slice(hitAt, hitAt + 10).reduce((a, r) => a + r.cut, 0) * 1000;
       return { lost, cut, frames: rows.filter((r) => r.stopped).length, stops: J.stops.map((s) => [s.ms, Math.round(s.real || 0)]) };
     };
