@@ -1,7 +1,7 @@
 // Effects seen from above. Part A: for each of the 13 heroes both skills and the ultimate, and three boss skills, at the
 // peak frame at the s22 overview, before (deployed site, AST_BASE or the hub URL) and after (this tree), side by side in
 // .chk/fx/<name>.png and sheet.png; reach of the vertical layer (m) read from the rendered instances, clipped white.
-// Part B (live, real time, this tree): hit-stop, shake, time scale of the ultimate scene, the arena rim in frame, ground counts.
+// Part B (live, real time, this tree): hit-stop, shake, time scale of the ultimate scene, every unit in frame, ground counts.
 // Part C: cost at q=low on s22, stage 15, three ultimates, before and after.
 // Usage: PLAYWRIGHT_PATH=... timeout 900 node games/ai-sinh-ton/tools/fx-shots.mjs [--only=thep,gio] [--refresh-before] [--no-bosses] [--skip-shots] [--skip-live] [--skip-perf]
 import fs from 'node:fs';
@@ -134,16 +134,16 @@ function items() {
 const LIVE = async ([mode, opt]) => {
   const G = window.__G; const H = G.host; const J = G.juice; const SIM = window.__SIM; const V = new H.THREE.Vector3();
   if (!J) return { noJuice: true };
-  const rim = []; for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2; rim.push([Math.cos(a) * opt.ax * 1.08, Math.sin(a) * opt.az * 1.08]); }
   const proj = (x, y, z) => { V.set(x, y, z).project(H.camera); return [V.x, V.y]; };
-  const rimMargin = () => { let m = 9; for (const [x, z] of rim) { const [px, py] = proj(x, 0, z); m = Math.min(m, 1 - Math.abs(px), 1 - Math.abs(py)); } return m; };
+  // the camera frames the fight's cluster (W-cam2), not the whole pad: what must stay in frame through shake and push is every
+  // living unit on the pad, its foot and its head, as a share of half the frame
+  const unitMargin = () => { let m = 9; for (const u of G.B.units) { if (!u.alive || u.egg || Math.abs(u.x) > opt.ax || Math.abs(u.z) > opt.az) continue; for (const y of [0, 1.4]) { const [px, py] = proj(u.x, y, u.z); m = Math.min(m, 1 - Math.abs(px), 1 - Math.abs(py)); } } return m; };
   const raf = () => new Promise((r) => requestAnimationFrame(r));
   J.reset(); J.stops.length = 0; J.scenes = 0; G.paused = false; G.speed = opt.speed || 1;
-  // the camera offset is read on the camera's own look point (game.cam.focus), not on the world origin: the MCD camera (16236ae0)
-  // pans after the team's centre, so a world point drifted 11 to 13 px over the 1 s shake run with the shake already back at 0
-  // (camera x 0.89 -> 0.25 m with shake 0, measured); the focus rides with that pan and moves on screen only by shake and push
-  const F = G.cam.focus; const fp = () => proj(F.x, F.y, F.z);
-  const B = G.B; const p0 = fp(); const rows = []; const castAt = [];
+  // the shake is read from the camera itself (G.cam.dbg.shake, the screen offset it added this frame): the framing follows
+  // the fight's cluster and drifts 10 to 13 px on its own in a second with the shake at 0, so a world point cannot tell them apart
+  const S = G.cam.dbg.shake;
+  const B = G.B; const rows = []; const castAt = [];
   const t0 = performance.now(); let step = 0; let stallNext = false;
   const casts = opt.casts || [];
   const total = opt.secs * 1000;
@@ -151,8 +151,7 @@ const LIVE = async ([mode, opt]) => {
     await raf(); if (stallNext) { stallNext = false; const e = performance.now() + opt.stall; while (performance.now() < e) { /* stalled frame */ } }
     const now = performance.now() - t0;
     for (const c of casts) if (!c.done && now >= c.at) { c.done = true; castAt.push(performance.now() - t0); if (opt.stall) stallNext = true; if (c.what === 'ult') { const u = B.heroes[c.slot]; u.ult = 1; u.ultReady = true; SIM.castUlt(B, c.slot); } else if (c.what === 'kick') J.kick(c.px); else if (c.what === 'tap') window.dispatchEvent(new Event('pointerdown')); else if (c.what === 'boom') J.onEvent({ e: 'fx', team: 1, key: 'boss_slam', part: 'burst' }); else if (c.what === 'stop') J.hit(55, { force: true }); }
-    const p = fp();
-    const U = J.ult; rows.push({ t: now, Bt: B.t, ult: !!(U && U.active), ph: U && U.scene ? U.scene.phase : '', scale: J.scale, stopped: J.stopped, part: J.partial, shake: J.view.shake.px, push: J.view.push, off: Math.hypot((p[0] - p0[0]) * H.size.w / 2, (p[1] - p0[1]) * H.size.h / 2), offX: (p[0] - p0[0]) * H.size.w / 2, offY: (p[1] - p0[1]) * H.size.h / 2, margin: rimMargin() });
+    const U = J.ult; rows.push({ t: now, Bt: B.t, ult: !!(U && U.active), ph: U && U.scene ? U.scene.phase : '', scale: J.scale, stopped: J.stopped, part: J.partial, shake: J.view.shake.px, push: J.view.push, off: Math.hypot(S.x, S.y), offX: S.x, offY: S.y, margin: unitMargin() });
     step++;
   }
   G.paused = true; G.speed = 1;
@@ -202,7 +201,7 @@ async function live(br, base, phone) {
   const on = rows.filter((x) => x.ult); const span = on.length ? (on[on.length - 1].t - on[0].t) / 1000 : 0;
   check(span >= 0.8 && span <= 1.5, `${tag}: the close-up lasts ${span.toFixed(2)} s (0.8 to 1.5), started ${on.length ? (on[0].t - c0).toFixed(0) : '-'} ms after the cast`);
   const fight = rows.filter((x) => !x.ult); const minMargin = Math.min(...fight.map((x) => x.margin)); const maxSh = Math.max(...rows.map((x) => x.shake));
-  check(minMargin > 0, `${tag}: arena rim stays in the frame through shake and push outside the close-up (min margin ${(minMargin * 100).toFixed(2)}% of half the frame, shake peak ${maxSh.toFixed(2)} px)`);
+  check(minMargin > 0, `${tag}: every unit on the pad stays in the frame through shake and push outside the close-up (min margin ${(minMargin * 100).toFixed(2)}% of half the frame, shake peak ${maxSh.toFixed(2)} px)`);
   // a forced stop, then a 70 ms stalled frame: the stop ends on the wall clock, the sim takes no tick before the 55 ms deadline
   const us = await run({ secs: 1.2, stall: 70, casts: [{ at: 300, what: 'stop' }] });
   const s0 = us.castAt[0]; const ideal = 55;

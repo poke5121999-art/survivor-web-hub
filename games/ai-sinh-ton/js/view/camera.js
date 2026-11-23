@@ -183,7 +183,7 @@ export function createCamera(H) {
   // push-in about the casting hero and screen shake, applied to the projection after the lens shift: ndc' = s * ndc + t.
   // The push and pull are clamped so the heroes' area stays inside the frame; a chase view only gets the shake.
   function juiceView(chase) {
-    const j = H.juice; if (!j) return;
+    const j = H.juice; dbg.shake.x = 0; dbg.shake.y = 0; if (!j) return;
     const el = camera.projectionMatrix.elements; const { w, h } = H.size;
     let s = 1; let tx = 0; let ty = 0;
     const clampT = (pad) => { tx = Math.max(-(1 - pad) - s * rim.x0, Math.min((1 - pad) - s * rim.x1, tx)); ty = Math.max(-(1 - pad) - s * rim.y0, Math.min((1 - pad) - s * rim.y1, ty)); };
@@ -194,13 +194,14 @@ export function createCamera(H) {
       if (j.pull.k > 0) { v.set(j.pull.x, 0, j.pull.z).project(camera); hx = v.x; hy = v.y; }
       tx = (1 - s) * hx; ty = (1 - s) * hy; clampT(RIM_PAD);
     }
-    if (j.shake.px > 0) { tx += j.shake.x * 2 / w; ty += j.shake.y * 2 / h; if (!chase) clampT(SHAKE_PAD); }
+    // dbg.shake: the screen offset the shake alone left after the clamp, in px (tools read it: the framing drifts on its own)
+    if (j.shake.px > 0) { const bx = tx; const by = ty; tx += j.shake.x * 2 / w; ty += j.shake.y * 2 / h; if (!chase) clampT(SHAKE_PAD); dbg.shake.x = (tx - bx) * w / 2; dbg.shake.y = (ty - by) * h / 2; }
     if (s === 1 && tx === 0 && ty === 0) return;
     el[0] *= s; el[5] *= s; el[8] = s * el[8] - tx; el[9] = s * el[9] - ty;
   }
 
   // ---- the cluster: what the overview must hold, flat [x, foot y, head y, z, half width, must] per entry (must: a hero, an ally or the boss), in the pad's frame ----
-  const pts = []; let np = 0; const cc = { x: 0, z: 0 }; const dbg = C.dbg = {};
+  const pts = []; let np = 0; const cc = { x: 0, z: 0 }; const dbg = C.dbg = { shake: { x: 0, y: 0 } };
   function addPt(x, y0, y1, z, hw, must) { const o = np * 6; pts[o] = x; pts[o + 1] = y0; pts[o + 2] = y1; pts[o + 3] = z; pts[o + 4] = hw; pts[o + 5] = must ? 1 : 0; np++; }
   // every living unit on this pad (a monster of a room ahead waits there, off the fight) and the gate of each pack due
   // within SPAWN_LOOK; during a run only the team, where it is drawn on the bridge
@@ -218,8 +219,10 @@ export function createCamera(H) {
       // a hero is framed where it is drawn: on the bridge during a run, or held where it stood until a regroup plays
       const r = u.hero && H.world && H.world.heroAt ? H.world.heroAt(u.slot, u.x, u.z) : null;
       if (r || run) { const x = r ? r.x : u.x; const y = r ? r.y : 0; const z = r ? r.z : u.z; addPt(x, y, y + h, z, CL_SIDE, 1); take(x, z); continue; }
-      const y0 = u.fly ? (FLY_Y[u.kind] || 3.2) : 0;
-      const yb = !u.fly && u.z > 0 && Math.hypot(u.x / ARENA.x, u.z / ARENA.z) > 0.95 ? y0 - SINK : y0;
+      const y0 = u.fly ? (FLY_Y[u.kind] || 3.2) : 0; const rimNear = u.z > 0 && Math.hypot(u.x / ARENA.x, u.z / ARENA.z) > 0.95;
+      // a flyer at the rim has just come out of a gate and climbs to its height over the next second (horde.js arrive): it
+      // is held from the ground up, or it rises out from behind the cards
+      const yb = !rimNear ? y0 : u.fly ? 0 : y0 - SINK;
       const hw = u.boss && C.bossFit ? Math.max(CL_SIDE, C.bossFit.wide * 0.6) : CL_SIDE; // a boss swings wider than its width at the rise
       addPt(u.x, yb, y0 + h, u.z, hw, u.team === 0 || u.boss); take(u.x, u.z);
       if (u.team === 1 && u.skills && !gateCall) for (const k of u.skills) if (k.cd <= SPAWN_LOOK && callsAtGate(k.def)) { gateCall = true; break; }
