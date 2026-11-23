@@ -75,7 +75,7 @@ export function createOrient(game, frame) {
   // rotate cover: a touch device held upright; the battle waits under it and gets its previous pause state back
   const cover = document.createElement('div');
   cover.id = 'orient-rotate'; cover.setAttribute('role', 'alert');
-  cover.innerHTML = PHONE_ICON + '<b>Xoay ngang màn hình</b><span>Ải Sinh Tồn chơi ở màn ngang</span>';
+  cover.innerHTML = PHONE_ICON + '<b>Xoay ngang màn hình</b><span>Thú Hộ Vệ chơi ở màn ngang</span>';
   document.body.appendChild(cover);
   let shown = false, weHeld = false, inSet = false;
   const portrait = () => { const v = window.visualViewport; return (v ? v.height > v.width : innerHeight > innerWidth); };

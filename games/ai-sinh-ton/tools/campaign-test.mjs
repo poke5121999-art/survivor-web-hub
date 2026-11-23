@@ -21,6 +21,8 @@ async function tap(page, id) {
   await step(page, 8);
   return true;
 }
+// the map region k brought into view and tapped (js/ui/worldmap.js)
+async function region(page, k) { await page.evaluate((kk) => __world.focus(kk, true), k); await step(page, 4); return tap(page, 'region-' + k); }
 const target = async (page, id) => (await targets(page)).find((q) => q.id === id);
 const acc = (page) => page.evaluate(() => JSON.parse(JSON.stringify(__G.meta.acc)));
 const mui = (page, key) => page.evaluate((k) => JSON.parse(JSON.stringify(__G.metaUi[k] ?? null)), key);
@@ -73,17 +75,17 @@ try {
       check(nx && !nx.enabled, `${phone}: stage-next is locked on stage 13 (${nx && nx.enabled})`);
       check(pips.map((p) => p.state).join() === 'cleared,cleared,current,locked,locked' && pips[2].sel && pips[4].spike && !pips[0].spike && pips.map((p) => p.n).join() === '11,12,13,14,15',
         `${phone}: pips for chapter 3 read ${pips.map((p) => p.n + ':' + p.state).join(' ')}, spike on the fifth`);
-      const cn = await target(page, 'chapter-next'), cp = await target(page, 'chapter-prev');
-      check(cn && !cn.enabled && cp && cp.enabled, `${phone}: chapter-next locked and chapter-prev open on chapter 3`);
       await snap(page, phone, 'home-13'); await audit(page, `${phone} stage select`); await clip(page, `${phone} stage select`);
-      await tap(page, 'chapter-prev');
+      await region(page, 1);
       st = await stageNow(page); line = await mui(page, 'chapterLine');
-      check(st === 6 && /chương 2/i.test(line), `${phone}: chapter-prev jumps to stage ${st}, "${line}"`);
+      check(st === 6 && /chương 2/i.test(line), `${phone}: the Phố Hoang region opens stage ${st}, "${line}"`);
       await tap(page, 'stage-prev'); await tap(page, 'stage-prev');
       st = await stageNow(page); line = await mui(page, 'chapterLine');
       check(st === 4 && /chương 1/i.test(line), `${phone}: stage-prev walks down to stage ${st}, "${line}"`);
-      await tap(page, 'chapter-next'); await tap(page, 'chapter-next');
-      check((await stageNow(page)) === 11, `${phone}: two chapter-next taps reach stage ${await stageNow(page)} (want 11)`);
+      await tap(page, 'view-world'); await region(page, 2);
+      check((await stageNow(page)) === 13, `${phone}: the Sa Mạc Mộ region opens on the stage to play (${await stageNow(page)})`);
+      await tap(page, 'stage-pip-0');
+      check((await stageNow(page)) === 11, `${phone}: its first pip selects stage ${await stageNow(page)} (want 11)`);
       await tap(page, 'stage-next'); await tap(page, 'stage-next');
       check((await stageNow(page)) === 13, `${phone}: stage-next walks up to 13 again (${await stageNow(page)})`);
       await tap(page, 'start'); await step(page, 10);
@@ -93,11 +95,11 @@ try {
 
       await setCleared(page, 34); await toHome(page);
       st = await stageNow(page); line = await mui(page, 'chapterLine'); nx = await target(page, 'stage-next');
-      check(st === 35 && /vô tận/i.test(line) && nx && !nx.enabled, `${phone}: cleared 34 opens on stage ${st}, chapter line "${line}", stage-next locked`);
-      await snap(page, phone, 'home-35'); await audit(page, `${phone} endless`); await clip(page, `${phone} endless`);
-      await tap(page, 'chapter-prev');
-      check((await stageNow(page)) === 26 && /chương 6/i.test(await mui(page, 'chapterLine')), `${phone}: chapter-prev from endless goes to stage ${await stageNow(page)}`);
-      await tap(page, 'chapter-next'); await tap(page, 'stage-next');
+      check(st === 35 && /chương 7: bờ biển/i.test(line) && nx && !nx.enabled, `${phone}: cleared 34 opens on stage ${st}, chapter line "${line}", stage-next locked`);
+      await snap(page, phone, 'home-35'); await audit(page, `${phone} chapter 7`); await clip(page, `${phone} chapter 7`);
+      await region(page, 5);
+      check((await stageNow(page)) === 26 && /chương 6/i.test(await mui(page, 'chapterLine')), `${phone}: the Đồng Tuyết region goes to stage ${await stageNow(page)}`);
+      await tap(page, 'view-world'); await region(page, 6); await tap(page, 'stage-pip-1');
       check((await stageNow(page)) === 32, `${phone}: stage 32 is selectable past the old cap (${await stageNow(page)})`);
       await tap(page, 'start'); await step(page, 10);
       const b32 = await page.evaluate(() => ({ state: __G.state, n: __G.B && __G.B.stage.n }));
