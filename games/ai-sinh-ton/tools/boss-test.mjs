@@ -192,7 +192,9 @@ try {
           const qv = (document.querySelector('script[src*="main.js"]').src.match(/\?.*$/) || [''])[0];
           const FB = await import(new URL('js/view/foe/bosses.js' + qv, location.href).href); for (const g of FB.shellGeos(k)) refGeos.add(g.uuid);
           let same = 0; for (const g of geos) if (refGeos.has(g)) same++;
-          // the boss's box corners through the diorama camera, in the camera's -1..1 frame
+          // the boss's box corners through the diorama camera, in the camera's -1..1 frame. The camera's matrices are brought up
+          // to date as a render would: the home screen opens on the world map, so the diorama may not have drawn yet
+          D.node.camera.updateMatrixWorld(true);
           const box = new THREE.Box3(); b.traverseVisible((o) => { if (o.isMesh) box.expandByObject(o); }); const v = new THREE.Vector3(); let lo = [9, 9], hi = [-9, -9];
           for (let i = 0; i < 8; i++) { v.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).project(D.node.camera); lo = [Math.min(lo[0], v.x), Math.min(lo[1], v.y)]; hi = [Math.max(hi[0], v.x), Math.max(hi[1], v.y)]; }
           // the diorama's own draws: its scene rendered once into its target
