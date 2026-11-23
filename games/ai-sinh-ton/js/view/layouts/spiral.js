@@ -7,10 +7,11 @@ import { outerAt, takenDirs, isOpen, FLAME } from './shared.js?v=20261122a';
 export const SPIRAL = {
   gap: 5, sats: true,
   yRange: () => [-2, 16],
-  abyss: (th) => th.abyss,
+  // the climb ends far above any water: the mountain rises out of a sea of mist instead (a flat dark lake ten metres down reads as a hole)
+  abyss: (th) => (th.abyss.type === 'water' ? { ...th.abyss, type: 'mist', y: -10 } : th.abyss),
   raft: null,
   extras({ room, plan, main, theme: th, rng, R }) {
-    const dirs = takenDirs(plan, room); const water = th.abyss.type === 'water'; const base = water ? th.abyss.y - 0.6 : -10;
+    const dirs = takenDirs(plan, room); const base = th.abyss.type === 'water' ? th.abyss.y - 0.6 : -10;
     const rockT = th.rock || th.side.rows[th.side.rows.length - 1][0]; const capT = (th.sat && th.sat.top[0][0]) || rockT;
     const boxes = []; const lights = []; const B = (...a) => boxes.push(a);
     const summit = room.i === R - 1;

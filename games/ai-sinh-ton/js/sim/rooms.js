@@ -28,7 +28,7 @@ export const LAYOUT_KINDS = ['bridges', 'arena', 'spiral', 'river'];
 // The campaign's layouts, one letter per stage, a chapter per group: B bridges, A arena, S spiral, R river. Four kinds over
 // five stages means one kind comes back once in every chapter, never on two stages in a row (tools/layout-test.mjs goes red on
 // a neighbour repeat). When the other four kinds exist each chapter takes five different ones.
-const TABLE = 'BRSAB SBRAS ASBRA RASBR SRBAS BARSB RSABR ABSRA SARBS BRASB'.replace(/ /g, '');
+const TABLE = 'BRSAB SBRAS ASBRA RASRB SRBAS BARSB RSABR ABSRA SARBS BRASB'.replace(/ /g, '');
 const LETTER = { B: 'bridges', A: 'arena', S: 'spiral', R: 'river' };
 const ENDLESS_CYCLE = 'RSAB';
 export function layoutOf(n) {
@@ -168,9 +168,9 @@ export function roomPlan(n, A) {
       camps.push(rim(a2, r2.range(0.42, 0.5)));
     } else if (nonBoss > 1) {
       // several waves in one room: the sim stands every one of their first packs in this room's camps, and a later wave's
-      // pack is only drawn once its wave begins (world.js roomBase), so the camps are at the mouths of the standing gates and
+      // pack is only drawn once its wave begins (world.js roomBase), so the camps stand in front of the standing gates and
       // a later pack reads as coming out of them
-      for (const g of gates.filter((q) => !q.low).slice(0, 2)) camps.push(rim(g.t, 0.8));
+      for (const g of gates.filter((q) => !q.low).slice(0, 2)) camps.push(rim(g.t, 0.7));
       if (!camps.length) camps.push(rim(-Math.PI / 2, 0.7));
     }
     // where the team stands when it has come in: a little inside the pad on the entry side

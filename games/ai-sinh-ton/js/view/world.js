@@ -424,7 +424,9 @@ export function createWorld(H) {
     const px = q.x - q.dz * l - W.shift.x; const pz = q.z + q.dx * l - W.shift.z; const w = T.w;
     // first half: from where the hero stood (on the old pad, which slides away with the scene); second half: to where the sim has it
     const f = T.t < T.T * 0.5 ? T.from[slot] : null; const bx = f ? f.x - W.shift.x : x; const bz = f ? f.z - W.shift.z : z;
-    hero.x = bx + (px - bx) * w; hero.z = bz + (pz - bz) * w; hero.y = (q.y - W.shift.y) * w; hero.dx = q.dx; hero.dz = q.dz; hero.w = w; return hero;
+    hero.x = bx + (px - bx) * w; hero.z = bz + (pz - bz) * w;
+    // feet on whatever is under them (a stair tread, the raft), the path's own height only over the void
+    const gy = W.groundAt(hero.x, hero.z); hero.y = gy !== null ? gy : (q.y - W.shift.y) * w; hero.dx = q.dx; hero.dz = q.dz; hero.w = w; return hero;
   };
   // the height of the ground under a point of the scene's frame (pad floors and the walked bridge), or null over the void
   W.groundAt = (x, z) => {

@@ -1,6 +1,7 @@
 // Per-tick rules of the stage's map, read from B.plan.hazards (rooms.js): only the hazards of the room the current wave is
 // fought in act. Pure and deterministic: timing comes from B.waveT, nothing draws from B.rng.
-//   poison    units inside take a damage over time of `dps` of their max health per second (bosses a fifth of it)
+//   poison    the team's units inside take a damage over time of `dps` of their max health per second; monsters are at
+//             home in it (it would thin the horde the stage is balanced on)
 //   wind      every `every` s a gust (after `warn` s of warning) pushes units for `on` s at `push` m/s along `ang`
 //   current   a band |z - h.z| < r across the pad: units in it are slowed by `slow` and drift `drift` m/s along `ang`
 //   collapse  `warn` s before `at` the ground cracks; at `at` units inside lose `hit` of their max health and are thrown out,
@@ -40,8 +41,8 @@ export function mapTick(B, dt) {
     const st = B.mapState[i] || (B.mapState[i] = {});
     if (h.kind === 'poison') {
       for (const u of B.units) {
-        if (!u.alive || u.fly || u.air || !inDisc(h, u)) continue;
-        const dps = u.maxHp * h.dps * (u.boss ? 0.2 : 1); const cur = u.status.poison;
+        if (!u.alive || u.team !== 0 || u.fly || u.air || !inDisc(h, u)) continue;
+        const dps = u.maxHp * h.dps; const cur = u.status.poison;
         if (!cur) B.emit({ e: 'status', uid: u.uid, k: 'poison', dur: 0.6 });
         if (!cur || cur.t < 0.6 || (cur.dps || 0) < dps) u.status.poison = { t: 0.6, v: 0, dps: Math.max(dps, cur ? cur.dps || 0 : 0), src: cur ? cur.src : 0 };
       }

@@ -148,7 +148,8 @@ const PROPS = {
     B(0, 0, 0, 1.3, 0.6, 1.3, { side: 'bark_old', top: 'moss_floor' }, C.wood); B(0, 0.6, 0, 1.1, 4.0, 1.1, { side: 'bark_old', top: 'bark_old' }, C.wood);
     for (const [x, z, sx, sz] of [[0.6, 0.1, 0.5, 0.36], [-0.6, -0.1, 0.5, 0.36], [0.1, 0.6, 0.36, 0.5], [-0.1, -0.6, 0.36, 0.5]]) { B(x, 0, z, sx, 0.4, sz, { side: 'roots', top: 'bark_old' }, C.wood); B(x * 1.3, 0, z * 1.3, sx * 0.6, 0.22, sz * 0.6, { side: 'roots', top: 'moss_floor' }, C.moss); }
     B(0.9, 3.2, 0, 1.0, 0.4, 0.5, { side: 'bark_old', top: 'bark_old' }, C.wood); B(-0.9, 3.7, 0.1, 1.0, 0.4, 0.5, { side: 'bark_old', top: 'bark_old' }, C.wood);
-    B(0, 4.4, 0, 3.8, 1.4, 3.8, { side: 'leaves_old' }, C.leaf); B(r.range(-0.2, 0.2), 5.7, r.range(-0.2, 0.2), 3.0, 1.4, 3.0, { side: 'leaves_old' }, C.leaf); B(0, 7.0, 0, 1.8, 1.1, 1.8, { side: 'leaves_old' }, C.leaf);
+    // canopy heights jitter per tree so two trees side by side never put leaf tops in one plane
+    const j = r.range(0, 0.35); B(0, 4.4 + j, 0, 3.8, 1.4, 3.8, { side: 'leaves_old' }, C.leaf); B(r.range(-0.2, 0.2), 5.7 + j, r.range(-0.2, 0.2), 3.0, 1.4, 3.0, { side: 'leaves_old' }, C.leaf); B(0, 7.0 + j, 0, 1.8, 1.1, 1.8, { side: 'leaves_old' }, C.leaf);
     B(1.5, 4.0, 1.1, 1.2, 0.7, 1.2, { side: 'leaves_old' }, C.leaf); B(-1.5, 4.0, -1.0, 1.2, 0.7, 1.2, { side: 'leaves_old' }, C.leaf);
     B(0.66, 1.9, 0.0, 0.1, 0.3, 0.4, { side: 'glowcap' }, C.teal, 1);
   } },

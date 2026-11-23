@@ -4,14 +4,14 @@
 // (layouts/hazards.js 'current').
 import { mesher, voxMaterial } from '../pad.js?v=20261122a';
 
-export const RAFT_Y = -0.5;     // the raft's deck under the floors (the water is at -0.9)
+export const RAFT_Y = -0.28;    // the raft's deck under the floors (the water is at -0.7); clear of the shore blocks' tops at whole half metres
 const DOCK = 1.4;               // metres from the bank to where the raft lies at either end
 const RAFT = { L: 3.2, W: 2.8 };
 
 export const RIVER = {
   gap: 9, sats: true,
   yRange: () => [0, 0],
-  abyss: (th) => ({ ...th.abyss, type: 'water', y: -0.9 }),
+  abyss: (th) => ({ ...th.abyss, type: 'water', y: -0.7 }),
   extras: () => null,
   // the walk over the water from bank point a to bank point b (both at floor height): down onto the raft, across, up again.
   // The raft is a mesh of its own that the run moves under the group (carry).
