@@ -4,7 +4,6 @@
 import { makeGeo } from './kit-geo.js?v=20261122a';
 import { makeText } from './kit-text.js?v=20261122a';
 import { makeIcons } from './icons.js?v=20261122a';
-import { beastWords } from './words.js?v=20261122a';
 
 export const PAL = {
   // calmer than the first set (fully saturated orange, green and blue read as cheap next to the lit 3D world)
@@ -72,6 +71,8 @@ export function createUI({ THREE, renderer, frame }) {
     const { x, mode, dy } = g.anch; g.pos(x, mode === 'bottom' ? ui.H + dy : mode === 'center' ? ui.H / 2 + dy : dy);
   }
   ui.group = (o = {}) => mkNode(o.w || 0, o.h || 0);
+  // an invisible tap area (a spot on a 3D picture the owner keeps in place)
+  ui.hotspot = (o) => { const g = mkNode(o.w, o.h); addTarget(g, { id: o.id, onTap: o.onTap }); return g; };
 
   // ---------- text ----------
   const txt = makeText(THREE, { scale: () => ui.dpr * ui.u, mkNode });
@@ -167,7 +168,7 @@ export function createUI({ THREE, renderer, frame }) {
   frame.addEventListener('pointerdown', (e) => {
     if (down) return; scene.updateMatrixWorld();
     const [dx, dy] = toDesign(e.clientX, e.clientY), hit = pick(dx, dy);
-    down = { id: e.pointerId, x0: e.clientX, y0: e.clientY, hit, scroll: scrollAt(dx, dy), drag: false, lastY: e.clientY, lastT: performance.now(), v: 0, dead: false };
+    down = { id: e.pointerId, x0: e.clientX, y0: e.clientY, hit, scroll: scrollAt(dx, dy), drag: false, lastX: e.clientX, lastY: e.clientY, lastT: performance.now(), v: 0, dead: false };
     if (hit) hit.t.press(true);
     if (down.scroll) down.scroll.vy = 0;
     try { frame.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
@@ -177,8 +178,8 @@ export function createUI({ THREE, renderer, frame }) {
     const dist = Math.hypot(e.clientX - down.x0, e.clientY - down.y0);
     if (!down.drag && dist > 10) { down.drag = true; if (down.hit) { down.hit.t.press(false); } down.dead = true; }
     if (down.drag && down.scroll) {
-      const k = frame.getBoundingClientRect().width / 780, now = performance.now(), dyp = (e.clientY - down.lastY) / k;
-      down.scroll.drag(-dyp); const dtm = Math.max(1, now - down.lastT); down.v = down.v * 0.6 + (-dyp / dtm * 1000) * 0.4; down.lastY = e.clientY; down.lastT = now;
+      const k = frame.getBoundingClientRect().width / 780, now = performance.now(), dyp = (down.scroll.axisX ? e.clientX - down.lastX : e.clientY - down.lastY) / k;
+      down.scroll.drag(-dyp); const dtm = Math.max(1, now - down.lastT); down.v = down.v * 0.6 + (-dyp / dtm * 1000) * 0.4; down.lastX = e.clientX; down.lastY = e.clientY; down.lastT = now;
     }
   });
   const end = (e, cancel) => {
@@ -191,7 +192,7 @@ export function createUI({ THREE, renderer, frame }) {
   };
   frame.addEventListener('pointerup', (e) => end(e, false));
   frame.addEventListener('pointercancel', (e) => end(e, true));
-  frame.addEventListener('wheel', (e) => { const [dx, dy] = toDesign(e.clientX, e.clientY), s = scrollAt(dx, dy); if (s) { s.scrollBy(e.deltaY / (frame.getBoundingClientRect().width / 780)); e.preventDefault(); } }, { passive: false });
+  frame.addEventListener('wheel', (e) => { const [dx, dy] = toDesign(e.clientX, e.clientY), s = scrollAt(dx, dy); if (s) { s.scrollBy((s.axisX && Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / (frame.getBoundingClientRect().width / 780)); e.preventDefault(); } }, { passive: false });
 
   // squash-and-spring press response shared by every pressable node
   function pressable(g, sp, onUpdate) {
@@ -409,10 +410,12 @@ export function createUI({ THREE, renderer, frame }) {
   };
 
   // ---------- scroll ----------
+  // o.axis 'x': the content runs sideways (contentH is then its width) and a drag moves it left and right
   ui.scroll = (o = {}) => {
     const g = mkNode(o.w ?? 340, o.h ?? 400), content = new THREE.Group(); g.add(content); g.slot = content; g.isScroll = true;
-    let y = 0, maxY = 0; g.vy = 0; g.dragging = false; g.contentH = o.contentH ?? g.h;
-    const setMax = () => { maxY = Math.max(0, g.contentH - g.h); };
+    const ax = o.axis === 'x'; g.axisX = ax;
+    let y = 0, maxY = 0; g.vy = 0; g.dragging = false; g.contentH = o.contentH ?? (ax ? g.w : g.h);
+    const setMax = () => { maxY = Math.max(0, g.contentH - (ax ? g.w : g.h)); };
     g.setContentH = (v) => { g.contentH = v; setMax(); return g; };
     g.scrollTo = (v) => { y = clamp(v, 0, maxY); g.vy = 0; return g; };
     g.scrollBy = (d) => { y = clamp(y + d, 0, maxY); g.vy = 0; return g; };
@@ -426,8 +429,8 @@ export function createUI({ THREE, renderer, frame }) {
         if (y < 0) { y += (0 - y) * Math.min(1, dt * 14); g.vy = 0; } else if (y > maxY) { y += (maxY - y) * Math.min(1, dt * 14); g.vy = 0; }
         else if (Math.abs(g.vy) > 4) { y += g.vy * dt; g.vy *= Math.exp(-dt * 4.2); if (y < 0 || y > maxY) g.vy *= 0.3; }
       }
-      content.position.y = y;
-      for (const c of content.children) { if (c.h === undefined || c.hiddenByUser) continue; c.visible = c.uy + c.h > y - 40 && c.uy < y + g.h + 40; }
+      if (ax) content.position.x = -y; else content.position.y = y;
+      for (const c of content.children) { if (c.h === undefined || c.hiddenByUser) continue; c.visible = ax ? c.ux + c.w > y - 40 && c.ux < y + g.w + 40 : c.uy + c.h > y - 40 && c.uy < y + g.h + 40; }
     });
     // pointerup clears dragging through fling; a plain release must clear it too
     return g;
@@ -474,7 +477,6 @@ export function createUI({ THREE, renderer, frame }) {
   let toast = null;
   ui.toastAt = { x: 390, y: 62 };
   ui.toast = (str) => {
-    str = beastWords(str);
     if (toast) { toast.g.dispose(); toast = null; }
     const t = ui.text(str, { size: 13, valign: 'mid', align: 'center' }), w = Math.min(330, t.w + 34), h = 34, g = new THREE.Group(), holder = new THREE.Group();
     const p = ui.panel({ w, h, r: 17, color: 0x3a2a70, depth: 4, bevel: 2.4, ow: 2.4 }); holder.add(p); holder.add(t); t.pos(w / 2, h / 2 + 1, 10); holder.position.set(-w / 2, h / 2, 0); g.add(holder);
