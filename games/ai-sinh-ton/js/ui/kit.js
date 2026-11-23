@@ -7,8 +7,9 @@ import { makeIcons } from './icons.js?v=20261122a';
 import { beastWords } from './words.js?v=20261122a';
 
 export const PAL = {
-  gold: 0xffc21f, orange: 0xff8a1f, red: 0xff3b52, green: 0x35d65a, blue: 0x2f7bff, purple: 0x8f4dff, teal: 0x20c7c0, pink: 0xff5fa8,
-  ink: 0x1a1420, cream: 0xfff1cf, panel: 0x4a3a86, panelDark: 0x2a2150, disabled: 0x7d7a93,
+  // calmer than the first set (fully saturated orange, green and blue read as cheap next to the lit 3D world)
+  gold: 0xf0b83a, orange: 0xe8873e, red: 0xdc4a58, green: 0x3fb86c, blue: 0x3d7ade, purple: 0x8659da, teal: 0x2bb0aa, pink: 0xdd6aa3,
+  ink: 0x1a1420, cream: 0xfff1cf, panel: 0x4a3a86, panelDark: 0x2a2150, disabled: 0x75728a,
   rarity: { common: 0x98a6c4, good: 0x3fcf5f, rare: 0x2f86ff, epic: 0xa955ff, legend: 0xffa31f, myth: 0xff4056 },
 };
 
@@ -89,11 +90,12 @@ export function createUI({ THREE, renderer, frame }) {
   }
   ui.panel = (o = {}) => {
     const w = o.w ?? 100, h = o.h ?? 60, r = o.r ?? 14, depth = o.depth ?? 6, color = o.color ?? PAL.panel;
-    const bevel = Math.min(o.bevel ?? 3, Math.max(1, r - 1)), ow = o.ow ?? 3, outline = o.outline === undefined ? PAL.ink : o.outline;
+    // a thin rim in the panel's own dark tone (a black 3 px ink line read as cheap); an explicit outline colour still wins
+    const bevel = Math.min(o.bevel ?? 3, Math.max(1, r - 1)), ow = Math.min(o.ow ?? 1.8, 2), rim = (c) => (o.outline === undefined ? geo.shade(c, -0.62) : o.outline);
     const g = mkNode(w, h); g.top = depth + bevel + 0.3;
     if (o.shadow !== false) addShadow(g, w, h, r, o.shadowY ?? 5);
     const gl = o.gloss !== false && h >= 14, bodyMat = geo.std(0xffffff, { vc: true });
-    const make = (c) => geo.panelBody(w, h, r, depth, bevel, c, ow, outline, gl);
+    const make = (c) => geo.panelBody(w, h, r, depth, bevel, c, ow, rim(c), gl);
     const body = new THREE.Mesh(make(color), bodyMat); g.add(body); g.body = body;
     g.setColor = (c) => { body.geometry = make(c); return g; };
     return g;
@@ -223,12 +225,12 @@ export function createUI({ THREE, renderer, frame }) {
     const flat = !!o.flat, alpha = o.alpha ?? 0.5;
     const { root: g, pivot, holder } = centred(w, h); g.top = flat ? 1 : 6 + 3 + 0.3;
     if (o.shadow !== false && !flat) addShadow(g, w, h + lip, r, 4, 0.5);
-    let base, body = null;
+    let base, body = null, sheenM = null;
     if (flat) { base = new THREE.Mesh(geo.plate(w, h, r), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: alpha, depthWrite: false, toneMapped: false })); holder.add(base); }
     else {
       base = new THREE.Mesh(geo.buttonBack(w, h, lip, r, color), geo.std(0xffffff, { vc: true })); g.add(base);
-      body = new THREE.Mesh(geo.slab(w, h, r, 6, 3), geo.std(color)); holder.add(body);
-      { const ins = 5.5, gw = w - ins * 2, gh = Math.max(5, (h - ins) * 0.4); const gl = new THREE.Mesh(geo.plate(gw, gh, Math.max(3, r - 4)), geo.basic(0xffffff, 0.24)); gl.position.set(ins, -3.6, 9.4); holder.add(gl); }
+      body = new THREE.Mesh(geo.buttonFace(w, h, r, color), geo.std(0xffffff, { vc: true, rough: 0.36 })); holder.add(body);
+      { const ins = 3.2; sheenM = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, toneMapped: false }); const gl = new THREE.Mesh(geo.sheen(w - ins * 2, h - ins * 2, Math.max(2, r - ins)), sheenM); gl.position.set(ins, -ins, 9.4); holder.add(gl); }
     }
     pivot.position.z = 3;
     const size = o.size ?? clamp(Math.round(h * 0.4), 12, 26);
@@ -258,7 +260,7 @@ export function createUI({ THREE, renderer, frame }) {
     g.setEnabled = (b) => {
       enabled = !!b; if (g.target) g.target.enabled = enabled;
       if (flat) base.material.opacity = enabled ? alpha : alpha * 0.7;
-      else { body.material = geo.std(enabled ? color : PAL.disabled); base.geometry = geo.buttonBack(w, h, lip, r, enabled ? color : PAL.disabled); }
+      else { body.geometry = geo.buttonFace(w, h, r, enabled ? color : PAL.disabled); base.geometry = geo.buttonBack(w, h, lip, r, enabled ? color : PAL.disabled); }
       label && label.setColor(enabled ? 0xffffff : 0xd4d0e4);
       return g;
     };
@@ -266,7 +268,8 @@ export function createUI({ THREE, renderer, frame }) {
     pressable(g, sp, (x, tm) => {
       const br = o.pulse && enabled ? Math.sin(tm * 3.6) * 0.022 + 0.022 : 0;
       if (flat) { const k = 1 - 0.08 * x; pivot.position.y = -h / 2; pivot.scale.set(k, k, 1); return; }
-      pivot.position.y = -h / 2 - x * lip * 0.85; pivot.scale.set(1 + 0.035 * x + br, 1 - 0.07 * x + br, 1);
+      // pressed: the face sinks onto its base, flattens a little and loses its sheen, so the press reads at a glance
+      pivot.position.y = -h / 2 - x * lip * 0.9; pivot.scale.set(1 + 0.02 * x + br, 1 - 0.05 * x + br, 1); sheenM.opacity = 1 - 0.85 * x;
     })({ id: o.id, onTap: o.onTap, h: () => (flat ? h : h + lip) });
     if (o.enabled === false) g.setEnabled(false);
     return g;
