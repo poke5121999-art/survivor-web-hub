@@ -19,6 +19,10 @@ export const GATE_LOOK = {
   landing: { kind: 'monolith', floor: 'crater', name: 'cổng đá lạ', post: 'obsidian', cap: 'void_stone', back: 'obsidian', deep: 0x2a2a8a, hot: 0x9ae8ff, tint: [0.85, 0.85, 0.95] },
   forest: { kind: 'hollow', floor: 'burrow', name: 'gốc cổ thụ rỗng', post: 'bark_old', cap: 'leaves_old', back: 'obsidian', deep: 0x0a4a30, hot: 0xb8ff80, tint: [0.86, 0.92, 0.84] },
   swamp: { kind: 'hollow', floor: 'bog', name: 'rễ đước chìm', post: 'bark_wet', cap: 'algae', back: 'obsidian', deep: 0x0a4a40, hot: 0x80fff0, tint: [0.84, 0.9, 0.78] },
+  volcano: { kind: 'basalt', floor: 'lavacrack', name: 'vòm đá bazan', post: 'basalt_col', cap: 'lava_rock', back: 'obsidian', deep: 0x8a1a04, hot: 0xffa040, tint: [0.86, 0.82, 0.84] },
+  snow: { kind: 'icecave', floor: 'snowhole', name: 'miệng hang băng', post: 'snow_rock', cap: 'pine_snow', back: 'ice_clear', deep: 0x1a4a8a, hot: 0xb8ecff, tint: [0.9, 0.94, 1.0] },
+  coast: { kind: 'wreck', floor: 'tidepool', name: 'thân tàu đắm', post: 'wreck', cap: 'cliff', back: 'obsidian', deep: 0x0a5a6a, hot: 0x8af8ff, tint: [0.86, 0.84, 0.8] },
+  sky: { kind: 'cloudarch', floor: 'cloudrift', name: 'khe mây', post: 'skystone', cap: 'meadow', back: 'obsidian', deep: 0x3a3a9a, hot: 0xd8e8ff, tint: [0.92, 0.92, 0.96] },
   void: { kind: 'shard', floor: 'fissure', name: 'cổng hư không', post: 'void_brick', cap: 'obsidian', back: 'obsidian', deep: 0x4a0a6a, hot: 0xf080ff, tint: [0.9, 0.86, 1.0] },
 };
 const lookOf = (th) => GATE_LOOK[th.name] || GATE_LOOK.street;
@@ -59,6 +63,10 @@ function frameBoxes(look, G, r) {
     else if (f === 'icecrack') { for (let i = 0; i < 5; i++) { const sd = i % 2 ? 1 : -1; B(sd * (OW / 2 + r.range(0.4, 0.9)), 0, r.range(-0.6, 0.6), r.range(0.3, 0.5), r.range(0.3, 0.8), r.range(0.3, 0.5), 'ice', [0.95, 1.0, 1.1]); } }
     else if (f === 'crypt') { B(OW / 2 + 0.95, 0, 0, 1.2, 0.22, D + 0.2, look.post, [0.85, 0.8, 0.72]); B(-OW / 2 - 0.7, 0, -0.3, 0.45, 0.45, 0.45, 'sand_tile', [0.9, 0.7, 0.55]); }
     else if (f === 'burrow' || f === 'bog') { const bk = look.post; for (let i = 0; i < 6; i++) { const sd = i % 2 ? 1 : -1; B(sd * (OW / 2 + r.range(0.3, 0.9)), 0, r.range(-0.7, 0.7), r.range(0.5, 0.9), r.range(0.2, 0.45), r.range(0.25, 0.4), bk, [0.9, 0.95, 0.85]); } B(OW / 2 + 0.7, 0, -0.5, 0.25, 0.22, 0.25, f === 'bog' ? 'wisp' : 'glowcap', f === 'bog' ? [1.6, 2.4, 2.2] : [0.6, 2.0, 1.7], true); }
+    else if (f === 'lavacrack') { for (let i = 0; i < 6; i++) { const sd = i % 2 ? 1 : -1; B(sd * (OW / 2 + r.range(0.3, 0.9)), 0, r.range(-0.7, 0.7), r.range(0.4, 0.7), r.range(0.2, 0.5), r.range(0.3, 0.5), i < 4 ? 'lava_rock' : 'basalt_col', [0.85, 0.8, 0.8]); } B(-OW / 2 - 0.35, 0, D / 2 + 0.3, 0.6, 0.05, 0.12, 'magma', [1.5, 0.8, 0.4], true); B(OW / 2 + 0.3, 0, -D / 2 - 0.3, 0.12, 0.05, 0.6, 'magma', [1.5, 0.8, 0.4], true); }
+    else if (f === 'snowhole') { for (let i = 0; i < 6; i++) { const sd = i % 2 ? 1 : -1; const ice = i < 2; B(sd * (OW / 2 + r.range(0.3, 0.9)), 0, r.range(-0.7, 0.7), r.range(0.35, 0.6), r.range(0.25, ice ? 0.8 : 0.4), r.range(0.35, 0.6), ice ? { side: 'ice_clear', top: 'ice_clear' } : { side: 'snow_rock', top: 'pine_snow' }, [0.95, 1.0, 1.08]); } }
+    else if (f === 'tidepool') { for (let i = 0; i < 6; i++) { const sd = i % 2 ? 1 : -1; B(sd * (OW / 2 + r.range(0.3, 0.9)), 0, r.range(-0.7, 0.7), r.range(0.35, 0.7), r.range(0.15, 0.4), r.range(0.35, 0.6), i < 4 ? { side: 'cliff', top: 'seaweed' } : 'wreck', [0.9, 0.9, 0.88]); } B(OW / 2 + 0.6, 0, 0.4, 1.2, 0.14, 0.18, 'wreck', [0.8, 0.78, 0.72]); }
+    else if (f === 'cloudrift') { for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.283 + r.range(-0.3, 0.3); B(Math.cos(a) * (OW / 2 + 0.55), r.range(0, 0.15), Math.sin(a) * (D / 2 + 0.5), r.range(0.5, 0.9), r.range(0.25, 0.4), r.range(0.4, 0.6), { side: 'cloud', top: 'cloud' }, [0.88, 0.9, 0.96]); } }
     else if (f === 'crater') { for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.283 + r.range(-0.3, 0.3); B(Math.cos(a) * (OW / 2 + 0.7), 0, Math.sin(a) * (D / 2 + 0.6), r.range(0.3, 0.5), r.range(0.2, 0.4), r.range(0.3, 0.5), 'burnt', [0.6, 0.55, 0.55]); } B(OW / 2 + 0.5, 0, -0.4, 0.2, 0.6, 0.2, 'crystal', [0.9, 0.8, 1.5], true); }
     else { for (let i = 0; i < 4; i++) { const sd = i % 2 ? 1 : -1; B(sd * (OW / 2 + r.range(0.4, 0.8)), 0, r.range(-0.5, 0.5), 0.22, r.range(0.4, 0.9), 0.22, i < 2 ? 'crystal' : look.cap, i < 2 ? [1.3, 0.7, 1.8] : look.tint, i < 2); } }
     return out;
@@ -106,6 +114,43 @@ function frameBoxes(look, G, r) {
     }
     B(0, OH + 0.1, 0, OW + P * 2.2, 0.6, D, look.post); B(0.1, OH + 0.7, 0, OW * 0.8, 0.5, D * 0.9, look.cap);
     for (let i = 0; i < 3; i++) B(r.range(-OW / 2 - 0.4, OW / 2 + 0.4), OH * 0.8 - r.range(0, 0.5), D / 2 + 0.03, 0.08, r.range(0.4, 0.9), 0.08, look.cap);
+  } else if (look.kind === 'basalt') {
+    // a basalt arch over a lava fissure: posts of stepped hexagonal columns, a cracked slab across, magma seams up the posts
+    for (const sd of [-1, 1]) {
+      for (let k = 0; k < 3; k++) B(sd * (hx + (k - 1) * P * 0.34), FOOT, (k % 2 ? 0.12 : -0.1), P * 0.4, OH + 0.4 - FOOT - k * 0.35 + r.range(-0.15, 0.15), D * 0.9, look.post);
+      B(sd * (hx + P * 0.75), FOOT, 0.05, P * 0.5, 1.1 - FOOT + r.range(0, 0.5), D * 0.8, look.post);
+      B(sd * (hx - P * 0.42), 0.1, D / 2 - 0.02, 0.08, OH * 0.8, 0.08, 'magma', [1.5, 0.75, 0.35], true);
+    }
+    B(0, OH + 0.2, 0, OW + P * 2.2, 0.55, D, look.cap); B(-0.3, OH + 0.75, 0, OW * 0.6, 0.4, D * 0.85, look.post);
+    B(0.4, OH + 0.18, D / 2 - 0.02, OW * 0.5, 0.06, 0.06, 'magma', [1.5, 0.75, 0.35], true);
+    for (let i = 0; i < 3; i++) B(r.range(-OW / 2 - 0.6, OW / 2 + 0.6), 0, D / 2 + r.range(0.2, 0.6), r.range(0.3, 0.5), r.range(0.15, 0.35), r.range(0.3, 0.5), 'lava_rock', [0.8, 0.76, 0.76]);
+  } else if (look.kind === 'icecave') {
+    // the mouth of an ice cave in a snow mound: snowy rock shoulders stepping in to a rounded crown, icicles hanging in front
+    for (const sd of [-1, 1]) {
+      B(sd * hx, FOOT, 0, P * 1.2, OH * 0.75 - FOOT, D, look.post); B(sd * (hx - P * 0.25), OH * 0.75, 0, P * 1.1, OH * 0.3, D * 0.95, look.post);
+      B(sd * (hx + P * 0.8), FOOT, -0.05, P * 0.8, OH * 0.5 - FOOT, D * 1.1, { side: 'snow_rock', top: 'pine_snow' });
+      B(sd * (hx - P * 0.6), OH * 0.92, 0, P * 0.8, 0.4, D * 0.9, { side: 'ice_clear', top: 'pine_snow' }, [0.95, 1.05, 1.15]);
+    }
+    B(0, OH, 0, OW * 0.75, 0.5, D, { side: look.post, top: look.cap }); B(0, OH + 0.5, 0, OW + P * 1.6, 0.4, D * 0.9, { side: look.cap, top: look.cap });
+    for (let i = 0; i < 5; i++) { const hh = r.range(0.3, 0.75); B(-OW / 2 + 0.3 + i * (OW - 0.6) / 4, OH - hh, D / 2 - 0.08, 0.1, hh, 0.1, 'ice_clear', [1.0, 1.15, 1.3]); }
+  } else if (look.kind === 'wreck') {
+    // a breach in a wrecked hull lying on its side: plank walls with ribs standing proud, a split deck across, a mast stump
+    for (const sd of [-1, 1]) {
+      B(sd * hx, FOOT, 0, P, OH + 0.2 - FOOT, D, look.post);
+      for (let k = 0; k < 3; k++) B(sd * (hx - P * 0.3 + k * P * 0.3), 0.2 + k * 0.6, D / 2 + 0.05, 0.16, OH * 0.9 - k * 0.6, 0.16, 'log', [0.6, 0.52, 0.46]);
+      B(sd * (hx + P * 0.75), FOOT, -0.05, P * 0.6, 0.9 - FOOT, D * 1.1, look.cap);
+    }
+    B(-0.2, OH + 0.1, 0, OW + P * 2, 0.4, D, look.post); B(0.5, OH + 0.5, -0.05, OW * 0.6, 0.3, D * 0.8, look.post, [0.7, 0.68, 0.64]);
+    B(OW / 2 - 0.2, OH + 0.4, 0, 0.26, 1.4, 0.26, 'log', [0.62, 0.52, 0.44]);
+    for (let i = 0; i < 3; i++) B(r.range(-OW / 2 - 0.6, OW / 2 + 0.6), 0, D / 2 + r.range(0.2, 0.6), r.range(0.4, 0.9), 0.14, r.range(0.15, 0.25), 'wreck', [0.78, 0.74, 0.7]);
+  } else if (look.kind === 'cloudarch') {
+    // a stone arch with turf on top, torn open onto a cloud rift: cloud puffs wrapping its feet and spilling off the crown
+    for (const sd of [-1, 1]) {
+      B(sd * hx, FOOT, 0, P, OH - FOOT, D, look.post); B(sd * hx, OH - 0.2, 0, P + 0.15, 0.2, D + 0.1, { side: 'meadow_side', top: look.cap });
+      B(sd * (hx + P * 0.5), 0, 0.1, P * 1.2, 0.5, D * 1.3, { side: 'cloud', top: 'cloud' }, [0.9, 0.92, 0.97]);
+    }
+    B(0, OH, 0, OW + P * 2.2, 0.5, D, { side: look.post, top: look.cap }); B(0, OH + 0.5, 0, OW * 0.6, 0.3, D * 0.8, { side: 'meadow_side', top: look.cap });
+    B(-OW / 2 - P * 0.3, OH + 0.45, 0.1, 1.1, 0.45, D * 1.1, { side: 'cloud', top: 'cloud' }, [0.9, 0.92, 0.97]); B(OW / 2 + P * 0.7, OH * 0.5, -0.1, 0.8, 0.4, D, { side: 'cloud', top: 'cloud' }, [0.9, 0.92, 0.97]);
   } else if (look.kind === 'monolith') {
     // two dark standing stones with a third laid across, glowing shards set into them
     for (const sd of [-1, 1]) { B(sd * hx, FOOT, 0, P * 1.1, OH + 0.5 - FOOT, D * 0.9, look.post); B(sd * hx, OH + 0.5, 0, P * 0.8, 0.4, D * 0.7, look.post); B(sd * (hx + 0.15), OH * 0.55, D * 0.48, 0.18, 0.5, 0.06, 'crystal', [1.0, 0.9, 1.6], true); }

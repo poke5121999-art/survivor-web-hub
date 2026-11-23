@@ -5,6 +5,7 @@ import { HERO } from '../data/heroes.js?v=20261122a';
 import { ENEMY } from '../data/enemies.js?v=20261122a';
 import { HERO_RARITY } from '../data/economy.js?v=20261122a';
 import { lockButton } from './guide.js?v=20261122a';
+import { MODES } from '../sim/maprules.js?v=20261122a';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const easeOut = (t) => 1 - (1 - clamp(t, 0, 1)) ** 3;
@@ -37,7 +38,7 @@ const MERGE = 0.15, MERGE_GROUP = 0.3, NUMBER_LIFE = 0.95, BIG_HIT = 3, STREAK_M
 // the frame units reach least (measured over six stages: under 0.1 unit boxes per sample there, 1 to 2 in the middle); the
 // newest at the bottom, older ones pushed up, at most three, the oldest leaves first
 const CALL = { gap: 4, h: 26, minW: 96, maxW: 200, max: 3, tin: 0.2, tout: 0.22, slide: 22 };
-const CALL_LIFE = { wave: 1.9, boss: 2.1, rage: 1.6, ult: 1.5 }, CALL_COL = { wave: 0xffc93a, boss: 0xff4a5e, rage: 0xff8a2a };
+const CALL_LIFE = { wave: 1.9, boss: 2.1, rage: 1.6, ult: 1.5, mode: 3.2, rule: 3.2 }, CALL_COL = { wave: 0xffc93a, boss: 0xff4a5e, rage: 0xff8a2a, mode: 0x6dffb0, rule: 0x6dffb0 };
 const BTN = { w: 40, sw: 58, h: 30 }, ROW = { y: 5, h: 26, bossH: 30, pad: 9 }, BOSS = { w: 132, h: 24 }, STATS = { w: 120, skullX: 56 };
 const GHOST_A = 0.3; // a top cluster over the boss fades to this opacity
 
@@ -430,6 +431,14 @@ export function createHud(game) {
   on('sim:die', (e) => { const u = visible && game.B && game.B.byUid.get(e.uid); if (u && u.team === 1 && !u.summon && !u.hero && !e.expire) deaths.push(clock); });
   on('sim:wave', (e) => { if (!visible) return; if (e.boss) banner('boss', 'BOSS', e.name); else banner('wave', 'ĐỢT ' + e.n, stageName()); });
   on('sim:enrage', () => { if (visible) banner('rage', 'CUỒNG NỘ!'); });
+  // a special stage (maprules.js MODES): its name and rule when each of its waves begins, then what happens to it
+  const modeOf = () => { const B = game.B; return B && B.plan && B.plan.mode ? B.plan.mode : null; };
+  const modeCall = (str, rule) => { banner('mode', str); if (rule) banner('rule', rule); };
+  on('sim:wave', (e) => { const m = modeOf(); if (!visible || !m || (e.boss && m !== 'defend')) return; const R = MODES[m]; modeCall(R.title, R.rule); });
+  on('sim:egg', (e) => { if (visible && e.s === 'broke') modeCall('TRỨNG ĐÃ VỠ'); });
+  on('sim:survived', () => { if (visible) modeCall('ĐÃ TRỤ VỮNG'); });
+  on('sim:survive_left', (e) => { if (visible) modeCall(`CÒN ${e.left} GIÂY`); });
+  on('sim:core', (e) => { if (!visible) return; if (e.s === 'gate') modeCall(`LÕI QUA CỔNG ${e.leg}/${MODES.chase.legs}`); else if (e.s === 'down') modeCall('ĐÃ GIÀNH LẠI LÕI'); else if (e.s === 'out') modeCall('LÕI ĐÃ THOÁT'); });
   on('sim:ult', (e) => { if (!visible) return; banner('ult', e.name + '!', HERO[e.hero] ? HERO[e.hero].name : '', e.slot); burst(e.slot); });
   on('battle:end', () => { hud.hide(); });
 
@@ -524,7 +533,7 @@ export function createHud(game) {
       visible = true; ui.show('hud', { transition: 'none' }); clearTransient();
       const B = game.B; boss.uid = 0; boss.shown = false; leftMode = ''; layoutLeft(false);
       for (const g of ghosts) { g.f = 0; if (g.a !== 1) { g.a = 1; fadeTo(g.node, 1); for (const o of g.also || []) fadeTo(o, 1); } }
-      if (B) { teamSig = B.heroes.map((u) => u.kind).join(','); buildCards(B); if (B.wave === 1 && B.t < 1) banner('wave', 'ĐỢT 1', stageName()); }
+      if (B) { teamSig = B.heroes.map((u) => u.kind).join(','); buildCards(B); if (B.wave === 1 && B.t < 1) { banner('wave', 'ĐỢT 1', stageName()); const m = modeOf(); if (m) modeCall(MODES[m].title, MODES[m].rule); } }
     },
     hide() { visible = false; ui.hide('hud', { transition: 'none' }); clearTransient(); },
     update,

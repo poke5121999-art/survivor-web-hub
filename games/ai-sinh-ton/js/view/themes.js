@@ -3,7 +3,10 @@
 // hex colours are scene colours. Tiles are voxtex.js atlas keys, weighted.
 //   top: the play floor: base tiles, patches of other tiles by low-frequency noise (paths, worn stone, puddles)
 //   edge: top of the terraces and satellites; side: first row under a top, then deeper rows
-//   abyss: water (a plane `y` below the floor) or mist (sheets over a deep pit); `rise` is what climbing monsters fade from
+//   abyss: water (a plane `y` below the floor) or mist (sheets over a deep pit); `rise` is what climbing monsters fade from.
+//     water may set `ice` (frozen plates) and `waves` (foam rollers toward the shore); mist may set `lava` ({crust, glow, hot}: molten seams in a
+//     black crust, colours kept whatever the layout does to the abyss) or `cloud` (a lit cloud sea), and `mist` (the sheets' colour)
+//   falls: share of rim faces that pour a waterfall down into the abyss (pad.js)
 //   lights: the light-giving props placed on the rim (warm ones count for the look test); tall / low: other rim props
 import { STREET } from './themes/street.js?v=20261122a';
 import { PARKING } from './themes/parking.js?v=20261122a';
@@ -13,15 +16,18 @@ import { LANDING } from './themes/landing.js?v=20261122a';
 import { VOID } from './themes/void.js?v=20261122a';
 import { FOREST } from './themes/forest.js?v=20261122a';
 import { SWAMP } from './themes/swamp.js?v=20261122a';
-export const THEMES = [FOREST, STREET, PARKING, CRYPT, SWAMP, FACTORY, LANDING, VOID];
-// The themes of each biome; a biome with two takes them in turn by stage number. The biomes not built yet stand in the
-// nearest built world until their own theme exists: volcano in the tomb (warm torchlight over a dark pit), snow in the cold
-// factory (snow, ice, blue light), coast and sky in the sunny landing meadow over bright water.
+import { VOLCANO } from './themes/volcano.js?v=20261122a';
+import { SNOW } from './themes/snow.js?v=20261122a';
+import { COAST } from './themes/coast.js?v=20261122a';
+import { SKY } from './themes/sky.js?v=20261122a';
+export const THEMES = [FOREST, STREET, PARKING, CRYPT, SWAMP, VOLCANO, SNOW, COAST, FACTORY, SKY, LANDING, VOID];
+// The themes of each biome; a biome with two takes them in turn by stage number.
 export const BIOME_THEMES = {
-  forest: [FOREST], street: [STREET, PARKING], crypt: [CRYPT], swamp: [SWAMP], volcano: [CRYPT], snow: [FACTORY],
-  coast: [LANDING], factory: [FACTORY], sky: [LANDING], void: [LANDING, VOID],
+  forest: [FOREST], street: [STREET, PARKING], crypt: [CRYPT], swamp: [SWAMP], volcano: [VOLCANO], snow: [SNOW],
+  coast: [COAST], factory: [FACTORY], sky: [SKY], void: [LANDING, VOID],
 };
-export const STAND_IN = { volcano: 'crypt', snow: 'factory', coast: 'landing', sky: 'landing' };
+// biomes still drawn in another world's theme (none left)
+export const STAND_IN = {};
 export function themeOf(biome, n) { const list = BIOME_THEMES[biome] || BIOME_THEMES.forest; return list[(n | 0) % list.length]; }
 
 // light-giving props: colour (linear), radius (m), strength, height of the flame or lamp, whether it reads as warm
@@ -38,4 +44,8 @@ export const LIGHTS = {
   bluecap: { color: [0.3, 1.0, 0.8], r: 4.5, k: 0.8, h: 0.6, warm: 0, glow: 1.6, glowC: 0x60ffd0 },
   wisp: { color: [0.35, 1.0, 0.85], r: 6, k: 0.9, h: 1.3, warm: 0, glow: 2.2, glowC: 0x70ffe0 },
   crystal: { color: [0.62, 0.36, 1.0], r: 5, k: 0.9, h: 1.4, warm: 0, glow: 2.0, glowC: 0xb080ff },
+  vent: { color: [1.0, 0.36, 0.1], r: 6, k: 1.0, h: 0.7, warm: 1, glow: 1.8, glowC: 0xff5a20 },
+  frostcrystal: { color: [0.5, 0.8, 1.0], r: 5, k: 0.7, h: 1.0, warm: 0, glow: 1.2, glowC: 0x5a9ad0 },
+  lantern: { color: [1.0, 0.66, 0.3], r: 6.5, k: 1.0, h: 1.55, warm: 1, glow: 1.9 },
+  stonelamp: { color: [1.0, 0.7, 0.36], r: 6, k: 0.95, h: 1.1, warm: 1, glow: 1.7 },
 };
