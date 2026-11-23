@@ -130,7 +130,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 <div class="wrap">
   <header>
-    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 46</small></h1>
+    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 47</small></h1>
     <div class="seg" role="tablist" aria-label="Công cụ" id="app-mode">
       <button type="button" role="tab" data-mode="cut" aria-selected="true">Bàn Cắt Sprite</button><button type="button" role="tab" data-mode="rename" aria-selected="false">Đặt tên file</button>
     </div>
@@ -325,6 +325,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
         <label class="check"><input type="checkbox" id="pivot"> Hiện tâm đáy</label>
       </div>
       <label class="check auto-fit" title="Tìm hình trong từng ô: khung cắt ôm sát hình của ô đó, bỏ phần hình ô bên lấn sang, rồi đặt mọi frame cho chân hình trùng nhau"><input type="checkbox" id="auto-fit"> Tự canh khung: không dính hình frame khác, không lệch chỗ</label>
+      <label class="check auto-fit" title="Co giãn từng frame cho chiều cao hình bằng nhau (lấy chiều cao ở giữa các frame). Hợp với sheet AI vẽ nhân vật to nhỏ lệch nhau. Dáng cố tình thấp (ngồi, nhún) cũng bị kéo cao bằng dáng đứng, và hình co giãn hơi mềm nét."><input type="checkbox" id="even-size" disabled> Đều cỡ hình: co giãn cho cao bằng nhau</label>
       <p class="status" id="auto-note" hidden></p>
 
       <div class="group">
@@ -342,7 +343,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261123a"></script>
+<script src="vendor/jszip.min.js?v=20261123b"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -352,7 +353,7 @@ const S = {
   order: "row", start: 0, count: 8,
   off: {},
   grow: {},
-  auto: false, sizeScope: "all",
+  auto: false, even: false, sizeScope: "all",
   skip: new Set(),
   sel: null,
   fps: 10, mode: "loop", playing: true, cur: 0, dir: 1,
@@ -386,9 +387,10 @@ function cells() {
     const gx = g.x + c * (g.w + g.gx), gy = g.y + r * (g.h + g.gy);
     const b = (fit && fit.get(r * g.cols + c)) || { ax: gx, ay: gy, x: gx, y: gy, w: g.w, h: g.h };
     const dx = o ? o.dx : 0, dy = o ? o.dy : 0;
+    const w = Math.max(0, b.w + (gr ? gr.l + gr.r : 0)), h = Math.max(0, b.h + (gr ? gr.t + gr.b : 0));
     out.push({ i, r, c, key, ax: b.ax + dx, ay: b.ay + dy,
-      x: b.x + dx - (gr ? gr.l : 0), y: b.y + dy - (gr ? gr.t : 0),
-      w: Math.max(0, b.w + (gr ? gr.l + gr.r : 0)), h: Math.max(0, b.h + (gr ? gr.t + gr.b : 0)) });
+      x: b.x + dx - (gr ? gr.l : 0), y: b.y + dy - (gr ? gr.t : 0), w, h,
+      k: 1, sw: w, sh: h, fh: fit ? b.h : 0 });
   }
   return out;
 }
@@ -396,16 +398,25 @@ function cells() {
 // Khung chung: hộp bao các frame trong dải khi đặt chồng theo điểm neo. Máy chạy, khu xếp chồng và tệp cắt ra đều dùng cỡ này,
 // nên frame nào cũng cùng cỡ và đứng đúng chỗ khi chạy. (px, py) là góc khung cắt của frame trong khung chung.
 // Tự canh khung: khung chung đối xứng quanh neo theo chiều ngang, nên tâm đáy tệp cắt ra đúng là chỗ chân hình.
+// Đều cỡ hình: frame được co giãn k lần quanh neo cho chiều cao hình (fh) bằng trung vị các frame, kẹp 0,5–2 lần.
+// (sw, sh) là cỡ khung sau co giãn, (ox, oy) là góc khung so với neo tính theo pixel đã co giãn.
 function frames() {
   const fr = cells().slice(S.start, S.start + S.count);
+  if (S.auto && S.even) {
+    const hs = fr.filter(f => f.fh > 0).map(f => f.fh).sort((a, b) => a - b), mid = hs[hs.length >> 1];
+    for (const f of fr) if (f.fh > 0 && f.fh !== mid) {
+      f.k = Math.min(2, Math.max(0.5, mid / f.fh));
+      f.sw = Math.max(1, Math.round(f.w * f.k)); f.sh = Math.max(1, Math.round(f.h * f.k));
+    }
+  }
   let L = Infinity, T = Infinity, R = -Infinity, B = -Infinity;
-  for (const f of fr) if (f.w > 0 && f.h > 0) {
-    L = Math.min(L, f.x - f.ax); T = Math.min(T, f.y - f.ay);
-    R = Math.max(R, f.x + f.w - f.ax); B = Math.max(B, f.y + f.h - f.ay);
+  for (const f of fr) {
+    f.ox = Math.round((f.x - f.ax) * f.k); f.oy = Math.round((f.y - f.ay) * f.k);
+    if (f.sw > 0 && f.sh > 0) { L = Math.min(L, f.ox); T = Math.min(T, f.oy); R = Math.max(R, f.ox + f.sw); B = Math.max(B, f.oy + f.sh); }
   }
   if (L === Infinity) { L = T = 0; R = S.grid.w; B = S.grid.h; }
   if (S.auto) { const hw = Math.max(-L, R); L = -hw; R = hw; }
-  for (const f of fr) Object.assign(f, { px: f.x - f.ax - L, py: f.y - f.ay - T, L, T, cw: R - L, ch: B - T });
+  for (const f of fr) Object.assign(f, { px: f.ox - L, py: f.oy - T, L, T, cw: R - L, ch: B - T });
   return fr;
 }
 
@@ -535,12 +546,13 @@ function autoFit() {
 
 // Điểm ảnh khung cắt của frame f khi bật Tự canh khung: pixel thuộc ô khác bị xoá (sheet nền đặc thì tô màu nền), nên hình ô bên
 // lấn sang không lọt vào frame này. Dùng điểm ảnh hiện tại của S.img với bảng chủ pixel của autoFit().
+// Frame có co giãn (k ≠ 1) thì trả bản đã co giãn mượt cỡ sw × sh, nên máy chạy và tệp cắt ra giống hệt nhau.
 const ownCanvas = new Map();
 function frameSource(f) {
   if (!S.auto || !fitCache || f.w <= 0 || f.h <= 0) return null;
-  const cell = f.r * S.grid.cols + f.c, sig = [imgVer, fitCache.sig, f.x, f.y, f.w, f.h].join();
+  const cell = f.r * S.grid.cols + f.c, sig = [imgVer, fitCache.sig, f.x, f.y, f.w, f.h, f.sw, f.sh].join();
   const hit = ownCanvas.get(f.key);
-  if (hit && hit.sig === sig) return hit.cv;
+  if (hit && hit.sig === sig) return hit.out;
   const cv = hit ? hit.cv : document.createElement("canvas");
   cv.width = f.w; cv.height = f.h;
   const x = cv.getContext("2d", { willReadFrequently: true });
@@ -557,8 +569,15 @@ function frameSource(f) {
     }
   }
   x.putImageData(d, 0, 0);
-  ownCanvas.set(f.key, { sig, cv });
-  return cv;
+  let out = cv;
+  if (f.k !== 1) {
+    out = (hit && hit.out !== hit.cv && hit.out) || document.createElement("canvas");
+    out.width = f.sw; out.height = f.sh;
+    const z = out.getContext("2d"); z.imageSmoothingEnabled = true; z.imageSmoothingQuality = "high";
+    z.drawImage(cv, 0, 0, f.sw, f.sh);
+  }
+  ownCanvas.set(f.key, { sig, cv, out });
+  return out;
 }
 
 /* ---------- ảnh mẫu: slime nhảy 8 frame, 4 × 2 ô 48px ---------- */
@@ -726,11 +745,11 @@ function drawGhosts(ctx, fr, k, s, ox, oy, weight) {
 function drawPlaced(ctx, f, s, ox, oy, alpha) { drawFrame(ctx, f, s, ox + f.px * s, oy + f.py * s, alpha); }
 
 function drawFrame(ctx, f, s, ox, oy, alpha) {
-  if (f.w <= 0 || f.h <= 0) return;
+  if (f.sw <= 0 || f.sh <= 0) return;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(ox, oy); ctx.scale(s, s);
-  ctx.beginPath(); ctx.rect(0, 0, f.w, f.h); ctx.clip();
+  ctx.beginPath(); ctx.rect(0, 0, f.sw, f.sh); ctx.clip();
   const own = frameSource(f);
   if (own) ctx.drawImage(own, 0, 0); else ctx.drawImage(S.img, -f.x, -f.y);
   ctx.restore();
@@ -874,13 +893,18 @@ for (const id of ["s-w", "s-h"]) $(id).addEventListener("input", () => {
 for (const b of $("st-scope").children) b.onclick = () => { S.sizeScope = b.dataset.scope; if (S.sizeScope === "frame") stackFrame(); changed(); };
 $("st-size-reset").onclick = () => { const c = cells()[S.sel]; if (c) { delete S.grow[c.key]; changed(); } };
 $("auto-fit").onchange = e => { S.auto = e.target.checked; changed(); };
+$("even-size").onchange = e => { S.even = e.target.checked; changed(); };
 function autoNote(fr) {
   const el = $("auto-note");
+  $("even-size").disabled = !S.auto;
   el.hidden = !S.auto || !S.img;
   if (el.hidden || !fr.length) return;
   const empty = fr.filter(f => f.w <= 0 || f.h <= 0).length;
   el.className = "status" + (labCache && labCache.solid ? " bad" : " ok");
+  const ks = fr.filter(f => f.fh > 0).map(f => f.k), fmt = v => v.toFixed(2).replace(".", ",");
+  const kmin = Math.min(...ks), kmax = Math.max(...ks);
   el.textContent = `Khung chung ${fr[0].cw}×${fr[0].ch} px, tâm đáy là chỗ chân hình.` + (empty ? ` ${empty} ô không có hình.` : "")
+    + (S.even && ks.length ? (kmin === kmax ? " Các hình đã cao bằng nhau, không co giãn." : ` Co giãn từ ${fmt(kmin)} tới ${fmt(kmax)} lần.`) : "")
     + (labCache && labCache.solid ? " Sheet còn nền đặc: bật Xoá nền để khung ôm sát hình và tệp cắt ra trong suốt." : "");
 }
 
@@ -1083,9 +1107,9 @@ function drawStack() {
   const f = fr[k], own = S.sizeScope === "frame" && f;
   if (own) {
     kctx.strokeStyle = T.sel; kctx.setLineDash([3 * dpr, 3 * dpr]);
-    kctx.strokeRect(ox + f.px * s - 0.5, oy + f.py * s - 0.5, f.w * s + 1, f.h * s + 1); kctx.setLineDash([]);
+    kctx.strokeRect(ox + f.px * s - 0.5, oy + f.py * s - 0.5, f.sw * s + 1, f.sh * s + 1); kctx.setLineDash([]);
   }
-  handleBox = own ? { x: (ox + f.px * s) / dpr, y: (oy + f.py * s) / dpr, w: f.w * s / dpr, h: f.h * s / dpr } : S.auto ? null : stackBox;
+  handleBox = own ? { x: (ox + f.px * s) / dpr, y: (oy + f.py * s) / dpr, w: f.sw * s / dpr, h: f.sh * s / dpr } : S.auto ? null : stackBox;
   if (handleBox) for (const [hx, hy] of HANDLES) {
     const px = handleBox.x * dpr + (hx + 1) / 2 * handleBox.w * dpr, py = handleBox.y * dpr + (hy + 1) / 2 * handleBox.h * dpr, r = 5 * dpr;
     kctx.fillStyle = T.sel; kctx.fillRect(px - r, py - r, r * 2, r * 2);
@@ -1125,9 +1149,9 @@ function renderList(fr) {
     b.querySelector("b").textContent = "Frame " + String(j).padStart(2, "0");
     b.querySelector("small").textContent = on ? `ô ${f.i} · lệch ${o ? o.dx : 0}, ${o ? o.dy : 0}` + (S.grow[f.key] ? ` · ${f.w}×${f.h}` : "") : `ô ${f.i} · đang tắt`;
     paintBackdrop(x, c.width, c.height, Math.round(6 * dpr), T);
-    const s = Math.min(c.width / Math.max(1, f.w), c.height / Math.max(1, f.h));
+    const s = Math.min(c.width / Math.max(1, f.sw), c.height / Math.max(1, f.sh));
     x.imageSmoothingEnabled = false;
-    drawFrame(x, f, s, (c.width - f.w * s) / 2, (c.height - f.h * s) / 2, 1);
+    drawFrame(x, f, s, (c.width - f.sw * s) / 2, (c.height - f.sh * s) / 2, 1);
   });
 }
 
@@ -1173,7 +1197,7 @@ stack.addEventListener("pointerdown", e => {
   if (h) {
     const f = S.sizeScope === "frame" && stackFrame();
     stackDrag = { kind: "size", hx: h[0], hy: h[1], cx: e.clientX, cy: e.clientY, scale: stackScale, base: { ...S.grid },
-      key: f && f.key, grow: f && { l: 0, t: 0, r: 0, b: 0, ...S.grow[f.key] }, w: f && f.w, h: f && f.h };
+      key: f && f.key, grow: f && { l: 0, t: 0, r: 0, b: 0, ...S.grow[f.key] }, w: f && f.w, h: f && f.h, k: f ? f.k : 1 };
     return;
   }
   if (ERASE_TOOLS.has(S.stackTool)) {
@@ -1204,7 +1228,7 @@ function stackFrame() {
 }
 function stackSrcPoint(e, f) {
   const r = stack.getBoundingClientRect(), u = (e.clientX - r.left - stackBox.x) / stackScale, v = (e.clientY - r.top - stackBox.y) / stackScale;
-  return { x: f.x + u - f.px, y: f.y + v - f.py, u, v };
+  return { x: f.x + (u - f.px) / f.k, y: f.y + (v - f.py) / f.k, u, v };
 }
 stack.addEventListener("pointermove", e => {
   if (ERASE_TOOLS.has(S.stackTool) && stackBox) {
@@ -1222,7 +1246,7 @@ stack.addEventListener("pointermove", e => {
     changed(); return;
   }
   if (stackDrag.kind === "size") {
-    const d = stackDrag, b = d.base, mx = Math.round((e.clientX - d.cx) / d.scale), my = Math.round((e.clientY - d.cy) / d.scale);
+    const d = stackDrag, b = d.base, mx = Math.round((e.clientX - d.cx) / d.scale / d.k), my = Math.round((e.clientY - d.cy) / d.scale / d.k);
     // Cỡ riêng một frame: chỉ cạnh đang kéo dời theo chuột, hình đứng yên. Cỡ mọi frame: nở đều hai phía quanh tâm.
     if (d.key) {
       const gr = { ...d.grow }, cut = (v, len) => Math.max(v, 1 - len);
@@ -2153,7 +2177,7 @@ $("btn-cut").onclick = async () => {
     const f = fr[k], file = `${prefix}_${String(k).padStart(pad, "0")}.png`;
     const blob = await cutFrame(f);
     zip.file(file, blob);
-    meta.push({ file, cell: f.i, x: f.x, y: f.y, w: f.w, h: f.h, offsetX: f.px, offsetY: f.py, sheetX: (k % cols) * fw, sheetY: Math.floor(k / cols) * fh });
+    meta.push({ file, cell: f.i, x: f.x, y: f.y, w: f.w, h: f.h, offsetX: f.px, offsetY: f.py, scale: +f.k.toFixed(4), sheetX: (k % cols) * fw, sheetY: Math.floor(k / cols) * fh });
     const url = URL.createObjectURL(blob); thumbUrls.push(url);
     const b = document.createElement("button"); b.type = "button"; b.title = "Lưu riêng " + file;
     const im = document.createElement("img"); im.src = url; im.alt = file;
@@ -2161,7 +2185,7 @@ $("btn-cut").onclick = async () => {
     b.append(im, sp); b.onclick = () => offer(file, blob);
     $("thumbs").append(b);
   }
-  zip.file(`${prefix}.json`, JSON.stringify({ source: S.name, sheet: { w: imgW(), h: imgH() }, fps: S.fps, mode: S.mode, frameSize: { w: fw, h: fh }, autoFit: S.auto, pivot: { x: -fr[0].L, y: -fr[0].T }, newSheet: { file: sheetFile, cols, rows, w: packed.width, h: packed.height }, markers: S.marks.map(m => ({ x: m.x - fr[0].L, y: m.y - fr[0].T, color: m.color })), frames: meta }, null, 2));
+  zip.file(`${prefix}.json`, JSON.stringify({ source: S.name, sheet: { w: imgW(), h: imgH() }, fps: S.fps, mode: S.mode, frameSize: { w: fw, h: fh }, autoFit: S.auto, evenSize: S.auto && S.even, pivot: { x: -fr[0].L, y: -fr[0].T }, newSheet: { file: sheetFile, cols, rows, w: packed.width, h: packed.height }, markers: S.marks.map(m => ({ x: m.x - fr[0].L, y: m.y - fr[0].T, color: m.color })), frames: meta }, null, 2));
   const zb = await zip.generateAsync({ type: "blob" });
   status(`Đã cắt ${fr.length} frame ${fw}×${fh} và xếp thành sheet mới ${cols}×${rows} ô. Đang mở hộp lưu…`);
   await offer(`${prefix}.zip`, zb);
