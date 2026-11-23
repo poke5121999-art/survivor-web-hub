@@ -76,7 +76,8 @@ function cart(a, b, th) {
 export const RAIL = {
   gap: 12, sats: true, satBridges: false,
   yRange: () => [0, 0],
-  abyss: (th) => th.abyss,
+  // water close under the trestles so its ripples fill the frame's corners (deep water far below reads as one flat haze)
+  abyss: (th) => (th.abyss.type === 'water' ? { ...th.abyss, y: Math.max(th.abyss.y, -1.3) } : th.abyss),
   raft: null,
   cart,
   extras: () => null,

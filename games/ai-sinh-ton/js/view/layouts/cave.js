@@ -36,8 +36,8 @@ function rockStairs(a, b, th, { width = 2.4 } = {}) {
 export const CAVE = {
   gap: 4, sats: false, bossDown: true, pitGlow: false,
   yRange: () => [-14, 0],
-  // a dark pit, whatever the theme had
-  abyss: (th) => ({ ...th.abyss, type: 'mist', y: -12, deep: 0x020204, foam: 0x24262e, spark: 0x404858, far: { top: 0x262830, side: 0x0b0c10 }, shallow: mix(th.abyss.shallow, 0x101218, 0.8), haze: mix(th.abyss.haze, 0x07080c, 0.8) }),
+  // a dark pit whatever the theme had, its cloud rolling so it never reads as one flat tone
+  abyss: (th) => ({ ...th.abyss, type: 'mist', y: -12, deep: 0x161a26, foam: 0x24262e, spark: 0x404858, far: { top: 0x545866, side: 0x1c1e26 }, shallow: mix(th.abyss.shallow, 0x1c2030, 0.7), haze: mix(th.abyss.haze, 0x141824, 0.7), mist: 0x2a3040, mistK: 0.75, cloud: 1 }),
   // the theme dimmed: the floor's baked ambient and key low, the fog near black; the units' light only a little lower, and
   // the props' own lights a little stronger
   theme: (th) => ({
@@ -57,6 +57,12 @@ export const CAVE = {
       const far = s < -0.3; const near = s > 0.3; const x = c * r0; const z = s * r0;
       // the ground under a spot just inside the outermost blocks (a terrace or the floor), or null
       const gAt = (q) => { const cl = main.cellAt(x - c * q, z - s * q); return cl ? cl.top : null; };
+      // the pit around the chamber is not empty dark: rock pillars rise out of it, a ring further out (behind the wall on the
+      // far side and the flanks, below the floor on the near side so they never stand between the camera and the fight)
+      for (const ring of k % 2 === 0 ? [0, 1] : [0]) {
+        const rr = r0 + (ring ? rng.range(5.5, 8) : rng.range(2.6, 4.2)); const px = c * rr; const pz = s * rr; const ptop = near ? rng.range(-1.6, -0.7) : far ? rng.range(6, 10) : rng.range(1.5, 3.5);
+        let y = base - 2; let w = rng.range(1.8, 2.8); while (y < ptop - 0.01) { const hh = Math.min(ptop - y, rng.range(1.6, 2.6)); B(px + rng.range(-0.3, 0.3), y, pz + rng.range(-0.3, 0.3), w, hh + 0.02, w * rng.range(0.8, 1.1), rng.range(-0.4, 0.4), { side: rockT, top: 'stone' }, [0.7, 0.68, 0.72]); y += hh; w *= rng.range(0.8, 0.95); }
+      }
       if (near) {
         // stalagmites on the near rim, never above the knee
         const g = gAt(0.9); if (k % 3 === 0 && g !== null) { const h = rng.range(0.35, 0.6); B(x - c * 0.9, g - 1, z - s * 0.9, 0.5, h + 1, 0.5, rng.range(0, 1.5), { side: rockT }, [0.6, 0.58, 0.6]); B(x - c * 0.9, g + h, z - s * 0.9, 0.26, 0.3, 0.26, 0.4, { side: rockT }, [0.62, 0.6, 0.62]); }

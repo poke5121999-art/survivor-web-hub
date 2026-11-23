@@ -87,12 +87,13 @@ const SHAPES = {
       return out;
     },
   },
-  // floating islands over the sky, each a little higher or lower, joined by bridges of light; the walk winds sideways and away
+  // floating islands over the sky, mostly each a little higher than the last (an island below the pad sinks into the haze as
+  // one flat tone), joined by bridges of light; the walk winds sideways and away
   islands: {
     rooms: (rl) => rl.int(3, 5), pass: (R) => (R === 5 ? [2] : []),
     links(rng, R, rl) {
       let side = rl.chance(0.5) ? 1 : -1; const out = [];
-      for (let i = 1; i < R; i++) { out.push({ a: -Math.PI / 2 + side * rl.range(0.8, 1.15), dy: (rl.chance(0.5) ? 1 : -1) * rl.int(1, 3), kind: 'bridge' }); side = -side; }
+      for (let i = 1; i < R; i++) { out.push({ a: -Math.PI / 2 + side * rl.range(0.8, 1.15), dy: (rl.chance(0.25) ? -1 : 1) * rl.int(1, 2), kind: 'bridge' }); side = -side; }
       return out;
     },
   },
@@ -118,12 +119,13 @@ const SHAPES = {
       return out;
     },
   },
-  // a dark cave going down: chambers joined by rock stairs, left and right in turn
+  // a dark cave going down a metre a chamber (deeper drops sink the next chamber into the dark as one flat tone): chambers
+  // joined by rock stairs, left and right in turn
   cave: {
     rooms: (rl) => rl.int(3, 5), pass: (R) => (R === 5 ? [1] : []),
     links(rng, R, rl) {
       let side = rl.chance(0.5) ? 1 : -1; const out = [];
-      for (let i = 1; i < R; i++) { out.push({ a: side * rl.range(0.32, 0.55), dy: -rl.int(1, 2), kind: 'stairs' }); side = rl.chance(0.7) ? -side : side; }
+      for (let i = 1; i < R; i++) { out.push({ a: side * rl.range(0.32, 0.55), dy: -rl.int(1, 1), kind: 'stairs' }); side = rl.chance(0.7) ? -side : side; }
       return out;
     },
   },

@@ -53,10 +53,10 @@ function lightBridge(a, b, th, { width = 2.4, steps = false } = {}) {
 
 export const ISLANDS = {
   gap: 7, sats: true, satBridges: false, bob: 0.22,
-  yRange: () => [-3, 6],
+  yRange: () => [-2, 9],
   // a sea of cloud far below whatever the theme had (a lake under floating islands reads as a hole): the theme's own colours
   // pulled toward pale cloud
-  abyss: (th) => ({ ...th.abyss, type: 'mist', y: -24, deep: mix(th.abyss.deep, 0x30405a, 0.5), shallow: mix(th.abyss.shallow, 0xc8d6e6, 0.55), haze: mix(th.abyss.haze, 0x8a9cb4, 0.5) }),
+  abyss: (th) => ({ ...th.abyss, type: 'mist', y: -24, deep: mix(th.abyss.deep, 0x7484a0, 0.75), shallow: mix(th.abyss.shallow, 0xc8d6e6, 0.55), haze: mix(th.abyss.haze, 0x8a9cb4, 0.5), cloud: 1, mistK: 0.8 }),
   raft: null,
   bridge: lightBridge,
   tick(time) { if (MAT) MAT.opacity = 0.62 + 0.08 * Math.sin(time * 1.7); },
