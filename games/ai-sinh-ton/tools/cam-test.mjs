@@ -31,13 +31,13 @@ const { check, done } = checker();
 const SAMPLER = () => {
   const G = window.__G; const H = G.host; const T = H.THREE; const V = new T.Vector3(); const head = new T.Vector3();
   const ray = new T.Raycaster(); const dir = new T.Vector3(); const at = new T.Vector3();
-  window.__camAgg = { n: {}, bad: {}, hid: {}, rays: {}, worst: {} };
+  window.__camAgg = { n: {}, bad: {}, hid: {}, rays: {}, worst: {}, beastPx: [], dist: [] };
   const px = (x, y, z) => { V.set(x, y, z).project(H.camera); const u = H.size.u || 1; return [(V.x + 1) / 2 * H.size.w / u, (1 - V.y) / 2 * H.size.h / u, V.z]; };
   window.__camSample = (rays) => {
     const B = G.B; if (!B) return; const A = window.__camAgg; const hd = H.size.h / (H.size.u || 1); const wd = H.size.w / (H.size.u || 1);
     // the HUD as it is drawn this frame: the top corner pieces (not the ones faded over the boss) and the hero cards
     const hd0 = G.screens.hud.dbg(); const hudTop = hd0.visible ? hd0.topHud.filter((q) => !q.see) : []; const hudCards = hd0.visible ? hd0.boxes.filter((q) => /^card/.test(q.id)) : [];
-    A.hudOff = (A.hudOff || 0) + (hd0.visible ? 0 : 1);
+    A.hudOff = (A.hudOff || 0) + (hd0.visible ? 0 : 1); A.dist.push(+G.cam.dist.toFixed(1));
     const meshes = []; if (rays) H.scene.traverse((o) => { if (o.isMesh && o.name === 'pad' && o.visible) meshes.push(o); });
     if (rays) H.scene.updateMatrixWorld(true);
     for (const u of B.units) {
@@ -46,12 +46,13 @@ const SAMPLER = () => {
       if (u.team === 1 && H.world.busy && u.room !== undefined && B.plan.waveRoom[u.room] !== H.world.sec) continue;
       const cat = u.boss ? 'boss' : u.hero ? 'hero' : u.team === 0 ? 'ally' : 'monster';
       if (!G.actors.headPos(u.uid, head)) continue;
-      const tall = u.hero ? 2.6 : u.summon ? 1.6 : 2.05 * (G.actors.scaleOf(u.uid) || 1);
+      const tall = u.hero ? H.heightOf(u.uid) : u.summon ? 1.6 : 2.05 * (G.actors.scaleOf(u.uid) || 1);
       const fx = head.x; const fz = head.z; const hy = head.y; const fy = hy - tall;
       const hw = u.boss ? Math.max(0.6, (H.widthOf ? H.widthOf(u.uid) : 2) / 2) : u.hero ? 0.45 : Math.max(0.3, 0.3 * (hy - fy));
       let x0 = 1e9; let x1 = -1e9; let y0 = 1e9; let y1 = -1e9;
       for (const [dx, y] of [[-hw, fy], [hw, fy], [-hw, hy], [hw, hy], [0, fy], [0, hy]]) { const p = px(fx + dx, y, fz); x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
       // the unit's box may poke 2 px into a band; anything more is covered
+      if (u.hero && !H.world.busy) A.beastPx.push(+((y1 - y0) * (H.size.u || 1)).toFixed(1));
       const outF = x0 < -2 || x1 > wd + 2 || y0 < -2 || y1 > hd + 2;
       const bossOn = B.boss && B.byUid.get(B.boss) && B.byUid.get(B.boss).alive;
     if (bossOn && G.cam.bossFit) { const d = H.camera.position.distanceTo(G.cam.focus); A.bossDist = Math.max(A.bossDist || 0, d); A.bossFit = G.cam.bossFit; }
@@ -60,7 +61,7 @@ const SAMPLER = () => {
       const underCards = hudCards.some(into);
       A.n[cat] = (A.n[cat] || 0) + 1;
       const why = outF ? 'out' : underTop ? 'top' : underCards ? 'cards' : '';
-      if (why) { A.bad[cat] = (A.bad[cat] || 0) + 1; A.bad[cat + ':' + why] = (A.bad[cat + ':' + why] || 0) + 1; if (!A.worst[cat + ':' + why]) A.worst[cat + ':' + why] = `wave ${B.wave} t ${B.t ? B.t.toFixed(1) : '?'} ${why} box ${x0.toFixed(0)},${y0.toFixed(0)}-${x1.toFixed(0)},${y1.toFixed(0)} at ${fx.toFixed(1)},${fy.toFixed(1)},${fz.toFixed(1)} h ${(hy - fy).toFixed(1)}`; }
+      if (why) { A.bad[cat] = (A.bad[cat] || 0) + 1; A.bad[cat + ':' + why] = (A.bad[cat + ':' + why] || 0) + 1; if (!A.worst[cat + ':' + why]) A.worst[cat + ':' + why] = `wave ${B.wave} t ${B.t ? B.t.toFixed(1) : '?'} ${why} box ${x0.toFixed(0)},${y0.toFixed(0)}-${x1.toFixed(0)},${y1.toFixed(0)} at ${fx.toFixed(1)},${fy.toFixed(1)},${fz.toFixed(1)} h ${(hy - fy).toFixed(1)} cam ${G.cam.dist.toFixed(1)} m`; }
       // a monster still climbing over the rim (feet under the floor) is meant to be half behind the cliff: not a sight line
       if (rays && fy > -0.3 && (cat !== 'monster' || (u.uid % 3) === 0)) {
         at.set(fx, (fy + hy) / 2, fz); dir.copy(at).sub(H.camera.position); const far = dir.length(); dir.normalize();
@@ -146,6 +147,10 @@ try {
     console.log(`${TAG} ${phone} stage ${s} (${end.phase} at wave ${end.wave}${end.boss ? ', boss wave replayed' : ''}, ${Math.round((Date.now() - T0) / 1000)} s, ${A.hudOff || 0} samples without the HUD): ${line}`);
     if (A.bossFit) console.log(`   boss framing: boss ${A.bossFit.head} m tall (with flight), ${A.bossFit.wide} m wide -> distance ${A.bossFit.dist} m (wave pads ${res[phone].N.dist} m): hero ${(0.107 * res[phone].N.dist / A.bossFit.dist).toFixed(3)} of the frame height`);
     for (const c of Object.keys(A.worst)) console.log(`   first ${c} covered: ${A.worst[c]}`);
+    const q = (a, p) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.min(b.length - 1, Math.floor(p * b.length))] : NaN; };
+    A.px = { p10: q(A.beastPx, 0.1), p50: q(A.beastPx, 0.5), p90: q(A.beastPx, 0.9) };
+    console.log(`   beasts on screen (CSS px tall, frame ${phone === 's22' ? 360 : 461}): p10 ${A.px.p10} p50 ${A.px.p50} p90 ${A.px.p90} of ${A.beastPx.length}; camera distance p10 ${q(A.dist, 0.1)} p50 ${q(A.dist, 0.5)} p90 ${q(A.dist, 0.9)} m`);
+    delete A.beastPx; delete A.dist;
     res[phone][s] = A;
     for (const c of ['hero', 'monster', 'boss']) {
       const n = A.n[c] || 0; const bad = A.bad[c] || 0;
@@ -161,7 +166,7 @@ try {
     const N = res[phone].N;
     check(Math.abs(N.pitch - MCD.pitch) <= 1.5, `${phone}: pitch ${N.pitch} within 1.5 deg of MCD's ${MCD.pitch}`);
     check(N.edge.every((e) => Math.abs(e - MCD.edge) <= 3), `${phone}: block edges at ${N.edge.join(' / ')} deg on screen, MCD ${MCD.edge} +- 3`);
-    check(N.heroFill >= 0.085 && N.heroFill <= MCD.heroFill + 0.005, `${phone}: hero ${N.heroFill} of the frame height (MCD ${MCD.heroFill}; never bigger, at least 0.085)`);
+    check(N.heroFill >= 0.085 && N.heroFill <= 0.19, `${phone}: a 2.7 m reference ${N.heroFill} of the frame height at the start of stage 3 (MCD's hero ${MCD.heroFill}; the beasts are half its height, so the camera may close in to 0.175)`);
     check(res[phone].next.mid && res[phone].next.mid.inside > 0, `${phone}: the next pad shows in the frame mid-run (${res[phone].next.mid ? res[phone].next.mid.inside : 0} samples)`);
   }
   fs.writeFileSync(path.join(OUT, `${TAG}.json`), JSON.stringify(res, null, 1));

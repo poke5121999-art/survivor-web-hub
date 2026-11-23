@@ -2,7 +2,8 @@
 // battle lod) and a portrait line-up; per form the draw calls at lod battle (<= 4), the standing height (0.8-1.6 m),
 // and the side-silhouette IoU against every other form of the same beast (< 0.8: a new form is a new shape, not the
 // old one scaled). In the game: a fight with the four starters swapped to each set of forms, shot at the battle camera
-// beside the zombies, every beast inside the frame and its on-screen height recorded. No console problems anywhere.
+// beside the zombies, every beast inside the frame and its on-screen height recorded: at least three of four form-1 beasts
+// stand 28 px on the S22 frame and 34 px on the Xiaomi (Addendum 9, readable). No console problems anywhere.
 // Usage: PLAYWRIGHT_PATH=... timeout 900 node games/ai-sinh-ton/tools/beast-shots.mjs [--quick] [--only=ech,cu] [--forms=1] [--out=creature2]
 import fs from 'node:fs';
 import path from 'node:path';
@@ -91,6 +92,11 @@ try {
       check(r.out.every((x) => x.inFrame), `${tag}: every beast inside the frame`);
       check(r.out.every((x) => x.draws <= 4), `${tag}: draw calls per beast ${r.out.map((x) => x.draws).join('/')} (<= 4)`);
       console.log(`  ${tag}: on-screen height px ${r.out.map((x) => x.px).join(' / ')} (frame ${phone === 's22' ? 360 : 461} px tall), ${r.enemies} zombies`);
+      // Addendum 9 "nhìn rõ": a form-1 beast at the fight camera stands at least 28 px on the S22 frame, 34 px on the Xiaomi
+      if (form === 1) {
+        const want = phone === 's22' ? 28 : 34; const px = r.out.map((x) => x.px); const n = px.filter((x) => x >= want).length;
+        check(n >= 3, `${tag}: ${n} of 4 form-1 beasts stand >= ${want} px on screen (at least 3; ${px.join(' / ')})`);
+      }
       await g.page.locator('#frame').screenshot({ path: path.join(OUT, `battle-${phone}-${team[0]}-${form}${branch || ''}.png`) });
       check(bad(g.problems).length === 0, `${tag}: no console problems ${bad(g.problems).slice(0, 2).join(' | ')}`);
       await g.ctx.close();
