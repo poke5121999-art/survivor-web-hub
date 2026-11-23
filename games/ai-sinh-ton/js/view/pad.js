@@ -109,7 +109,7 @@ let MAT = null;
 export function voxMaterial() { if (!MAT) { MAT = new THREE.MeshBasicMaterial({ map: voxAtlas().tex, vertexColors: true }); MAT.name = 'vox'; } return MAT; }
 
 // ---- props: each a list of boxes in its local frame (base at y 0); lights come from LIGHTS by kind ----
-const C = { wood: [0.62, 0.5, 0.42], dark: [0.42, 0.42, 0.46], stone: [0.82, 0.8, 0.78], iron: [0.36, 0.36, 0.4], rust: [0.9, 0.62, 0.5], leaf: [0.8, 0.95, 0.8], white: [1, 1, 1] };
+const C = { wood: [0.62, 0.5, 0.42], dark: [0.42, 0.42, 0.46], stone: [0.82, 0.8, 0.78], iron: [0.36, 0.36, 0.4], rust: [0.9, 0.62, 0.5], leaf: [0.8, 0.95, 0.8], white: [1, 1, 1], moss: [0.8, 0.95, 0.75], cap: [2.0, 1.9, 0.6], teal: [0.6, 2.0, 1.7], wisp: [1.6, 2.4, 2.2] };
 const FLAME = [2.4, 1.35, 0.5]; const GLASS = [2.2, 1.6, 0.9];
 function flame(B, x, y, z, s) { B(x, y, z, 0.26 * s, 0.34 * s, 0.26 * s, { side: 'flame' }, FLAME, 1); B(x, y + 0.2 * s, z, 0.14 * s, 0.28 * s, 0.14 * s, { side: 'flame' }, [2.6, 1.9, 1.0], 1); }
 const PROPS = {
@@ -143,6 +143,32 @@ const PROPS = {
   fence: { h: 1.0, b(B) { for (const x of [-1.1, 0, 1.1]) B(x, 0, 0, 0.14, 1.0, 0.14, { side: 'plank' }, C.wood); B(0, 0.4, 0, 2.4, 0.12, 0.08, { side: 'plank' }, C.wood); B(0, 0.75, 0, 2.4, 0.12, 0.08, { side: 'plank' }, C.wood); } },
   bush: { h: 0.9, b(B, th, r) { const lf = th.day ? 'leaves' : 'leaves_teal'; B(0, 0, 0, 0.9, 0.7, 0.9, { side: lf }, C.leaf); if (r.chance(0.6)) B(0.5, 0, 0.3, 0.6, 0.5, 0.6, { side: lf }, C.leaf); } },
   urn: { h: 0.85, b(B) { B(0, 0, 0, 0.4, 0.12, 0.4, { side: 'sandstone' }, C.stone); B(0, 0.12, 0, 0.55, 0.5, 0.55, { side: 'sand_tile' }, [0.9, 0.7, 0.55]); B(0, 0.62, 0, 0.3, 0.2, 0.3, { side: 'sand_tile' }, [0.9, 0.7, 0.55]); } },
+  // forest: a giant trunk on flared roots under a wide stepped canopy
+  oldtree: { h: 8, b(B, th, r) {
+    B(0, 0, 0, 1.3, 0.6, 1.3, { side: 'bark_old', top: 'moss_floor' }, C.wood); B(0, 0.6, 0, 1.1, 4.0, 1.1, { side: 'bark_old', top: 'bark_old' }, C.wood);
+    for (const [x, z, sx, sz] of [[0.6, 0.1, 0.5, 0.36], [-0.6, -0.1, 0.5, 0.36], [0.1, 0.6, 0.36, 0.5], [-0.1, -0.6, 0.36, 0.5]]) { B(x, 0, z, sx, 0.4, sz, { side: 'roots', top: 'bark_old' }, C.wood); B(x * 1.3, 0, z * 1.3, sx * 0.6, 0.22, sz * 0.6, { side: 'roots', top: 'moss_floor' }, C.moss); }
+    B(0.9, 3.2, 0, 1.0, 0.4, 0.5, { side: 'bark_old', top: 'bark_old' }, C.wood); B(-0.9, 3.7, 0.1, 1.0, 0.4, 0.5, { side: 'bark_old', top: 'bark_old' }, C.wood);
+    B(0, 4.4, 0, 3.8, 1.4, 3.8, { side: 'leaves_old' }, C.leaf); B(r.range(-0.2, 0.2), 5.7, r.range(-0.2, 0.2), 3.0, 1.4, 3.0, { side: 'leaves_old' }, C.leaf); B(0, 7.0, 0, 1.8, 1.1, 1.8, { side: 'leaves_old' }, C.leaf);
+    B(1.5, 4.0, 1.1, 1.2, 0.7, 1.2, { side: 'leaves_old' }, C.leaf); B(-1.5, 4.0, -1.0, 1.2, 0.7, 1.2, { side: 'leaves_old' }, C.leaf);
+    B(0.66, 1.9, 0.0, 0.1, 0.3, 0.4, { side: 'glowcap' }, C.teal, 1);
+  } },
+  roots: { h: 0.8, b(B, th, r) { let x = -0.9; for (let i = 0; i < 4; i++) { const hh = 0.35 + 0.25 * Math.sin(i * 1.3 + r.range(0, 1)); B(x + 0.25, 0, r.range(-0.1, 0.1), 0.55, hh, 0.36, { side: 'roots', top: 'bark_old' }, C.wood); x += 0.52; } B(-0.3, 0, 0.4, 0.28, 0.3, 0.6, { side: 'roots', top: 'bark_old' }, C.wood); B(0.4, 0, -0.4, 0.28, 0.26, 0.6, { side: 'roots', top: 'moss_floor' }, C.moss); } },
+  glowshroom: { h: 0.9, b(B, th, r) { for (let i = 0; i < 4; i++) { const x = r.range(-0.45, 0.45); const z = r.range(-0.45, 0.45); const s = r.range(0.7, 1.3); B(x, 0, z, 0.1 * s, 0.4 * s, 0.1 * s, { side: 'white' }, [0.75, 0.7, 0.55]); B(x, 0.4 * s, z, 0.42 * s, 0.16 * s, 0.42 * s, { side: 'white' }, C.cap, 1); B(x, 0.56 * s, z, 0.24 * s, 0.1 * s, 0.24 * s, { side: 'white' }, [2.4, 2.2, 0.9], 1); } }, light: [0, 0.6, 0] },
+  bluecap: { h: 0.9, b(B, th, r) { for (let i = 0; i < 4; i++) { const x = r.range(-0.45, 0.45); const z = r.range(-0.45, 0.45); const s = r.range(0.7, 1.3); B(x, 0, z, 0.1 * s, 0.4 * s, 0.1 * s, { side: 'white' }, [0.6, 0.8, 0.75]); B(x, 0.4 * s, z, 0.42 * s, 0.16 * s, 0.42 * s, { side: 'glowcap', top: 'glowcap' }, C.teal, 1); } }, light: [0, 0.6, 0] },
+  mossrock: { h: 1.3, b(B, th, r) { for (let i = 0; i < 3; i++) { const s = r.range(0.6, 1.2); const x = r.range(-0.5, 0.5); const z = r.range(-0.5, 0.5); B(x, 0, z, s, s * r.range(0.6, 1.0), s * r.range(0.8, 1.2), { side: 'moss_stone', top: 'moss_floor' }, C.moss); } } },
+  fern: { h: 0.7, b(B, th, r) { for (let i = 0; i < 4; i++) B(r.range(-0.4, 0.4), 0, r.range(-0.4, 0.4), r.range(0.5, 0.8), r.range(0.3, 0.6), r.range(0.5, 0.8), { side: 'leaves_old' }, [0.9, 1.1, 0.8]); } },
+  stump: { h: 1.2, b(B, th, r) { for (const [x, z, sx, sz] of [[0.6, 0, 0.5, 1.4], [-0.6, 0, 0.5, 1.4], [0, 0.6, 1.0, 0.5], [0, -0.6, 1.0, 0.5]]) B(x, 0, z, sx, 0.8 + r.range(0, 0.4), sz, { side: 'bark_old', top: 'bark_old' }, C.wood); B(0, 0, 0, 0.7, 0.2, 0.7, { side: 'moss_floor', top: 'moss_floor' }, C.moss); } },
+  // swamp: stilt roots arching over the water under a flat crown, reeds, rotten logs, wisps
+  mangrove: { h: 5.4, b(B, th, r) {
+    for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { B(sx * 0.65, 0, sz * 0.65, 0.34, 0.9, 0.34, { side: 'bark_wet' }, C.wood); B(sx * 0.55, 0.9, sz * 0.55, 0.34, 0.7, 0.34, { side: 'bark_wet' }, C.wood); B(sx * 0.42, 1.6, sz * 0.42, 0.42, 0.55, 0.42, { side: 'bark_wet' }, C.wood); }
+    B(0, 1.9, 0, 1.0, 0.5, 1.0, { side: 'bark_wet', top: 'bark_wet' }, C.wood); B(0, 2.4, 0, 0.8, 1.6, 0.8, { side: 'bark_wet', top: 'bark_wet' }, C.wood);
+    B(0, 3.8, 0, 4.2, 0.9, 4.2, { side: 'leaves_dark' }, [0.7, 0.85, 0.5]); B(r.range(-0.3, 0.3), 4.6, r.range(-0.3, 0.3), 3.0, 0.8, 3.0, { side: 'leaves_dark' }, [0.7, 0.85, 0.5]);
+    for (const [x, z] of [[1.6, 1.2], [-1.5, -1.3], [0.5, -1.8]]) B(x, 2.4, z, 0.08, 1.4, 0.08, { side: 'leaves_dark' }, [0.6, 0.75, 0.4]);
+    B(0.0, 0.0, 0.0, 0.3, 0.1, 0.3, { side: 'algae', top: 'algae' }, [0.9, 1, 0.8]);
+  } },
+  reeds: { h: 1.9, b(B, th, r) { for (let i = 0; i < 9; i++) { const hh = r.range(1.0, 1.8); const x = r.range(-0.45, 0.45); const z = r.range(-0.45, 0.45); B(x, 0, z, 0.1, hh, 0.1, { side: 'reed' }, [0.9, 1, 0.8]); if (i % 3 === 0) B(x, hh, z, 0.14, 0.26, 0.14, { side: 'bark_wet' }, [0.8, 0.7, 0.6]); } } },
+  log: { h: 0.8, b(B, th, r) { B(0, 0, 0, 1.8, 0.6, 0.6, { side: 'rotten', top: 'algae' }, [0.9, 0.95, 0.85]); B(-1.0, 0, 0.05, 0.3, 0.5, 0.5, { side: 'rotten', top: 'rotten' }, C.wood); if (r.chance(0.7)) B(0.3, 0.6, 0, 0.25, 0.14, 0.25, { side: 'cap_red', top: 'cap_red' }, [0.8, 0.8, 0.7]); B(0.4, 0.0, 0.45, 0.6, 0.3, 0.4, { side: 'rotten' }, C.wood); } },
+  wisp: { h: 2.0, b(B) { B(0, 0, 0, 0.5, 0.5, 0.5, { side: 'bark_wet', top: 'algae' }, C.wood); B(0, 0.5, 0, 0.3, 0.45, 0.3, { side: 'bark_wet' }, C.wood); B(0, 1.15, 0, 0.3, 0.42, 0.3, { side: 'wisp' }, C.wisp, 1); B(0, 1.5, 0, 0.16, 0.34, 0.16, { side: 'wisp' }, [2.6, 3.0, 2.8], 1); B(0.35, 1.0, 0.1, 0.12, 0.12, 0.12, { side: 'wisp' }, C.wisp, 1); B(-0.3, 1.3, -0.2, 0.1, 0.1, 0.1, { side: 'wisp' }, C.wisp, 1); }, light: [0, 1.3, 0] },
   bones: { h: 0.3, b(B, th, r) { for (let i = 0; i < 4; i++) B(r.range(-0.4, 0.4), 0, r.range(-0.4, 0.4), r.range(0.3, 0.6), 0.1, 0.1, { side: 'white' }, [0.9, 0.88, 0.8]); B(0, 0, 0, 0.25, 0.22, 0.25, { side: 'white' }, [0.9, 0.88, 0.8]); } },
 };
 
@@ -257,7 +283,7 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
   const th2 = { ...theme, wall: theme.side.rows[0][0], rock: theme.name === 'crypt' ? 'sandstone' : 'rock' };
   const propRng = (x, z) => rngOf(Math.round(x * 100) * 31 + Math.round(z * 100) + seed);
   // a dry run of the prop's boxes: its radius about the origin and its height
-  const extent = (kind, x, z) => { let r = 0; let h = 0; PROPS[kind].b((lx, ly, lz, sx, sy, sz) => { r = Math.max(r, Math.hypot(Math.abs(lx) + sx / 2, Math.abs(lz) + sz / 2)); h = Math.max(h, ly + sy); }, th2, propRng(x, z)); return { r, h }; };
+  const extent = (kind, x, z) => { let r = 0; let h = 0; PROPS[kind].b((lx, ly, lz, sx, sy, sz) => { if (ly < 2.6) r = Math.max(r, Math.hypot(Math.abs(lx) + sx / 2, Math.abs(lz) + sz / 2)); h = Math.max(h, ly + sy); }, th2, propRng(x, z)); return { r, h }; };
   const place = (kind, x, z, rot) => {
     const X = extent(kind, x, z); const r = Math.max(0.5, X.r);
     if (!free(x, z, r)) return false; const c = spotOk(x, z, r, X.r + 0.05); if (!c) return false;

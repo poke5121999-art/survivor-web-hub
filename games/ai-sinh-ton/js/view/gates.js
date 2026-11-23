@@ -17,6 +17,8 @@ export const GATE_LOOK = {
   factory: { kind: 'rift', floor: 'icecrack', name: 'khe băng', post: 'ice', cap: 'frost_metal', back: 'metal_dark', deep: 0x1a5a8a, hot: 0xb8f4ff, tint: [0.9, 0.95, 1.05] },
   crypt: { kind: 'tomb', floor: 'crypt', name: 'cửa mộ', post: 'sandstone_big', cap: 'sandstone', back: 'obsidian', deep: 0x6a3a08, hot: 0xffc860, tint: [0.92, 0.86, 0.78] },
   landing: { kind: 'monolith', floor: 'crater', name: 'cổng đá lạ', post: 'obsidian', cap: 'void_stone', back: 'obsidian', deep: 0x2a2a8a, hot: 0x9ae8ff, tint: [0.85, 0.85, 0.95] },
+  forest: { kind: 'hollow', floor: 'burrow', name: 'gốc cổ thụ rỗng', post: 'bark_old', cap: 'leaves_old', back: 'obsidian', deep: 0x0a4a30, hot: 0xb8ff80, tint: [0.86, 0.92, 0.84] },
+  swamp: { kind: 'hollow', floor: 'bog', name: 'rễ đước chìm', post: 'bark_wet', cap: 'algae', back: 'obsidian', deep: 0x0a4a40, hot: 0x80fff0, tint: [0.84, 0.9, 0.78] },
   void: { kind: 'shard', floor: 'fissure', name: 'cổng hư không', post: 'void_brick', cap: 'obsidian', back: 'obsidian', deep: 0x4a0a6a, hot: 0xf080ff, tint: [0.9, 0.86, 1.0] },
 };
 const lookOf = (th) => GATE_LOOK[th.name] || GATE_LOOK.street;
@@ -56,6 +58,7 @@ function frameBoxes(look, G, r) {
     else if (f === 'drain') { for (let k = 0; k < 5; k++) B(-OW / 2 - 1.1, 0, -0.6 + k * 0.3, 1.0, 0.06, 0.1, 'metal_dark', [0.6, 0.6, 0.64]); B(OW / 2 + 0.6, 0, 0.5, 0.5, 0.5, 0.5, 'concrete', [0.8, 0.78, 0.76]); }
     else if (f === 'icecrack') { for (let i = 0; i < 5; i++) { const sd = i % 2 ? 1 : -1; B(sd * (OW / 2 + r.range(0.4, 0.9)), 0, r.range(-0.6, 0.6), r.range(0.3, 0.5), r.range(0.3, 0.8), r.range(0.3, 0.5), 'ice', [0.95, 1.0, 1.1]); } }
     else if (f === 'crypt') { B(OW / 2 + 0.95, 0, 0, 1.2, 0.22, D + 0.2, look.post, [0.85, 0.8, 0.72]); B(-OW / 2 - 0.7, 0, -0.3, 0.45, 0.45, 0.45, 'sand_tile', [0.9, 0.7, 0.55]); }
+    else if (f === 'burrow' || f === 'bog') { const bk = look.post; for (let i = 0; i < 6; i++) { const sd = i % 2 ? 1 : -1; B(sd * (OW / 2 + r.range(0.3, 0.9)), 0, r.range(-0.7, 0.7), r.range(0.5, 0.9), r.range(0.2, 0.45), r.range(0.25, 0.4), bk, [0.9, 0.95, 0.85]); } B(OW / 2 + 0.7, 0, -0.5, 0.25, 0.22, 0.25, f === 'bog' ? 'wisp' : 'glowcap', f === 'bog' ? [1.6, 2.4, 2.2] : [0.6, 2.0, 1.7], true); }
     else if (f === 'crater') { for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.283 + r.range(-0.3, 0.3); B(Math.cos(a) * (OW / 2 + 0.7), 0, Math.sin(a) * (D / 2 + 0.6), r.range(0.3, 0.5), r.range(0.2, 0.4), r.range(0.3, 0.5), 'burnt', [0.6, 0.55, 0.55]); } B(OW / 2 + 0.5, 0, -0.4, 0.2, 0.6, 0.2, 'crystal', [0.9, 0.8, 1.5], true); }
     else { for (let i = 0; i < 4; i++) { const sd = i % 2 ? 1 : -1; B(sd * (OW / 2 + r.range(0.4, 0.8)), 0, r.range(-0.5, 0.5), 0.22, r.range(0.4, 0.9), 0.22, i < 2 ? 'crystal' : look.cap, i < 2 ? [1.3, 0.7, 1.8] : look.tint, i < 2); } }
     return out;
@@ -94,6 +97,15 @@ function frameBoxes(look, G, r) {
     }
     B(0, OH, 0, OW + P * 2 + 0.4, 0.55, D + 0.2, look.cap); B(0, OH + 0.55, 0, OW * 0.7, 0.4, D * 0.8, look.post); B(0, OH + 0.95, 0, OW * 0.3, 0.35, D * 0.6, look.cap);
     B(OW / 2 + P + 0.55, 0, D / 2 - 0.35, OW * 0.55, OH * 0.85, 0.3, look.post, [0.8, 0.74, 0.66]);
+  } else if (look.kind === 'hollow') {
+    // a hollow giant stump / root arch: fat bark posts, roots splaying out of their feet, a mossy crown across, glow cap shelves
+    for (const sd of [-1, 1]) {
+      B(sd * hx, FOOT, 0, P * 1.2, OH + 0.3 - FOOT, D, look.post); B(sd * (hx + P * 0.7), FOOT, 0.05, P * 0.7, 0.8 - FOOT, D * 1.1, look.post);
+      B(sd * (hx + P * 0.9), 0.6, D / 2 + 0.2, P * 0.6, 0.22, 0.7, look.post); B(sd * hx, OH + 0.3, 0, P * 1.1, 0.4, D * 0.9, look.cap);
+      B(sd * (hx - 0.05), OH * 0.5, D / 2 + 0.05, 0.4, 0.14, 0.14, 'glowcap', [0.6, 2.0, 1.7], true);
+    }
+    B(0, OH + 0.1, 0, OW + P * 2.2, 0.6, D, look.post); B(0.1, OH + 0.7, 0, OW * 0.8, 0.5, D * 0.9, look.cap);
+    for (let i = 0; i < 3; i++) B(r.range(-OW / 2 - 0.4, OW / 2 + 0.4), OH * 0.8 - r.range(0, 0.5), D / 2 + 0.03, 0.08, r.range(0.4, 0.9), 0.08, look.cap);
   } else if (look.kind === 'monolith') {
     // two dark standing stones with a third laid across, glowing shards set into them
     for (const sd of [-1, 1]) { B(sd * hx, FOOT, 0, P * 1.1, OH + 0.5 - FOOT, D * 0.9, look.post); B(sd * hx, OH + 0.5, 0, P * 0.8, 0.4, D * 0.7, look.post); B(sd * (hx + 0.15), OH * 0.55, D * 0.48, 0.18, 0.5, 0.06, 'crystal', [1.0, 0.9, 1.6], true); }
