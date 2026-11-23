@@ -140,7 +140,7 @@ export function createActors(H) {
   // ---- heroes: one kit-built beast each (js/view/beast), animated from the sim's anim, movement kind and ground speed ----
   function makeHero(u) {
     const sp = specOf(u); const color = u.def && u.def.color !== undefined ? u.def.color : 0xc0a070;
-    const beast = buildBeast(sp, { lod: 'battle', color, shadow: H.quality.shadow > 0 });
+    const beast = buildBeast(sp, { lod: 'battle', size: 1.35, color, shadow: H.quality.shadow > 0 });
     const node = new THREE.Group(); node.add(beast.root); scene.add(node);
     // where the hero's chevron is drawn (flushChevrons): a holder for position, visibility and colour, not in the scene
     const disc = new THREE.Object3D(); disc.position.y = 0.03; disc.userData.color = new THREE.Color(color);

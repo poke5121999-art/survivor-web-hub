@@ -48,7 +48,9 @@ export function buildBeast(spec, opts = {}) {
   // fit the rest pose to the form's standing height
   let top = 0; let bot = Infinity;
   for (const m of Object.values(B.meshes)) { const p = m.geometry.attributes.position; for (let i = 1; i < p.array.length; i += 3) { if (p.array[i] > top) top = p.array[i]; if (p.array[i] < bot) bot = p.array[i]; } }
-  const scale = F.height / Math.max(0.1, top);
+  // opts.size: the battle draws beasts larger than their nominal height so a chibi reads next to a 1.8 m zombie
+  const H = F.height * (opts.size || 1);
+  const scale = H / Math.max(0.1, top);
   B.root.scale.setScalar(scale);
   B.U.uOutline.value = (lod === 'portrait' ? 0.014 : 0.026) / scale;
   if (opts.shadow && B.meshes.toon) B.meshes.toon.castShadow = true;
@@ -60,7 +62,7 @@ export function buildBeast(spec, opts = {}) {
   let held = null; let heldT = 0;
   const st0 = { anim: 'idle', animT: 0, speed: 0, move: F.move };
   const beast = {
-    root: B.root, height: F.height, key, id, family, move: F.move, lod, muzzle, generic: !!F.generic, scale,
+    root: B.root, height: H, key, id, family, move: F.move, lod, muzzle, generic: !!F.generic, scale,
     drawCalls: Object.keys(B.meshes).length, bones: K.by, lift: 0, speed: 0,
     update(state, dt) {
       heldT += dt || 0; const s = state || st0; beast.speed = s.speed || 0;
