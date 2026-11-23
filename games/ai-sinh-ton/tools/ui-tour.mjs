@@ -44,7 +44,8 @@ async function fullAccount(page) {
 async function meta(page, tag) {
   await shoot(page, tag, 'home');
   if (await tap(page, 'stage-prev')) await shoot(page, tag, 'home-prev-stage');
-  if (await tap(page, 'chapter-next')) await shoot(page, tag, 'home-next-chapter');
+  if (await tap(page, 'view-chapter')) await shoot(page, tag, 'home-chapter');
+  if (await tap(page, 'view-world')) await shoot(page, tag, 'home-world');
   await page.evaluate(() => __G.goto('home')); await step(page, 20);
   if (await tap(page, 'tab-heroes', 40)) {
     await shoot(page, tag, 'heroes');
