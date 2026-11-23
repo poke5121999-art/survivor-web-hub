@@ -9,6 +9,9 @@ import { ENEMY } from '../data/enemies.js?v=20261122a';
 import { stageDef, MAX_ALIVE, BASE } from '../data/stages.js?v=20261122a';
 import { CARD, offerCards } from '../data/cards.js?v=20261122a';
 import { roomPlan } from './rooms.js?v=20261122a';
+import { moveUnit } from './move.js?v=20261122a';
+import { mapTick } from './maprules.js?v=20261122a';
+import { heroDef } from '../data/beasts.js?v=20261122a';
 
 export const DT = 1 / 30;
 // The arena is an ellipse sized to a portrait phone frame: x is across the screen, z is up the screen. The whole
@@ -49,7 +52,7 @@ function baseUnit(B, team, kind, x, z) {
 }
 
 function makeHero(B, slot, spec) {
-  const def = HERO[spec.id];
+  const def = heroDef(spec);
   const lv = spec.mul || 1;
   const u = baseUnit(B, 0, def.id, 0, 0);
   const a = (slot / Math.max(1, B.teamSize)) * Math.PI * 2 + 0.6;
@@ -618,7 +621,7 @@ function think(B, u, dt) {
   const sp = speedOf(u);
   u.vx = mx * sp; u.vz = mz * sp;
   if (mx || mz) {
-    u.x += u.vx * dt; u.z += u.vz * dt;
+    moveUnit(B, u, dt, t);
     if (!(t && dist(u, t) <= (u.attack ? u.attack.range + t.r + 0.2 : 0))) u.face = Math.atan2(mz, mx);
     if (u.anim !== 'attack' || u.animT > 0.25) u.anim = 'run';
   } else if (u.anim === 'run' || ((u.anim === 'attack' || u.anim === 'cast' || u.anim === 'ult' || u.anim === 'stun') && u.animT > 0.45)) u.anim = 'idle';
@@ -679,7 +682,9 @@ function addUnit(B, u) {
 // horde pack is already there, standing in one or two camps (made when the battle is created, idle and facing the camp,
 // drawn in their room before the team arrives); every later pack, and anything a skill calls from the rim, walks out of
 // one of the room's spawn gates on the far rim (rooms.js).
-const roomOf = (B) => B.plan.rooms[Math.max(0, Math.min(B.plan.rooms.length - 1, B.wave - 1))];
+// the room a wave is fought in: plan.waveRoom maps wave index to room index when a layout puts several waves in one room
+const roomIx = (B, w) => (B.plan.waveRoom ? B.plan.waveRoom[w] : w);
+const roomOf = (B) => B.plan.rooms[Math.max(0, Math.min(B.plan.rooms.length - 1, roomIx(B, B.wave - 1)))];
 // the packs of wave w that stand in camps: the ones there from the start, ordinary horde bodies, not on the boss pad
 const campable = (W, g) => !W.boss && g.at === 0 && !g.elite && g.hpK > 0 && g.hpK < 1 && !ENEMY[g.kind].boss;
 // only the rooms from `first` on (a battle begun at a later wave never meets the earlier camps)
@@ -687,7 +692,7 @@ function makeCamps(B, first = 0) {
   const r = makeRng((B.seed * 7919 + 17) >>> 0);
   B.camp = []; B.campN = 0;
   B.stage.waves.forEach((W, w) => {
-    const room = B.plan.rooms[w]; if (!room || !room.camps.length || w < first) return;
+    const room = B.plan.rooms[roomIx(B, w)]; if (!room || !room.camps.length || w < first) return;
     for (const g of W.groups) {
       if (!campable(W, g)) continue;
       const split = g.n > 12 && room.camps.length > 1 ? Math.ceil(g.n / 2) : g.n;
@@ -707,7 +712,7 @@ function makeCamps(B, first = 0) {
 // the team comes in on the entry side of room n: moved there as soon as the room before is cleared (the page draws the run
 // over the bridge from u.from; B.placeN counts the moves)
 function placeTeam(B, n) {
-  const h = B.plan.rooms[n - 1].home; const N = Math.max(1, B.heroes.length);
+  const h = B.plan.rooms[roomIx(B, n - 1)].home; const N = Math.max(1, B.heroes.length);
   for (const u of B.heroes) { const a = (u.slot / N) * Math.PI * 2 + 0.6; u.from = { x: u.x, z: u.z }; u.x = h.x + Math.cos(a) * 1.7; u.z = h.z + Math.sin(a) * 1.3; u.target = 0; }
   B.placeN = (B.placeN || 0) + 1;
 }
@@ -820,6 +825,7 @@ export function step(B) {
   const dt = DT;
   B.t += dt; B.tick++; B.waveT += dt;
   spawnDue(B);
+  mapTick(B, dt);
 
   for (let i = 0; i < B.pending.length; i++) { const p = B.pending[i]; if (p.t <= B.t) { B.pending.splice(i--, 1); p.run(); } }
   for (let i = 0; i < B.units.length; i++) tickUnit(B, B.units[i], dt);
