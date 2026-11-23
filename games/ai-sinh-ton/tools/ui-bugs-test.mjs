@@ -3,6 +3,11 @@
 //   P1 pointer-clear     the FTUE pointer never lies on a text it does not point at, at every guided step
 //   B1 bar-truth         every stats bar shows exactly its value, with no leftover ghost (a 0-damage row shows an empty bar)
 //   C1 counter-short     a counter of 1.234.567 reads "1,23 Tr" and its text stays clear of the coin icon
+//   T1 toast-clear       a toast raised on the chapter view (locked boss pip) and on the world map (locked region)
+//                        covers no text and no live button in any frame of its life
+//   W1 no-tuong          no text on the menu screens, the beast page or the evolution screen says "tướng"
+//   S1 ultcam-switch     the settings offer "Cận cảnh tối thượng", on by default; a tap stores settings.ultCam = false,
+//                        and the fight's ultimate then takes the short hold instead of the close-up
 // Usage: timeout 900 node games/ai-sinh-ton/tools/ui-bugs-test.mjs   Env: PHONES=s22,xiaomi,desktop
 import fs from 'node:fs';
 import path from 'node:path';
@@ -42,6 +47,7 @@ async function pointerAndGuide(br, srv, phone) {
     const st = await page.evaluate(() => ({ d: __G.guide.dbg(), screen: __G.screen, phase: __G.B && __G.B.phase, inB: !!__G.B, cleared: __G.meta.acc.cleared }));
     const d = st.d;
     if (st.cleared >= 1 && !st.inB && d.active && d.id === 'levelup') break;
+    if (d.story && d.story.on) { await tap(page, 'story-skip', 10); continue; }
     if (d.reveal) { await tap(page, 'reveal-tap', 6); continue; }
     if (d.active) {
       const key = d.id + ':' + (d.target || 'free');
@@ -108,11 +114,62 @@ async function barsAndCounters(br, srv, phone) {
   await g.ctx.close();
 }
 
+// T1 and W1
+async function toastAndWords(br, srv, phone) {
+  const g = await open(br, srv.base, phone, Q); const { page } = g;
+  await page.evaluate(() => {
+    const M = __G.meta, A = M.acc; M.ftueSkip(); for (const id of ['spectate', 'speed', 'daily', 'chapter', 'equip', 'merge']) M.ftueDone(id);
+    A.cleared = 12; A.level = 13; M.save(); for (const id of M.pendingReveals()) M.markSeen(id); __G.goto('heroes'); __G.goto('home');
+  });
+  await step(page, 40);
+  const cross = (a, b) => { const x = Math.max(a.x, b.x), y = Math.max(a.y, b.y), x2 = Math.min(a.x + a.w, b.x + b.w), y2 = Math.min(a.y + a.h, b.y + b.h); return x2 - x > 1 && y2 - y > 1; };
+  const life = async (label) => {
+    let n = 0; const bad = new Set();
+    for (let f = 0; f < 135; f += 3) {
+      await step(page, 3);
+      const r = await page.evaluate(() => {
+        const t = __ui.toastRect(); if (!t) return null; const fr = document.getElementById('frame').getBoundingClientRect(), k = fr.width / 780;
+        return { t, texts: __TB().filter((q) => q.screen), btn: __ui.targets().filter((q) => q.enabled).map((q) => ({ id: q.id, x: (q.vx - fr.left) / k, y: (q.vy - fr.top) / k, w: q.vw / k, h: q.vh / k })) };
+      });
+      if (!r) continue; n++;
+      for (const q of r.texts) if (cross(r.t, q)) bad.add(`text "${q.str}"`);
+      for (const q of r.btn) if (cross(r.t, q)) bad.add(`button ${q.id}`);
+    }
+    check(n >= 20 && bad.size === 0, `${phone} T1 toast-clear (${label}): ${n} frames with the toast up, it covers ${bad.size ? [...bad].slice(0, 4).join(', ') : 'nothing'}`);
+  };
+  await page.evaluate(() => __world.focus(2, true)); await step(page, 4); await tap(page, 'region-2');
+  await tap(page, 'stage-pip-4', 1); await life('chapter view, locked boss pip');
+  await page.screenshot({ path: path.join(OUT, `${phone}-t1-chapter.png`) });
+  await tap(page, 'view-world'); await page.evaluate(() => __world.focus(5, true)); await step(page, 4);
+  await tap(page, 'region-5', 1); await life('world map, locked region');
+  const said = [];
+  const look = async (where) => { await step(page, 30); for (const q of await page.evaluate(() => __TB())) if (/tướng/i.test(q.str.normalize('NFC'))) said.push(`${where}: "${q.str}"`); };
+  for (const tab of ['tab-gacha', 'tab-equip', 'tab-heroes', 'tab-rewards', 'tab-battle']) { if (await tap(page, tab)) await look(tab); }
+  await page.evaluate(async () => { const m = await import('/games/ai-sinh-ton/js/ui/evolve.js?v=20261122a'); __G.goto('heroes'); m.openEvolve(); }); await look('evolve');
+  // S1
+  await page.evaluate(() => { __G.goto('home'); __G.openSettings(); }); await step(page, 30);
+  const lab = () => page.evaluate(() => { const t = __TB().find((q) => q.own === 'set-ultcam'); const n = __TB().find((q) => q.str === 'Cận cảnh tối thượng'); return { btn: t && t.str, label: !!n, v: __G.settings.ultCam, saved: JSON.parse(localStorage.getItem('aisinhton.settings.v1') || '{}').ultCam }; });
+  const u0 = await lab();
+  await page.screenshot({ path: path.join(OUT, `${phone}-s1-settings.png`) });
+  await tap(page, 'set-ultcam', 10); const u1 = await lab();
+  const decide = () => page.evaluate(() => { const J = __G.juice, B = __G.B, n = J.ult.count; const hold = J.ult.begin({ uid: B.heroes[0].uid, key: 'test' }); return { hold, scene: J.ult.count - n }; });
+  await page.evaluate(() => { __G.startBattle(3); }); await step(page, 30);
+  const off = await decide();
+  await page.evaluate(() => { __G.leaveBattle(); __G.setSetting('ultCam', true); __G.startBattle(3); }); await step(page, 30);
+  const on = await decide();
+  await page.evaluate(() => __G.leaveBattle()); await step(page, 20);
+  check(u0.label && u0.btn === 'BẬT' && u0.v !== false && u1.btn === 'TẮT' && u1.v === false && u1.saved === false && off.scene === 0 && off.hold < 0.2 && on.scene === 1 && on.hold > off.hold,
+    `${phone} S1 ultcam-switch: shown ${u0.label}, "${u0.btn}" by default; after a tap "${u1.btn}", settings.ultCam ${u1.v}, saved ${u1.saved}; ultimate with it off holds ${off.hold} s and opens ${off.scene} close-up, with it on ${on.hold} s and ${on.scene}`);
+  check(said.length === 0, `${phone} W1 no-tuong: menu tabs, beast page and evolution screen show no "tướng" (${said.slice(0, 3).join(' | ') || 'none'})`);
+  await g.ctx.close();
+}
+
 const srv = await serve(); const br = await launch();
 try {
   for (const phone of PHONES) {
     await pointerAndGuide(br, srv, phone);
     await barsAndCounters(br, srv, phone);
+    await toastAndWords(br, srv, phone);
   }
 } finally { await br.close(); srv.close(); }
 done();

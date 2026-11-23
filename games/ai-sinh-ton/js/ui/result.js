@@ -7,7 +7,9 @@ import { xpNeed } from '../data/unlocks.js?v=20261122a';
 import { ITEM_ICON } from './itemicons.js?v=20261122a';
 import { createStatsPanel } from './stats.js?v=20261122a';
 
-const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Rung màn hình', 'shake', 'set-shake'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
+const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Rung màn hình', 'shake', 'set-shake'], ['Cận cảnh tối thượng', 'ultCam', 'set-ultcam'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
+// switches that are on until the player turns them off (absent from an old save means on)
+const ON_BY_DEFAULT = new Set(['shake', 'ultCam']);
 const FULLSCREEN = ['Toàn màn hình', 'fullscreen', 'set-fullscreen'];
 const QUALITY = [['Thấp', 'low'], ['Vừa', 'medium'], ['Cao', 'high']];
 const clock = (s) => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0');
@@ -24,37 +26,37 @@ export function createResult(game) {
 
   // ---------- pause and settings: a wide, short panel, switches in two columns ----------
   const pause = ui.group({ w: W, h: 360 }); scr.put(pause, 0, 0, 2);
-  pause.put(ui.panel({ w: 640, h: 332, r: 26, color: 0x33286a, depth: 6, bevel: 3, gloss: false }), 70, 14, 0);
-  pause.titleText = ui.text('TẠM DỪNG', { size: 24, align: 'center', valign: 'mid' }); pause.put(pause.titleText, W / 2, 38, 14);
-  pause.stageText = ui.text('', { size: 12, align: 'center', valign: 'mid', color: 0xd9ccff, outlineW: 1.3 }); pause.put(pause.stageText, W / 2, 69, 14);
+  pause.put(ui.panel({ w: 640, h: 344, r: 26, color: 0x33286a, depth: 6, bevel: 3, gloss: false }), 70, 8, 0);
+  pause.titleText = ui.text('TẠM DỪNG', { size: 24, align: 'center', valign: 'mid' }); pause.put(pause.titleText, W / 2, 32, 14);
+  pause.stageText = ui.text('', { size: 12, align: 'center', valign: 'mid', color: 0xd9ccff, outlineW: 1.3 }); pause.put(pause.stageText, W / 2, 60, 14);
   const rows = {}, labels = {};
   const lockMarks = {};
-  // the screen-shake switch is on until the player turns it off
   const fsOn = () => !!(game.fullscreen && game.fullscreen.on);
-  const isOn = (key) => (key === 'fullscreen' ? fsOn() : key === 'shake' ? game.settings.shake !== false : !!game.settings[key]);
+  const isOn = (key) => (key === 'fullscreen' ? fsOn() : ON_BY_DEFAULT.has(key) ? game.settings[key] !== false : !!game.settings[key]);
   [...SWITCHES, FULLSCREEN].forEach(([label, key, id, need], i) => {
-    const col = i < 3 ? 0 : 1, y = 88 + (i % 3) * 48, lx = col ? 404 : 96, bx = col ? 590 : 282;
-    labels[key] = ui.text(label, { size: 15, align: 'left', valign: 'mid' }); pause.put(labels[key], lx, y + (need ? 15 : 19), 14);
-    const b = ui.button({ id, w: 92, h: 38, r: 13, color: PAL.green, label: 'BẬT', size: 15, onTap: () => {
+    // two columns of four rows, 44 apart
+    const col = i < 4 ? 0 : 1, y = 76 + (i % 4) * 44, lx = col ? 404 : 96, bx = col ? 590 : 282;
+    labels[key] = ui.text(label, { size: 15, align: 'left', valign: 'mid' }); pause.put(labels[key], lx, y + (need ? 13 : 18), 14);
+    const b = ui.button({ id, w: 92, h: 36, r: 13, color: PAL.green, label: 'BẬT', size: 15, onTap: () => {
       if (need && !meta.unlocked(need)) { ui.toast(meta.lockText(need)); return; }
       if (key === 'fullscreen') { if (game.fullscreen) game.fullscreen.toggle(); } else game.setSetting(key, !isOn(key));
       paint();
     } });
     pause.put(b, bx, y, 14); rows[key] = b;
-    if (need) { lockMarks[key] = { need, icon: ui.icon('lock', { size: 28, sway: false }), text: ui.text(meta.lockText(need), { size: 11, align: 'left', valign: 'mid', color: 0xffd860, outlineW: 1.3 }) }; b.put(lockMarks[key].icon, 66, -9, 14); pause.put(lockMarks[key].text, lx, y + 33, 14); }
+    if (need) { lockMarks[key] = { need, icon: ui.icon('lock', { size: 28, sway: false }), text: ui.text(meta.lockText(need), { size: 11, align: 'left', valign: 'mid', color: 0xffd860, outlineW: 1.3 }) }; b.put(lockMarks[key].icon, 66, -9, 14); pause.put(lockMarks[key].text, lx, y + 30, 14); }
   });
-  pause.put(ui.text('Chất lượng hình', { size: 15, align: 'left', valign: 'mid' }), 96, 252, 14);
+  pause.put(ui.text('Chất lượng hình', { size: 15, align: 'left', valign: 'mid' }), 96, 271, 14);
   const quals = {};
   QUALITY.forEach(([label, key], i) => {
     const b = ui.button({ id: 'q-' + key, w: 84, h: 36, r: 12, color: PAL.blue, label, size: 14, onTap: () => { game.setSetting('quality', key); paint(); } });
-    pause.put(b, 282 + i * 92, 234, 14); quals[key] = b;
+    pause.put(b, 282 + i * 92, 254, 14); quals[key] = b;
   });
-  pause.put(ui.text('Áp dụng khi mở\nlại game', { size: 11, align: 'left', lineH: 13, color: 0xb9b3cc, outlineW: 1.2 }), 566, 240, 14);
-  pause.resume = ui.button({ id: 'resume', w: 190, h: 48, r: 17, color: PAL.green, icon: 'play', label: 'TIẾP TỤC', size: 18, onTap: () => resume() }); pause.put(pause.resume, 96, 288, 14);
-  pause.retry = ui.button({ id: 'retry', w: 130, h: 48, r: 15, color: PAL.orange, label: 'CHƠI LẠI', size: 14, onTap: () => { game.setPaused(false); open = false; game.retry(); } }); pause.put(pause.retry, 300, 288, 14);
-  pause.home = ui.button({ id: 'home', w: 130, h: 48, r: 15, color: PAL.blue, label: 'VỀ NHÀ', size: 14, onTap: () => { open = false; game.leaveBattle(); } }); pause.put(pause.home, 440, 288, 14);
+  pause.put(ui.text('Áp dụng khi mở\nlại game', { size: 11, align: 'left', lineH: 13, color: 0xb9b3cc, outlineW: 1.2 }), 566, 259, 14);
+  pause.resume = ui.button({ id: 'resume', w: 190, h: 48, r: 17, color: PAL.green, icon: 'play', label: 'TIẾP TỤC', size: 18, onTap: () => resume() }); pause.put(pause.resume, 96, 298, 14);
+  pause.retry = ui.button({ id: 'retry', w: 130, h: 48, r: 15, color: PAL.orange, label: 'CHƠI LẠI', size: 14, onTap: () => { game.setPaused(false); open = false; game.retry(); } }); pause.put(pause.retry, 300, 298, 14);
+  pause.home = ui.button({ id: 'home', w: 130, h: 48, r: 15, color: PAL.blue, label: 'VỀ NHÀ', size: 14, onTap: () => { open = false; game.leaveBattle(); } }); pause.put(pause.home, 440, 298, 14);
   // home settings only: account deletion, far from every other control (the confirmation is its own panel)
-  pause.del = ui.button({ id: 'acct-delete', w: 136, h: 40, r: 14, color: PAL.red, label: 'XOÁ TÀI KHOẢN', size: 12, onTap: () => { if (typeof game.openAccountDelete === 'function') game.openAccountDelete(); } }); pause.put(pause.del, 566, 292, 14);
+  pause.del = ui.button({ id: 'acct-delete', w: 136, h: 40, r: 14, color: PAL.red, label: 'XOÁ TÀI KHOẢN', size: 12, onTap: () => { if (typeof game.openAccountDelete === 'function') game.openAccountDelete(); } }); pause.put(pause.del, 566, 302, 14);
 
   // a "greyed" button is the off state: the target stays tappable
   const lamp = (b, on, color) => { b.setEnabled(on); if (b.target) b.target.enabled = true; return b; };
