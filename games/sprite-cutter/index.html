@@ -93,6 +93,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 .thumbs img { image-rendering: pixelated; width: 100%; aspect-ratio: 1 / 1; object-fit: contain; }
 .thumbs span { font-size: 10px; font-family: var(--f-num); color: var(--mute); }
 .thumbs .sheet-out { grid-column: 1 / -1; }
+.cut-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .thumbs .sheet-out img { aspect-ratio: auto; max-height: 160px; }
 .warn { color: var(--bad); font-size: 12px; margin: 0; }
 .pane { display: grid; gap: 12px; min-width: 0; }
@@ -130,7 +131,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 <div class="wrap">
   <header>
-    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 47</small></h1>
+    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 50</small></h1>
     <div class="seg" role="tablist" aria-label="Công cụ" id="app-mode">
       <button type="button" role="tab" data-mode="cut" aria-selected="true">Bàn Cắt Sprite</button><button type="button" role="tab" data-mode="rename" aria-selected="false">Đặt tên file</button>
     </div>
@@ -333,7 +334,10 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
         <div class="fields" style="grid-template-columns:1fr">
           <label>Tên tệp<input type="text" id="prefix" spellcheck="false"></label>
         </div>
-        <button type="button" class="primary" id="btn-cut">Cắt và lưu .zip</button>
+        <div class="cut-row">
+          <button type="button" class="primary" id="btn-cut">Cắt và lưu .zip</button>
+          <button type="button" id="btn-atlas" title="Chỉ tải tấm sheet mới (các frame đã chỉnh xếp thành lưới) thành một tệp PNG, không nén zip, không kèm frame lẻ và JSON">Chỉ tải sheet .png</button>
+        </div>
         <p class="status" id="status" role="status"></p>
         <div class="thumbs" id="thumbs"></div>
       </div>
@@ -343,7 +347,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261123b"></script>
+<script src="vendor/jszip.min.js?v=20261123c"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -450,17 +454,64 @@ function guessGrid() {
 /* ---------- tự canh khung ---------- */
 // imgVer tăng mỗi lần S.img đổi điểm ảnh (composed là một canvas dùng lại, nên không so được bằng đối tượng).
 let imgVer = 0, labCache = null, fitCache = null;
-const FG_TOL = 32;
+let BG_STEP = 24;
 
-// Mảng hình liền nhau (8 hướng) trên S.img. Sheet trong suốt: hình là pixel alpha ≥ 16. Sheet nền đặc: pixel lệch màu góc trên trái quá FG_TOL.
+// Nền là mọi pixel loang tới được từ mép ảnh (hoặc từ chỗ trong suốt) qua các bước đổi màu nhỏ, mỗi bước ≤ BG_STEP giữa hai
+// pixel kề nhau. Nhờ vậy nền tô nhiều sắc, kẻ sọc, ô xen màu (sheet AI hay vẽ khung ô xám nhạt) vẫn là nền, còn hình có viền
+// tương phản thì loang không vào được. Chỗ trong suốt chỉ loang sang pixel đặc gần màu mép ảnh (nền Xoá nền còn sót).
+function backgroundMask(p, W, H) {
+  const N = W * H, bgm = new Uint8Array(N), q = new Int32Array(N);
+  const rs = [], gs = [], bs = [];
+  const edge = i => { if (p[i * 4 + 3] >= 16) { rs.push(p[i * 4]); gs.push(p[i * 4 + 1]); bs.push(p[i * 4 + 2]); } };
+  for (let x = 0; x < W; x++) { edge(x); edge((H - 1) * W + x); }
+  for (let y = 0; y < H; y++) { edge(y * W); edge(y * W + W - 1); }
+  const med = a => a.sort((u, v) => u - v)[a.length >> 1], ref = rs.length ? [med(rs), med(gs), med(bs)] : null;
+  const diff = (i, c) => Math.max(Math.abs(p[i * 4] - c[0]), Math.abs(p[i * 4 + 1] - c[1]), Math.abs(p[i * 4 + 2] - c[2]));
+  const step = (i, j) => Math.max(Math.abs(p[i * 4] - p[j * 4]), Math.abs(p[i * 4 + 1] - p[j * 4 + 1]), Math.abs(p[i * 4 + 2] - p[j * 4 + 2]));
+  let tail = 0;
+  const seed = i => { if (!bgm[i]) { bgm[i] = 1; q[tail++] = i; } };
+  for (let i = 0; i < N; i++) if (p[i * 4 + 3] < 16) seed(i);
+  if (ref) {
+    for (let x = 0; x < W; x++) for (const i of [x, (H - 1) * W + x]) if (p[i * 4 + 3] >= 16 && diff(i, ref) <= BG_STEP * 2) seed(i);
+    for (let y = 0; y < H; y++) for (const i of [y * W, y * W + W - 1]) if (p[i * 4 + 3] >= 16 && diff(i, ref) <= BG_STEP * 2) seed(i);
+  }
+  for (let head = 0; head < tail; head++) {
+    const i = q[head], x = i % W, clear = p[i * 4 + 3] < 16;
+    for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i >= W ? i - W : -1, i + W < N ? i + W : -1]) {
+      if (j < 0 || bgm[j]) continue;
+      if (p[j * 4 + 3] < 16 || (clear ? ref && diff(j, ref) <= BG_STEP * 2 : step(i, j) <= BG_STEP)) { bgm[j] = 1; q[tail++] = j; }
+    }
+  }
+  // Vùng nền bị hình và sọc kẻ bao kín thì không loang tới. Vùng kín đủ lớn (≥ 0,05% ảnh) mà ≥ 90% pixel mang màu nền đã gặp
+  // (ô màu 16 mức mỗi kênh, ≥ 0,5% pixel nền) cũng là nền; lòng trắng mắt, đốm sáng nhỏ hơn nên vẫn là hình.
+  const bucket = i => ((p[i * 4] >> 4) << 8) | ((p[i * 4 + 1] >> 4) << 4) | (p[i * 4 + 2] >> 4), hist = new Uint32Array(4096);
+  let nbg = 0;
+  for (let i = 0; i < N; i++) if (bgm[i] && p[i * 4 + 3] >= 16) { hist[bucket(i)]++; nbg++; }
+  const pal = new Uint8Array(4096);
+  for (let b = 0; b < 4096; b++) pal[b] = nbg && hist[b] >= nbg * 0.005 ? 1 : 0;
+  const seen = new Uint8Array(N), minArea = N * 0.0005;
+  for (let i0 = 0; i0 < N; i0++) {
+    if (bgm[i0] || seen[i0] || !pal[bucket(i0)]) continue;
+    let head = 0, n = 0, inPal = 0; tail = 0; q[tail++] = i0; seen[i0] = 1;
+    while (head < tail) {
+      const i = q[head++], x = i % W; n++; inPal += pal[bucket(i)];
+      for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i >= W ? i - W : -1, i + W < N ? i + W : -1])
+        if (j >= 0 && !bgm[j] && !seen[j] && step(i, j) <= BG_STEP) { seen[j] = 1; q[tail++] = j; }
+    }
+    if (n >= minArea && inPal >= n * 0.9) for (let k = 0; k < tail; k++) bgm[q[k]] = 1;
+  }
+  return { bgm, ref };
+}
+
+// Mảng hình liền nhau (8 hướng) trên S.img: pixel không thuộc nền của backgroundMask().
 function contentLabels() {
   if (labCache && (labCache.ver === imgVer || liveStroke)) return labCache;
   const W = imgW(), H = imgH(), N = W * H;
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const cx = cv.getContext("2d", { willReadFrequently: true }); cx.drawImage(S.img, 0, 0);
-  const p = cx.getImageData(0, 0, W, H).data, solid = sheetIsOpaque(), bg = [p[0], p[1], p[2]];
+  const p = cx.getImageData(0, 0, W, H).data, solid = sheetIsOpaque(), { bgm, ref } = backgroundMask(p, W, H), bg = ref || [p[0], p[1], p[2]];
   const label = new Int32Array(N).fill(-1), comps = [], q = new Int32Array(N);
-  const fg = i => solid ? Math.max(Math.abs(p[i * 4] - bg[0]), Math.abs(p[i * 4 + 1] - bg[1]), Math.abs(p[i * 4 + 2] - bg[2])) > FG_TOL : p[i * 4 + 3] >= 16;
+  const fg = i => !bgm[i];
   for (let i0 = 0; i0 < N; i0++) {
     if (label[i0] >= 0 || !fg(i0)) continue;
     const k = comps.length, m = { n: 0, sx: 0, sy: 0, x0: W, y0: H, x1: -1, y1: -1 };
@@ -480,72 +531,89 @@ function contentLabels() {
   return labCache = { ver: imgVer, W, H, label, comps, solid, bg };
 }
 
-// Ô lưới (chưa tính độ lệch tay) chứa pixel (x, y): chỉ số hàng × cột + cột, -1 nếu nằm ở khe hay ngoài lưới.
-function gridCellAt(x, y) {
-  const g = S.grid, pX = g.w + g.gx, pY = g.h + g.gy;
-  const c = pX > 0 ? Math.floor((x - g.x) / pX) : 0, r = pY > 0 ? Math.floor((y - g.y) / pY) : 0;
-  if (c < 0 || r < 0 || c >= g.cols || r >= g.rows || x - g.x - c * pX >= g.w || y - g.y - r * pY >= g.h) return -1;
-  return r * g.cols + c;
-}
-
-// Mỗi mảng hình thuộc về ô chứa nhiều pixel của nó nhất; mảng dính qua hai ô (mỗi ô ≥ 1/4) thì chia theo ranh ô.
-// Khung của ô = hộp bao các mảng đủ lớn của nó (≥ 0,3% mảng lớn nhất, bỏ hạt bụi JPEG); neo = cột trung vị của pixel hình, ngay dưới đáy hộp.
-// Ô không có hình: khung rỗng, không làm nở khung chung.
+// Tự canh khung không tin vào lưới: sheet AI hay đặt hình cách nhau không đều, số hình cũng không khớp số ô đoán ra.
+// Mỗi mảng lớn (≥ 1/5 mảng lớn nhất ảnh) là một hình. Mảng nhỏ (bóng dưới chân, tia, bụi) theo hình mà nó nằm ngay trên/dưới
+// (tâm nằm ở 60% giữa bề ngang hình, cách ≤ 0,6 chiều cao hình: bóng của dáng nhảy cách chân xa), không có thì theo hình có pixel
+// gần nhất trong 1/8 chiều cao, còn lại bỏ. Dấu sao mờ góc sheet và số thứ tự góc ô nằm xa pixel hình nên không bị nhận nhầm.
+// Hình vào cùng hàng khi chồng theo chiều dọc ≥ 30% chiều cao của nó (dáng nhảy cao hơn vẫn cùng hàng), rồi xếp trái sang phải; lưới đổi thành số hàng × số hình nhiều nhất một hàng.
+// Khung của hình = hộp bao mảng lớn + mảng nhỏ ≥ 0,3% của nó; neo = cột trung vị của pixel hình, ngay dưới đáy hộp.
+let lastLayout = null;
 function autoFit() {
-  const g = S.grid, lab = contentLabels();
-  const sig = lab.ver + "|" + [g.cols, g.rows, g.x, g.y, g.w, g.h, g.gx, g.gy].join();
-  if (fitCache && (fitCache.sig === sig || liveStroke)) return fitCache.map;
-  const { W, label, comps } = lab, owner = new Int32Array(comps.length), split = new Uint8Array(comps.length);
-  const pieces = new Map();
-  const addPiece = (cell, k, n, x0, y0, x1, y1) => {
-    if (cell < 0) return;
-    if (!pieces.has(cell)) pieces.set(cell, []);
-    pieces.get(cell).push({ k, n, x0, y0, x1, y1 });
-  };
+  const lab = contentLabels();
+  if (fitCache && (fitCache.ver === lab.ver || liveStroke)) return fitCache.map;
+  const { W, label, comps } = lab, top = Math.max(0, ...comps.map(m => m.n));
+  const bigs = comps.map((m, k) => k).filter(k => comps[k].n >= top * 0.2);
+  const midY = k => (comps[k].y0 + comps[k].y1) / 2, midX = k => (comps[k].x0 + comps[k].x1) / 2;
+  const rows = [];
+  for (const k of bigs.sort((a, b) => midY(a) - midY(b))) {
+    const m = comps[k], row = rows.at(-1);
+    if (row && Math.min(m.y1, row.y1) - Math.max(m.y0, row.y0) + 1 >= (m.y1 - m.y0 + 1) * 0.3) { row.ks.push(k); row.y0 = Math.min(row.y0, m.y0); row.y1 = Math.max(row.y1, m.y1); }
+    else rows.push({ ks: [k], y0: m.y0, y1: m.y1 });
+  }
+  const cols = Math.max(1, ...rows.map(r => r.ks.length)), owner = new Int32Array(comps.length).fill(-1), groups = new Map();
+  rows.forEach((r, ri) => r.ks.sort((a, b) => midX(a) - midX(b)).forEach((k, ci) => { owner[k] = ri * cols + ci; groups.set(owner[k], [k]); }));
+  // Khoảng cách pixel thật tới hình gần nhất (loang 4 hướng từ mọi pixel của các hình, tối đa 1/8 chiều cao hình cao nhất).
+  // Đo theo hộp thì sai: hộp của dáng nhảy trải từ đuôi tới tay giơ, trùm cả số thứ tự ở góc ô dù số cách xa hình.
+  const H = lab.H, N = W * H, reach = Math.ceil(Math.max(1, ...bigs.map(k => comps[k].y1 - comps[k].y0 + 1)) / 8);
+  const dist = new Uint16Array(N).fill(65535), near = new Int32Array(N).fill(-1), bq = new Int32Array(N), isBig = new Uint8Array(comps.length);
+  for (const k of bigs) isBig[k] = 1;
+  let bt = 0;
+  for (let i = 0; i < N; i++) if (label[i] >= 0 && isBig[label[i]]) { dist[i] = 0; near[i] = label[i]; bq[bt++] = i; }
+  for (let h = 0; h < bt; h++) {
+    const i = bq[h], d = dist[i] + 1, x = i % W;
+    if (d > reach) continue;
+    for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i >= W ? i - W : -1, i + W < N ? i + W : -1])
+      if (j >= 0 && dist[j] > d) { dist[j] = d; near[j] = near[i]; bq[bt++] = j; }
+  }
   comps.forEach((m, k) => {
-    const a = gridCellAt(m.x0, m.y0);
-    if (a >= 0 && a === gridCellAt(m.x1, m.y1) && a === gridCellAt(m.x1, m.y0) && a === gridCellAt(m.x0, m.y1)) {
-      owner[k] = a; addPiece(a, k, m.n, m.x0, m.y0, m.x1, m.y1); return;
+    if (owner[k] >= 0) return;
+    let best = -1, bestD = Infinity;
+    for (const b of bigs) {
+      const B = comps[b], hb = B.y1 - B.y0 + 1;
+      const wb = B.x1 - B.x0 + 1, cx = (m.x0 + m.x1) / 2, gy = Math.max(0, m.y0 - B.y1, B.y0 - m.y1);
+      if (cx >= B.x0 + wb * 0.2 && cx <= B.x1 - wb * 0.2 && gy <= hb * 0.6 && gy < bestD) { best = b; bestD = gy; }
     }
-    const hist = new Map();
-    for (let y = m.y0; y <= m.y1; y++) for (let x = m.x0; x <= m.x1; x++) {
-      if (label[y * W + x] !== k) continue;
-      const c = gridCellAt(x, y);
-      let h = hist.get(c);
-      if (!h) hist.set(c, h = { n: 0, x0: x, y0: y, x1: x, y1: y });
-      h.n++; if (x < h.x0) h.x0 = x; if (x > h.x1) h.x1 = x; if (y > h.y1) h.y1 = y;
+    if (best < 0) for (let y = m.y0; y <= m.y1; y++) for (let x = m.x0; x <= m.x1; x++) {
+      const i = y * W + x, b = near[i];
+      if (label[i] !== k || b < 0 || dist[i] >= bestD || dist[i] > (comps[b].y1 - comps[b].y0 + 1) / 8) continue;
+      best = b; bestD = dist[i];
     }
-    const inCells = [...hist].filter(([c]) => c >= 0).sort((u, v) => v[1].n - u[1].n);
-    owner[k] = inCells.length ? inCells[0][0] : gridCellAt(Math.round(m.sx / m.n), Math.round(m.sy / m.n));
-    if (inCells.length > 1 && inCells[1][1].n * 4 >= m.n) {
-      split[k] = 1;
-      for (const [c, h] of inCells) addPiece(c, k, h.n, h.x0, h.y0, h.x1, h.y1);
-    } else addPiece(owner[k], k, m.n, m.x0, m.y0, m.x1, m.y1);
+    if (best < 0) return;
+    owner[k] = owner[best];
+    if (m.n >= Math.max(4, comps[best].n * 0.003)) groups.get(owner[k]).push(k);
   });
-  const own = i => { const k = label[i]; if (k < 0) return -1; if (!split[k]) return owner[k]; const x = i % W, c = gridCellAt(x, (i - x) / W); return c >= 0 ? c : owner[k]; };
+  const own = i => { const k = label[i]; return k < 0 ? -1 : owner[k]; };
   const map = new Map();
-  for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) {
-    const cell = r * g.cols + c, gx = g.x + c * (g.w + g.gx), gy = g.y + r * (g.h + g.gy);
-    const ps = pieces.get(cell) || [], big = Math.max(0, ...ps.map(u => u.n)), keep = ps.filter(u => u.n >= Math.max(4, big * 0.003));
-    if (!keep.length) { const ax = gx + (g.w >> 1), ay = gy + g.h; map.set(cell, { ax, ay, x: ax, y: ay, w: 0, h: 0 }); continue; }
-    const x0 = Math.min(...keep.map(u => u.x0)), y0 = Math.min(...keep.map(u => u.y0));
-    const x1 = Math.max(...keep.map(u => u.x1)), y1 = Math.max(...keep.map(u => u.y1));
-    const ks = new Set(keep.map(u => u.k)), cols = new Uint32Array(x1 - x0 + 1);
+  for (const [cell, ks] of groups) {
+    const x0 = Math.min(...ks.map(k => comps[k].x0)), y0 = Math.min(...ks.map(k => comps[k].y0));
+    const x1 = Math.max(...ks.map(k => comps[k].x1)), y1 = Math.max(...ks.map(k => comps[k].y1));
+    const set = new Set(ks), hist = new Uint32Array(x1 - x0 + 1);
     let n = 0;
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const i = y * W + x;
-      if (ks.has(label[i]) && own(i) === cell) { cols[x - x0]++; n++; }
-    }
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (set.has(label[y * W + x])) { hist[x - x0]++; n++; }
     let acc = 0, mid = 0;
-    while (mid < cols.length - 1 && (acc + cols[mid]) * 2 <= n) acc += cols[mid++];
+    while (mid < hist.length - 1 && (acc + hist[mid]) * 2 <= n) acc += hist[mid++];
     map.set(cell, { ax: x0 + mid, ay: y1 + 1, x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
   }
-  fitCache = { sig, map, own };
+  const g = S.grid, boxes = [...map.values()];
+  const lay = [cols, rows.length, ...map.keys()].join();
+  if (boxes.length && lay !== lastLayout) {
+    lastLayout = lay;
+    Object.assign(g, { cols, rows: rows.length, x: Math.min(...boxes.map(b => b.x)), y: Math.min(...boxes.map(b => b.y)),
+      w: Math.max(...boxes.map(b => b.w)), h: Math.max(...boxes.map(b => b.h)), gx: 0, gy: 0 });
+    S.start = 0; S.count = cols * rows.length; S.off = {}; S.grow = {}; S.sel = null; S.cur = 0;
+    S.skip = new Set();
+    for (let r = 0; r < rows.length; r++) for (let c = 0; c < cols; c++) if (!map.has(r * cols + c)) S.skip.add(r + "," + c);
+  }
+  for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) if (!map.has(r * g.cols + c)) {
+    const ax = g.x + c * g.w + (g.w >> 1), ay = g.y + (r + 1) * g.h;
+    map.set(r * g.cols + c, { ax, ay, x: ax, y: ay, w: 0, h: 0 });
+  }
+  fitCache = { ver: lab.ver, map, own, sprites: bigs.length, sig: lab.ver + "|" + lay };
   return map;
 }
 
-// Điểm ảnh khung cắt của frame f khi bật Tự canh khung: pixel thuộc ô khác bị xoá (sheet nền đặc thì tô màu nền), nên hình ô bên
-// lấn sang không lọt vào frame này. Dùng điểm ảnh hiện tại của S.img với bảng chủ pixel của autoFit().
+// Điểm ảnh khung cắt của frame f khi bật Tự canh khung: chỉ giữ pixel của chính hình này, mọi pixel khác bị xoá (sheet nền đặc
+// thì tô màu nền), nên hình ô bên lấn sang, sọc kẻ và số thứ tự Xoá nền còn sót đều không lọt vào frame. Dùng điểm ảnh hiện tại của S.img với bảng chủ pixel của autoFit().
 // Frame có co giãn (k ≠ 1) thì trả bản đã co giãn mượt cỡ sw × sh, nên máy chạy và tệp cắt ra giống hệt nhau.
 const ownCanvas = new Map();
 function frameSource(f) {
@@ -563,7 +631,7 @@ function frameSource(f) {
     for (let u = 0; u < f.w; u++) {
       const sx = f.x + u; if (sx < 0 || sx >= W) continue;
       const o = own(y * W + sx);
-      if (o < 0 || o === cell) continue;
+      if (o === cell) continue;
       const j = (v * f.w + u) * 4;
       if (solid) { p[j] = bg[0]; p[j + 1] = bg[1]; p[j + 2] = bg[2]; p[j + 3] = 255; } else p[j + 3] = 0;
     }
@@ -832,7 +900,8 @@ function syncPlayerUi() {
 }
 
 function syncUi() {
-  for (const [id, k] of Object.entries(gridFields)) put(id, S.grid[k]);
+  for (const [id, k] of Object.entries(gridFields)) { put(id, S.grid[k]); $(id).disabled = S.auto; }
+  $("btn-fit").disabled = S.auto;
   const fr0 = frames(), selF = S.sel !== null ? fr0.find(f => f.i === S.sel) : null, own = S.sizeScope === "frame" && selF;
   put("st-w", own ? selF.w : fr0[0] ? fr0[0].cw : S.grid.w); put("st-h", own ? selF.h : fr0[0] ? fr0[0].ch : S.grid.h);
   $("st-w").disabled = $("st-h").disabled = S.auto && !own;
@@ -892,18 +961,25 @@ for (const id of ["s-w", "s-h"]) $(id).addEventListener("input", () => {
 });
 for (const b of $("st-scope").children) b.onclick = () => { S.sizeScope = b.dataset.scope; if (S.sizeScope === "frame") stackFrame(); changed(); };
 $("st-size-reset").onclick = () => { const c = cells()[S.sel]; if (c) { delete S.grow[c.key]; changed(); } };
-$("auto-fit").onchange = e => { S.auto = e.target.checked; changed(); };
+// Bật Tự canh khung thì chụp lại lưới và các chỉnh tay đang có; tắt thì trả đúng như trước khi bật.
+function snapAuto() { S.preAuto = { grid: { ...S.grid }, start: S.start, count: S.count, off: S.off, grow: S.grow, skip: new Set(S.skip) }; lastLayout = null; }
+$("auto-fit").onchange = e => {
+  S.auto = e.target.checked;
+  if (S.auto) snapAuto();
+  else if (S.preAuto) { const p = S.preAuto; Object.assign(S.grid, p.grid); Object.assign(S, { start: p.start, count: p.count, off: p.off, grow: p.grow, skip: p.skip, sel: null, cur: 0 }); S.preAuto = null; }
+  changed();
+};
 $("even-size").onchange = e => { S.even = e.target.checked; changed(); };
 function autoNote(fr) {
   const el = $("auto-note");
   $("even-size").disabled = !S.auto;
   el.hidden = !S.auto || !S.img;
   if (el.hidden || !fr.length) return;
-  const empty = fr.filter(f => f.w <= 0 || f.h <= 0).length;
+  const empty = fr.filter(f => (f.w <= 0 || f.h <= 0) && !S.skip.has(f.key)).length;
   el.className = "status" + (labCache && labCache.solid ? " bad" : " ok");
   const ks = fr.filter(f => f.fh > 0).map(f => f.k), fmt = v => v.toFixed(2).replace(".", ",");
   const kmin = Math.min(...ks), kmax = Math.max(...ks);
-  el.textContent = `Khung chung ${fr[0].cw}×${fr[0].ch} px, tâm đáy là chỗ chân hình.` + (empty ? ` ${empty} ô không có hình.` : "")
+  el.textContent = `Tìm thấy ${fitCache ? fitCache.sprites : 0} hình, xếp ${S.grid.rows} hàng × ${S.grid.cols} cột. Khung chung ${fr[0].cw}×${fr[0].ch} px, tâm đáy là chỗ chân hình.` + (empty ? ` ${empty} ô không có hình.` : "")
     + (S.even && ks.length ? (kmin === kmax ? " Các hình đã cao bằng nhau, không co giãn." : ` Co giãn từ ${fmt(kmin)} tới ${fmt(kmax)} lần.`) : "")
     + (labCache && labCache.solid ? " Sheet còn nền đặc: bật Xoá nền để khung ôm sát hình và tệp cắt ra trong suốt." : "");
 }
@@ -2068,6 +2144,7 @@ function loadFile(file, pasted) {
     S.off = {}; S.grow = {}; S.skip = new Set(); S.sel = null; S.start = 0; S.cur = 0; S.playing = true;
     S.strokes = []; S.redo = []; eraseMask = paintLayer = restoreMask = null; used = { paint: false, back: false };
     guessGrid(); S.count = cellCount();
+    if (S.auto) snapAuto();
     // Ô Xoá nền còn bật từ sheet trước: ảnh đã trong suốt thì góc ra màu đen và viền tối của hình bị loang mất.
     const keyedOff = $("bg-on").checked && !sheetIsOpaque();
     if (keyedOff) $("bg-on").checked = false;
@@ -2152,20 +2229,34 @@ async function noSave(out = "status") {
   el.replaceChildren("Bạn đã tắt quyền tải của trang này. Bấm ", b, " để bật lại.");
 }
 
+// Các frame đang chạy xếp lại thành sheet mới: mỗi ô cỡ khung chung, số cột bằng số cột lưới gốc.
+async function packSheet(fr) {
+  const fw = fr[0].cw, fh = fr[0].ch, cols = Math.min(S.grid.cols, fr.length), rows = Math.ceil(fr.length / cols);
+  const packed = document.createElement("canvas");
+  packed.width = cols * fw; packed.height = rows * fh;
+  const x = packed.getContext("2d");
+  for (let k = 0; k < fr.length; k++) drawPlaced(x, fr[k], 1, (k % cols) * fw, Math.floor(k / cols) * fh, 1);
+  return { fw, fh, cols, rows, packed, blob: await new Promise(r => packed.toBlob(r, "image/png")) };
+}
+function cutPrefix() { return ($("prefix").value.trim() || S.name).replace(/[\\/:*?"<>|]+/g, "_"); }
+
+$("btn-atlas").onclick = async () => {
+  const fr = played();
+  if (!S.img || !fr.length) { status("Mọi frame đang tắt. Bật ít nhất một frame rồi tải.", "bad"); return; }
+  const { cols, rows, packed, blob } = await packSheet(fr), file = `${cutPrefix()}_sheet.png`;
+  status(`Sheet ${cols}×${rows} ô, ${packed.width}×${packed.height}px. Đang mở hộp lưu…`);
+  await offer(file, blob);
+};
+
 $("btn-cut").onclick = async () => {
   const fr = played();
   if (!S.img || !fr.length) { status("Mọi frame đang tắt. Bật ít nhất một frame rồi cắt.", "bad"); return; }
-  const prefix = ($("prefix").value.trim() || S.name).replace(/[\\/:*?"<>|]+/g, "_");
+  const prefix = cutPrefix();
   const pad = String(fr.length - 1).length < 2 ? 2 : String(fr.length - 1).length;
   status(`Đang cắt ${fr.length} frame…`);
   clearThumbs();
   const zip = new JSZip(), meta = [];
-  const fw = fr[0].cw, fh = fr[0].ch, cols = Math.min(S.grid.cols, fr.length), rows = Math.ceil(fr.length / cols);
-  const packed = document.createElement("canvas");
-  packed.width = cols * fw; packed.height = rows * fh;
-  const pctx2 = packed.getContext("2d");
-  for (let k = 0; k < fr.length; k++) drawPlaced(pctx2, fr[k], 1, (k % cols) * fw, Math.floor(k / cols) * fh, 1);
-  const sheetFile = `${prefix}_sheet.png`, sheetBlob = await new Promise(r => packed.toBlob(r, "image/png"));
+  const { fw, fh, cols, rows, packed, blob: sheetBlob } = await packSheet(fr), sheetFile = `${prefix}_sheet.png`;
   zip.file(sheetFile, sheetBlob);
   const sheetUrl = URL.createObjectURL(sheetBlob); thumbUrls.push(sheetUrl);
   const sb = document.createElement("button"); sb.type = "button"; sb.className = "sheet-out"; sb.title = "Lưu riêng " + sheetFile;
