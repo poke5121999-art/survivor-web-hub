@@ -71,8 +71,9 @@ void main() {
     dark = body * 0.6;
     glow = vG * core * hot * 1.5;
   } else {                     // light: a soft pool with a noisy edge and rays
-    float rays = 0.75 + 0.25 * vnoise(vec2(an * 7.0 + seed, 0.0));
-    float pool = pow(max(0.0, 1.0 - d / (0.75 + edgeN * 0.35)), 2.0) * rays;
+    float rays = 0.25 + 0.75 * smoothstep(0.35, 0.85, vnoise(vec2(an * 9.0 + seed, d * 0.8)));
+    float torn = 0.45 + edgeN * 1.1;
+    float pool = pow(max(0.0, 1.0 - d / torn), 1.6) * rays * (0.6 + 0.4 * fbm(m * 4.0 + seed));
     glow = vG * pool * (1.0 - age) * 0.9;
   }
   float fade = 1.0 - gone;

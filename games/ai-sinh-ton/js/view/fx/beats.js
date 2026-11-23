@@ -163,7 +163,7 @@ export function createBeats(H, marks) {
     const n = (o.ult ? 22 : 9) * c.s.tier.count;
     sparks.converge(u.x, 1.1, u.z, n, 2.4 * big * c.s.tier.size, { colors: [c.s.core, c.s.edge], life: T, w: 0.09, len: 0.1, stretch: 0.1, real: c.real, spread: T * 0.3 });
     sparks.wisps(u.x, 0.1, u.z, (o.ult ? 8 : 3) * c.s.tier.count, { colors: [c.s.glow, c.s.edge], rise: 1.6 * big, r: 0.7, w: 0.4, len: 0.8, life: T + 0.2, a: 0.45, real: c.real });
-    decals.add({ x: u.x, z: u.z, r: 1.3 * big * c.s.tier.size, kind: DECAL.light, glow: c.s.glow, life: T + 0.25, real: c.real });
+    if (!o.ult) decals.add({ x: u.x, z: u.z, r: 1.3 * c.s.tier.size, kind: DECAL.light, glow: c.s.glow, life: T + 0.25, real: c.real });
     if (o.ult) { marks.pillar(u.x, u.z, c.s.edge, { h: 5 * c.s.tier.size, r: 0.8, life: T + 0.3, a: reduce() ? 0.2 : 0.32 }); decals.add({ x: u.x, z: u.z, r: 2.2 * c.s.tier.size, kind: DECAL.crack, color: c.s.deep, glow: c.s.edge, life: T + 2.5, real: c.real }); }
   }
   // impact at a landing point of shape `shape` (a SHAPE key) and its after-image
