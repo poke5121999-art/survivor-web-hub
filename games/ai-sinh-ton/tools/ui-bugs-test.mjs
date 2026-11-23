@@ -6,6 +6,8 @@
 //   T1 toast-clear       a toast raised on the chapter view (locked boss pip) and on the world map (locked region)
 //                        covers no text and no live button in any frame of its life
 //   W1 no-tuong          no text on the menu screens, the beast page or the evolution screen says "tướng"
+//   S1 ultcam-switch     the settings offer "Cận cảnh tối thượng", on by default; a tap stores settings.ultCam = false,
+//                        and the fight's ultimate then takes the short hold instead of the close-up
 // Usage: timeout 900 node games/ai-sinh-ton/tools/ui-bugs-test.mjs   Env: PHONES=s22,xiaomi,desktop
 import fs from 'node:fs';
 import path from 'node:path';
@@ -144,6 +146,20 @@ async function toastAndWords(br, srv, phone) {
   const look = async (where) => { await step(page, 30); for (const q of await page.evaluate(() => __TB())) if (/tướng/i.test(q.str.normalize('NFC'))) said.push(`${where}: "${q.str}"`); };
   for (const tab of ['tab-gacha', 'tab-equip', 'tab-heroes', 'tab-rewards', 'tab-battle']) { if (await tap(page, tab)) await look(tab); }
   await page.evaluate(async () => { const m = await import('/games/ai-sinh-ton/js/ui/evolve.js?v=20261122a'); __G.goto('heroes'); m.openEvolve(); }); await look('evolve');
+  // S1
+  await page.evaluate(() => { __G.goto('home'); __G.openSettings(); }); await step(page, 30);
+  const lab = () => page.evaluate(() => { const t = __TB().find((q) => q.own === 'set-ultcam'); const n = __TB().find((q) => q.str === 'Cận cảnh tối thượng'); return { btn: t && t.str, label: !!n, v: __G.settings.ultCam, saved: JSON.parse(localStorage.getItem('aisinhton.settings.v1') || '{}').ultCam }; });
+  const u0 = await lab();
+  await page.screenshot({ path: path.join(OUT, `${phone}-s1-settings.png`) });
+  await tap(page, 'set-ultcam', 10); const u1 = await lab();
+  const decide = () => page.evaluate(() => { const J = __G.juice, B = __G.B, n = J.ult.count; const hold = J.ult.begin({ uid: B.heroes[0].uid, key: 'test' }); return { hold, scene: J.ult.count - n }; });
+  await page.evaluate(() => { __G.startBattle(3); }); await step(page, 30);
+  const off = await decide();
+  await page.evaluate(() => { __G.leaveBattle(); __G.setSetting('ultCam', true); __G.startBattle(3); }); await step(page, 30);
+  const on = await decide();
+  await page.evaluate(() => __G.leaveBattle()); await step(page, 20);
+  check(u0.label && u0.btn === 'BẬT' && u0.v !== false && u1.btn === 'TẮT' && u1.v === false && u1.saved === false && off.scene === 0 && off.hold < 0.2 && on.scene === 1 && on.hold > off.hold,
+    `${phone} S1 ultcam-switch: shown ${u0.label}, "${u0.btn}" by default; after a tap "${u1.btn}", settings.ultCam ${u1.v}, saved ${u1.saved}; ultimate with it off holds ${off.hold} s and opens ${off.scene} close-up, with it on ${on.hold} s and ${on.scene}`);
   check(said.length === 0, `${phone} W1 no-tuong: menu tabs, beast page and evolution screen show no "tướng" (${said.slice(0, 3).join(' | ') || 'none'})`);
   await g.ctx.close();
 }
