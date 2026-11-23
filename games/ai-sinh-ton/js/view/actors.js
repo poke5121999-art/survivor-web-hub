@@ -7,6 +7,8 @@ import { createHorde } from './horde.js?v=20261122a';
 import { arrive } from './arrival.js?v=20261122a';
 import { buildBeast, LEGACY } from './beast/index.js?v=20261122a';
 import { actFor, stepAct, usePool } from './bossacts.js?v=20261122a';
+import { dressBoss } from './foe/bosses.js?v=20261122a';
+import { createWarn } from './foe/warn.js?v=20261122a';
 
 const THREE = window.THREE;
 const BZ = window.BZ;
@@ -33,6 +35,7 @@ export function createActors(H) {
   const warned = new Set();
   const marks = createMarks(H);
   const horde = createHorde(H);
+  const warn = createWarn(H);
   const overflow = new Set();
   // Lốc Xoáy: enemies in the column are thrown up and spun, visually only; the offsets are zero again when the column ends
   const lifts = new Map();
@@ -289,7 +292,7 @@ export function createActors(H) {
       if (!e.alive) continue;
       const ti = ids.indexOf(e.kind);
       if (ti < 0) { if (!warned.has(e.kind)) { warned.add(e.kind); console.warn('[actors] no zombie type for enemy kind ' + e.kind); } continue; }
-      if (e.horde) continue;
+      if (!e.boss) continue;
       const idx = slotOf(e); if (idx < 0) { overflow.add(e.uid); continue; }
       const y = e.fly ? (FLY_Y[e.kind] || 3) : 0;
       const L = lifts.get(e.uid);
@@ -300,15 +303,37 @@ export function createActors(H) {
   }
   const widthBox = new THREE.Box3(); const widthSize = new THREE.Vector3();
   const bossActs = new Map(); // enemy uid -> { pose, t, dur }: the cast pose an older boss is in
+  // boss shells (foe/bosses.js) per pool slot: the new body hung on the pool body's joints; phase 2 under half life
+  const shells = new Map();
+  function syncShells(dt) {
+    for (const [uid, idx] of slots) {
+      const e = B.byUid.get(uid); if (!e || !e.boss) continue; const z = pool[idx]; if (!z || !z.alive) continue;
+      let sh = shells.get(idx);
+      if (sh && (sh.kind !== e.kind || sh.uid !== uid)) { sh.dispose(); shells.delete(idx); sh = null; }
+      if (!sh) { sh = dressBoss(z.body, e.kind); if (!sh) continue; sh.uid = uid; shells.set(idx, sh); }
+      const p2 = e.hp < e.maxHp * 0.5 ? 1 : 0;
+      if (p2 !== sh.phase) { sh.setPhase(p2); if (p2 && !e.spawnT) phaseBurst(z, sh); }
+    }
+    for (const [idx, sh] of shells) { const z = pool[idx]; sh.tick(dt); if (!z.alive && !z.dying) { sh.dispose(); shells.delete(idx); } }
+  }
+  const shellOf = (uid) => { for (const sh of shells.values()) if (sh.uid === uid) return sh; return null; };
+  // the second phase breaks out: a flash and chips of the old shell in the phase colour
+  function phaseBurst(z, sh) {
+    const s = z.T.scale; const p = z.body.root.position; const at = new THREE.Vector3(p.x, p.y + 1.1 * s, p.z);
+    G.fx.pop(at, 1.4 * s, [0xffffff, sh.burst]); G.fx.burst(at, 40, [sh.burst, 0x5a5048, 0xffffff], { speed: 7, size: 0.2 * s, life: 1 });
+    if (G.audio && G.audio.playAt) G.audio.playAt('roar', at, { gain: 0.8 });
+  }
   const enemyBars = new Map();
   function syncEnemyBars() {
     const seen = new Set();
     for (const e of B.enemies) {
       if (!e.alive || !(e.boss || e.elite)) continue;
-      const idx = slots.get(e.uid); if (idx === undefined) continue; const z = pool[idx]; if (!z.alive) continue;
+      let x; let y; let zz;
+      if (e.boss) { const idx = slots.get(e.uid); if (idx === undefined) continue; const z = pool[idx]; if (!z.alive) continue; x = z.pos.x; y = z.pos.y + 2.5 * z.T.scale + 0.5; zz = z.pos.z; }
+      else { if (!horde.headPos(e.uid, tmp)) continue; x = tmp.x; y = tmp.y + 0.45; zz = tmp.z; }
       let bar = enemyBars.get(e.uid); if (!bar) { bar = makeBar(0xe84030, e.boss ? 72 : 30, e.boss ? 8 : 4); enemyBars.set(e.uid, bar); }
-      seen.add(e.uid); const sc = z.T.scale;
-      setBar(bar, z.pos.x, z.pos.y + 2.5 * sc + 0.5, z.pos.z, e.hp / e.maxHp);
+      seen.add(e.uid);
+      setBar(bar, x, y, zz, e.hp / e.maxHp);
     }
     for (const [uid, bar] of enemyBars) if (!seen.has(uid)) { dropBar(bar); enemyBars.delete(uid); }
   }
@@ -336,6 +361,7 @@ export function createActors(H) {
       if (e.dot || !e.dmg) return;
       const idx = slots.get(e.uid); const a = heroOf(e.uid);
       if (a) { a.hurtT = 0.25; return; }
+      const sh = shellOf(e.uid); if (sh) sh.flash();
       if (idx === undefined || hitBudget <= 0) return;
       const z = pool[idx]; const u = unitOf(e.uid); if (!z || !z.alive || !u || (z.hitT || 0) > B.t) return;
       z.hitT = B.t + 0.12; hitBudget--;
@@ -345,6 +371,7 @@ export function createActors(H) {
     },
     fx(e) { if (e.key === 'gust' && e.part === 'burst' && e.team === 0) startLift(e); },
     die(e) {
+      const sh = shellOf(e.uid); if (sh) sh.die();
       const idx = slots.get(e.uid);
       if (idx !== undefined) {
         const z = pool[idx]; const by = unitOf(e.by); const u = unitOf(e.uid);
@@ -380,7 +407,7 @@ export function createActors(H) {
   function dropHero(a) { scene.remove(a.node); scene.remove(a.disc); scene.remove(a.bubble); dropBar(a.bar); a.beast.dispose(); heroes.delete(a.u.uid); }
 
   const api = {
-    onEvent(e) { const h = ON[e.e]; if (h) h(e); fx.onEvent(e); horde.onEvent(e); },
+    onEvent(e) { const h = ON[e.e]; if (h) h(e); fx.onEvent(e); horde.onEvent(e); warn.onEvent(e, B); },
     sync(batl, dt) {
       B = batl; hitBudget = 10; fxBudget = 6; nBlob = 0;
       for (const u of B.heroes) { let a = heroes.get(u.uid); if (!a) a = makeHero(u); syncHero(a, dt); }
@@ -390,7 +417,7 @@ export function createActors(H) {
         let s = summons.get(u.uid); if (!s) s = makeSummon(u); syncSummon(s, dt);
       }
       stepLifts(dt);
-      G.zombies.adopt(enemyRows()); G.zombies.update(dt);
+      G.zombies.adopt(enemyRows()); G.zombies.update(dt); syncShells(dt);
       for (const [uid, L] of lifts) { const i = slots.get(uid); if (i !== undefined && pool[i].alive) pool[i].body.root.rotation.z = L.tilt; }
       for (const [uid, a] of bossActs) {
         const i = slots.get(uid); const z = i === undefined ? null : pool[i];
@@ -404,7 +431,7 @@ export function createActors(H) {
       }
       for (const z of pool) if (z.alive && !z.dying) addBlob(z.pos.x, z.pos.z, 1.7 * z.T.scale, z.pos.y);
       nRim = 0;
-      horde.sync(B, dt, overflow, { lift: (uid) => lifts.get(uid), blob: addBlob, rim: (x, z, size) => addRim(x, z, size, RIM_COL.base) });
+      horde.sync(B, dt, overflow, { lift: (uid) => lifts.get(uid), blob: addBlob, rim: (x, z, size, elite) => addRim(x, z, size, elite ? RIM_COL.elite : RIM_COL.base) });
       blobs.count = nBlob; blobs.instanceMatrix.needsUpdate = true;
       for (const e of B.enemies) {
         if (!e.alive) continue; const idx = slots.get(e.uid); if (idx === undefined) continue; const z = pool[idx]; if (!z || !z.alive || z.dying) continue;
@@ -412,15 +439,16 @@ export function createActors(H) {
       }
       rims.count = nRim; rims.instanceMatrix.needsUpdate = true; if (rims.instanceColor) rims.instanceColor.needsUpdate = true;
       flushChevrons();
-      syncEnemyBars(); fx.update(B, dt);
+      syncEnemyBars(); fx.update(B, dt); warn.update(dt);
     },
     clear() {
       for (const a of [...heroes.values()]) dropHero(a);
       for (const uid of [...summons.keys()]) dropSummon(uid);
       for (const bar of [...enemyBars.values()]) dropBar(bar);
+      for (const sh of shells.values()) sh.dispose(); shells.clear(); warn.clear();
       enemyBars.clear(); bossActs.clear(); slots.clear(); lifts.clear(); G.zombies.clear(); G.fx.clear(); fx.clear(); blobs.count = 0; rims.count = 0; chev.count = 0; chevBack.count = 0; horde.clear(); B = null;
     },
-    fx, marks, horde, bossActs, lifts, markPts,
+    fx, marks, horde, bossActs, lifts, markPts, shells,
     beastOf(uid) { const h = heroes.get(uid); return h ? h.beast : null; },
     scaleOf(uid) { if (heroes.has(uid)) return 1; const i = slots.get(uid); return i !== undefined ? pool[i].T.scale : horde.scaleOf(uid); },
     nodeOf(uid) {
