@@ -3,16 +3,21 @@
 // glows at every source, soft warm pools on the floor, fireflies and embers (one Points draw), dislodged blocks that fall
 // when monsters climb over the rim. Lighting of blocks is baked per stage (pad.js); units get the theme's cool hemisphere
 // and a warm key from the host's lights.
-// A stage is a map of five sections, one per wave, each a fight pad with its own satellites and lights on its own height;
-// a bridge or a stair of planks joins each pad to the next. When a wave is cleared the scene slides along that bridge to
-// the next pad while the heroes run over it (the sim waits). Two or three sections are meshed at a time.
+// A stage is a map of 1 to 6 sections (rooms.js roomPlan: the layout picks how many and how they are joined), each a pad
+// with its own satellites and lights on its own height; a link joins each pad to the next: a bridge or a stair of planks, a
+// raft over the river, a bridge that falls once crossed. Each wave is fought in the room plan.waveRoom gives it; some rooms
+// are only crossed. When a wave is cleared the scene slides along the links to the next wave's pad while the heroes run
+// over them (the sim waits). The layout's own pieces (an arena's stands, a mountain flank, a river) come from
+// layouts/<kind>.js, the hazards' look from layouts/hazards.js. Two or three sections are meshed at a time.
 // Before pad 1 there is a start room (section -1): a smaller empty pad where the team stands when the stage begins and
 // from which it runs over a bridge into the first fight. Each fight pad has the spawn gates the sim walks later packs out
 // of (gates.js, rooms.js), and the camp spots where the first pack waits are lit by embers. Monsters of a room the team
 // has not reached yet are drawn on that room's pad (roomOffset).
 import { ARENA } from '../sim/battle.js?v=20261122a';
-import { THEMES } from './themes.js?v=20261122a';
+import { THEMES, themeOf } from './themes.js?v=20261122a';
 import { buildPad, buildBridge, rngOf, voxMaterial, mesher } from './pad.js?v=20261122a';
+import { LAYOUTS, RAFT_Y } from './layouts/index.js?v=20261122a';
+import { createHazards } from './layouts/hazards.js?v=20261122a';
 import { createAbyss } from './abyss.js?v=20261122a';
 import { roomPlan } from '../sim/rooms.js?v=20261122a';
 import { gateSpots, emitGates, gateLights, buildGateFx } from './gates.js?v=20261122a';
@@ -22,14 +27,15 @@ const THREE = window.THREE;
 // satellites at the frame's corners (world x, z of the pad centre; the frame is about 21 m wide at the fight's depth)
 const SATS = [[-11.6, 8.4, 1], [11.8, 8.2, 1], [-12.6, -8.6, 1], [12.4, -8.8, 1], [-17, 1.5, 0.7], [17, 0.5, 0.7]];
 const DEBRIS = 48;
-const SECTIONS = 5;       // one pad per wave
 const BOSS_K = 1.12;      // the boss pad's floor is this much larger than a wave pad's
 const START_K = 0.62;     // the start room is this much smaller than a wave pad
+const PASS_K = 0.78;      // and a room the team only crosses
 const START_WAIT = 0.55;  // the beat in the start room before the team sets off
 const GAP = 5;            // metres of void between two pads at their widest
 const NG = 64;            // glow and pool instances
 const WALK_W = 2.4;       // width of the bridge heroes run over
 const RUN_SPEED = 8;      // metres per second of the run between pads
+const RAFT_SPEED = 6.5;   // and of a crossing that takes a raft
 const RUN_WAIT = 0.35;    // the beat after a wave is cleared before the run starts
 const FORM = [[0.7, -0.5], [0.7, 0.5], [-0.7, -0.5], [-0.7, 0.5]]; // heroes on the bridge: metres ahead of and beside the middle of the group
 
@@ -71,30 +77,32 @@ function instanced(n, vert, frag, blend) {
   const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; return { mesh, A, B, g };
 }
 
-// ---- the map: five pad centres per stage, each step to the right and up or down the screen, on a different height ----
+// ---- the map: one pad centre per room, each link a step in its direction and up or down, on a different height ----
 const ZERO = { x: 0, y: 0, z: 0 };
 // the battle being drawn (the world is made before the host object that holds it)
 const curB = () => (window.__G && window.__G.B) || null;
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const PLATEAU_K = 1.42;
+// the size of room i's floor against a wave pad's (-1: the start room)
+export function roomK(plan, i) { const r = plan.rooms[i]; return i < 0 ? START_K : r.boss && plan.rooms.length > 1 ? BOSS_K : r.boss ? 1.06 : r.pass ? PASS_K : 1; }
 export function layoutMap(theme, n) {
-  const plan = roomPlan(n, ARENA); const water = theme.abyss.type === 'water';
-  const yMin = water ? 0 : -4; const yMax = water ? 3 : 4;
+  const plan = roomPlan(n, ARENA); const L = LAYOUTS[plan.layout]; const water = theme.abyss.type === 'water';
+  const [yMin, yMax] = L.yRange(water); const R = plan.rooms.length;
   const reach = (k, a) => 1 / Math.hypot(Math.cos(a) / (ARENA.x * PLATEAU_K * k), Math.sin(a) / (ARENA.z * PLATEAU_K * k));
   const cs = [{ x: 0, y: 0, z: 0 }]; const gates = [];
-  for (let i = 1; i < SECTIONS; i++) {
-    const p = cs[i - 1]; const boss = i === SECTIONS - 1;
+  for (let i = 1; i < R; i++) {
+    const p = cs[i - 1]; const boss = i === R - 1;
     const a = plan.exits[i - 1];
-    const d = reach(1, a) + reach(boss ? BOSS_K : 1, a) + GAP;
-    let dy = plan.rises[i - 1]; if (boss) dy = Math.abs(dy) + 1;
+    const d = reach(roomK(plan, i - 1), a) + reach(roomK(plan, i), a) + L.gap;
+    let dy = plan.rises[i - 1]; if (boss && dy) dy = Math.abs(dy) + 1;
     if (p.y + dy > yMax || p.y + dy < yMin) dy = -dy;
     const y = Math.max(yMin, Math.min(yMax, p.y + dy));
     cs.push({ x: p.x + Math.cos(a) * d, y, z: p.z + Math.sin(a) * d }); gates.push(a);
   }
   // the start room behind pad 1, on the far side from pad 2
-  const sa = plan.start; const ds = reach(START_K, sa) + reach(1, sa) + GAP;
+  const sa = plan.start; const ds = reach(START_K, sa) + reach(roomK(plan, 0), sa) + GAP;
   const start = { x: Math.cos(sa) * ds, y: Math.max(yMin, Math.min(yMax, plan.startRise)), z: Math.sin(sa) * ds };
-  return { centres: cs, gates, start, startA: sa, plan };
+  return { centres: cs, gates, start, startA: sa, plan, R, L };
 }
 
 export function createWorld(H) {
@@ -110,6 +118,7 @@ export function createWorld(H) {
   const motes = new THREE.Points(moteGeo, moteMat); motes.frustumCulled = false; motes.renderOrder = 8; motes.name = 'motes'; lightG.add(motes);
   const dGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3); const dMat = new THREE.MeshBasicMaterial({ map: voxAtlas().tex, color: 0x888888 });
   const debris = new THREE.InstancedMesh(dGeo, dMat, DEBRIS); debris.count = 0; debris.frustumCulled = false; lightG.add(debris);
+  const hazards = createHazards(H, curB);
   const bits = []; const m4 = new THREE.Matrix4(); const q4 = new THREE.Quaternion(); const e4 = new THREE.Euler(); const v4 = new THREE.Vector3(); const s4 = new THREE.Vector3(1, 1, 1);
 
   // Coordinates: every section is built in its own frame (its pad's centre is 0, 0, 0), which is the sim's frame while the
@@ -128,11 +137,21 @@ export function createWorld(H) {
       return n;
     },
   };
-  // sections by index, -1 (the start room) to 4 (the boss pad)
+  // sections by index, -1 (the start room) to the last room (the boss pad)
   let secs = {}; let stageN = 1; let travel = null; let rng = rngOf(1);
+  const N = () => (W.map ? W.map.R : 1);
+  const plan = () => W.map.plan;
+  // the room a wave (an index, the sim's e.room) is fought in
+  const roomOfWave = (w) => { const p = W.map && W.map.plan; if (!p) return w; return p.waveRoom[Math.max(0, Math.min(p.waveRoom.length - 1, w | 0))]; };
+  // the room the battle is in now: the wave's own while it is fought, the next wave's once it is cleared
+  const roomNow = (B) => roomOfWave(B.phase === 'pick' ? B.wave : B.wave - 1);
+  // sections whose bridge fell once the team was over it: the deck drops into the void
+  const fallers = [];
   // the sim moves the team to the next room's entry when a wave is cleared (battle.js placeTeam, B.placeN); the run draws
   // the heroes from where they stood (u.from) until it has picked them up
   let placeSeen = 0; const offs = {};
+  // the sim moved the team back to the entry of the room it is already in (two waves in one room): the heroes walk there
+  let regroup = null;
   // objects drawn in the frame of the section that was current when they were last written (the horde's instances): the
   // scene slides under them with the pads, in the same frame as the pads, so nothing lags a frame behind during a run
   const followers = []; let followSec = 0; const bases = {};
@@ -146,9 +165,10 @@ export function createWorld(H) {
 
   const cen = (i) => (i < 0 ? W.map.start : W.map.centres[i]);
   const delta = (i, j) => { const a = cen(i); const b = cen(j); return { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z }; };
-  const themeAt = (i) => { const th = W.theme; return { ...th, abyss: { ...th.abyss, y: th.abyss.y - cen(i).y } }; };
+  const themeAt = (i) => { const th = W.theme; const ab = W.abyss || th.abyss; return { ...th, abyss: { ...ab, y: ab.y - cen(i).y } }; };
   // the bridge directions out of section i: on to the next pad, and back to where the team came from
-  const exitOf = (i) => (i < 0 ? W.map.startA + Math.PI : i < SECTIONS - 1 ? W.map.gates[i] : null);
+  const exitOf = (i) => (i < 0 ? W.map.startA + Math.PI : i < N() - 1 ? W.map.gates[i] : null);
+  const linkOf = (i) => (W.map.plan.links.find((l) => l.from === i) || { kind: 'bridge' }).kind;
   const entryOf = (i) => (i === 0 ? W.map.startA : i > 0 ? W.map.gates[i - 1] + Math.PI : null);
   const roomAt = (i) => (i >= 0 && W.map.plan ? W.map.plan.rooms[i] : null);
 
@@ -193,30 +213,39 @@ export function createWorld(H) {
   function mainOf(i) {
     const S = secs[i]; if (S.main) return S.main;
     const g = []; const ex = exitOf(i); const en = entryOf(i); if (ex !== null) g.push(ex); if (en !== null) g.push(en);
-    const boss = i === SECTIONS - 1; const k = boss ? BOSS_K : i < 0 ? START_K : 1;
+    const R = N(); const boss = i === R - 1; const k = roomK(plan(), i);
     // a standing gate close to a bridge's line could stand between the camera and the heroes on that bridge: it is drawn laid
     // in the floor instead (the sim walks monsters out of the same spot either way)
     const room = roomAt(i); const lines = g.map((a) => [Math.cos(a), Math.sin(a)]);
     const near = (q, c) => lines.some(([ux, uz]) => q.x * ux + q.z * uz > 0 && Math.abs(-q.x * uz + q.z * ux) < c);
     S.spots = room ? gateSpots({ ...room, gates: room.gates.map((q) => (q.low || !near(q, q.big ? 5.2 : 4.4) ? q : { ...q, low: true, big: false })) }, ARENA) : [];
-    S.main = buildPad({ theme: boss ? bossTheme(themeAt(i)) : i === SECTIONS - 2 ? { ...themeAt(i), ...W.theme.pre } : themeAt(i), seed: stageN * 17 + 3 + i * 101, centre: { x: 0, y: 0, z: 0 }, ellipse: { x: ARENA.x * k, z: ARENA.z * k }, fight: true, boss, gates: g, keep: S.spots.map((p) => ({ x: p.cx, z: p.cz, r: p.r })), embers: room ? room.camps : [], solid: S.spots.map((p) => ({ x: p.cx, z: p.cz, r: p.low ? 1.9 : 1.6 * p.s })) });
+    // a one-room arena keeps the stage's own light through every wave: the boss look is for a climax room at the end of a walk
+    S.main = buildPad({ theme: boss && R > 1 ? bossTheme(themeAt(i)) : i === R - 2 ? { ...themeAt(i), ...W.theme.pre } : themeAt(i), seed: stageN * 17 + 3 + i * 101, centre: { x: 0, y: 0, z: 0 }, ellipse: { x: ARENA.x * k, z: ARENA.z * k }, fight: true, boss, gates: g, keep: S.spots.map((p) => ({ x: p.cx, z: p.cz, r: p.r })), embers: room ? room.camps : [], solid: S.spots.map((p) => ({ x: p.cx, z: p.cz, r: p.low ? 1.9 : 1.6 * p.s })) });
     return S.main;
   }
 
   function build(i) {
     const S = secs[i]; if (!S || S.group) return S;
-    const t0 = performance.now(); const th = themeAt(i); const main = mainOf(i); const boss = i === SECTIONS - 1; const water = th.abyss.type === 'water'; const r = rngOf(stageN * 131 + 7 + i * 53);
-    const others = [];
-    for (const j of [i - 1, i + 1]) if (j >= -1 && j < SECTIONS) { const d = delta(i, j); others.push({ p: mainOf(j), d }); }
+    const t0 = performance.now(); const th = themeAt(i); const main = mainOf(i); const R = N(); const boss = i === R - 1 && R > 1; const water = th.abyss.type === 'water'; const r = rngOf(stageN * 131 + 7 + i * 53);
+    const L = W.map.L; const others = []; const own = [];
+    for (const j of [i - 1, i + 1]) if (j >= -1 && j < R) { const d = delta(i, j); others.push({ p: mainOf(j), d }); }
     // a section built again (after a retry went back to the start room) must not emit its bridges twice
     S.bridges = []; S.walk = null; main.bridges.length = 0;
     if (exitOf(i) !== null) {
       const a = exitOf(i); const d = delta(i, i + 1); const e = main.edgeAt(a); const f = mainOf(i + 1).edgeAt(a + Math.PI);
-      const c = Math.cos(a); const s = Math.sin(a);
-      const b = buildBridge({ x: e.x - c * 0.4, y: 0, z: e.z - s * 0.4 }, { x: d.x + f.x + c * 0.4, y: d.y, z: d.z + f.z + s * 0.4 }, th, { width: WALK_W, steps: Math.abs(d.y) >= 2 });
-      S.walk = b; S.bridges.push(b); main.bridges.push(b);
+      const c = Math.cos(a); const s = Math.sin(a); const kind = linkOf(i);
+      const p0 = { x: e.x - c * 0.4, y: 0, z: e.z - s * 0.4 }; const p1 = { x: d.x + f.x + c * 0.4, y: d.y, z: d.z + f.z + s * 0.4 };
+      if (kind === 'raft') {
+        // no deck: a raft waits at this bank and carries the team over the water (moved by the run, see update)
+        const raft = L.raft(p0, p1, th); S.walk = raft; S.bridges.push(raft); own.push(raft.mesh);
+      } else {
+        const b = buildBridge(p0, p1, th, { width: WALK_W, steps: Math.abs(d.y) >= 2 });
+        S.walk = b; S.bridges.push(b);
+        // a bridge that falls once crossed is a mesh of its own so it can drop; any other is part of the pad's mesh
+        if (kind === 'collapse') { const M = mesher(); b.emit(M); b.mesh = M.bake(th, b.lights, voxMaterial(), null); b.mesh.name = 'bridge'; b.mesh.matrixAutoUpdate = true; b.falls = true; own.push(b.mesh); } else main.bridges.push(b);
+      }
     }
-    if (i > -1) { const p = secs[i - 1]; const d = delta(i, i - 1); const w = build(i - 1).walk; if (w) S.bridges.push({ a: { x: w.b.x + d.x, y: 0, z: w.b.z + d.z }, b: { x: w.a.x + d.x, y: d.y, z: w.a.z + d.z }, dir: [-w.dir[0], -w.dir[1]], lights: [], back: true }); void p; }
+    if (i > -1) { const d = delta(i, i - 1); const w = build(i - 1).walk; if (w && !w.raft) S.bridges.push({ a: { x: w.b.x + d.x, y: 0, z: w.b.z + d.z }, b: { x: w.a.x + d.x, y: d.y, z: w.a.z + d.z }, dir: [-w.dir[0], -w.dir[1]], lights: [], back: true }); }
     const near = (x, z) => {
       for (const [a, b] of [[0, 0], [1.3, 0], [-1.3, 0], [0, 1.3], [0, -1.3]]) if (main.cellAt(x + a, z + b)) return true;
       for (const o of others) for (const [a, b] of [[0, 0], [2, 0], [-2, 0], [0, 2], [0, -2]]) if (o.p.cellAt(x + a - o.d.x, z + b - o.d.z)) return true;
@@ -225,14 +254,14 @@ export function createWorld(H) {
     };
     const sats = [];
     // the start room is a small pad of its own: no satellites crowd its cliffs
-    for (const [x, z, sz] of i < 0 ? [] : SATS) {
-      const sx = x + r.range(-1, 1); const sz2 = z + r.range(-0.8, 0.8); const y = water ? -1 : -r.range(1.5, 3.5);
+    for (const [x, z, sz] of i < 0 || !L.sats ? [] : SATS) {
+      const sx = x + r.range(-1, 1); const sz2 = z + r.range(-0.8, 0.8); const y = water ? (th.abyss.y < -1.6 ? -1 : th.abyss.y + 0.5) : -r.range(1.5, 3.5);
       const p = buildPad({ theme: th, seed: stageN * 31 + sats.length * 7 + 1 + i * 211, centre: { x: sx, y, z: sz2 }, ellipse: { x: r.range(2.4, 3.4) * sz, z: r.range(1.7, 2.3) * sz }, fight: false, decor: sz >= 1, avoid: near });
       if (p.cells.size) sats.push(p);
     }
     for (const si of [0, 3]) {
       const s = sats[si]; if (!s) continue;
-      const a = Math.atan2(s.centre.z, s.centre.x); if (S.bridges.some((b) => Math.abs(Math.atan2(Math.sin(a - Math.atan2(b.dir[1], b.dir[0])), Math.cos(a - Math.atan2(b.dir[1], b.dir[0])))) < 0.6)) continue;
+      const a = Math.atan2(s.centre.z, s.centre.x); if (S.bridges.some((b) => b.raft || Math.abs(Math.atan2(Math.sin(a - Math.atan2(b.dir[1], b.dir[0])), Math.cos(a - Math.atan2(b.dir[1], b.dir[0])))) < 0.6)) continue;
       // nor across a spawn gate
       if (S.spots.some((p) => Math.abs(Math.atan2(Math.sin(a - Math.atan2(p.cz, p.cx)), Math.cos(a - Math.atan2(p.cz, p.cx)))) < 0.55)) continue;
       const e = main.edgeAt(a); const f = s.edgeAt(a + Math.PI); if (!e.d || !f.d) continue;
@@ -243,11 +272,17 @@ export function createWorld(H) {
     // the boss pad glows from below: light (warm unless the theme's boss.deep says otherwise) climbing its cliffs on the far side and both flanks
     const deep = (th.boss && th.boss.deep) || { color: [1.0, 0.36, 0.12], glowC: 0xff5a20 };
     if (boss) for (let k = 0; k < 7; k++) { const a = Math.PI + (k / 6) * Math.PI; const e = main.edgeAt(a); all.push({ kind: 'deep', x: e.x + Math.cos(a) * 1.6, y: -2.6, z: e.z + Math.sin(a) * 1.6, ground: -3.2, color: deep.color, r: 7, k: 1.3, warm: deep.color[0] > deep.color[2] ? 1 : 0, glow: 3.0, glowC: deep.glowC }); }
-    const B = th.boss || {}; const sm = B.crack && i >= SECTIONS - 2 ? seams(main, B, boss ? 1 : 0.5, boss ? 14 : 5, stageN * 71 + i) : null; if (sm) all.push(...sm.lights);
+    const B = th.boss || {}; const sm = B.crack && R > 1 && i >= R - 2 ? seams(main, B, boss ? 1 : 0.5, boss ? 14 : 5, stageN * 71 + i) : null; if (sm) all.push(...sm.lights);
+    // the layout's own pieces around this pad (stands, the mountain flank, the river banks) and the hazards of the room
+    const ex = i >= 0 ? L.extras({ i, room: roomAt(i), plan: plan(), main, theme: th, rng: rngOf(stageN * 61 + i * 17), cen: (j) => delta(i, j), R }) : null;
+    if (ex) all.push(...ex.lights);
     if (S.spots.length) all.push(...gateLights(S.spots, th));
     const g = new THREE.Group(); g.name = 'section' + i; g.add(main.build(all, S.spots.length ? (M) => emitGates(M, S.spots, th) : null)); for (const s of sats) g.add(s.build(all));
     if (S.spots.length) { const fx = buildGateFx(S.spots, th); g.add(fx); S.gfx = { mesh: fx, c: [0.12, 0.12, 0.12, 0.12], f: [0, 0, 0, 0] }; }
     const sk = sm && sm.mesh(th); if (sk) g.add(sk);
+    if (ex) for (const m of ex.build(all)) g.add(m);
+    for (const m of own) g.add(m);
+    if (i >= 0) for (const m of hazards.build(i, th, plan())) g.add(m);
     // islands of this section and the next one overlap in places (terraces, satellite islets) with block tops at the same whole-metre
     // heights: sink each pad mesh by its own few millimetres (main pad 0 or 2 mm by section parity, satellites 4 mm and down) so
     // no two overlapping tops share a depth and z-fight; the fight floor moves at most 2 mm
@@ -255,11 +290,11 @@ export function createWorld(H) {
     root.add(g); S.group = g; S.sats = sats; S.lights = all; S.buildMs = performance.now() - t0; W.buildMs += S.buildMs;
     return S;
   }
-  function drop(i) { const S = secs[i]; if (!S || !S.group) return; for (const m of S.group.children) { m.geometry.dispose(); if (m.name === 'gatefx') m.material.dispose(); } root.remove(S.group); S.group = null; S.gfx = null; }
+  function drop(i) { const S = secs[i]; if (!S || !S.group) return; for (const m of S.group.children) { m.geometry.dispose(); if (m.name === 'gatefx' || m.userData.ownMat) m.material.dispose(); } root.remove(S.group); S.group = null; S.gfx = null; hazards.drop(i); }
 
   function place() {
     const sh = W.shift;
-    for (let j = -1; j < SECTIONS; j++) {
+    for (let j = -1; j < N(); j++) {
       const S = secs[j]; if (!S || !S.group) { offs[j] = null; continue; } const d = delta(W.sec, j); S.group.position.set(d.x - sh.x, d.y - sh.y, d.z - sh.z); S.group.updateMatrixWorld(true);
       const o = offs[j] || (offs[j] = { x: 0, y: 0, z: 0 }); o.x = d.x - sh.x; o.y = d.y - sh.y; o.z = d.z - sh.z;
     }
@@ -290,7 +325,7 @@ export function createWorld(H) {
     }
     glows.g.instanceCount = gi; pools.g.instanceCount = gi; glows.A.needsUpdate = glows.B.needsUpdate = pools.A.needsUpdate = pools.B.needsUpdate = true;
     const P = moteGeo.attributes.position; const S = moteGeo.attributes.aS; const Cc = moteGeo.attributes.color; const fires = cur.lights.filter((L) => L.warm && L.kind !== 'lamp' && L.kind !== 'mushrooms');
-    const fly = th.name === 'void' ? [0.8, 0.6, 1.0] : th.day ? [1.0, 0.95, 0.6] : [1.0, 0.85, 0.45];
+    const fly = th.fly || (th.name === 'void' ? [0.8, 0.6, 1.0] : th.day ? [1.0, 0.95, 0.6] : [1.0, 0.85, 0.45]);
     for (let i = 0; i < NM; i++) {
       if (i < Math.min(NM * 0.35, fires.length * 5)) { const L = fires[i % fires.length]; P.setXYZ(i, L.x + rng.range(-0.2, 0.2), L.y - 0.1, L.z + rng.range(-0.2, 0.2)); S.setXYZW(i, rng.next(), rng.range(0.6, 1.2), 1, rng.range(0.09, 0.14)); Cc.setXYZ(i, 1.0, 0.55, 0.2); }
       else { const a = rng.range(0, 6.283); const kk = rng.range(0.95, 1.45); P.setXYZ(i, Math.max(-10.5, Math.min(10.5, Math.cos(a) * ARENA.x * kk)), rng.range(0.4, 2.6) - (kk > 1.25 ? rng.range(0, 1.5) : 0), Math.max(-5.5, Math.min(6.5, Math.sin(a) * ARENA.z * kk * 1.15))); S.setXYZW(i, rng.next(), rng.range(0.25, 0.6), 0, rng.range(0.1, 0.16)); Cc.setXYZ(i, fly[0], fly[1], fly[2]); }
@@ -300,23 +335,28 @@ export function createWorld(H) {
   }
 
   // make section i the current one: it and its neighbour ahead are built, what lies two pads back is dropped
-  function enter(i) {
-    W.sec = i; W.shift.x = W.shift.y = W.shift.z = 0; W.vel.x = W.vel.z = 0; travel = null; W.busy = false; placeSeen = curB() ? curB().placeN || 0 : 0;
-    build(i); if (i + 1 < SECTIONS) build(i + 1);
-    for (let j = -1; j < SECTIONS; j++) if (j < i - 1 || j > i + 1) drop(j);
+  // (arrived: the team walked in, so a bridge behind it that falls once crossed starts falling)
+  function enter(i, arrived = false) {
+    const from = W.sec;
+    W.sec = i; W.shift.x = W.shift.y = W.shift.z = 0; W.vel.x = W.vel.z = 0; travel = null; W.busy = false; regroup = null; placeSeen = curB() ? curB().placeN || 0 : 0;
+    build(i); if (i + 1 < N()) build(i + 1);
+    for (let j = -1; j < N(); j++) if (j < i - 1 || j > i + 1) drop(j);
+    fallers.length = 0;
+    if (arrived) for (let j = Math.max(-1, from); j < i; j++) { const w = secs[j] && secs[j].walk; if (w && w.falls && w.mesh && secs[j].group) fallers.push({ j, w, t: 0 }); }
     dress(); place();
   }
 
   W.setStage = (def, wave = 1) => {
-    const ch = Math.max(0, Math.min(THEMES.length - 1, def.chapter | 0)); const n = def.n | 0; const k = ch + ':' + n;
+    const n = def.n | 0 || 1; const th = themeOf(def.biome || roomPlan(n, ARENA).biome, n); const k = th.name + ':' + n;
     // a battle that has not begun on its first wave starts in the start room
     const fresh = !!(curB() && curB().stage === def && curB().t === 0 && curB().wave === 1 && (wave | 0) <= 1);
-    const sec = fresh ? -1 : Math.max(0, Math.min(SECTIONS - 1, (wave | 0) - 1));
-    if (k === W.key) { if (sec !== W.sec || travel) enter(sec); return W.theme; }
+    const secOf = () => (fresh ? -1 : roomOfWave((wave | 0) - 1));
+    if (k === W.key) { const sec = secOf(); if (sec !== W.sec || travel) enter(sec); return W.theme; }
+    for (let j = -1; j < N(); j++) drop(j);
     W.key = k; stageN = n;
-    for (let j = -1; j < SECTIONS; j++) drop(j);
-    const th = THEMES[ch]; W.theme = th; W.map = layoutMap(th, n); rng = rngOf(n * 131 + 7); W.buildMs = 0;
-    secs = {}; for (let i = -1; i < SECTIONS; i++) secs[i] = { i, c: cen(i), main: null, sats: [], lights: [], bridges: [], walk: null, group: null, buildMs: 0, spots: [], gfx: null };
+    W.theme = th; W.map = layoutMap(th, n); W.abyss = W.map.L.abyss(th); rng = rngOf(n * 131 + 7); W.buildMs = 0;
+    const sec = secOf();
+    secs = {}; for (let i = -1; i < N(); i++) secs[i] = { i, c: cen(i), main: null, sats: [], lights: [], bridges: [], walk: null, group: null, buildMs: 0, spots: [], gfx: null };
     dMat.color.setRGB(th.amb.sky[0] * 0.9, th.amb.sky[1] * 0.9, th.amb.sky[2] * 0.9);
     const uv = voxAtlas().uv(th.side.rows[0][0]); const U = dGeo.attributes.uv; for (let i = 0; i < U.count; i++) U.setXY(i, uv[0] + (uv[2] - uv[0]) * (i % 2), uv[1] + (uv[3] - uv[1]) * ((i >> 1) % 2)); U.needsUpdate = true;
     enter(sec);
@@ -324,11 +364,18 @@ export function createWorld(H) {
     return th;
   };
 
-  // ---- the run to the next pad ----
-  // the walked line in the current section's frame: pad centre, bridge start, bridge end, the next pad's centre
+  // ---- the run to the next wave's pad ----
+  // the walked line in the current section's frame: pad centre, then along every link to room j (over the floor of any room
+  // only crossed), to where the team stands in room j
   function pathTo(j) {
-    const S = secs[W.sec]; const d = delta(W.sec, j); const b = S.walk; const R = roomAt(j); const h = R ? R.home : { x: 0, z: 0 };
-    const pts = [{ x: 0, y: 0, z: 0 }, { x: b.a.x, y: 0, z: b.a.z }, { x: b.b.x, y: d.y, z: b.b.z }, { x: d.x + h.x, y: d.y, z: d.z + h.z }];
+    const pts = [{ x: 0, y: 0, z: 0 }];
+    for (let k = W.sec; k < j; k++) {
+      const d = delta(W.sec, k); const w = secs[k].walk;
+      for (const q of w.path || [w.a, w.b]) pts.push({ x: d.x + q.x, y: d.y + q.y, z: d.z + q.z });
+      if (k + 1 < j) { const c = delta(W.sec, k + 1); pts.push({ x: c.x, y: c.y, z: c.z }); }
+    }
+    const R = roomAt(j); const h = R ? R.home : { x: 0, z: 0 }; const d = delta(W.sec, j);
+    pts.push({ x: d.x + h.x, y: d.y, z: d.z + h.z });
     const len = [0]; for (let i = 1; i < pts.length; i++) len.push(len[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z));
     return { pts, len, L: len[len.length - 1] };
   }
@@ -339,24 +386,33 @@ export function createWorld(H) {
   }
   const smp = { x: 0, y: 0, z: 0, dx: 1, dz: 0 }; const hero = { x: 0, y: 0, z: 0, dx: 1, dz: 0, w: 0 };
   W.travelTo = (j) => {
-    j = Math.max(0, Math.min(SECTIONS - 1, j | 0)); if (j === W.sec && !travel) return false;
+    j = Math.max(0, Math.min(N() - 1, j | 0)); if (j === W.sec && !travel) return false;
     if (travel && travel.to === j) return true;
-    if (travel || j !== W.sec + 1 || !secs[W.sec].walk) { enter(j); return false; }
-    build(j); const P = pathTo(j);
+    if (travel || j <= W.sec) { enter(j); return false; }
+    for (let k = W.sec + 1; k <= j; k++) build(k);
+    for (let k = W.sec; k < j; k++) if (!secs[k].walk) { enter(j); return false; }
+    const P = pathTo(j); let raft = null; for (let k = W.sec; k < j; k++) if (secs[k].walk.raft) raft = k;
     // where each hero stood when the run began: before the sim moved it to the next room's entry, if it just did
     const B = curB(); const from = []; const moved = !!B && (B.placeN || 0) !== placeSeen;
     if (B) for (const u of B.heroes) from[u.slot] = moved && u.from ? { x: u.from.x, z: u.from.z } : { x: u.x, z: u.z };
     placeSeen = B ? B.placeN || 0 : 0;
-    travel = { to: j, t: W.sec < 0 ? -START_WAIT : -RUN_WAIT, T: Math.max(2.4, Math.min(4.6, P.L / RUN_SPEED)), P, s: 0, w: 0, from }; W.busy = true; W.runs++;
+    const T = raft !== null ? Math.max(3.2, Math.min(7, P.L / RAFT_SPEED)) : Math.max(2.4, Math.min(j - W.sec > 1 ? 6.5 : 4.6, P.L / RUN_SPEED));
+    travel = { to: j, t: W.sec < 0 ? -START_WAIT : -RUN_WAIT, T, P, s: 0, w: 0, from }; W.busy = true; W.runs++;
     return true;
   };
-  W.settle = () => { if (travel) enter(travel.to); };
+  // tools: every section built and placed at once (the whole map), in the current section's frame; returns the pad centres
+  W.overview = () => { for (let j = -1; j < N(); j++) build(j); place(); return [-1, ...W.map.centres.map((c, j) => j)].map((j) => ({ j, ...delta(W.sec, j) })); };
+  W.settle = () => { if (travel) enter(travel.to); regroup = null; };
   // tests: back to the start room of the current stage (the run to pad 1 is then started by travelTo(0))
   W.toStart = () => { if (W.map && W.map.start) enter(-1); return W.sec; };
   // the bridge heroes take to the next pad (tests): its ends, and how far the scene has slid when the group is mid-span
   W.walkBridge = () => { const b = secs[W.sec] && secs[W.sec].walk; if (!b) return null; if (b.midAt === undefined) b.midAt = Math.hypot((b.a.x + b.b.x) / 2, (b.a.z + b.b.z) / 2); return b; };
   // where hero `slot` is drawn during a run, in the scene's frame, given where the sim has it; null when no run is on
   W.heroAt = (slot, x, z) => {
+    if (!travel && regroup) {
+      const f = regroup.from[slot]; if (!f) return null; const u = smooth(0, 1, regroup.t / regroup.T);
+      hero.x = f.x + (x - f.x) * u; hero.z = f.z + (z - f.z) * u; hero.y = 0; const dx = x - f.x; const dz = z - f.z; const l = Math.hypot(dx, dz) || 1; hero.dx = dx / l; hero.dz = dz / l; hero.w = 1; return hero;
+    }
     if (!travel) {
       // the wave was just cleared and the sim has already moved the team to the next room's entry, but the run has not
       // started yet: keep the hero where it stood
@@ -372,14 +428,16 @@ export function createWorld(H) {
   };
   // the height of the ground under a point of the scene's frame (pad floors and the walked bridge), or null over the void
   W.groundAt = (x, z) => {
-    const mx = x + W.shift.x; const mz = z + W.shift.z; const S = secs[W.sec];
-    // over the walked bridge the deck counts where it stands above the pad floor it overlaps (the first metres of a climb, the last of a descent)
-    const b = S.walk; let deck = null;
-    if (b) { const L = Math.hypot(b.b.x - b.a.x, b.b.z - b.a.z); const t = (mx - b.a.x) * b.dir[0] + (mz - b.a.z) * b.dir[1]; const o = Math.abs(-(mx - b.a.x) * b.dir[1] + (mz - b.a.z) * b.dir[0]); if (t >= -0.3 && t <= L + 0.3 && o <= WALK_W / 2 + 0.05) deck = b.deckY(Math.max(0, Math.min(L, t))); }
-    const T = travel; const j = T ? T.to : W.sec + 1; const N = secs[j];
-    let y = null;
-    if (S.main.isFloor(mx, mz)) y = 0;
-    else if (N && N.main) { const d = delta(W.sec, j); if (N.main.isFloor(mx - d.x, mz - d.z)) y = d.y; }
+    const mx = x + W.shift.x; const mz = z + W.shift.z;
+    const T = travel; const to = T ? T.to : Math.min(N() - 1, W.sec + 1);
+    let y = null; let deck = null;
+    for (let k = W.sec; k <= to; k++) {
+      const S = secs[k]; if (!S || !S.main) continue; const d = delta(W.sec, k);
+      if (y === null && S.main.isFloor(mx - d.x, mz - d.z)) y = d.y;
+      // over a walked link the deck counts where it stands above the pad floor it overlaps (the first metres of a climb, the last of a descent)
+      const b = k < to || !T ? S.walk : null;
+      if (b) { const lx = mx - d.x - b.a.x; const lz = mz - d.z - b.a.z; const L = Math.hypot(b.b.x - b.a.x, b.b.z - b.a.z); const t = lx * b.dir[0] + lz * b.dir[1]; const o = Math.abs(-lx * b.dir[1] + lz * b.dir[0]); if (t >= -0.3 && t <= L + 0.3 && o <= (b.halfW || WALK_W / 2) + 0.05) { const dy = d.y + b.deckY(Math.max(0, Math.min(L, t))); if (deck === null || dy > deck) deck = dy; } }
+    }
     if (deck !== null && (y === null || deck > y)) y = deck;
     return y === null ? null : y - W.shift.y;
   };
@@ -397,7 +455,7 @@ export function createWorld(H) {
     }
     let dx = x / (ARENA.x * ARENA.x); let dz = z / (ARENA.z * ARENA.z); const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
     for (const b of W.bridges) {
-      const ax = b.a.x - x; const az = b.a.z - z; if (Math.hypot(ax, az) < 2.4) { return { dx: b.dir[0], dz: b.dir[1], d: Math.min(5, Math.hypot(b.b.x - x, b.b.z - z)), bridge: true, slope: (b.b.y - b.a.y) / Math.max(1, Math.hypot(b.b.x - b.a.x, b.b.z - b.a.z)) }; }
+      if (b.raft) continue; const ax = b.a.x - x; const az = b.a.z - z; if (Math.hypot(ax, az) < 2.4) { return { dx: b.dir[0], dz: b.dir[1], d: Math.min(5, Math.hypot(b.b.x - x, b.b.z - z)), bridge: true, slope: (b.b.y - b.a.y) / Math.max(1, Math.hypot(b.b.x - b.a.x, b.b.z - b.a.z)) }; }
     }
     let s = 0; while (s < 6 && pad.isFloor(x + dx * s, z + dz * s)) s += 0.25;
     return { dx, dz, d: s + 0.7, bridge: false, slope: 0 };
@@ -420,35 +478,41 @@ export function createWorld(H) {
 
   // ---- rooms and gates ----
   // the offset from a room's own frame (the sim's while the fight is there) to the scene's, or null when its pad is not built
-  W.roomOffset = (r) => (r === undefined ? ZERO : offs[r] || null);
+  // r is the sim's e.room, a wave index: the pad is that wave's room. A pack of a later wave in a room an earlier wave is
+  // fought in is not drawn until its wave begins (it stands at a gate's mouth and shows as that gate flashes)
+  const hiddenWave = (w) => { const B = curB(); const p = W.map && W.map.plan; if (!B || !p || w === undefined) return false; return w > B.wave - 1 && w > 0 && p.waveRoom[w] === p.waveRoom[w - 1]; };
+  W.roomOffset = (r) => (r === undefined ? ZERO : hiddenWave(r) ? null : offs[roomOfWave(r)] || null);
   // for followers: write positions in the current section's frame (roomBase: a room's origin there, null when not built)
   W.follow = (o) => { followers.push(o); };
   W.syncFrame = () => {
     followSec = W.sec;
-    for (let j = -1; j < SECTIONS; j++) { const S = secs[j]; if (!S || !S.group) { bases[j] = null; continue; } const d = delta(W.sec, j); const b = bases[j] || (bases[j] = { x: 0, y: 0, z: 0 }); b.x = d.x; b.y = d.y; b.z = d.z; }
+    for (let j = -1; j < N(); j++) { const S = secs[j]; if (!S || !S.group) { bases[j] = null; continue; } const d = delta(W.sec, j); const b = bases[j] || (bases[j] = { x: 0, y: 0, z: 0 }); b.x = d.x; b.y = d.y; b.z = d.z; }
     place();
   };
-  W.roomBase = (r) => (r === undefined ? ZERO : bases[r] || null);
+  W.roomBase = (r) => (r === undefined ? ZERO : hiddenWave(r) ? null : bases[roomOfWave(r)] || null);
   // every spawn gate of the built pads in the scene's frame: the mouth, and whether it is charging or releasing now
   W.gateList = () => {
     const out = [];
-    for (let j = 0; j < SECTIONS; j++) { const S = secs[j]; const o = offs[j]; if (!S || !S.gfx || !o) continue; for (const p of S.spots) out.push({ room: j, gi: p.gi, x: p.x + o.x, z: p.z + o.z, c: S.gfx.c[p.gi], f: S.gfx.f[p.gi], open: S.gfx.c[p.gi] > 0.3 || S.gfx.f[p.gi] > 0.05 }); }
+    for (let j = 0; j < N(); j++) { const S = secs[j]; const o = offs[j]; if (!S || !S.gfx || !o) continue; for (const p of S.spots) out.push({ room: j, gi: p.gi, x: p.x + o.x, z: p.z + o.z, c: S.gfx.c[p.gi], f: S.gfx.f[p.gi], open: S.gfx.c[p.gi] > 0.3 || S.gfx.f[p.gi] > 0.05 }); }
     return out;
   };
-  // a pack (or a skill's call) came out of gate gi of the room being fought
-  W.gateFlash = (room, gi) => { const S = secs[room]; if (S && S.gfx && gi >= 0 && gi < 4) S.gfx.f[gi] = 1; };
+  // a pack (or a skill's call) came out of gate gi of the room wave w is fought in
+  W.gateFlash = (w, gi) => { const S = secs[roomOfWave(w)]; if (S && S.gfx && gi >= 0 && gi < 4) S.gfx.f[gi] = 1; };
   // is (x, z) of the scene's frame on the start room's floor
   W.onStartFloor = (x, z) => { const S = secs[-1]; const o = offs[-1]; return !!(S && S.main && o) && S.main.isFloor(x - o.x, z - o.z); };
   // charge each built gate from the sim's queue: idle faintly, charge over the second before its pack is due (and hold while
   // the pack waits for room), flash on release, go dark once its room has nothing more to send
   function gateLevels(dt) {
     const B = curB();
-    for (let j = 0; j < SECTIONS; j++) {
+    const now = B ? roomOfWave(B.wave - 1) : -1;
+    // a wave that begins in the room the last one was fought in: its first pack stands at the standing gates' mouths
+    if (B && B.phase === 'fight' && B.wave !== lastWave) { if (lastWave > 0 && hiddenWaveWas(B.wave - 1)) { const S = secs[now]; if (S && S.gfx) for (const p of S.spots) if (!p.low) S.gfx.f[p.gi] = 1; } lastWave = B.wave; }
+    for (let j = 0; j < N(); j++) {
       const S = secs[j]; if (!S || !S.gfx) continue; const X = S.gfx;
-      const here = !!B && B.wave - 1 === j && B.phase === 'fight';
+      const here = !!B && now === j && B.phase === 'fight';
       for (const p of S.spots) {
         let want = 0.12;
-        if (B && j < B.wave - 1) want = 0.02;
+        if (B && j < now) want = 0.02;
         if (here) {
           let more = false;
           for (const q of B.queue) { if (q.gate !== p.gi) continue; more = true; const due = q.at - B.waveT; if (due < 1.2) want = Math.max(want, 0.35 + 0.65 * Math.min(1, 1 - due / 1.2)); }
@@ -460,20 +524,39 @@ export function createWorld(H) {
     }
   }
 
+  let lastWave = 0;
+  const hiddenWaveWas = (w) => { const p = W.map && W.map.plan; return !!p && w > 0 && p.waveRoom[w] === p.waveRoom[w - 1]; };
+
   let time = 0;
   W.update = (dt) => {
     time = (time + dt) % 4000;
     for (const m of [glows.mesh.material, pools.mesh.material, moteMat]) m.uniforms.uTime.value = time;
     moteMat.uniforms.uScale.value = H.renderer.domElement.height / (2 * Math.tan(H.camera.fov * Math.PI / 360));
     abyss.update(dt); gateLevels(dt);
+    const Bn = curB(); hazards.update(dt, Bn && Bn.plan && Bn.plan.n === stageN ? Bn : null, Bn ? roomNow(Bn) : W.sec, (r, h) => { const o = offs[r]; if (o && r === W.sec) W.debris(h.x + o.x, h.z + o.z, 10, 3); });
+    // two waves in one room: once the first is cleared the sim puts the team back at the room's entry; walk them there
+    if (Bn && !travel && !regroup && (Bn.placeN || 0) !== placeSeen && Bn.phase === 'pick' && roomNow(Bn) === W.sec) {
+      const from = []; for (const u of Bn.heroes) from[u.slot] = u.from ? { x: u.from.x, z: u.from.z } : { x: u.x, z: u.z };
+      regroup = { from, t: 0, T: 1.1 }; placeSeen = Bn.placeN || 0;
+    }
+    if (regroup) { regroup.t += dt; if (regroup.t >= regroup.T) regroup = null; }
+    for (let k = fallers.length - 1; k >= 0; k--) {
+      const F = fallers[k]; const m = F.w.mesh; F.t += dt; if (!secs[F.j] || !secs[F.j].group) { fallers.splice(k, 1); continue; }
+      if (F.t < 0.5) { m.position.y = Math.sin(F.t * 60) * 0.04; continue; }
+      if (!F.dust) { F.dust = true; const d = delta(W.sec, F.j); const w = F.w; for (let q = 0; q <= 4; q++) { const t = q / 4; W.debris(d.x + w.a.x + (w.b.x - w.a.x) * t, d.z + w.a.z + (w.b.z - w.a.z) * t, 3, 1.5); } }
+      const u = F.t - 0.5; m.position.y = -4.5 * u * u; m.rotation.z = u * 0.25;
+      if (m.position.y < -12) { m.visible = false; fallers.splice(k, 1); }
+    }
     // the team leaves the start room only once the game runs (a battle begun paused waits there)
     const hold = W.sec < 0 && !!(window.__G && window.__G.paused);
     if (travel && !hold) {
       const T = travel; T.t += dt; const u = Math.max(0, T.t / T.T);
-      if (u >= 1) enter(T.to);
+      if (u >= 1) enter(T.to, true);
       else {
         const x0 = W.shift.x; const z0 = W.shift.z;
         T.s = T.P.L * smooth(0, 1, u); T.w = smooth(0, 0.2, u) * (1 - smooth(0.82, 1, u)); sample(T.P, T.s, smp); W.shift.x = smp.x; W.shift.y = smp.y; W.shift.z = smp.z; place();
+        // a raft on the way carries the group: it sits under the middle of the formation while that is over the water
+        for (let k = W.sec; k < T.to; k++) { const w = secs[k].walk; if (w && w.raft) { const d = delta(W.sec, k); w.carry(smp.x - d.x, smp.z - d.z, time); } }
         if (dt > 1e-4) { W.vel.x = (W.shift.x - x0) / dt; W.vel.z = (W.shift.z - z0) / dt; }
       }
     }
