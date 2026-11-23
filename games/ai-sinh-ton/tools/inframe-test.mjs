@@ -1,8 +1,9 @@
 // The whole fight inside the visible frame. Plays stages 1, 3, 8, 15 and 24 to the end of the boss wave in the real page
 // (s22 and xiaomi), and records the projected screen position, through the game's own camera, of every enemy spawn, every
 // enemy death, every hero attack target and (each 0.5 s) the living boss. Asserts the shares inside the frame and between
-// the HUD bands, and that the arena rim's compass points project inside the frame under the top bar (and the heroes' area
-// clear of the hero card block) at several frame aspects.
+// the HUD bands, and at several frame aspects that every living unit of a running fight (feet and head) projects inside the
+// frame under the top bar, heroes clear of the hero card block. The camera frames the fight's cluster, not the whole pad
+// (W-cam2), so the pad's rim is no longer a yardstick.
 // The same measurement runs on the previous build (deployed site) once, is cached in .chk/inframe/before.json
 // (--refresh-before re-runs it) and is printed side by side. Screenshots before and after at the same moments go to
 // .chk/inframe/ with a side-by-side sheet.
@@ -85,40 +86,37 @@ async function measureStage(br, base, phone, stage, rimK, dims) {
     for (const u of G.B.heroes) { const n = G.actors.nodeOf(u.uid); if (!n) continue; a.set(n.position.x, 0, n.position.z).project(H.camera); b.set(n.position.x, 2.7, n.position.z).project(H.camera); out.push(Math.abs(b.y - a.y) / 2 * H.size.h / (H.size.u || 1)); }
     return out;
   });
-  // the spawn rim's compass points inside the frame and under the top bar (the bottom one may pass under the hero block),
-  // the heroes' area (0.9 of the ellipse) clear of the block
-  const compass = await page.evaluate(([ax, az, k]) => {
-    const out = [];
-    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; const p = window.__proj(Math.cos(a) * ax * k, 0, Math.sin(a) * az * k); const h = window.__proj(Math.cos(a) * ax * 0.9, 0, Math.sin(a) * az * 0.9); out.push({ a: i * 45, fx: +p.fx.toFixed(3), py: +p.py.toFixed(1), inBands: p.inFrame && p.py >= 40 && p.py <= p.hh - 8 && !h.inBlock }); }
-    return out;
-  }, [dims.x, dims.z, rimK]);
   const problems = r.problems.filter((x) => !/Failed to load resource/.test(x));
   const errs = await page.evaluate(() => (window.__errors || []).length);
   await r.ctx.close();
-  return { stage, end, all: summarise(recs), boss: summarise(recs, bossWave), compass, hero, problems, errs, counts: { spawn: recs.filter((x) => x.k === 'spawn').length, die: recs.filter((x) => x.k === 'die').length } };
+  return { stage, end, all: summarise(recs), boss: summarise(recs, bossWave), hero, problems, errs, counts: { spawn: recs.filter((x) => x.k === 'spawn').length, die: recs.filter((x) => x.k === 'die').length } };
 }
 
-// the camera at other frame shapes: swap the frame size under the camera, project the compass points, restore
+// the camera at other frame shapes: swap the frame size under the camera mid-fight, let it settle, project every living
+// unit's feet and head, restore
 const ASPECTS = [[780, 360], [1002, 461], [720, 360], [800, 360], [740, 360], [1280, 720]];
-async function aspectCompass(br, base, dims, rimK) {
-  const r = await openPage(br, base, 's22', 'autostart=1&stage=3&noaudio=1&seed=3');
-  const out = await r.page.evaluate(async ([sizes, ax, az, k]) => {
+async function aspectUnits(br, base) {
+  const r = await openPage(br, base, 's22', 'autostart=1&stage=8&noaudio=1&seed=8');
+  await r.page.evaluate(() => window.__sim(12));
+  const out = await r.page.evaluate(async ([sizes]) => {
     const G = window.__G; const H = G.host; const V = new H.THREE.Vector3(); const keep = { w: H.size.w, h: H.size.h, u: H.size.u }; const res = [];
     for (const [w, h] of sizes) {
-      H.size.w = w; H.size.h = h; H.size.u = w / 780; for (let i = 0; i < 3; i++) G.cam.update(G.B, 1 / 30);
-      let ok = true; let minPy = 1e9; let maxPy = -1e9; let maxFx = 0;
-      for (let i = 0; i < 16; i++) {
-        const a = i * Math.PI / 8; V.set(Math.cos(a) * ax * k, 0, Math.sin(a) * az * k).project(H.camera);
-        const u = w / 780; const py = (1 - V.y) / 2 * h / u; const fx = (V.x + 1) / 2; const px = fx * w / u; minPy = Math.min(minPy, py); maxPy = Math.max(maxPy, py); maxFx = Math.max(maxFx, Math.abs(fx - 0.5));
-        if (py < 40 || py > h / u - 8 || fx < 0 || fx > 1) ok = false;
-        V.set(Math.cos(a) * ax * 0.9, 0, Math.sin(a) * az * 0.9).project(H.camera); const hx = (V.x + 1) / 2 * w / u; const hy = (1 - V.y) / 2 * h / u;
-        if (hx > 240 && hx < 540 && hy > h / u - 80) ok = false;
+      H.size.w = w; H.size.h = h; H.size.u = w / 780; for (let i = 0; i < 90; i++) G.cam.update(G.B, 1 / 30);
+      const u = w / 780; let bad = 0; let n = 0; let minPy = 1e9; let maxPy = -1e9;
+      for (const x of G.B.units) {
+        if (!x.alive) continue; n++;
+        const top = (x.fly ? 3.2 : 0) + H.heightOf(x.uid);
+        for (const y of [0, top]) {
+          V.set(x.x, y, x.z).project(H.camera); const px = (V.x + 1) / 2 * w / u; const py = (1 - V.y) / 2 * h / u;
+          minPy = Math.min(minPy, py); maxPy = Math.max(maxPy, py);
+          if (py < 38 || py > h / u - 4 || px < 0 || px > w / u || (x.hero && px > 240 && px < 540 && py > h / u - 80 && y === 0)) bad++;
+        }
       }
-      res.push({ w, h, ok, minPy: +minPy.toFixed(1), maxPy: +maxPy.toFixed(1), halfW: +(maxFx * w).toFixed(1) });
+      res.push({ w, h, n, bad, minPy: +minPy.toFixed(1), maxPy: +maxPy.toFixed(1), dist: +G.cam.dist.toFixed(1) });
     }
     H.size.w = keep.w; H.size.h = keep.h; H.size.u = keep.u; for (let i = 0; i < 3; i++) G.cam.update(G.B, 1 / 30);
     return res;
-  }, [ASPECTS, dims.x, dims.z, rimK]);
+  }, [ASPECTS]);
   await r.ctx.close();
   return out;
 }
@@ -183,7 +181,6 @@ try {
       check(a.dieBands.pct >= 95, `${phone} stage ${s}: enemy deaths between the HUD bands ${a.dieBands.pct.toFixed(1)}% (>= 95%)`);
       check(a.atk.n === 0 || a.atk.pct >= 98, `${phone} stage ${s}: ranged hero attack targets inside the frame ${a.atk.pct.toFixed(1)}% of ${a.atk.n} (>= 98%)`);
       check(a.boss.n > 0 && a.boss.pct >= 95, `${phone} stage ${s}: boss inside the frame ${a.boss.pct.toFixed(1)}% of ${a.boss.n} samples (>= 95%)`);
-      check(A.compass.every((c) => c.inBands), `${phone} stage ${s}: eight rim compass points in the frame under the top bar, heroes' area clear of the card block (py ${A.compass.map((c) => c.py).join(' ')})`);
       check(A.problems.length === 0 && A.errs === 0, `${phone} stage ${s}: no console problems or __errors ${A.problems.slice(0, 2).join(' | ')}`);
       bossAgg.die += A.boss.dieFrame.n; bossAgg.dieIn += A.boss.dieFrame.n * A.boss.dieFrame.pct / 100; bossAgg.dieBand += A.boss.dieBands.n * A.boss.dieBands.pct / 100;
     }
@@ -192,13 +189,8 @@ try {
   const hs = after.s22[STAGES.includes(3) ? 3 : STAGES[0]].hero;
   if (hs.length) console.log(`hero on-screen height at s22, end of stage ${STAGES.includes(3) ? 3 : STAGES[0]}: min ${Math.min(...hs).toFixed(1)} max ${Math.max(...hs).toFixed(1)} CSS px`);
 
-  const asp = await aspectCompass(br, srv.base, ARENA, 1.04);
-  for (const a of asp) check(a.ok, `frame ${a.w}x${a.h}: rim at 1.04 in the frame under the bar, heroes' area clear of the card block (py ${a.minPy}..${a.maxPy}, half width ${a.halfW} of ${a.w / 2})`);
-  const dk = await openPage(br, srv.base, 'desktop', 'autostart=1&stage=3&noaudio=1&seed=3');
-  await dk.page.evaluate(RECORDER);
-  const dc = await dk.page.evaluate(([ax, az]) => { const o = []; for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; o.push(window.__proj(Math.cos(a) * ax * 1.04, 0, Math.sin(a) * az * 1.04)); } return o; }, [ARENA.x, ARENA.z]);
-  check(dc.every((c) => c.inFrame && c.py >= 40 && c.py <= c.hh - 8), `desktop frame: eight rim compass points in the frame under the top bar (py ${dc.map((c) => c.py.toFixed(0)).join(' ')})`);
-  await dk.ctx.close();
+  const asp = await aspectUnits(br, srv.base);
+  for (const a of asp) check(a.n > 0 && a.bad === 0, `frame ${a.w}x${a.h}: ${a.n} living units, feet and head in the frame under the bar, heroes off the card block (${a.bad} points out; py ${a.minPy}..${a.maxPy}, camera ${a.dist} m)`);
 
   // ---- screenshots, before and after at the same moments ----
   if (SHOTS) {
