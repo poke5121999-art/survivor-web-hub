@@ -1,16 +1,24 @@
 // Stages: five waves each, the fifth is the stage's boss. A stage is fully determined by its number, so every
-// player meets the same waves. Stages 1-30 are the campaign; past 30 the same rules keep scaling without end.
+// player meets the same waves. Stages 1-50 are the campaign (ten chapters); past 50 the same rules keep scaling without end.
+// Stages 31-50 follow the late line the endless run used, with the endless boss rotation.
 import { ENEMY } from './enemies.js?v=20261122a';
 import { expectedSlots } from './unlocks.js?v=20261122a';
 
+// Ten chapters of five stages, one biome each (SCOPE section 8). `biome` names the world the stage is fought in; the view
+// picks the theme for it (js/view/themes.js BIOME_THEMES). `stones`: the Seed Stone elements the chapter drops.
 export const CHAPTERS = [
-  { name: 'Phố Hoang', floor: 0x8f9aa6, fog: 0xa9b6c4 },
-  { name: 'Bãi Xe Cũ', floor: 0xa39a84, fog: 0xc2b89c },
-  { name: 'Nhà Máy Lạnh', floor: 0x8fa5ad, fog: 0xb4ccd6 },
-  { name: 'Hầm Mộ Cát', floor: 0xb39a6c, fog: 0xd6c08e },
-  { name: 'Bãi Đáp Lạ', floor: 0x8a8fb0, fog: 0xa9a6d6 },
-  { name: 'Rìa Hư Không', floor: 0x7d7a94, fog: 0x9a8cc0 },
+  { name: 'Rừng Cổ', biome: 'forest', floor: 0x7f9a6a, fog: 0x9cb88e, stones: ['moc', 'dat'] },
+  { name: 'Phố Hoang', biome: 'street', floor: 0x8f9aa6, fog: 0xa9b6c4, stones: ['dat', 'set'] },
+  { name: 'Sa Mạc Mộ', biome: 'crypt', floor: 0xb39a6c, fog: 0xd6c08e, stones: ['lua', 'dat'] },
+  { name: 'Đầm Lầy', biome: 'swamp', floor: 0x6f7f5e, fog: 0x8ea486, stones: ['moc', 'bang'] },
+  { name: 'Núi Lửa', biome: 'volcano', floor: 0x8a5a48, fog: 0xb07a60, stones: ['lua', 'set'] },
+  { name: 'Đồng Tuyết', biome: 'snow', floor: 0x8fa5ad, fog: 0xb4ccd6, stones: ['bang', 'gio'] },
+  { name: 'Bờ Biển', biome: 'coast', floor: 0xa39a84, fog: 0xc2b89c, stones: ['bang', 'moc'] },
+  { name: 'Nhà Máy', biome: 'factory', floor: 0x8f9aa0, fog: 0xa8b4bc, stones: ['set', 'dat'] },
+  { name: 'Đảo Trời', biome: 'sky', floor: 0x8a8fb0, fog: 0xa9a6d6, stones: ['gio', 'set'] },
+  { name: 'Rìa Hư Không', biome: 'void', floor: 0x7d7a94, fog: 0x9a8cc0, stones: ['lua', 'gio'] },
 ];
+export const chapterOf = (n) => Math.min(CHAPTERS.length - 1, Math.floor(((n | 0 || 1) - 1) / 5));
 
 // boss of each campaign stage; '*' stages close a chapter and are the difficulty spikes
 const BOSS_ORDER = [
@@ -68,7 +76,7 @@ const grow = (early, late, n) => Math.pow(early, Math.min(n, LATE_FROM) - 1) * M
 
 export function stageDef(n) {
   const rnd = rngOf(n * 7919 + 13);
-  const chapter = Math.min(CHAPTERS.length - 1, Math.floor((n - 1) / 5));
+  const chapter = chapterOf(n);
   const pool = UNLOCK.filter((u) => u[0] <= n);
   const totalW = pool.reduce((s, u) => s + u[2], 0);
   const pick = () => { let x = rnd() * totalW; for (const u of pool) { x -= u[2]; if (x < 0) return u[1]; } return pool[0][1]; };
@@ -96,7 +104,7 @@ export function stageDef(n) {
     waves.push({ groups, boss: isBoss ? boss : null });
   }
   return {
-    n, chapter, chapterName: CHAPTERS[chapter].name, name: `${CHAPTERS[chapter].name} ${((n - 1) % 5) + 1}`,
+    n, chapter, biome: CHAPTERS[chapter].biome, chapterName: CHAPTERS[chapter].name, name: `${CHAPTERS[chapter].name} ${((n - 1) % 5) + 1}`,
     floor: CHAPTERS[chapter].floor, fog: CHAPTERS[chapter].fog,
     hpMul: BASE.hp * grow(HP_GROWTH, LATE_HP, n), atkMul: BASE.atk * grow(ATK_GROWTH, LATE_ATK, n) * TEAM_ATK[slots],
     boss, bossName: ENEMY[boss].name, bossTier: bossTierOf(n), bossHp: BASE.bossHp * (isSpike(n) ? (n > 10 ? SPIKE_HP_LATE : SPIKE_HP) : 1) * teamK, slots, spike: isSpike(n), waves,
