@@ -9,6 +9,7 @@
 //   T5 buttons       every enabled target is inside the frame, owns its own centre point, and crosses no other target > 2 px
 //   T7 in holder    a text's ink stays inside the panel or button that holds it (counters, labels, settings notes)
 //   T8 off buttons  a text's ink never lies on an enabled button it is not part of
+//   T9 not under   no panel or tile in front of a text crosses its ink (T1 lets a small cover through)
 //   T6 world vs HUD  (battle) the pixels the HUD paints opaque are identical with the 3D world drawn and hidden
 // Usage: timeout 900 node games/ai-sinh-ton/tools/text-fit-test.mjs [--selftest] [--only=substring]
 // Env: PHONES=s22,xiaomi,desktop (default all three). Shots and the issue list go to .chk/textfit/.
@@ -32,7 +33,7 @@ function AUDIT(opts) {
   const G = window.__G, ui = G.ui, THREE = ui.THREE, host = G.host, r = host.renderer, scene = ui.scene, cam = ui.camera;
   const cv = r.domElement, gl = r.getContext();
   if (opts.crowdOnly) { const h = G.screens.hud.dbg(); if (h.banners.length || h.bossShown || h.numbers < 2) return { skipped: true }; }
-  const res = { texts: [], n: 0, exempt: { scrollOut: 0, scrollPart: 0, dimmed: 0, tiny: 0, nopaint: 0 }, T1: [], T2: [], T3: [], T4: [], T5: [], T6: [], T7: [], T8: [], t1min: 1, t1minStr: '', t5n: 0, t5ex: 0 };
+  const res = { texts: [], n: 0, exempt: { scrollOut: 0, scrollPart: 0, dimmed: 0, tiny: 0, nopaint: 0 }, T1: [], T2: [], T3: [], T4: [], T5: [], T6: [], T7: [], T8: [], T9: [], t1min: 1, t1minStr: '', t5n: 0, t5ex: 0 };
   scene.updateMatrixWorld(true);
   const screens = scene.children.filter((c) => c.isScreen);
   // a modal screen and the guide's dim layer cover everything below them on purpose
@@ -172,8 +173,8 @@ function AUDIT(opts) {
     tq.forEach((q, i) => { if (!q.enabled || /^(guide-block|guide-skip|reveal-tap)$/.test(q.id)) return; const n = tn[i] && tn[i].id === q.id ? tn[i].node : null; let drawn = false; if (n) n.traverse((o) => { if (o.isMesh && o.visible) drawn = true; }); if (n && drawn) tnodes.set(n, { id: q.id, box: { x: (q.vx - fr.left) / kf, y: (q.vy - fr.top) / kf, w: q.vw / kf, h: q.vh / kf } }); });
     const out = (a, b) => Math.max(b.x - a.x, a.x + a.w - (b.x + b.w), b.y - a.y, a.y + a.h - (b.y + b.h));
     // panels drawn on each screen, for texts that sit straight on a screen over a panel
-    const panels = new Map();
-    for (const sc of screens) { if (!sc.visible || sc.hiding) continue; const arr = []; sc.traverse((o) => { if (o.body && o.w > 0 && o.h > 0) { let v = true; for (let a = o; a && a !== sc; a = a.parent) if (!a.visible) v = false; if (v) arr.push(boxOf(o.matrixWorld, [[0, 0], [o.w, 0], [o.w, -o.h], [0, -o.h]])); } }); panels.set(sc.screenName, arr); }
+    const panels = new Map(), fronts = new Map(), Vz = new THREE.Vector3();
+    for (const sc of screens) { if (!sc.visible || sc.hiding) continue; const arr = [], fr2 = []; sc.traverse((o) => { if (o.body && o.w > 0 && o.h > 0) { let v = true; for (let a = o; a && a !== sc; a = a.parent) if (!a.visible) v = false; if (v) { const b = boxOf(o.matrixWorld, [[0, 0], [o.w, 0], [o.w, -o.h], [0, -o.h]]); arr.push(b); fr2.push({ node: o, box: b, z: Vz.set(0, 0, o.top || 0).applyMatrix4(o.matrixWorld).z }); } } }); panels.set(sc.screenName, arr); fronts.set(sc.screenName, fr2); }
     for (const t of list) {
       if (!shows(t)) continue;
       const anc = new Set(); let holder = null;
@@ -187,6 +188,8 @@ function AUDIT(opts) {
         const hb = boxOf(holder.matrixWorld, [[0, 0], [holder.w, 0], [holder.w, -holder.h], [0, -holder.h]]), by2 = out(t.clip, hb);
         if (by2 > 1.5) res.T7.push({ str: t.str, screen: t.screen, by: Math.round(by2 * 10) / 10, box: [t.clip.x, t.clip.y, t.clip.x + t.clip.w, t.clip.y + t.clip.h].map((v) => Math.round(v)), holder: [hb.x, hb.y, hb.x + hb.w, hb.y + hb.h].map((v) => Math.round(v)) });
       }
+      { const tz = Vz.setFromMatrixPosition(t.t.o.matrixWorld).z;
+        for (const f of fronts.get(t.screen) || []) { if (anc.has(f.node) || f.z <= tz + 0.01) continue; let inside = false; for (let a = f.node; a; a = a.parent) if (a === t.t.n) inside = true; if (inside) continue; const c = cross(t.clip, f.box); if (c && c.w > 1.5 && c.h > 1.5) res.T9.push({ str: t.str, screen: t.screen, by: [Math.round(c.w * 10) / 10, Math.round(c.h * 10) / 10] }); } }
       // the guide's speech panel lies over the dimmed, blocked screen on purpose (O1 keeps it off the battle banners)
       if (t.screen !== 'guide') for (const [n, q] of tnodes) {
         if (anc.has(n)) continue; const c = cross(t.clip, q.box);
@@ -289,6 +292,8 @@ async function inspect(page, phone, name, o = {}) {
   for (const f of r.T7) issue(`${P} T7 "${f.str}" on ${f.screen}: ink ${f.box.join(',')} leaves its holder ${f.holder.join(',')} by ${f.by}`);
   check(r.T8.length === 0, `${P} T8 off buttons: ${r.n} texts, ${r.T8.length} lie on a button they are not part of`);
   for (const f of r.T8) issue(`${P} T8 "${f.str}" on ${f.screen} lies on ${f.id} by ${f.by.join(' x ')}`);
+  check(r.T9.length === 0, `${P} T9 not under: ${r.n} texts, ${r.T9.length} with a panel or tile in front of them`);
+  for (const f of r.T9) issue(`${P} T9 "${f.str}" on ${f.screen} under a panel by ${f.by.join(' x ')}`);
   if (o.battle) {
     const bad = r.T6.filter((q) => q.bad);
     check(bad.length === 0, `${P} T6 world vs HUD: ${r.T6.length ? r.T6.length + ' HUD rectangles' : 'no HUD up (a modal covers it)'}, ${r.T6.map((q) => q.name + ' ' + q.diff + '/' + q.opaque).join('; ')}`);
