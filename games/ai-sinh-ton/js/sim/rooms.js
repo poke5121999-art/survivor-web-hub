@@ -1,12 +1,13 @@
 // The map of a stage as the sim and the view both need it, worked out from the stage number alone (no DOM, no three.js, no
 // battle state), so the same stage always has the same map.
-//   layout    the shape of the map (LAYOUT_KINDS): bridges, arena, spiral, river
+//   layout    the shape of the map (LAYOUT_KINDS): bridges, arena, spiral, river, islands, maze, rail, cave
 //   biome     the world it stands in (stages.js CHAPTERS); the view picks the theme
 //   rooms[i]  the pads in walking order, 1 to 6 of them: entry and exit directions, spawn gates at the frame's corners, camps,
 //             where the team stands when it comes in (home), and `pass` for a room the team only crosses
 //   waveRoom  the room each of the five waves is fought in (never decreasing; the boss wave in the last room)
-//   links     what joins room `from` to room `to` (from -1 is the start room): bridge, stairs, raft, collapse
+//   links     what joins room `from` to room `to` (from -1 is the start room): bridge, stairs, raft, rail, collapse
 //   hazards   map rules the sim applies while a wave is fought in that room (maprules.js): poison, wind, current, collapse
+//   mode      null or the stage's special rule (maprules.js MODES): defend, survive, chase
 //   exits[i]  the direction (radians) of the link from room i to room i + 1; rises[i] its height step before the view clamps it
 //   start     the direction from room 0 to the start room, where the team stands before the first fight
 // A gate is a point of the arena rim (the sim's ellipse, param angle `t`, at SPAWN rim) where monsters walk in; `main` is the
@@ -24,18 +25,25 @@ export function rngOf(seed) {
 }
 
 export const WAVES = 5;
-export const LAYOUT_KINDS = ['bridges', 'arena', 'spiral', 'river'];
-// The campaign's layouts, one letter per stage, a chapter per group: B bridges, A arena, S spiral, R river. Four kinds over
-// five stages means one kind comes back once in every chapter, never on two stages in a row (tools/layout-test.mjs goes red on
-// a neighbour repeat). When the other four kinds exist each chapter takes five different ones. Stages 3 and 15 keep the
-// bridges: with 8 they are where horde-test measures the crowd against its baseline on that map (Addendum 6), and a
-// single-seed peak on another layout differs from it by the luck of the fight, not by the layout.
-const TABLE = 'BRBAS ABRSA SARSB RASRB SRBAS BARSB RSABR ABSRA SARBS BRASB'.replace(/ /g, '');
-const LETTER = { B: 'bridges', A: 'arena', S: 'spiral', R: 'river' };
-const ENDLESS_CYCLE = 'RSAB';
+export const LAYOUT_KINDS = ['bridges', 'arena', 'spiral', 'river', 'islands', 'maze', 'rail', 'cave'];
+// The campaign's layouts, one letter per stage, a chapter per group: B bridges, A arena, S spiral, R river, I islands, M maze,
+// T rail (a train), C cave. Every chapter takes five different kinds and two stages in a row never share one (tools/layout-test.mjs
+// goes red otherwise). Stages 3, 8, 15 and 20 keep the bridges: horde-test measures the crowd there against its baseline
+// (Addendum 6) and sim-test freezes stage 20; a single-seed peak on another layout differs by the luck of the fight.
+const TABLE = 'ARBIM CSBTA RIMCB TASRB CMISA RTBCI SRAMT CTBIR ISMAC BRTSM'.replace(/ /g, '');
+const LETTER = { B: 'bridges', A: 'arena', S: 'spiral', R: 'river', I: 'islands', M: 'maze', T: 'rail', C: 'cave' };
+const ENDLESS_CYCLE = 'RSABIMTC';
 export function layoutOf(n) {
   n = n | 0 || 1;
   return LETTER[n <= TABLE.length ? TABLE[n - 1] : ENDLESS_CYCLE[(n - TABLE.length - 1) % ENDLESS_CYCLE.length]];
+}
+// The special stages (maprules.js MODES): one per chapter, never the chapter's last stage nor a stage the tools measure (3, 8,
+// 15, 20), so the fourth stage of chapters 1, 3, 5 ... and the second of chapters 2, 4 ...; defend, survive, chase in turn.
+export const MODE_KINDS = ['defend', 'survive', 'chase'];
+export function modeOf(n) {
+  n = n | 0 || 1; if (n > TABLE.length) return null;
+  const c = Math.floor((n - 1) / 5); const at = c % 2 === 0 ? 4 : 2;
+  return (n - 1) % 5 + 1 === at ? MODE_KINDS[c % 3] : null;
 }
 
 const GATE_CLEAR = 3.6;   // metres between a gate and the line of any link leaving the pad (corridor half width + gate half width)
@@ -79,6 +87,46 @@ const SHAPES = {
       return out;
     },
   },
+  // floating islands over the sky, each a little higher or lower, joined by bridges of light; the walk winds sideways and away
+  islands: {
+    rooms: (rl) => rl.int(3, 5), pass: (R) => (R === 5 ? [2] : []),
+    links(rng, R, rl) {
+      let side = rl.chance(0.5) ? 1 : -1; const out = [];
+      for (let i = 1; i < R; i++) { out.push({ a: -Math.PI / 2 + side * rl.range(0.8, 1.15), dy: (rl.chance(0.5) ? 1 : -1) * rl.int(1, 3), kind: 'bridge' }); side = -side; }
+      return out;
+    },
+  },
+  // a short maze: many small rooms on one level, the corridors turning away and to the sides; every other room is only crossed
+  maze: {
+    rooms: (rl) => rl.int(5, 6), pass: (R) => (R === 6 ? [1, 3] : [2]),
+    links(rng, R, rl) {
+      let side = rl.chance(0.5) ? 1 : -1; const out = [];
+      for (let i = 1; i < R; i++) {
+        const a = i % 2 ? (side > 0 ? -0.42 : -Math.PI + 0.42) + rl.range(-0.06, 0.06) : -Math.PI / 2 + rl.range(-0.12, 0.12);
+        if (i % 2 === 0) side = -side;
+        out.push({ a, dy: 0, kind: 'bridge' });
+      }
+      return out;
+    },
+  },
+  // a railway: the team rides a cart along one line from station to station, always the same way
+  rail: {
+    rooms: (rl) => rl.int(3, 5), pass: (R) => (R === 5 ? [2] : []),
+    links(rng, R, rl) {
+      const a0 = rl.chance(0.5) ? -0.4 : -Math.PI + 0.4; const out = [];
+      for (let i = 1; i < R; i++) out.push({ a: a0 + rl.range(-0.08, 0.08), dy: 0, kind: 'rail' });
+      return out;
+    },
+  },
+  // a dark cave going down: chambers joined by rock stairs, left and right in turn
+  cave: {
+    rooms: (rl) => rl.int(3, 5), pass: (R) => (R === 5 ? [1] : []),
+    links(rng, R, rl) {
+      let side = rl.chance(0.5) ? 1 : -1; const out = [];
+      for (let i = 1; i < R; i++) { out.push({ a: side * rl.range(0.32, 0.55), dy: -rl.int(1, 2), kind: 'stairs' }); side = rl.chance(0.7) ? -side : side; }
+      return out;
+    },
+  },
 };
 
 // the waves over the rooms: the boss wave in the last room, waves 1-4 spread in order over the other rooms the team fights in
@@ -104,11 +152,15 @@ function placeHazards(plan, A, rh) {
   const spot = (room, r, tries = 40) => { for (let k = 0; k < tries; k++) { const a = rh.range(0, 6.283); const q = rh.range(0.25, 0.75); const x = Math.cos(a) * A.x * q; const z = Math.sin(a) * A.z * q; if (clearOf(room, x, z, r)) return { x, z }; } return null; };
   if (layout === 'arena') for (let k = 0; k < 2; k++) { const p = spot(rooms[0], 1.5); if (p) out.push({ room: 0, kind: 'poison', ...p, r: 1.5, dps: 0.02 }); }
   if (biome === 'swamp' && layout !== 'arena') for (const i of fought) { const p = spot(rooms[i], 1.0); if (p) out.push({ room: i, kind: 'poison', ...p, r: 1.0, dps: 0.02 }); }
-  if (layout === 'spiral') for (const i of fought) {
+  if (layout === 'spiral' || layout === 'islands') for (const i of fought) {
     if (i === 0) continue;
     // a gust across the whole pad every few seconds, from the open side of the mountain (left or right)
     const ang = rh.chance(0.5) ? 0 : Math.PI;
     out.push({ room: i, kind: 'wind', x: 0, z: 0, r: A.x * 1.1, ang, every: rh.range(7, 9), warn: 1.6, on: 2.4, off: rh.range(1, 4), push: 2.2 });
+  }
+  // the lava under a volcano's floors breaks through once in each room past the first: cracks glow, then a hole
+  if (biome === 'volcano' && layout !== 'river') for (const i of fought) {
+    if (i === 0 && fought.length > 1) continue; const p = spot(rooms[i], 1.5); if (p) out.push({ room: i, kind: 'collapse', ...p, r: 1.5, at: rh.range(9, 14), warn: 2.5, hit: 0.08 });
   }
   if (layout === 'river') for (const i of fought) {
     // a ford of the stream across the pad: shallow water that slows whoever wades it and drifts them downstream
@@ -182,7 +234,7 @@ export function roomPlan(n, A) {
   const links = [{ from: -1, to: 0, kind: 'bridge' }, ...linkDraws.map((l, i) => ({ from: i, to: i + 1, kind: l.kind }))];
   // the first wave fought in each room
   const firstWave = rooms.map((r) => waveRoom.indexOf(r.i));
-  const plan = { n, layout, biome, exits, rises, start, startRise, rooms, waveRoom, firstWave, links, hazards: [], mode: null };
+  const plan = { n, layout, biome, exits, rises, start, startRise, rooms, waveRoom, firstWave, links, hazards: [], mode: modeOf(n) };
   plan.hazards = placeHazards(plan, A, rngOf(n * 977 + 53));
   cache.set(key, plan);
   return plan;
