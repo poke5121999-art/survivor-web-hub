@@ -35,10 +35,7 @@
   var STALE_MS = 5 * 60 * 1000;
   // Not an md_ table either: runtime collection cd_client_gate (maintenance + minimum build), saved through gate_save.
   var GATE = "client_gate";
-  // Not a table either: "Đẩy LIVE" pushes DEV values of the hot fields to LIVE through live / live_push / live_clear.
-  var LIVE = "live_tune";
-  var LIVE_TITLE = "Đẩy LIVE";
-  var OPS = [GUARD, GATE, LIVE];
+  var OPS = [GUARD, GATE];
   var GATE_PLATFORMS = ["webgl", "android", "ios"];
   var GATE_STORES = ["android", "ios"];
   var GATE_MSG_MAX = 300;
@@ -194,12 +191,10 @@
   var S = { tables: {}, unserved: {}, current: null, loaded: false, conflict: {}, errors: {}, search: {}, open: {}, banner: null,
     guard: { loaded: false, rows: [], meters: {}, month: "", edited: false },
     // hubBuild: undefined = not read yet, null = no version.json (check skipped), else the hub WebGL build.
-    gate: { loaded: false, doc: null, exists: false, dirty: { maint: false, build: false, net: false }, hubBuild: undefined },
-    // rows: merged DEV + LIVE rows from the proxy; sel: keys ticked (seeded from rows where DEV differs from LIVE).
-    live: { loaded: false, rows: [], sel: {}, busy: false, error: null, notice: null } };
+    gate: { loaded: false, doc: null, exists: false, dirty: { maint: false, build: false, net: false }, hubBuild: undefined } };
   var session = window.HubSession ? window.HubSession.get() : null;
 
-  function tableTitle(n) { return n === LIVE ? LIVE_TITLE : (LABELS[n] || {}).title || n; }
+  function tableTitle(n) { return (LABELS[n] || {}).title || n; }
   function tableOf(n) { var v = (LABELS[n] || {}).view; return v ? v.table : n; }
   // Settings-form fields of tab n: a view shows only its own; a table hides the ones a view took.
   function formFields(n, doc) {
@@ -730,7 +725,6 @@
     if (!n) return;
     if (n === GUARD) { renderGuard(pane); return; }
     if (n === GATE) { renderGate(pane); return; }
-    if (n === LIVE) { renderLive(pane); return; }
     var tab = n;
     n = tableOf(tab);
     var t = S.tables[n];
@@ -1009,7 +1003,6 @@
     try { history.replaceState(null, "", location.search + "#" + n); } catch (e) { /* file:// */ }
     if (n === GUARD) { S.guard.edited = false; loadGuard(); }
     else if (n === GATE) { S.gate.dirty = { maint: false, build: false, net: false }; loadGate(); loadHubBuild(); }
-    else if (n === LIVE) { S.live.notice = null; loadLive(true); }
     else if (n === MODES) loadGuard();
     renderMain();
     updateBar();
@@ -1072,7 +1065,6 @@
         S.current = ALL.indexOf(want) >= 0 || OPS.indexOf(want) >= 0 ? want : ALL[0];
         if (S.current === GUARD) loadGuard();
         if (S.current === GATE) { loadGate(); loadHubBuild(); }
-        if (S.current === LIVE) loadLive(true);
       }
       if (!$("dz-pane").querySelector(".dz-pane__head")) renderMain();
       updateBar(); updateNav();
@@ -1084,7 +1076,6 @@
     if (document.visibilityState !== "visible" || !n || !S.loaded) return;
     if (n === GUARD) { if (!S.guard.edited) loadGuard(); return; }
     if (n === GATE) { if (!S.gate.dirty.maint && !S.gate.dirty.build && !S.gate.dirty.net) loadGate(); return; }
-    if (n === LIVE) return; // ticks and a confirm dialog live on this tab: reload by hand
     if (n === MODES) loadGuard();
     n = tableOf(n);
     call({ action: "get", table: n }).then(function (j) {
@@ -1564,118 +1555,6 @@
     pane.appendChild(missing);
     pane.appendChild(onNote);
     pane.appendChild(h("div", { class: "dz-gate" }, gateMaintCard(paintTop), gateNetCard(), gateBuildCard()));
-  }
-
-  // ---------- Đẩy LIVE ----------
-
-  function liveLabel(r) {
-    var L = LABELS[r.table] || {}, f = (L.fields || {})[r.path];
-    if (!f || !f.label) return r.table + " › " + r.id + " › " + r.path;
-    return (L.title || r.table) + " › " + r.id + " › " + f.label;
-  }
-  function liveVal(v) { return v === null || v === undefined ? "(chưa có)" : typeof v === "boolean" ? (v ? "bật" : "tắt") : String(v); }
-  function liveWhen(at) {
-    var d = new Date(at);
-    return isNaN(d.getTime()) ? String(at) : d.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
-  }
-  function liveStatus(r) {
-    var o = r.override;
-    if (!o) return "theo snapshot";
-    if (!o.active) return "ghi đè hết hiệu lực: snapshot đã đổi";
-    return "ghi đè bởi " + (o.by || "?") + " lúc " + liveWhen(o.at);
-  }
-
-  function setLive(j) {
-    S.live.rows = j.rows || [];
-    S.live.error = null;
-    S.live.loaded = true;
-  }
-  function seedLiveSel() {
-    S.live.sel = {};
-    S.live.rows.forEach(function (r) { if (r.differs && r.dev !== null) S.live.sel[r.key] = true; });
-  }
-  function liveFail(e) {
-    S.live.loaded = true;
-    if (e.code === "LIVE_NOT_CONFIGURED") { S.live.error = e.message; S.live.rows = []; }
-    else showBanner(errText(e), function () { loadLive(false); });
-    if (S.current === LIVE) renderMain();
-  }
-
-  function loadLive(seed) {
-    S.live.busy = true;
-    return call({ action: "live" }).then(function (j) {
-      showBanner(null);
-      setLive(j);
-      if (seed) seedLiveSel();
-      S.live.busy = false;
-      if (S.current === LIVE) renderMain();
-    }, function (e) { S.live.busy = false; liveFail(e); });
-  }
-
-  // live_push / live_clear on the keys; the page re-renders from the response and ticks restart from "DEV differs".
-  function runLive(action, keys, doneText) {
-    S.live.busy = true; S.live.notice = null;
-    renderMain();
-    return call({ action: action, keys: keys }).then(function (j) {
-      showBanner(null);
-      setLive(j); seedLiveSel();
-      S.live.busy = false;
-      S.live.notice = doneText.replace("{n}", String(keys.length));
-      toast(S.live.notice);
-      if (S.current === LIVE) renderMain();
-    }, function (e) { S.live.busy = false; liveFail(e); renderMain(); });
-  }
-
-  function renderLive(pane) {
-    var st = S.live;
-    pane.appendChild(h("header", { class: "dz-pane__head" },
-      h("h2", { class: "dz-pane__title", text: LIVE_TITLE }),
-      h("p", { class: "dz-pane__blurb", text: "Chỉnh số trên DEV bằng các tab bảng như thường, rồi đẩy riêng các thông số \"nóng\" này lên LIVE trong vài giây, không cần snapshot mới." }),
-      h("p", { class: "dz-pane__effect" }, h("strong", { text: "Có hiệu lực: " }), "Người chơi nhận số mới ở lần đăng nhập hoặc lần vào ca kế tiếp (server áp sau tối đa 30 giây).")));
-    if (!st.loaded) { pane.appendChild(h("p", { class: "dz-loading", text: "Đang tải…" })); return; }
-    if (st.error) { pane.appendChild(h("div", { class: "dz-notice dz-notice--warn", id: "live-error", role: "alert" }, h("span", { text: st.error }))); return; }
-    if (st.notice) pane.appendChild(h("div", { class: "dz-notice", id: "live-notice", role: "status" }, h("span", { text: st.notice })));
-    if (!st.rows.length) { pane.appendChild(h("p", { class: "dz-loading", id: "live-empty", text: "LIVE chưa khai trường nóng nào." })); return; }
-
-    var pushBtn = h("button", { class: "btn btn--primary", id: "live-push", type: "button" });
-    var clearBtn = h("button", { class: "btn", id: "live-clear", type: "button", text: "Về số snapshot" });
-    function picked() { return st.rows.filter(function (r) { return st.sel[r.key]; }); }
-    function paint() {
-      var p = picked(), withOverride = p.filter(function (r) { return r.override; });
-      pushBtn.textContent = "Đẩy " + p.length + " mục lên LIVE";
-      pushBtn.disabled = st.busy || !p.length || p.some(function (r) { return r.dev === null; });
-      clearBtn.disabled = st.busy || !withOverride.length;
-      clearBtn.title = withOverride.length ? "" : "Tick một dòng đang bị ghi đè để đưa về số snapshot";
-    }
-    var body = st.rows.map(function (r) {
-      var cb = h("input", { type: "checkbox", "data-key": r.key, "aria-label": liveLabel(r), disabled: st.busy });
-      cb.checked = !!st.sel[r.key];
-      cb.addEventListener("change", function () { if (cb.checked) st.sel[r.key] = true; else delete st.sel[r.key]; paint(); });
-      return h("tr", { class: r.differs ? "dz-live-diff" : null, "data-key": r.key, style: r.differs ? "background:var(--warn-bg)" : null },
-        h("td", { "data-label": "Chọn" }, cb),
-        h("td", { class: "dz-grid__name", "data-label": "Thông số", text: liveLabel(r) }),
-        h("td", { "data-label": "DEV", "data-role": "dev", text: liveVal(r.dev) }),
-        h("td", { "data-label": "LIVE đang chạy", "data-role": "live", text: liveVal(r.live) }),
-        h("td", { "data-label": "Trạng thái", "data-role": "status", text: liveStatus(r) }));
-    });
-    pushBtn.addEventListener("click", function () {
-      var p = picked(); if (!p.length) return;
-      var lines = p.map(function (r) { return liveLabel(r) + ": " + liveVal(r.live) + " → " + liveVal(r.dev); });
-      if (!confirm("Đẩy " + p.length + " mục lên LIVE?\n\n" + lines.join("\n") + "\n\nNgười chơi LIVE nhận số mới sau tối đa 30 giây.")) return;
-      runLive("live_push", p.map(function (r) { return r.key; }), "Đã đẩy {n} mục lên LIVE");
-    });
-    clearBtn.addEventListener("click", function () {
-      var p = picked().filter(function (r) { return r.override; }); if (!p.length) return;
-      if (!confirm("Đưa " + p.length + " mục về số snapshot?\n\n" + p.map(function (r) { return liveLabel(r) + ": " + liveVal(r.live) + " → " + liveVal(r.md); }).join("\n"))) return;
-      runLive("live_clear", p.map(function (r) { return r.key; }), "Đã đưa {n} mục về số snapshot");
-    });
-    pane.appendChild(h("table", { class: "dz-grid", id: "live-table" },
-      h("thead", null, h("tr", null, ["", "Thông số", "DEV", "LIVE đang chạy", "Trạng thái"].map(function (t) { return h("th", { text: t }); }))),
-      h("tbody", null, body)));
-    pane.appendChild(h("div", { class: "dz-guard__actions" }, pushBtn, clearBtn,
-      h("button", { class: "btn", id: "live-reload", type: "button", text: "Tải lại", onclick: function () { loadLive(true); } })));
-    pane.appendChild(h("p", { class: "dz-help", id: "live-help", text: "Người chơi nhận số mới ở lần đăng nhập hoặc lần vào ca kế tiếp (server áp sau tối đa 30 giây)." }));
-    paint();
   }
 
   // ---------- review & save ----------

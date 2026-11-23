@@ -7,11 +7,6 @@ const creds = JSON.parse(readFileSync(process.env.USERPROFILE + "/.hlo-gs/creden
 const env = creds.credentials.find((c) => c.project === "repo-2d-topdown");
 if (!env) { console.error("không thấy project repo-2d-topdown trong credentials"); process.exit(1); }
 
-// Optional LIVE server key for the "Đẩy LIVE" actions; without it they answer 503 LIVE_NOT_CONFIGURED.
-env.email = process.env.DESIGNER_EMAIL || "dev-server@local";
-env.live = { base: process.env.GS_LIVE_BASE || "", project: process.env.GS_LIVE_PROJECT || "",
-  key: process.env.GS_LIVE_SERVER_KEY || "", secret: process.env.GS_LIVE_SERVER_SECRET || "" };
-
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type",

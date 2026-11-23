@@ -56,12 +56,6 @@ Deno.serve(async (req: Request) => {
     const { status, json } = await handleAction(body, {
       base: Deno.env.get("GS_BASE")!, project: Deno.env.get("GS_PROJECT")!,
       key: Deno.env.get("GS_KEY")!, secret: Deno.env.get("GS_SECRET")!,
-      email,
-      // Optional: server key of the LIVE project, only the "Đẩy LIVE" actions need it.
-      live: {
-        base: Deno.env.get("GS_LIVE_BASE") ?? "", project: Deno.env.get("GS_LIVE_PROJECT") ?? "",
-        key: Deno.env.get("GS_LIVE_SERVER_KEY") ?? "", secret: Deno.env.get("GS_LIVE_SERVER_SECRET") ?? "",
-      },
     });
     return reply(status, json, cors);
   } catch (e) {

@@ -560,116 +560,8 @@ async function saveGate(call, doc) {
   return { status: 200, json: { ok: true, ...(await readGate(call)) } };
 }
 
-// ---------- Đẩy LIVE: hot fields of md_ tables overridden on LIVE (runtime collection cd_live_tune) ----------
-// LIVE is reached through two server events (auth level `server`), signed with a SERVER key, not the admin key:
-//   POST <base>/rpc/<project>, headers X-GS-Key / X-GS-Ts / X-GS-Nonce / X-GS-Sign, body one JSON packet.
-const MAX_TUNE_ITEMS = 100;
-
-// base64(HMAC-SHA256(secret, path + LF + ts + LF + nonce + LF + sha256hex(body))); body is the exact string that is sent.
-export async function signRpc(secret, path, ts, nonce, body) {
-  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const msg = [path, ts, nonce, await sha256hex(body)].join("\n");
-  return btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(msg)))));
-}
-
-function makeLiveRpc(live, fetchImpl) {
-  const path = `/rpc/${live.project}`;
-  let id = 1;
-  return async function rpc(type, fields) {
-    const body = JSON.stringify({ "@t": type, "@id": id++, ...fields });
-    const ts = String(Math.floor(Date.now() / 1000));
-    const nonce = hex(crypto.getRandomValues(new Uint8Array(12)));
-    let res;
-    try {
-      res = await fetchImpl(live.base + path, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json", "X-GS-Proto": "1",
-          "X-GS-Key": live.key, "X-GS-Ts": ts, "X-GS-Nonce": nonce, "X-GS-Sign": await signRpc(live.secret, path, ts, nonce, body),
-        },
-        body,
-      });
-    } catch (e) {
-      throw new UpstreamError(0, "UNREACHABLE", `không gọi được GameSpark LIVE: ${e.message}`);
-    }
-    const text = await res.text();
-    let json = null;
-    try { json = JSON.parse(text); } catch { /* non-JSON upstream body */ }
-    if (!res.ok || !json || json.ok === false || json.error) {
-      const e = json && json.error;
-      throw new UpstreamError(res.status, (e && e.code) || "HTTP_" + res.status, (e && e.message) || text.slice(0, 300));
-    }
-    return json;
-  };
-}
-
-function parseItems(r) {
-  let items;
-  try { items = JSON.parse(r.itemsJson); } catch { items = null; }
-  if (!Array.isArray(items)) throw new UpstreamError(200, "BAD_RESPONSE", "LIVE trả itemsJson không phải mảng");
-  return items;
-}
-
-const scalarOrNull = (v) => (v !== undefined && v !== null && typeof v !== "object" ? v : null);
-
-function valueAt(doc, path) {
-  let v = doc;
-  for (const k of String(path).split(".")) {
-    if (v === null || typeof v !== "object") return null;
-    v = v[k];
-  }
-  return scalarOrNull(v);
-}
-
-// One merged row per hot leaf: DEV value (md_ table on DEV) against what LIVE players get now.
-async function readLive(call, rpc, devCache = new Map()) {
-  const items = parseItems(await rpc("LIVE_TUNE_GET", {}));
-  for (const t of new Set(items.map((i) => i.table))) {
-    if (!devCache.has(t)) devCache.set(t, (await readTable(call, t)).docs);
-  }
-  const rows = items.map((i) => {
-    const doc = (devCache.get(i.table) || []).find((d) => d._id === i.id);
-    const dev = doc ? valueAt(doc, i.path) : null;
-    const live = scalarOrNull(i.effective);
-    return {
-      key: i.key, table: i.table, id: i.id, path: i.path, dev, live, md: scalarOrNull(i.md),
-      override: i.value === null || i.value === undefined ? null
-        : { value: i.value, base: scalarOrNull(i.base), by: i.by ?? null, at: i.at ?? null, active: !!i.active },
-      differs: dev !== live,
-    };
-  });
-  return { rows, devCache };
-}
-
-const LIVE_ACTIONS = ["live", "live_push", "live_clear"];
-
-async function liveAction(body, env, call, fetchImpl) {
-  const rpc = makeLiveRpc(env.live, fetchImpl);
-  const { rows, devCache } = await readLive(call, rpc);
-  if (body.action === "live") return { status: 200, json: { ok: true, rows } };
-  const keys = body.keys;
-  if (!Array.isArray(keys) || !keys.length || keys.some((k) => typeof k !== "string")) {
-    return fail(400, "INVALID", "keys phải là danh sách khoá, không trống");
-  }
-  const uniq = [...new Set(keys)];
-  if (uniq.length > MAX_TUNE_ITEMS) return fail(400, "INVALID", `tối đa ${MAX_TUNE_ITEMS} mục mỗi lần`);
-  const picked = [];
-  for (const k of uniq) {
-    const r = rows.find((x) => x.key === k);
-    if (!r) return fail(400, "INVALID", `khoá "${k}" không nằm trong danh sách trường đẩy được`);
-    if (body.action === "live_push" && r.dev === null) {
-      return fail(400, "INVALID", `"${k}" chưa có số trên DEV nên không đẩy được`);
-    }
-    picked.push({ table: r.table, id: r.id, path: r.path, value: body.action === "live_push" ? r.dev : null });
-  }
-  const by = String(env.email || "hub").slice(0, 64);
-  const set = await rpc("LIVE_TUNE_SET", { by, itemsJson: JSON.stringify(picked) });
-  const fresh = await readLive(call, rpc, devCache);
-  return { status: 200, json: { ok: true, rows: fresh.rows, changed: set.changed ?? picked.length } };
-}
-
 // Runtime (cd_*) actions carry no table name.
-const RUNTIME_ACTIONS = ["guard", "guard_save", "gate", "gate_save", ...LIVE_ACTIONS];
+const RUNTIME_ACTIONS = ["guard", "guard_save", "gate", "gate_save"];
 
 export async function handleAction(body, env, fetchImpl = fetch) {
   if (!isPlain(body)) return fail(400, "INVALID", "body không phải object JSON");
@@ -679,12 +571,8 @@ export async function handleAction(body, env, fetchImpl = fetch) {
   if (!RUNTIME_ACTIONS.includes(body.action) && body.action !== "list" && !KNOWN.includes(body.table)) {
     return fail(400, "INVALID", `bảng "${body.table}" không nằm trong danh sách`);
   }
-  if (LIVE_ACTIONS.includes(body.action) && !(env.live && env.live.base && env.live.project && env.live.key && env.live.secret)) {
-    return fail(503, "LIVE_NOT_CONFIGURED", "Chưa cài khoá server của GameSpark LIVE (GS_LIVE_BASE, GS_LIVE_PROJECT, GS_LIVE_SERVER_KEY, GS_LIVE_SERVER_SECRET) cho hàm gs-design nên chưa đẩy được lên LIVE.");
-  }
   const call = makeClient(env, fetchImpl);
   try {
-    if (LIVE_ACTIONS.includes(body.action)) return await liveAction(body, env, call, fetchImpl);
     if (body.action === "guard") return { status: 200, json: { ok: true, ...(await readGuard(call)) } };
     if (body.action === "guard_save") return await saveGuard(call, body.doc);
     if (body.action === "gate") return { status: 200, json: { ok: true, ...(await readGate(call)) } };
