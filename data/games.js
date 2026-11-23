@@ -524,20 +524,20 @@ window.HUB_GAMES = [
     id: "sprite-cutter",
     title: "Bàn Cắt Sprite",
     tagline: "Cắt sprite sheet thành từng frame PNG, canh khung và xem chạy thử ngay.",
-    desc: "Nhập hoặc dán sprite sheet, chia lưới, kéo từng khung cho khớp, chỉnh cỡ khung riêng từng frame, xếp chồng các frame để canh tâm. Ô Tự canh khung tìm hình trong từng ô, bỏ phần hình ô bên lấn sang và đặt chân mọi frame trùng nhau; ô Đều cỡ hình co giãn cho các frame cao bằng nhau. Xoá nền màu đặc, tẩy tay bằng cọ tròn hoặc vuông, vá chấm trắng lạc bằng màu xung quanh, chấm điểm mốc. Cắt ra .zip gồm PNG từng frame, sheet mới và tệp JSON toạ độ, hoặc chỉ tải riêng sheet mới thành một tệp PNG. Chế độ Đặt tên file: kéo thư mục hoặc hình vào, sửa tên từng tệp rồi lưu lại.",
+    desc: "Nhập hoặc dán sprite sheet, chia lưới, kéo từng khung cho khớp, chỉnh cỡ khung riêng từng frame, xếp chồng các frame để canh tâm. Ô Tự canh khung tìm hình trong từng ô, bỏ phần hình ô bên lấn sang và đặt chân mọi frame trùng nhau; ô Đều cỡ hình co giãn cho các frame cao bằng nhau. Xoá nền màu đặc, tẩy tay bằng cọ tròn hoặc vuông, vá chấm trắng lạc bằng màu xung quanh, chấm điểm mốc. Cắt ra .zip gồm PNG từng frame, sheet mới và tệp JSON toạ độ, hoặc chỉ tải riêng sheet mới thành một tệp PNG. Chế độ Đặt tên file: kéo thư mục hoặc hình vào, sửa tên từng tệp rồi lưu lại. Chế độ Cắt frame by frame: kéo hoặc dán video vào, chọn đoạn và số frame, tách thành sprite sheet để cắt tiếp.",
     genre: "cong-cu",
     accent: "#3a55e0",
-    en: { title: "Sprite Cutter", tagline: "Slice a sprite sheet into PNG frames, align them and preview the animation.", desc: "Import or paste a sprite sheet, set the grid, drag each frame into place, resize any single frame and onion-skin the frames to align them. Auto-fit finds the sprite in each cell, drops pixels that spill over from neighbours and lines up every frame on its feet; Even size scales frames to the same height. Remove a flat background, erase by hand with a round or square brush, heal stray white specks with the surrounding colour, and drop anchor points. Export a .zip of per-frame PNGs, a repacked sheet and a JSON of frame rects, or download just the repacked sheet as one PNG. A Rename files mode lets you drop a folder or images, edit each file name and save them back." },
+    en: { title: "Sprite Cutter", tagline: "Slice a sprite sheet into PNG frames, align them and preview the animation.", desc: "Import or paste a sprite sheet, set the grid, drag each frame into place, resize any single frame and onion-skin the frames to align them. Auto-fit finds the sprite in each cell, drops pixels that spill over from neighbours and lines up every frame on its feet; Even size scales frames to the same height. Remove a flat background, erase by hand with a round or square brush, heal stray white specks with the surrounding colour, and drop anchor points. Export a .zip of per-frame PNGs, a repacked sheet and a JSON of frame rects, or download just the repacked sheet as one PNG. A Rename files mode lets you drop a folder or images, edit each file name and save them back. A Frame-by-frame mode turns a dropped or pasted video clip into a sprite sheet: pick the span and the number of frames, then keep cutting it here." },
     thumbnail: "assets/thumbnails/sprite-cutter.png",
     path: "games/sprite-cutter/index.html",
-    rev: "20261123c",
+    rev: "20261123d",
     // Một trang HTML thuần, không bước build. Nguồn ở ~/REPO_MOBI/notes/sprite-cutter/index.html (cũng là
     // artifact claude.ai 5DtELwnoaDC6ZA5WrSxzQy); chép sang đây bằng `sh build-hub.sh <rev>` trong thư mục đó,
     // nhớ tăng `rev` ở đây cho trùng. JSZip 3.10.1 (MIT) vendor ở games/sprite-cutter/vendor.
     //
     // Kiểm: sh ~/REPO_MOBI/notes/sprite-cutter/run-test.sh
     status: "available",
-    tags: ["Công cụ", "Cắt sprite", "Xoá nền", "Đổi tên tệp", "Pixel art"]
+    tags: ["Công cụ", "Cắt sprite", "Xoá nền", "Đổi tên tệp", "Video thành sprite", "Pixel art"]
   },
   {
     id: "dredge",

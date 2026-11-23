@@ -115,7 +115,8 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 @media (max-width: 700px) { .stack-wrap { grid-template-columns: minmax(0, 1fr); } .flist { max-height: 210px; } .stack-box { height: 340px; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 .rn-drop { border: 2px dashed var(--line); border-radius: 10px; padding: 22px 16px; text-align: center; color: var(--mute); }
-#rename-view.drop .rn-drop { border-color: var(--accent); color: var(--accent); }
+#rename-view.drop .rn-drop, #video-view.drop .rn-drop { border-color: var(--accent); color: var(--accent); }
+#fb-video { width: 100%; max-height: 52vh; border-radius: 8px; background: #000; }
 .rn-root { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .rn-root input { flex: 1 1 240px; min-width: 0; }
 .rn-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -131,12 +132,37 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 <div class="wrap">
   <header>
-    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 50</small></h1>
+    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 53</small></h1>
     <div class="seg" role="tablist" aria-label="Công cụ" id="app-mode">
-      <button type="button" role="tab" data-mode="cut" aria-selected="true">Bàn Cắt Sprite</button><button type="button" role="tab" data-mode="rename" aria-selected="false">Đặt tên file</button>
+      <button type="button" role="tab" data-mode="cut" aria-selected="true">Bàn Cắt Sprite</button><button type="button" role="tab" data-mode="rename" aria-selected="false">Đặt tên file</button><button type="button" role="tab" data-mode="video" aria-selected="false">Cắt frame by frame</button>
     </div>
     <p id="app-blurb">Nhập sprite sheet, chỉnh khung từng frame, xem chạy thử, rồi cắt ra PNG đúng khung đã chỉnh.</p>
   </header>
+
+  <section id="video-view" aria-label="Cắt frame by frame" hidden>
+    <div class="bar">
+      <button type="button" id="fb-pick">Chọn video…</button>
+      <input type="file" id="fb-file" accept="video/*" hidden>
+      <span class="grow num" id="fb-info"></span>
+    </div>
+    <div class="rn-drop" id="fb-drop">Kéo video vào đây, hoặc copy tệp video rồi bấm vào trang và nhấn <kbd>Ctrl V</kbd>. MP4 (H.264) và WebM mở được trên mọi trình duyệt.</div>
+    <video id="fb-video" controls muted playsinline preload="auto" hidden></video>
+    <div class="fields" id="fb-fields">
+      <label>Từ giây<input type="number" id="fb-start" min="0" step="0.1" value="0"></label>
+      <label>Đến giây<input type="number" id="fb-end" min="0" step="0.1"></label>
+      <label>Số frame cần lấy<input type="number" id="fb-count" min="1" max="200" value="24"></label>
+      <label>Số frame mỗi giây<input type="number" id="fb-fps" min="0.1" max="60" step="0.1" value="12"></label>
+      <label>Cỡ ô tối đa (px)<input type="number" id="fb-max" min="16" max="1024" value="256"></label>
+    </div>
+    <div class="bar">
+      <label class="check" title="Dò nhân vật trên từng frame rồi cắt mọi frame theo cùng một khung ôm cả đường đi của nó, nên chuyển động vẫn giữ nguyên. Tắt thì lấy nguyên khung hình video."><input type="checkbox" id="fb-crop" checked> Tự cắt quanh nhân vật</label>
+      <span class="grow"></span>
+      <button type="button" class="primary" id="fb-run" disabled>Tách frame thành sheet</button>
+    </div>
+    <p class="status" id="fb-status" role="status"></p>
+    <p class="hint">Mỗi frame lấy ra thành một ô của sprite sheet, rồi sheet mở thẳng trong Bàn Cắt Sprite với lưới và tốc độ đặt sẵn.
+      Ở đó bật <b>Xoá nền</b> để tách nhân vật khỏi nền, <b>Tự canh khung</b> để nhân vật đứng yên một chỗ, rồi <b>Chỉ tải sheet .png</b> để lấy atlas.</p>
+  </section>
 
   <section id="rename-view" aria-label="Đặt tên file" hidden>
     <div class="bar">
@@ -347,7 +373,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261123c"></script>
+<script src="vendor/jszip.min.js?v=20261123d"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -362,7 +388,7 @@ const S = {
   sel: null,
   fps: 10, mode: "loop", playing: true, cur: 0, dir: 1,
   zoom: "fit", pzoom: "fit", bgView: "checkDark", onion: false, pivot: false, ghosts: true,
-  drag: "frame",
+  drag: "frame", appMode: "cut",
 };
 
 function cellCount() { return S.grid.cols * S.grid.rows; }
@@ -506,10 +532,14 @@ function backgroundMask(p, W, H) {
 // Mảng hình liền nhau (8 hướng) trên S.img: pixel không thuộc nền của backgroundMask().
 function contentLabels() {
   if (labCache && (labCache.ver === imgVer || liveStroke)) return labCache;
-  const W = imgW(), H = imgH(), N = W * H;
+  const W = imgW(), H = imgH();
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const cx = cv.getContext("2d", { willReadFrequently: true }); cx.drawImage(S.img, 0, 0);
-  const p = cx.getImageData(0, 0, W, H).data, solid = sheetIsOpaque(), { bgm, ref } = backgroundMask(p, W, H), bg = ref || [p[0], p[1], p[2]];
+  const p = cx.getImageData(0, 0, W, H).data, { label, comps, ref } = labelImage(p, W, H);
+  return labCache = { ver: imgVer, W, H, label, comps, solid: sheetIsOpaque(), bg: ref || [p[0], p[1], p[2]] };
+}
+function labelImage(p, W, H) {
+  const N = W * H, { bgm, ref } = backgroundMask(p, W, H);
   const label = new Int32Array(N).fill(-1), comps = [], q = new Int32Array(N);
   const fg = i => !bgm[i];
   for (let i0 = 0; i0 < N; i0++) {
@@ -528,7 +558,7 @@ function contentLabels() {
     }
     comps.push(m);
   }
-  return labCache = { ver: imgVer, W, H, label, comps, solid, bg };
+  return { label, comps, ref };
 }
 
 // Tự canh khung không tin vào lưới: sheet AI hay đặt hình cách nhau không đều, số hình cũng không khớp số ô đoán ra.
@@ -536,7 +566,7 @@ function contentLabels() {
 // (tâm nằm ở 60% giữa bề ngang hình, cách ≤ 0,6 chiều cao hình: bóng của dáng nhảy cách chân xa), không có thì theo hình có pixel
 // gần nhất trong 1/8 chiều cao, còn lại bỏ. Dấu sao mờ góc sheet và số thứ tự góc ô nằm xa pixel hình nên không bị nhận nhầm.
 // Hình vào cùng hàng khi chồng theo chiều dọc ≥ 30% chiều cao của nó (dáng nhảy cao hơn vẫn cùng hàng), rồi xếp trái sang phải; lưới đổi thành số hàng × số hình nhiều nhất một hàng.
-// Khung của hình = hộp bao mảng lớn + mảng nhỏ ≥ 0,3% của nó; neo = cột trung vị của pixel hình, ngay dưới đáy hộp.
+// Khung của hình = hộp bao mảng lớn + mảng nhỏ ≥ 0,3% của nó; neo = cột trung vị của pixel hình, ở mặt đất của hàng.
 let lastLayout = null;
 function autoFit() {
   const lab = contentLabels();
@@ -583,6 +613,14 @@ function autoFit() {
     if (m.n >= Math.max(4, comps[best].n * 0.003)) groups.get(owner[k]).push(k);
   });
   const own = i => { const k = label[i]; return k < 0 ? -1 : owner[k]; };
+  // Mặt đất của mỗi hàng: đáy thân (không tính bóng) thấp nhất mà có ít nhất một hình khác chạm gần cùng mức, để một hình
+  // vung kiếm chúc xuống không kéo mặt đất theo. Hình có chân cách mặt đất ≤ 8% chiều cao thì kéo khớp vào mặt đất (AI vẽ lệch
+  // vài pixel); cao hơn là đang nhảy, neo ở mặt đất nên giữ nguyên độ cao khi chạy.
+  const heights = bigs.map(k => comps[k].y1 - comps[k].y0 + 1).sort((a, b) => a - b), snap = heights[heights.length >> 1] * 0.08;
+  const ground = rows.map(r => {
+    const ys = r.ks.map(k => comps[k].y1).sort((a, b) => b - a);
+    return ys.find((y, i) => ys.some((z, j) => j !== i && Math.abs(z - y) <= snap)) ?? ys[0];
+  });
   const map = new Map();
   for (const [cell, ks] of groups) {
     const x0 = Math.min(...ks.map(k => comps[k].x0)), y0 = Math.min(...ks.map(k => comps[k].y0));
@@ -592,7 +630,8 @@ function autoFit() {
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (set.has(label[y * W + x])) { hist[x - x0]++; n++; }
     let acc = 0, mid = 0;
     while (mid < hist.length - 1 && (acc + hist[mid]) * 2 <= n) acc += hist[mid++];
-    map.set(cell, { ax: x0 + mid, ay: y1 + 1, x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+    const feet = comps[ks[0]].y1, gy = ground[Math.floor(cell / cols)];
+    map.set(cell, { ax: x0 + mid, ay: (gy - feet > snap ? gy : feet) + 1, x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
   }
   const g = S.grid, boxes = [...map.values()];
   const lay = [cols, rows.length, ...map.keys()].join();
@@ -979,7 +1018,7 @@ function autoNote(fr) {
   el.className = "status" + (labCache && labCache.solid ? " bad" : " ok");
   const ks = fr.filter(f => f.fh > 0).map(f => f.k), fmt = v => v.toFixed(2).replace(".", ",");
   const kmin = Math.min(...ks), kmax = Math.max(...ks);
-  el.textContent = `Tìm thấy ${fitCache ? fitCache.sprites : 0} hình, xếp ${S.grid.rows} hàng × ${S.grid.cols} cột. Khung chung ${fr[0].cw}×${fr[0].ch} px, tâm đáy là chỗ chân hình.` + (empty ? ` ${empty} ô không có hình.` : "")
+  el.textContent = `Tìm thấy ${fitCache ? fitCache.sprites : 0} hình, xếp ${S.grid.rows} hàng × ${S.grid.cols} cột. Khung chung ${fr[0].cw}×${fr[0].ch} px, mặt đất ở chỗ chân dáng đứng, dáng nhảy giữ độ cao.` + (empty ? ` ${empty} ô không có hình.` : "")
     + (S.even && ks.length ? (kmin === kmax ? " Các hình đã cao bằng nhau, không co giãn." : ` Co giãn từ ${fmt(kmin)} tới ${fmt(kmax)} lần.`) : "")
     + (labCache && labCache.solid ? " Sheet còn nền đặc: bật Xoá nền để khung ôm sát hình và tệp cắt ra trong suốt." : "");
 }
@@ -1088,7 +1127,7 @@ sheet.addEventListener("pointercancel", endDrag);
 
 document.addEventListener("keydown", e => {
   const t = e.target;
-  if (!$("rename-view").hidden) return;
+  if (S.appMode !== "cut") return;
   const k = e.key.toLowerCase();
   if ((e.ctrlKey || e.metaKey) && (k === "z" || k === "y") && !(t.matches && t.matches("input[type=text], input[type=number]"))) { e.preventDefault(); k === "y" || e.shiftKey ? redoEdit() : undoEdit(); return; }
   if (t.matches && t.matches("input[type=number], input[type=text], select")) return;
@@ -2134,7 +2173,8 @@ function middlePan(pane) {
 middlePan(stackPane); middlePan(box);
 
 /* ---------- nhập ảnh ---------- */
-function loadFile(file, pasted) {
+// ready (nếu có) chạy ngay sau khi lưới được đoán, để người gọi đặt lưới riêng; chuỗi nó trả về nối vào dòng báo.
+function loadFile(file, pasted, ready) {
   if (!file || !file.type.startsWith("image/")) { status("Tệp này không phải ảnh. Hãy chọn PNG, JPG, GIF hoặc WebP.", "bad"); return; }
   const url = URL.createObjectURL(file), im = new Image();
   im.onload = () => {
@@ -2144,6 +2184,7 @@ function loadFile(file, pasted) {
     S.off = {}; S.grow = {}; S.skip = new Set(); S.sel = null; S.start = 0; S.cur = 0; S.playing = true;
     S.strokes = []; S.redo = []; eraseMask = paintLayer = restoreMask = null; used = { paint: false, back: false };
     guessGrid(); S.count = cellCount();
+    const readyNote = ready ? ready() : "";
     if (S.auto) snapAuto();
     // Ô Xoá nền còn bật từ sheet trước: ảnh đã trong suốt thì góc ra màu đen và viền tối của hình bị loang mất.
     const keyedOff = $("bg-on").checked && !sheetIsOpaque();
@@ -2151,7 +2192,7 @@ function loadFile(file, pasted) {
     applyBackground();
     $("prefix").value = S.name; clearThumbs();
     status("");
-    const note = [pasted ? `Đã dán ảnh ${im.naturalWidth}×${im.naturalHeight}px.` : "", keyedOff ? "Ảnh đã có nền trong suốt nên tắt Xoá nền." : ""].filter(Boolean).join(" ");
+    const note = [pasted ? `Đã dán ảnh ${im.naturalWidth}×${im.naturalHeight}px.` : "", readyNote, keyedOff ? "Ảnh đã có nền trong suốt nên tắt Xoá nền." : ""].filter(Boolean).join(" ");
     pasteNote(note, "ok");
     changed();
   };
@@ -2164,7 +2205,8 @@ box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("d
 box.addEventListener("dragleave", () => box.classList.remove("drop"));
 box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("drop"); loadFile(e.dataTransfer.files[0]); });
 document.addEventListener("paste", e => {
-  const d = e.clipboardData; if (!d || performance.now() - panEnded < 500 || !$("rename-view").hidden) return;
+  const d = e.clipboardData; if (!d || performance.now() - panEnded < 500 || S.appMode === "rename") return;
+  if (S.appMode === "video") { fbPaste(d); return; }
   const file = [...d.files].find(f => f.type.startsWith("image/"))
     || [...d.items].find(i => i.kind === "file" && i.type.startsWith("image/"))?.getAsFile();
   if (!file) {
@@ -2498,15 +2540,139 @@ $("rn-undo-auto").onclick = () => {
   sampleFn = s; autoMax = Math.max(1, Math.min(lim.images.maxCount, 20));
   $("rn-auto-box").hidden = false;
 })();
-const BLURB = { cut: $("app-blurb").textContent, rename: "Kéo thư mục hình hoặc vài tấm hình vào, sửa tên từng tệp, rồi lưu lại với tên mới. Nội dung hình giữ nguyên." };
-for (const b of $("app-mode").children) b.onclick = () => {
-  const m = b.dataset.mode;
-  for (const x of $("app-mode").children) x.setAttribute("aria-selected", x === b);
-  document.querySelector(".cols").hidden = m !== "cut"; rnView.hidden = m !== "rename";
+const BLURB = { cut: $("app-blurb").textContent, rename: "Kéo thư mục hình hoặc vài tấm hình vào, sửa tên từng tệp, rồi lưu lại với tên mới. Nội dung hình giữ nguyên.",
+  video: "Kéo hoặc dán video vào, chọn đoạn và số frame mỗi giây, rồi tách thành sprite sheet để cắt tiếp trong Bàn Cắt Sprite." };
+const VIEWS = { cut: document.querySelector(".cols"), rename: rnView, video: $("video-view") };
+function setAppMode(m) {
+  S.appMode = m;
+  for (const x of $("app-mode").children) x.setAttribute("aria-selected", x.dataset.mode === m);
+  for (const [k, el] of Object.entries(VIEWS)) el.hidden = k !== m;
   $("app-blurb").textContent = BLURB[m];
   if (m === "cut") redrawAll();
-};
+}
+for (const b of $("app-mode").children) b.onclick = () => setAppMode(b.dataset.mode);
 rnRender();
+
+/* ---------- Cắt frame by frame ---------- */
+// Video không có bộ cắt riêng: các frame lấy ra xếp thành một sprite sheet rồi mở trong Bàn Cắt Sprite, nên Xoá nền,
+// Tự canh khung, chạy thử và tải atlas dùng lại nguyên. FB.job khác null khi đang tách; job.stop = true để dừng.
+const FB = { url: null, name: "video", job: null };
+const FB_MAX_FRAMES = 200, FB_PROBE = 480;
+const fbVideo = $("fb-video");
+function fbLoad(file) {
+  if (!file || !file.type.startsWith("video/")) { status("Tệp này không phải video. Hãy chọn MP4 hoặc WebM.", "bad", "fb-status"); return; }
+  if (FB.url) URL.revokeObjectURL(FB.url);
+  FB.url = URL.createObjectURL(file); FB.name = file.name.replace(/\.[^.]+$/, "") || "video";
+  $("fb-run").disabled = true; status("Đang mở video…", "", "fb-status");
+  fbVideo.onloadedmetadata = () => {
+    const d = fbVideo.duration;
+    if (!Number.isFinite(d) || !fbVideo.videoWidth) { status("Video này không đọc được độ dài. Xuất lại thành MP4 hoặc WebM rồi thử lại.", "bad", "fb-status"); return; }
+    fbVideo.hidden = false; $("fb-start").value = 0; $("fb-end").value = +d.toFixed(2); fbSetFps(+$("fb-fps").value || 12);
+    $("fb-info").textContent = `${file.name} · ${fbVideo.videoWidth}×${fbVideo.videoHeight} px · ${d.toFixed(2)} giây`;
+    $("fb-run").disabled = false; status("", "", "fb-status");
+  };
+  fbVideo.onerror = () => status("Trình duyệt không mở được video này. Thử MP4 (H.264) hoặc WebM.", "bad", "fb-status");
+  fbVideo.src = FB.url;
+}
+function fbPaste(d) {
+  const file = [...d.files].find(f => f.type.startsWith("video/")) || [...d.items].find(i => i.kind === "file" && i.type.startsWith("video/"))?.getAsFile();
+  if (file) fbLoad(file); else status("Clipboard không có tệp video. Copy chính tệp video (không phải đường dẫn) rồi dán lại.", "bad", "fb-status");
+}
+// Sau "seeked" Chrome có lúc chưa kịp đưa frame mới lên thẻ video (đo được khi máy bận: ô 7 lấy nhầm hình ô 6), nên chờ thêm
+// requestVideoFrameCallback báo frame đã hiện, tối đa 100 ms phòng khi tua trúng đúng frame đang hiện và không có frame mới.
+function fbSeek(t) {
+  return new Promise(ok => {
+    const done = () => {
+      fbVideo.removeEventListener("seeked", done);
+      if (!fbVideo.requestVideoFrameCallback) { ok(); return; }
+      const timer = setTimeout(ok, 100);
+      fbVideo.requestVideoFrameCallback(() => { clearTimeout(timer); ok(); });
+    };
+    fbVideo.addEventListener("seeked", done); fbVideo.currentTime = t;
+  });
+}
+// Số frame cần lấy là chỗ dựa: frame lấy cách đều trong đoạn Từ–Đến giây. Ô frame mỗi giây chỉ là cách khác để đặt số đó,
+// và cũng là tốc độ máy chạy sau khi tách (để chạy đúng nhịp video). Đổi đoạn thì giữ số frame, tính lại frame mỗi giây.
+function fbSpan() {
+  const d = fbVideo.duration || 0, t0 = Math.max(0, Math.min(d, +$("fb-start").value || 0));
+  return { t0, t1: Math.max(t0, Math.min(d, $("fb-end").value === "" ? d : +$("fb-end").value)) };
+}
+const fbClampCount = n => Math.max(1, Math.min(FB_MAX_FRAMES, Math.round(n) || 1));
+function fbSetFps(fps) { const { t0, t1 } = fbSpan(); $("fb-count").value = fbClampCount((t1 - t0) * fps); fbShowFps(); }
+function fbShowFps() {
+  const { t0, t1 } = fbSpan(), n = fbClampCount(+$("fb-count").value);
+  if (document.activeElement !== $("fb-fps")) $("fb-fps").value = t1 > t0 ? +(n / (t1 - t0)).toFixed(2) : "";
+}
+$("fb-fps").addEventListener("input", () => { const v = +$("fb-fps").value; if (v > 0) fbSetFps(v); });
+for (const id of ["fb-count", "fb-start", "fb-end"]) $(id).addEventListener("input", fbShowFps);
+
+// Hộp ôm nhân vật trên một frame: hợp các mảng hình ≥ 1/5 mảng lớn nhất (như Tự canh khung), toạ độ video. null nếu chỉ thấy nền.
+function fbSubject(cx, a) {
+  const W = cx.canvas.width, H = cx.canvas.height, { comps } = labelImage(cx.getImageData(0, 0, W, H).data, W, H);
+  const top = Math.max(0, ...comps.map(m => m.n)), big = comps.filter(m => m.n >= top * 0.2 && m.n >= 4);
+  if (!big.length) return null;
+  return { x0: Math.min(...big.map(m => m.x0)) / a, y0: Math.min(...big.map(m => m.y0)) / a, x1: (Math.max(...big.map(m => m.x1)) + 1) / a, y1: (Math.max(...big.map(m => m.y1)) + 1) / a };
+}
+async function fbExtract() {
+  if (FB.job) { FB.job.stop = true; return; }
+  const job = FB.job = { stop: false }, vw = fbVideo.videoWidth, vh = fbVideo.videoHeight, dur = fbVideo.duration;
+  const maxCell = Math.max(16, +$("fb-max").value || 256), { t0, t1 } = fbSpan(), count = fbClampCount(+$("fb-count").value);
+  const times = Array.from({ length: count }, (_, i) => Math.min(dur - 0.001, t0 + i * (t1 - t0) / count));
+  const fps = Math.max(1, Math.min(60, Math.round(t1 > t0 ? count / (t1 - t0) : 12)));
+  $("fb-run").textContent = "Dừng";
+  try {
+    let crop = { x0: 0, y0: 0, x1: vw, y1: vh };
+    if ($("fb-crop").checked) {
+      const a = Math.min(1, FB_PROBE / Math.max(vw, vh)), pc = document.createElement("canvas");
+      pc.width = Math.max(1, Math.round(vw * a)); pc.height = Math.max(1, Math.round(vh * a));
+      const px = pc.getContext("2d", { willReadFrequently: true });
+      let u = null;
+      for (let i = 0; i < times.length; i++) {
+        if (job.stop) throw "stop";
+        status(`Đang dò nhân vật ${i + 1}/${times.length}…`, "", "fb-status");
+        await fbSeek(times[i]); px.drawImage(fbVideo, 0, 0, pc.width, pc.height);
+        const b = fbSubject(px, a);
+        if (b) u = u ? { x0: Math.min(u.x0, b.x0), y0: Math.min(u.y0, b.y0), x1: Math.max(u.x1, b.x1), y1: Math.max(u.y1, b.y1) } : b;
+      }
+      if (u) {
+        const m = Math.round(Math.max(u.x1 - u.x0, u.y1 - u.y0) * 0.06);
+        crop = { x0: Math.max(0, Math.floor(u.x0) - m), y0: Math.max(0, Math.floor(u.y0) - m), x1: Math.min(vw, Math.ceil(u.x1) + m), y1: Math.min(vh, Math.ceil(u.y1) + m) };
+      }
+    }
+    const cw = crop.x1 - crop.x0, ch = crop.y1 - crop.y0, k = Math.min(1, maxCell / Math.max(cw, ch));
+    const w = Math.max(1, Math.round(cw * k)), h = Math.max(1, Math.round(ch * k)), n = times.length;
+    const cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols), sheetCv = document.createElement("canvas");
+    sheetCv.width = cols * w; sheetCv.height = rows * h;
+    const sx = sheetCv.getContext("2d"); sx.imageSmoothingQuality = "high";
+    for (let i = 0; i < n; i++) {
+      if (job.stop) throw "stop";
+      status(`Đang lấy frame ${i + 1}/${n}…`, "", "fb-status");
+      await fbSeek(times[i]);
+      sx.drawImage(fbVideo, crop.x0, crop.y0, cw, ch, (i % cols) * w, Math.floor(i / cols) * h, w, h);
+    }
+    const blob = await new Promise(r => sheetCv.toBlob(r, "image/png"));
+    const note = `Đã tách ${n} frame cách đều từ giây ${+t0.toFixed(2)} tới ${+t1.toFixed(2)}, máy chạy ${fps} frame/giây, mỗi ô ${w}×${h} px.`;
+    status(note, "ok", "fb-status");
+    loadFile(new File([blob], FB.name + "_frames.png", { type: "image/png" }), false, () => {
+      Object.assign(S.grid, { cols, rows, x: 0, y: 0, w, h, gx: 0, gy: 0 });
+      S.count = n; S.fps = fps; S.cur = 0;
+      return note;
+    });
+    setAppMode("cut");
+  } catch (e) {
+    if (e !== "stop") throw e;
+    status("Đã dừng.", "", "fb-status");
+  } finally {
+    FB.job = null; $("fb-run").textContent = "Tách frame thành sheet";
+  }
+}
+$("fb-pick").onclick = () => $("fb-file").click();
+$("fb-file").onchange = e => fbLoad(e.target.files[0]);
+$("fb-run").onclick = fbExtract;
+const fbView = $("video-view");
+fbView.addEventListener("dragover", e => { e.preventDefault(); fbView.classList.add("drop"); });
+fbView.addEventListener("dragleave", () => fbView.classList.remove("drop"));
+fbView.addEventListener("drop", e => { e.preventDefault(); fbView.classList.remove("drop"); fbLoad([...e.dataTransfer.files].find(f => f.type.startsWith("video/")) || e.dataTransfer.files[0]); });
 
 /* ---------- khởi động ---------- */
 S.src = S.img = makeSample();
