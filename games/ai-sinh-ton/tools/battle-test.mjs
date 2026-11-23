@@ -208,7 +208,9 @@ try {
       if (watch) { check(await tapId(cp, 'eye1'), `${phone}: eye1 is live`); await step(cp, 3); const s = await cp.evaluate(() => ({ mode: __G.cam.mode, w: __G.watching, uid: __G.B.heroes[1].uid })); out.mode = s.mode; out.watching = s.w === s.uid; }
       const pos = [];
       let last = null;
-      for (let i = 0; i < 10; i++) {
+      // 5 s at least, on to 10 s until the hero has moved: a ranged hero may shoot from one spot until its room is cleared
+      for (let i = 0; i < 20 && (i < 10 || out.travel < 1); i++) {
+        out.secs = (i + 1) * 0.5;
         const r = await cp.evaluate(() => { __sim(0.5); const B = __G.B, h = B.heroes[1], cam = __G.host.camera; return { hx: h.x, hz: h.z, cd: Math.hypot(cam.position.x - h.x, cam.position.z - h.z) }; });
         if (last) out.travel += Math.hypot(r.hx - last.hx, r.hz - last.hz); last = r; out.max = Math.max(out.max, r.cd);
         if (watch && i === 3) {
@@ -237,7 +239,7 @@ try {
     };
     const A = await run(true), T = await run(false);
     check(A.mode === 'spectate' && A.watching, `${phone}: tapping eye1 puts the camera in spectate on that hero (mode ${A.mode}, watching hero ${A.watching})`);
-    check(A.max < 9 && A.travel >= 1, `${phone}: the camera stays within ${A.max.toFixed(1)} m of the hero (limit 9) while it travels ${A.travel.toFixed(1)} m over 5 s (at least 1)`);
+    check(A.max < 9 && A.travel >= 1, `${phone}: the camera stays within ${A.max.toFixed(1)} m of the hero (limit 9) while it travels ${A.travel.toFixed(1)} m over ${A.secs} s (at least 1)`);
     const same = A.snap.length === T.snap.length && A.snap.every((r, i) => r.every((v, j) => Math.abs(v - T.snap[i][j]) < 1e-9));
     check(same, `${phone}: taps and drags while spectating leave every sim position unchanged against a twin run (${A.snap.length} units compared)`);
     check(A.before && A.before.ph === 'fight' && A.before.mode === 'spectate' && A.again, `${phone}: back in the fight (phase ${A.before && A.before.ph}, ${A.picked || 0} taps on the pick card) the camera still spectates (mode ${A.before && A.before.mode}) and eye1 is tappable (${A.again})`);

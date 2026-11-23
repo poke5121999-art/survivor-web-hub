@@ -120,16 +120,16 @@ try {
     // 5. heroes
     await tap(page, 'tab-heroes'); await step(page, 30);
     const cells = await page.evaluate(() => __G.metaUi.gridCount);
-    check(cells === 13, `${phone}: the hero grid builds ${cells} tiles (want 13)`);
-    await page.evaluate(() => { const A = __G.meta.acc; A.heroes.thep.shards = 100; A.gold = 5000; });
+    check(cells === 14, `${phone}: the hero grid builds ${cells} tiles (want 14)`);
+    await page.evaluate(() => { const A = __G.meta.acc; A.heroes.tegiap.shards = 100; A.gold = 5000; });
     await page.evaluate(() => __G.goto('heroes')); await step(page, 10);
-    check(await tap(page, 'hero-thep'), `${phone}: hero tile hero-thep can be tapped`); await step(page, 30);
+    check(await tap(page, 'hero-tegiap'), `${phone}: hero tile hero-tegiap can be tapped`); await step(page, 30);
     const selA = await page.evaluate(() => ({ s: __G.screen, id: __G.metaUi.heroSel() }));
-    check(selA.s === 'heroes' && selA.id === 'thep', `${phone}: tapping a tile selects the hero on the same screen ("${selA.s}", selected "${selA.id}")`);
+    check(selA.s === 'heroes' && selA.id === 'tegiap', `${phone}: tapping a tile selects the hero on the same screen ("${selA.s}", selected "${selA.id}")`);
     await snap(page, phone, 'hero'); await auditTargets(page, `${phone} hero detail`);
-    const lv0 = (await acc(page)).heroes.thep, gold0 = (await acc(page)).gold, cost = levelCost(lv0.level);
+    const lv0 = (await acc(page)).heroes.tegiap, gold0 = (await acc(page)).gold, cost = levelCost(lv0.level);
     await tap(page, 'levelup'); await step(page, 20);
-    const lv1 = (await acc(page)).heroes.thep, gold1 = (await acc(page)).gold;
+    const lv1 = (await acc(page)).heroes.tegiap, gold1 = (await acc(page)).gold;
     check(lv1.level === lv0.level + 1 && lv0.shards - lv1.shards === cost.shards && gold0 - gold1 === cost.gold, `${phone}: levelup raised level ${lv0.level} to ${lv1.level}, spent ${lv0.shards - lv1.shards} shards and ${gold0 - gold1} gold (cost ${cost.shards} and ${cost.gold})`);
     await snap(page, phone, 'hero-levelup');
     // 9. title clearance on every screen built so far (empty canvases are skipped)
@@ -146,23 +146,23 @@ try {
     });
     check(clip.bad.length === 0 && clip.n >= 8, `${phone}: ${clip.n} title nodes all have free canvas rows above and below the ink (smallest ${clip.min}; ${clip.bad.join('; ') || 'none clipped'})`);
 
-    await page.evaluate(() => { __G.meta.acc.heroes.thep.shards = 1; });
-    await page.evaluate(() => { __G.goto('heroes'); }); await step(page, 5); await tap(page, 'hero-thep'); await step(page, 20);
-    const lvBtn = (await targets(page)).find((t) => t.id === 'levelup'), need = levelCost((await acc(page)).heroes.thep.level).shards - 1;
+    await page.evaluate(() => { __G.meta.acc.heroes.tegiap.shards = 1; });
+    await page.evaluate(() => { __G.goto('heroes'); }); await step(page, 5); await tap(page, 'hero-tegiap'); await step(page, 20);
+    const lvBtn = (await targets(page)).find((t) => t.id === 'levelup'), need = levelCost((await acc(page)).heroes.tegiap.level).shards - 1;
     const lt = await page.evaluate(() => __G.metaUi.levelupText);
     check(lvBtn && !lvBtn.enabled && lt === `Thiếu ${need} mảnh`, `${phone}: levelup is disabled and says "${lt}" (want "Thiếu ${need} mảnh")`);
     const t0 = (await acc(page)).team.slice();
     await tap(page, 'team-toggle'); await step(page, 10);
     const t1 = (await acc(page)).team.slice(); await tap(page, 'team-toggle'); await step(page, 10);
     const t2 = (await acc(page)).team.slice();
-    check(t0.includes('thep') && !t1.includes('thep') && t1.length === 3 && t2.includes('thep') && t2.length === 4, `${phone}: team-toggle leaves and rejoins (${t0.length} -> ${t1.length} -> ${t2.length})`);
-    await page.evaluate(() => { __G.meta.acc.heroes.bong = { level: 1, shards: 0 }; __G.goto('heroes', { id: 'bong' }); }); await step(page, 20);
+    check(t0.includes('tegiap') && !t1.includes('tegiap') && t1.length === 3 && t2.includes('tegiap') && t2.length === 4, `${phone}: team-toggle leaves and rejoins (${t0.length} -> ${t1.length} -> ${t2.length})`);
+    await page.evaluate(() => { __G.meta.acc.heroes.cu = { level: 1, shards: 0 }; __G.goto('heroes', { id: 'cu' }); }); await step(page, 20);
     await tap(page, 'team-toggle'); await step(page, 20);
     await snap(page, phone, 'team-pick');
     const hasPick = (await targets(page)).some((t) => t.id === 'replace-1');
     await tap(page, 'replace-1'); await step(page, 20);
     const t3 = (await acc(page)).team;
-    check(hasPick && t3[1] === 'bong' && t3.length === 4, `${phone}: a full team asks who to replace and puts bong in slot 2 (${t3.join(',')})`);
+    check(hasPick && t3[1] === 'cu' && t3.length === 4, `${phone}: a full team asks who to replace and puts cu in slot 2 (${t3.join(',')})`);
     await tap(page, 'back'); await step(page, 20);
 
     // 6. save survives a reload
