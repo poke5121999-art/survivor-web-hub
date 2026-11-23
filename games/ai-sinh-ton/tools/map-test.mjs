@@ -56,8 +56,8 @@ const RUN = ([to, prior]) => {
       if (g === null || Math.abs(n.position.y - g) > 0.6) { miss++; if (!worst) worst = `step ${steps} hero ${u.slot} at ${n.position.x.toFixed(1)}, ${n.position.y.toFixed(1)}, ${n.position.z.toFixed(1)} ground ${g === null ? 'none' : g.toFixed(1)}`; }
       const my = n.position.y + W.shift.y; maxLift = Math.max(maxLift, my); minLift = Math.min(minLift, my);
       // the run cycle: speed over the pad and bridge (the scene's own motion plus the slide), against the animator's speed and the legs
-      const gi = G.actors.gripOf(u.uid); const gx = n.position.x + W.shift.x; const gz = n.position.z + W.shift.z; const leg = gi.m.legL.rotation.x; const p = was.get(u.uid);
-      if (p && W.sec === p.sec && Math.hypot(gx - p.gx, gz - p.gz) * 60 > 2) { moving++; if (gi.st.speed > 1.2 && Math.abs(leg - p.leg) > 0.004) posed++; }
+      const bst = G.actors.beastOf(u.uid); const gx = n.position.x + W.shift.x; const gz = n.position.z + W.shift.z; const leg = bst.poseSig(); const p = was.get(u.uid);
+      if (p && W.sec === p.sec && Math.hypot(gx - p.gx, gz - p.gz) * 60 > 2) { moving++; if (bst.speed > 1.2 && Math.abs(leg - p.leg) > 0.004) posed++; }
       was.set(u.uid, { gx, gz, leg, sec: W.sec });
       if (steps % 6 === 0) {
         H.scene.updateMatrixWorld(true); from.copy(H.camera.position); at.set(n.position.x, n.position.y + 1.0, n.position.z); dir.copy(at).sub(from); const far = dir.length(); dir.normalize();
