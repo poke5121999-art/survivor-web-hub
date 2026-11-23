@@ -211,8 +211,15 @@ const FORMS = HEROES.flatMap((h) => [{ id: h.id, form: 1 }, { id: h.id, form: 2 
     });
     const u = B.heroes[0];
     const n = (e, f) => log.filter((x) => x.e === e && x.uid === u.uid && (!f || f(x))).length;
-    check(n('cast', (x) => x.slot === 's1') > 0 && n('cast', (x) => x.slot === 's2') > 0 && n('ult') > 0 && u.dealt > 0 && out === 0,
-      `${key} ${def.formName}: ${def.s1.name} x${n('cast', (x) => x.slot === 's1')}, ${def.s2.name} x${n('cast', (x) => x.slot === 's2')}, ${def.ult.name} x${n('ult')}, dealt ${Math.round(u.dealt)}, inside the arena`);
+    // a skill gated on a moment (Giáp Đá below 60% health) may not come in one won run: seeds 12 and 13 add their casts
+    const kit = { s1: n('cast', (x) => x.slot === 's1'), s2: n('cast', (x) => x.slot === 's2'), ult: n('ult') }; let seeds = 1;
+    for (let sd = 12; sd <= 13 && !(kit.s1 && kit.s2 && kit.ult); sd++, seeds++) {
+      const r = play({ stage: 10, seed: sd, team: [{ ...spec, mul: 1.5 }, ...mates], auto: { ult: true, pick: 'best' } });
+      const m = (e, f) => r.log.filter((x) => x.e === e && x.uid === r.B.heroes[0].uid && (!f || f(x))).length;
+      kit.s1 += m('cast', (x) => x.slot === 's1'); kit.s2 += m('cast', (x) => x.slot === 's2'); kit.ult += m('ult');
+    }
+    check(kit.s1 > 0 && kit.s2 > 0 && kit.ult > 0 && u.dealt > 0 && out === 0,
+      `${key} ${def.formName}: ${def.s1.name} x${kit.s1}, ${def.s2.name} x${kit.s2}, ${def.ult.name} x${kit.ult} over ${seeds} seed${seeds > 1 ? 's' : ''}, dealt ${Math.round(u.dealt)}, inside the arena`);
     const k = def.move.kind; const mv = (m) => n('move', (x) => x.k === m);
     const gait = {
       walk: () => [!air.some(Boolean), 'on the ground'],
