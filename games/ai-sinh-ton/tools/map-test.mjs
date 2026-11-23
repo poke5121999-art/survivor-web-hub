@@ -5,6 +5,9 @@
 //    run checks as the runs between pads
 //  - layout: as many centres as the plan has rooms; bridges: >= 3 heights; spiral: every pad higher than the last; river:
 //    all at one level; arena: one pad; every link at least 2 m long with both ends on a pad floor
+//    maze, rail: one level; cave: every chamber lower; maze walls in front of the fight knee high, cave rock there <= 1 m;
+//    cave darker (floor ambient) with its units lit and a lantern pool under the team; islands: satellites bob 0.05 to
+//    0.3 m and the fight pad not at all; a rail run rides the cart (it rolls at least half the line)
 //  - run: for each of the 4 runs of a stage, every hero stays over a pad floor or the bridge deck (feet within 0.6 m of it)
 //    on every drawn frame, the run takes 2.4 to 5 s, ends on the next pad with the heroes back where the sim has them, and
 //    no more than 10% of the sampled hero sight lines from the camera are blocked by world blocks, and a hero covering ground
@@ -15,7 +18,7 @@
 //  - spawns: on every pad the spawn ring (1.04 to 1.07 of the fight ellipse) is pad floor, and no prop box reaches above the
 //    floor inside 1.08 of the ellipse
 //  - in view: on every pad the spawn rim projects inside the frame under the top bar and off the hero card block
-//  - the real flow (stage 1, cards picked by hand): the stage opens with the run out of the start room while the sim clock
+//  - the real flow (stage 3, a bridges map since stage 1 became an arena; cards picked by hand): the stage opens with the run out of the start room while the sim clock
 //    waits and the camp of pad 1 stands still; the run starts when the wave is cleared, the sim clock and the spawns
 //    wait for it, no monster is left in the room being left, the card pick opens only on the new pad, and picking does not
 //    start a second run
@@ -33,7 +36,7 @@ const REFS = path.join(os.homedir(), 'handoff', 'ai-sinh-ton-refs');
 const REF_OF = { forest: 'look-9-horde-grass.webp', swamp: 'look-8.webp', street: 'look-7.webp', parking: 'look-5.webp', factory: 'look-6.webp', crypt: 'look-10-desert-temple.webp', landing: 'look-9-horde-grass.webp', void: 'look-11-lava-bridge.png' };
 const argv = process.argv.slice(2); const arg = (k) => (argv.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.length + 3);
 const QUICK = argv.includes('--quick'); const SHOTS = !argv.includes('--noshots');
-const STAGES = arg('stages') ? arg('stages').split(',').map(Number) : (QUICK ? [1, 4] : [1, 2, 9, 4, 16, 18]);
+const STAGES = arg('stages') ? arg('stages').split(',').map(Number) : (QUICK ? [1, 4] : [1, 2, 9, 4, 5, 6, 16, 18]);
 const DRAWS_MAX = +(arg('draws') || 340); const BUILD_MAX = 250; const ZMAX = +(arg('zmax') || 40);
 const ZOUT = path.join(ROOT, '.chk', 'maps', 'z'); fs.mkdirSync(ZOUT, { recursive: true });
 const zshot = (res, name) => { if (res.nz + res.nd > ZMAX) fs.writeFileSync(path.join(ZOUT, name + '.png'), Buffer.from(res.img.split(',')[1], 'base64')); };
@@ -50,7 +53,9 @@ const RUN = ([to, prior]) => {
   const was = new Map(); let moving = 0; let posed = 0;
   const meshes = []; H.scene.traverse((o) => { if (o.isMesh && o.name === 'pad') meshes.push(o); });
   const d0 = W.map.centres[to].y - (W.sec >= 0 ? W.map.centres[W.sec] : W.map.start).y; const hops = to - W.sec;
-  let raft = false; for (let k = Math.max(-1, W.sec); k < to; k++) if (W.map.plan.links.find((l) => l.from === k && l.kind === 'raft')) raft = true;
+  let raft = false; for (let k = Math.max(-1, W.sec); k < to; k++) if (W.map.plan.links.find((l) => l.from === k && (l.kind === 'raft' || l.kind === 'rail'))) raft = true;
+  // a ride's mesh (the raft, the cart) out of this pad: where it stood before the run
+  const ride = W.walkBridge(); const ride0 = ride && ride.raft && ride.mesh ? ride.mesh.position.clone() : null; const cart = !!(ride && ride.cart);
   while (W.busy && steps < 600) {
     window.__step(1); steps++;
     for (const u of G.B.heroes) {
@@ -70,7 +75,9 @@ const RUN = ([to, prior]) => {
   }
   for (let i = 0; i < 40; i++) window.__step(1);
   let off = 0; for (const u of G.B.heroes) { const n = G.actors.nodeOf(u.uid); if (n && u.alive) off = Math.max(off, Math.hypot(n.position.x - u.x, n.position.z - u.z), Math.abs(n.position.y)); }
-  return { hops, raft, started, steps, secs: steps / 60, miss, samples, worst, sight, blocked, off, moving, posed, sec: W.sec, shift: Math.hypot(W.shift.x, W.shift.y, W.shift.z), dy: d0, maxLift, minLift };
+  // how far the ride rolled from where it waits (it may already have moved in frames stepped before this run)
+  const rode = ride0 ? Math.hypot(ride.mesh.position.x - ride.path[1].x, ride.mesh.position.z - ride.path[1].z) : 0;
+  return { hops, raft, cart, rode, rideL: ride0 ? Math.hypot(ride.b.x - ride.a.x, ride.b.z - ride.a.z) : 0, started, steps, secs: steps / 60, miss, samples, worst, sight, blocked, off, moving, posed, sec: W.sec, shift: Math.hypot(W.shift.x, W.shift.y, W.shift.z), dy: d0, maxLift, minLift };
 };
 
 // the pad the fight is on: spawn ring, props, rim in the frame, cost
@@ -128,6 +135,33 @@ try {
     if (L.layout === 'spiral') check(L.ys.every((y, i) => i === 0 || y > L.ys[i - 1]), `${tagL}: every pad stands higher than the last (${L.ys.join(', ')} m)`);
     if (L.layout === 'river') check(L.ys.every((y) => y === 0), `${tagL}: every pad at the water's level (${L.ys.join(', ')} m)`);
     if (L.layout === 'arena') check(L.n === 1, `${tagL}: one pad for all five waves`);
+    if (L.layout === 'maze' || L.layout === 'rail') check(L.ys.every((y) => y === 0), `${tagL}: every pad on one level (${L.ys.join(', ')} m)`);
+    if (L.layout === 'cave') check(L.ys.every((y, i) => i === 0 || y < L.ys[i - 1]), `${tagL}: every chamber lower than the last (${L.ys.join(', ')} m)`);
+    if (L.layout === 'maze' || L.layout === 'cave' || L.layout === 'islands') {
+      // the layout's own pieces: the maze's walls never stand above the knee except behind the far rim, the cave's never on the
+      // near rim; the islands' satellites bob a little and the fight pad not at all; the cave darker but its units lit
+      const X = await page.evaluate(() => {
+        const G = window.__G; const W = G.host.world; const T = G.host.THREE; const g = W.pad && G.host.scene.getObjectByName('section' + W.sec);
+        const out = { nearTop: 0, bob: 0, padMove: 0, sats: 0 };
+        if (g) for (const m of g.children) {
+          if (m.name !== 'maze' && m.name !== 'cavewall') continue; const p = m.geometry.attributes.position; const v = new T.Vector3();
+          for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const n = Math.hypot(v.x / 9.6, v.z / 4.6); if (v.z > 2.5 && n < 1.9 && Math.abs(v.x) < 13) out.nearTop = Math.max(out.nearTop, v.y); }
+        }
+        if (g) { const pad = g.children[0]; const y0 = pad.position.y; const ys = new Map(); for (let k = 0; k < 120; k++) { window.__step(1); for (const m of g.children) if (m.userData.bob) { const r = ys.get(m) || [9, -9]; r[0] = Math.min(r[0], m.position.y); r[1] = Math.max(r[1], m.position.y); ys.set(m, r); } out.padMove = Math.max(out.padMove, Math.abs(pad.position.y - y0)); } for (const r of ys.values()) out.bob = Math.max(out.bob, (r[1] - r[0]) / 2); out.sats = ys.size; }
+        const base = W.theme; const lam = W.lantern && W.lantern();
+        let cx = 0; let cz = 0; let n = 0; for (const u of G.B.heroes) if (u.alive) { cx += u.x; cz += u.z; n++; }
+        out.amb = base.amb.sky.reduce((a, b) => a + b, 0); out.hemi = G.host.hemi.intensity; out.cave = !!base.cave;
+        out.lantern = lam ? Math.hypot(lam.x - cx / n, lam.z - cz / n) : -1;
+        return out;
+      });
+      if (L.layout === 'maze') check(X.nearTop <= 0.6, `${tagL}: maze walls in front of the fight reach ${X.nearTop.toFixed(2)} m (<= 0.6, knee high)`);
+      if (L.layout === 'cave') {
+        check(X.nearTop <= 1.0, `${tagL}: cave rock in front of the fight reaches ${X.nearTop.toFixed(2)} m (<= 1.0)`);
+        check(X.cave && X.amb < 0.9 && X.hemi >= 1.0, `${tagL}: the cave is darker (floor ambient ${X.amb.toFixed(2)} < 0.9) but its units lit (hemisphere ${X.hemi.toFixed(2)} >= 1.0)`);
+        check(X.lantern >= 0 && X.lantern < 2.5, `${tagL}: the lantern pool follows the team (${X.lantern.toFixed(2)} m from the heroes' middle, < 2.5)`);
+      }
+      if (L.layout === 'islands') check(X.sats > 0 && X.bob > 0.05 && X.bob <= 0.3 && X.padMove === 0, `${tagL}: ${X.sats} satellites bob ${X.bob.toFixed(2)} m (0.05 to 0.3), the fight pad moves ${X.padMove} m (= 0)`);
+    }
     check(L.buildMs <= BUILD_MAX, `${tag}: the first two sections build in ${L.buildMs} ms (<= ${BUILD_MAX})`);
     const shots = []; let theme = ''; let pre = 0;
     for (let fi = 0; fi < L.fight.length; fi++) {
@@ -154,7 +188,8 @@ try {
       const R = await page.evaluate(RUN, [nx, pre]); pre = 0; const tmax = R.raft || R.hops > 1 ? 7.6 : 5.2;
       check(R.sec === nx && R.shift < 1e-6, `${t}: the run ends on pad ${R.sec + 1} with the scene at rest (shift ${R.shift.toFixed(3)})`);
       check(R.samples > 0 && R.miss === 0, `${t}: hero frames off the floor or the bridge during the run: ${R.miss} of ${R.samples} (= 0)${R.worst ? ' first: ' + R.worst : ''}`);
-      check(R.secs >= 2.0 && R.secs <= tmax, `${t}: the run over ${R.hops} link(s)${R.raft ? ' with a raft' : ''} takes ${R.secs.toFixed(1)} s (2.0 to ${tmax})`);
+      if (R.cart) check(R.rode >= R.rideL * 0.5, `${t}: the team rides the cart along the track: it rolled ${R.rode.toFixed(1)} m of the ${R.rideL.toFixed(1)} m line (>= half)`);
+      check(R.secs >= 2.0 && R.secs <= tmax, `${t}: the run over ${R.hops} link(s)${R.raft ? (R.cart ? ' in a cart' : ' with a raft') : ''} takes ${R.secs.toFixed(1)} s (2.0 to ${tmax})`);
       check(R.off < 0.3, `${t}: after the run heroes stand where the sim has them (largest gap ${R.off.toFixed(2)} m, < 0.3)`);
       check(R.moving > 60 && R.posed >= R.moving * 0.95, `${t}: heroes play the run cycle while they cover ground: ${R.posed} of ${R.moving} moving frames (>= 95%)`);
       check(R.sight > 0 && R.blocked / R.sight <= 0.1, `${t}: hero sight lines blocked by blocks during the run: ${R.blocked} of ${R.sight} (<= 10%)`);
@@ -175,9 +210,9 @@ try {
     await r.ctx.close();
   }
 
-  // the real flow on stage 1: cards picked by hand, real frames
+  // the real flow on stage 3 (bridges: a run between every wave): cards picked by hand, real frames
   {
-    const r = await openPage(br, srv.base, 's22', 'autostart=1&stage=1&noaudio=1&seed=3&q=low&autoult=1');
+    const r = await openPage(br, srv.base, 's22', 'autostart=1&stage=3&noaudio=1&seed=3&q=low&autoult=1');
     const F = await r.page.evaluate(async () => {
       const G = window.__G; const H = G.host; const W = H.world; G.setSpeed(4);
       const frame = () => new Promise((res) => requestAnimationFrame(res));
