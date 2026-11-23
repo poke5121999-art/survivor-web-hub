@@ -1,14 +1,15 @@
 // The guided first session and the unlock reveal. Two screens made here:
-//   'guide'  - a dim with a rounded spotlight around the target's hit box, a 3D hand that points at it and one line of
+//   'guide'  - a dim with a rounded spotlight around the target's hit box, a 3D arrow that points at it and one line of
 //              big text. Only the target is tappable while a step with a target is up: four invisible blocker buttons
 //              (id "guide-block") cover everything outside the spotlight.
 //   'reveal' - the padlock pops open and the new feature flies in; tap to continue.
 // meta.ftueNext() says what to show, game.events says when; pressing the target (a pointer press on it) completes a step.
 import { UNLOCK } from '../data/unlocks.js?v=20261122a';
 import { clamp, easeOut, easeBack } from './hud.js?v=20261122a';
+import { beastWords } from './words.js?v=20261122a';
 
 const GIVE_UP = 8;
-const HAND_LEN = 86, HAND_HALF = 30, HAND_GAP = 3, HAND_BOB = 9;
+const HAND_LEN = 46, HAND_HALF = 17, HAND_GAP = 4, HAND_BOB = 7;
 // the upper third, centred: where the battle's wave and boss banners appear. The speech panel never covers it.
 export const BANNER_ZONE = { x: 190, y: 36, w: 400, h: 96 };
 const FEATURE_ICON = { slot2: 'shield', slot3: 'shield', slot4: 'shield', levelup: 'up', gacha: 'capsule', spectate: 'eye', speed: 'speed', daily: 'chest', chapter: 'chest', autopick: 'check', equip: 'armor', autoult: 'ult', merge: 'gear', ult: 'ult', cards: 'star', upgrade: 'up', slot_armor: 'armor', slot_hands: 'gloves', slot_charm: 'necklace' };
@@ -22,23 +23,20 @@ export function lockButton(b, locked) {
   return b;
 }
 
-function buildHand(THREE) {
-  const g = new THREE.Group();
-  const glove = new THREE.MeshStandardMaterial({ color: 0xfff6e6, roughness: 0.42 });
-  const cuffM = new THREE.MeshStandardMaterial({ color: 0xff5a3c, roughness: 0.4 });
-  const ink = new THREE.MeshBasicMaterial({ color: 0x1a1420, side: THREE.BackSide });
-  const part = (geo, mat, x, y, z, sx = 1, sy = 1, sz = 1, rz = 0) => {
-    const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.z = rz;
-    const h = new THREE.Mesh(geo, ink); h.scale.setScalar(1.12); m.add(h); g.add(m); return m;
-  };
-  const ball = new THREE.SphereGeometry(1, 20, 14);
-  part(new THREE.CapsuleGeometry(8, 30, 6, 14), glove, -6, -23, 2);
-  part(ball, glove, 0, -54, 0, 22, 21, 15);
-  part(ball, glove, 9, -42, 5, 8.5, 8.5, 8);
-  part(ball, glove, 18, -45, 4, 8, 8, 7.5);
-  part(new THREE.CapsuleGeometry(6.5, 13, 5, 12), glove, -21, -52, 5, 1, 1, 1, 0.9);
-  part(new THREE.CylinderGeometry(19, 20, 13, 22), cuffM, 0, -76, 0);
-  g.rotation.set(-0.18, 0.32, 0);
+// The pointer: a short, thick 3D arrow with rounded bevels, warm gold with a thin darker rim. Built pointing up, tip at
+// the origin, the body below it; the guide turns it toward the target and bobs it softly along its own axis.
+function buildArrow(THREE) {
+  const L = HAND_LEN, W = HAND_HALF, head = L * 0.5, shaft = W * 0.42;
+  const sh = new THREE.Shape();
+  sh.moveTo(0, -1.5); sh.quadraticCurveTo(0, 0, -1.6, -1.4); sh.lineTo(-W, -head + 2); sh.quadraticCurveTo(-W - 1, -head, -W + 2, -head);
+  sh.lineTo(-shaft, -head); sh.lineTo(-shaft, -L + 4); sh.quadraticCurveTo(-shaft, -L, -shaft + 4, -L); sh.lineTo(shaft - 4, -L); sh.quadraticCurveTo(shaft, -L, shaft, -L + 4);
+  sh.lineTo(shaft, -head); sh.lineTo(W - 2, -head); sh.quadraticCurveTo(W + 1, -head, W, -head + 2); sh.lineTo(1.6, -1.4); sh.quadraticCurveTo(0, 0, 0, -1.5);
+  const geo = new THREE.ExtrudeGeometry(sh, { depth: 5, bevelEnabled: true, bevelThickness: 3, bevelSize: 2.4, bevelSegments: 4, curveSegments: 8 });
+  geo.translate(0, 2.4, -2.5);
+  const body = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xffd46a, roughness: 0.3, metalness: 0.15, emissive: 0x3a2600, emissiveIntensity: 0.35 }));
+  const rim = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x3b2614, side: THREE.BackSide }));
+  rim.scale.set(1.07, 1.05, 1.05); rim.position.y = 1.2;
+  const g = new THREE.Group(); g.add(rim); g.add(body); g.rotation.x = -0.28;
   const wrap = new THREE.Group(); wrap.add(g);
   return wrap;
 }
@@ -49,7 +47,7 @@ export function createGuide(game) {
   const dimCan = document.createElement('canvas'); const dimTex = new THREE.CanvasTexture(dimCan); dimTex.colorSpace = THREE.SRGBColorSpace;
   const dimMesh = new THREE.Mesh(new THREE.PlaneGeometry(780, 100), new THREE.MeshBasicMaterial({ map: dimTex, transparent: true, depthWrite: false, toneMapped: false }));
   scr.holder.add(dimMesh);
-  const hand = buildHand(THREE); scr.holder.add(hand); hand.visible = false;
+  const hand = buildArrow(THREE); scr.holder.add(hand); hand.visible = false;
 
   // four invisible buttons as blockers around the spotlight; one covers the whole frame when there is no target
   const bands = [0, 1, 2, 3, 4, 5, 6, 7].map(() => {
@@ -112,6 +110,7 @@ export function createGuide(game) {
 
   // ---- the speech panel: short and wide, the skip button sits inside it at the right ----
   function buildPanel(text, hint) {
+    text = beastWords(text);
     const withSkip = !!meta.acc.ftue.session, key = text + '|' + hint + '|' + withSkip + '|' + narrow; if (key === panelKey) return; panelKey = key;
     if (panel) { panel.dispose(); panel = null; }
     const t = ui.text(text, { size: 17, align: 'center', maxW: narrow ? 150 : 320, lineH: 22 });
@@ -164,7 +163,7 @@ export function createGuide(game) {
   function offer(ctx) {
     if ((reveal && reveal.busy()) || S.step) { S.queue.push(ctx); return; }
     const step = meta.ftueNext({ ...ctx, skip: [...S.skipped] });
-    if (step) begin(step);
+    if (step) { begin(step); S.home = ctx.screen === 'home'; }
   }
   function drain(home, later) {
     while (!S.step && S.queue.length && !(reveal && reveal.busy())) offer(S.queue.shift());
@@ -183,26 +182,48 @@ export function createGuide(game) {
   // ---- per frame ----
   const inter = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   const grow = (r, m) => ({ x: r.x - m, y: r.y - m, w: r.w + 2 * m, h: r.h + 2 * m });
-  const REACH = HAND_LEN + HAND_BOB + HAND_GAP;
-  // The hand lies on a free side of the target: below, above, right of it, then left of it (first that fits the frame).
-  // Its rectangle is the swept body beyond the target's edge, so it never meets the target.
-  const HAND_SIDES = [
-    { rot: 0, box: (r, c) => ({ x: c.x - HAND_HALF, y: r.y + r.h + HAND_GAP, w: 2 * HAND_HALF, h: REACH - HAND_GAP }), tip: (r, c, b) => [c.x, r.y + r.h + HAND_GAP + b] },
-    { rot: Math.PI, box: (r, c) => ({ x: c.x - HAND_HALF, y: r.y - REACH, w: 2 * HAND_HALF, h: REACH - HAND_GAP }), tip: (r, c, b) => [c.x, r.y - HAND_GAP - b] },
-    { rot: Math.PI / 2, box: (r, c) => ({ x: r.x + r.w + HAND_GAP, y: c.y - HAND_HALF, w: REACH - HAND_GAP, h: 2 * HAND_HALF }), tip: (r, c, b) => [r.x + r.w + HAND_GAP + b, c.y] },
-    { rot: -Math.PI / 2, box: (r, c) => ({ x: r.x - REACH, y: c.y - HAND_HALF, w: REACH - HAND_GAP, h: 2 * HAND_HALF }), tip: (r, c, b) => [r.x - HAND_GAP - b, c.y] },
-  ];
+  // The arrow lies on a free side of the target: below, above, right of it, then left of it. Its rectangle is the swept
+  // body beyond the target's edge, so it never meets the target; `k` shrinks it where a full one has no room.
+  const HAND_SIDES = [];
+  for (const k of [1, 0.7, 0.56]) {
+    const R = (HAND_LEN + HAND_BOB) * k + HAND_GAP, Hf = HAND_HALF * k, G = HAND_GAP;
+    HAND_SIDES.push(
+      { k, rot: 0, box: (r, c) => ({ x: c.x - Hf, y: r.y + r.h + G, w: 2 * Hf, h: R - G }), tip: (r, c, b) => [c.x, r.y + r.h + G + b * k] },
+      { k, rot: Math.PI, box: (r, c) => ({ x: c.x - Hf, y: r.y - R, w: 2 * Hf, h: R - G }), tip: (r, c, b) => [c.x, r.y - G - b * k] },
+      { k, rot: Math.PI / 2, box: (r, c) => ({ x: r.x + r.w + G, y: c.y - Hf, w: R - G, h: 2 * Hf }), tip: (r, c, b) => [r.x + r.w + G + b * k, c.y] },
+      { k, rot: -Math.PI / 2, box: (r, c) => ({ x: r.x - R, y: c.y - Hf, w: R - G, h: 2 * Hf }), tip: (r, c, b) => [r.x - G - b * k, c.y] });
+  }
   let handSide = null;
   function chooseHand(rect) {
     const H = ui.H, c = { x: clamp(rect.x + rect.w / 2, rect.x + Math.min(10, rect.w / 2), rect.x + rect.w - Math.min(10, rect.w / 2)), y: rect.y + rect.h / 2 };
     c.x = clamp(c.x, 34, 780 - 34); c.y = clamp(c.y, 34, H - 34);
     const fits = (b) => b.x >= 4 && b.y >= 4 && b.x + b.w <= 776 && b.y + b.h <= H - 4;
-    const side = HAND_SIDES.find((q) => fits(q.box(rect, c))) || HAND_SIDES[0];
+    // of the sides that fit, the one that lies on the least text the player may need to read (the target's own text excepted)
+    const key = [rect.x, rect.y, rect.w, rect.h].map(Math.round).join('|');
+    if (key !== handSide?.key) {
+      const texts = textBoxes(rect), on = (b) => texts.reduce((a, t) => a + Math.max(0, Math.min(b.x + b.w, t.x + t.w) - Math.max(b.x, t.x)) * Math.max(0, Math.min(b.y + b.h, t.y + t.h) - Math.max(b.y, t.y)), 0);
+      let best = null, bestA = Infinity;
+      for (const q of HAND_SIDES) { const bx = q.box(rect, c); if (!fits(bx)) continue; const a = on(bx); if (a < bestA - 1) { best = q; bestA = a; } }
+      handSide = { key, side: best || HAND_SIDES[0] };
+    }
+    const side = handSide.side;
     return { side, c, box: side.box(rect, c) };
   }
+  // design boxes of the visible texts outside the guide and outside the target's own node
+  const B3 = new THREE.Box3();
+  function textBoxes(rect) {
+    const out = [], scene = ui.scene, tnode = rect && rect.id ? ui.node(rect.id) : null; scene.updateMatrixWorld(true);
+    scene.traverse((o) => {
+      const n = o.parent; if (!(o.isMesh && n && n.mesh === o && n.canvas)) return;
+      for (let a = o; a && a !== scene; a = a.parent) { if (!a.visible || a === tnode || a === scr || (a.isScreen && a.hiding)) return; }
+      B3.setFromObject(o); out.push({ x: B3.min.x, y: -B3.max.y, w: B3.max.x - B3.min.x, h: B3.max.y - B3.min.y });
+    });
+    return out;
+  }
   function placeHand(rect, tt) {
-    const h = chooseHand(rect), bob = (Math.sin(tt * 7) * 0.5 + 0.5) * HAND_BOB, pop = easeBack(clamp(tt / 0.3, 0, 1));
-    hand.visible = true; hand.scale.setScalar(Math.max(0.01, pop));
+    const h = chooseHand(rect), ph = (tt * 2.2) % 1, bob = (0.5 - 0.5 * Math.cos(ph * Math.PI * 2)) * HAND_BOB, pop = easeBack(clamp(tt / 0.3, 0, 1));
+    const squash = 1 - 0.06 * Math.max(0, Math.cos(ph * Math.PI * 2));
+    const pk = Math.max(0.01, pop) * h.side.k; hand.visible = true; hand.scale.set(pk * (2 - squash), pk * squash, pk);
     const [tx, ty] = h.side.tip(rect, h.c, bob);
     hand.rotation.z = h.side.rot; hand.position.set(tx, -ty, 60);
     handAt = h.box; return h;
@@ -244,6 +265,9 @@ export function createGuide(game) {
     if (reveal) reveal.update(dt);
     if (!S.step) { if (ui.isShown('guide')) ui.hide('guide', { transition: 'none' }); if (S.queue.length && !reveal.busy()) drain(false); return; }
     if (reveal && reveal.active()) { if (ui.isShown('guide')) ui.hide('guide', { transition: 'none' }); return; }
+    // a step offered at home waits while a fight is up (a quick tap on BẮT ĐẦU beats it): it must neither show over the
+    // fight nor run out its give-up clock there and be marked done unseen
+    if (S.home && game.B) { if (ui.isShown('guide')) ui.hide('guide', { transition: 'none' }); hand.visible = false; S.miss = 0; S.dis = 0; S.t = 0; return; }
     const step = S.step, path = pathOf(step);
     ui.show('guide', { transition: 'none' });
     S.t += dt;
@@ -273,7 +297,7 @@ export function createGuide(game) {
       return;
     }
     S.miss = 0;
-    const rect = toDesign(hit); S.rect = { x: hit.x, y: hit.y, w: hit.w, h: hit.h, id: hit.id };
+    const rect = { ...toDesign(hit), id: hit.id }; S.rect = { x: hit.x, y: hit.y, w: hit.w, h: hit.h, id: hit.id };
     const extra = (step.allow || []).map((id) => ui.targets().find((t) => t.id === id && t.enabled && !isOwn(t.id))).filter(Boolean).map(toDesign);
     drawDim(rect, extra); layoutBands(rect, extra);
     placePanel(rect, placeHand(rect, S.t));
@@ -285,7 +309,8 @@ export function createGuide(game) {
     name: 'guide', show() {}, hide() {}, update,
     dbg() {
       const s = S.step, e = s ? entryOf(s, S.idx) : null;
-      return { active: !!s, id: s ? s.id : null, text: s ? (e && e.line) || s.text : '', target: s && !S.noTarget ? pathOf(s)[S.idx] : null, idx: S.idx, path: s ? pathOf(s) : [], noTarget: S.noTarget || !!(e && e.wait !== undefined), waiting: !!(e && e.wait !== undefined), rect: S.rect, allow: s ? s.allow || [] : [], skipVisible: skipBtn.visible, panel: toClient(panelAt), hand: toClient(handAt), bannerZone: toClient(BANNER_ZONE), frame: toClient({ x: 0, y: 0, w: 780, h: ui.H }), frozen: !!game.frozen, reveal: reveal ? reveal.dbg() : null };
+      const parked = !!(s && S.home && game.B);
+      return { active: !!s && !parked, parked, id: s ? s.id : null, text: s ? (e && e.line) || s.text : '', target: s && !S.noTarget ? pathOf(s)[S.idx] : null, idx: S.idx, path: s ? pathOf(s) : [], noTarget: S.noTarget || !!(e && e.wait !== undefined), waiting: !!(e && e.wait !== undefined), rect: S.rect, allow: s ? s.allow || [] : [], skipVisible: skipBtn.visible, panel: toClient(panelAt), hand: toClient(handAt), bannerZone: toClient(BANNER_ZONE), frame: toClient({ x: 0, y: 0, w: 780, h: ui.H }), frozen: !!game.frozen, reveal: reveal ? reveal.dbg() : null };
     },
   };
   game.guide = api;
@@ -335,10 +360,10 @@ function createReveal(game, { onDone, blocked }) {
     const u = UNLOCK[id], ic = FEATURE_ICON[id] || 'star';
     R.icon = ui.icon(ic, { size: 104 }); scr.put(R.icon, LK.x - 52, LK.y - 52, 36); R.icon.visible = false;
     R.head = ui.text('MỞ KHOÁ', { size: 18, align: 'center', color: 0xffd860, outlineW: 3 }); scr.put(R.head, 470, CARD.y + 34, 36);
-    R.name = ui.text(u.name.toLocaleUpperCase('vi'), { size: 28, align: 'center', maxW: 280, lineH: 36, outlineW: 3.4 }); scr.put(R.name, 470, CARD.y + 74, 36);
+    R.name = ui.text(beastWords(u.name).toLocaleUpperCase('vi'), { size: 28, align: 'center', maxW: 280, lineH: 36, outlineW: 3.4 }); scr.put(R.name, 470, CARD.y + 74, 36);
     R.hint = ui.text('Chạm để tiếp tục', { size: 13, align: 'center', color: 0xffe9a8, outlineW: 1.6 }); scr.put(R.hint, 470, CARD.y + CARD.h - 34, 36);
     R.nodes = [R.icon, R.head, R.name, R.hint];
-    R.label = 'MỞ KHOÁ: ' + u.name.toLocaleUpperCase('vi');
+    R.label = 'MỞ KHOÁ: ' + beastWords(u.name).toLocaleUpperCase('vi');
     for (const n of [R.head, R.name, R.hint]) n.setOpacity(0);
     lock.visible = true; lock.scale.setScalar(0.01);
   }

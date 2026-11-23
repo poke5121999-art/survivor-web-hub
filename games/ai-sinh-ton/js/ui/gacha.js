@@ -16,7 +16,7 @@ const pct = (p) => String(p).replace('.', ',') + '%';
 const colorOf = (r) => (r.kind === 'gold' ? GOLD : r.kind === 'item' ? ITEM : HERO_RARITY[r.rarity].color);
 const rowLabel = (row) => {
   const rn = row.rarity ? HERO_RARITY[row.rarity].name : '';
-  if (row.kind === 'hero') return `Tướng ${rn}`; if (row.kind === 'shard') return `${row.n} mảnh một tướng ${rn}`;
+  if (row.kind === 'hero') return `Thú ${rn}`; if (row.kind === 'shard') return `${row.n} mảnh của một thú ${rn}`;
   if (row.kind === 'gold') return `${row.n} vàng`; return 'Trang bị bậc Thường';
 };
 
@@ -24,7 +24,7 @@ export function createGacha(game) {
   const ui = game.ui, meta = game.meta, PAL = ui.PAL, THREE = ui.THREE, mui = game.metaUi;
   const scr = ui.screen('gacha'), rates = ui.screen('rates', { modal: true });
   const bd = makeBackdrop(ui, 'gacha'); scr.put(bd, 0, 0, -40);
-  const title = ui.text('TRIỆU HỒI', { size: 24, upper: true, outlineW: 3.2 }); scr.put(title, 414, 48, 6); mui.regTitle('gacha', title);
+  const title = ui.text('TRIỆU HỒI THÚ', { size: 24, upper: true, outlineW: 3.2 }); scr.put(title, 414, 48, 6); mui.regTitle('gacha', title);
 
   // ---------- the machine ----------
   const root = new THREE.Group(), machine = new THREE.Group(); root.add(machine);
@@ -74,7 +74,7 @@ export function createGacha(game) {
   // ---------- idle controls: rates button, compact hero rates, pity, pull buttons bottom-right ----------
   const idleG = ui.group(); scr.put(idleG, 0, 0, 6);
   const rBtn = ui.button({ id: 'rates', w: 78, h: 36, r: 12, color: PAL.blue, label: 'TỈ LỆ', size: 14, shadow: false, onTap: openRates }); idleG.put(rBtn, 674, 52, 6);
-  idleG.put(ui.text('TỈ LỆ RA TƯỚNG', { size: 11.5, color: 0xe8d8ff, outlineW: 1.8 }), 414, 94);
+  idleG.put(ui.text('TỈ LỆ RA THÚ', { size: 11.5, color: 0xe8d8ff, outlineW: 1.8 }), 414, 94);
   GACHA.table.filter((r) => r.kind === 'hero').forEach((row, i) => {
     const chip = ui.panel({ w: 108, h: 50, r: 14, color: 0x2a2150, depth: 3, bevel: 2, ow: 2, shadow: false }); idleG.put(chip, 414 + i * 115, 110, 2);
     chip.put(ui.panel({ w: 6, h: 32, r: 3, color: HERO_RARITY[row.rarity].color, depth: 1, bevel: 0.8, ow: 1, shadow: false, gloss: false }), 8, 9, 2);
@@ -89,11 +89,11 @@ export function createGacha(game) {
   function refreshIdle() {
     const g = meta.acc.gems, free = meta.acc.freePull, key = g + '|' + meta.acc.pity + '|' + free; if (key === lastKey) return; lastKey = key;
     if (free) {
-      pity.set('Lượt đầu tiên miễn phí, chắc chắn có tướng mới!'); pityBar.setVisible(false);
+      pity.set('Lượt đầu tiên miễn phí, chắc chắn có thú mới!'); pityBar.setVisible(false);
       p1.setEnabled(true); p1.setLabel('MIỄN PHÍ'); p1.setSub('Lượt đầu tiên'); p10.setEnabled(false); p10.setSub('Dùng lượt miễn phí trước');
       mui.pullText = { p1: 'MIỄN PHÍ', p10: 'Dùng lượt miễn phí trước' }; return;
     }
-    pity.set(`Còn ${GACHA.pity - meta.acc.pity} lượt chắc chắn ra tướng Huyền Thoại`); pityBar.setVisible(true); pityBar.set(Math.min(1, meta.acc.pity / GACHA.pity)); pityBarT.set(`Bảo hiểm ${meta.acc.pity}/${GACHA.pity}`);
+    pity.set(`Còn ${GACHA.pity - meta.acc.pity} lượt chắc chắn ra thú Huyền Thoại`); pityBar.setVisible(true); pityBar.set(Math.min(1, meta.acc.pity / GACHA.pity)); pityBarT.set(`Bảo hiểm ${meta.acc.pity}/${GACHA.pity}`);
     p1.setLabel('1 LƯỢT'); p1.setEnabled(g >= GACHA.cost); p1.setSub(g >= GACHA.cost ? GACHA.cost + ' ngọc' : 'Thiếu ngọc');
     p10.setEnabled(g >= GACHA.cost10); p10.setSub(g >= GACHA.cost10 ? GACHA.cost10 + ' ngọc' : 'Thiếu ngọc');
     mui.pullText = { p1: g >= GACHA.cost ? '' : 'Thiếu ngọc', p10: g >= GACHA.cost10 ? '' : 'Thiếu ngọc' };
@@ -113,7 +113,7 @@ export function createGacha(game) {
   });
   const sum = GACHA.table.reduce((s, r) => s + r.p, 0);
   rp.put(ui.text('Tổng ' + pct(Math.round(sum * 10) / 10), { size: 12, align: 'right', color: 0xcfd0e0 }), 588, 184);
-  rp.put(ui.text(`Bảo hiểm: ${GACHA.pity - 1} lượt liền không ra tướng Huyền Thoại thì lượt thứ ${GACHA.pity} chắc chắn ra.\nMười lượt: chắc chắn có ít nhất một kết quả Sử Thi trở lên.\nTrùng tướng: đổi thành mảnh. Trang bị: cất vào túi đồ ở tab Trang Bị.`, { size: 11.5, maxW: 420, lineH: 15, color: 0xe4def8 }), 14, 206);
+  rp.put(ui.text(`Bảo hiểm: ${GACHA.pity - 1} lượt liền không ra thú Huyền Thoại thì lượt thứ ${GACHA.pity} chắc chắn ra.\nMười lượt: chắc chắn có ít nhất một kết quả Sử Thi trở lên.\nTrùng thú: đổi thành mảnh. Trang bị: cất vào túi đồ ở tab Trang Bị.`, { size: 11.5, maxW: 420, lineH: 15, color: 0xe4def8 }), 14, 206);
   const rClose = ui.button({ id: 'rates-close', w: 130, h: 48, r: 14, color: PAL.red, label: 'ĐÓNG', size: 17, onTap: () => ui.hide('rates', { transition: 'pop' }) }); rp.put(rClose, 456, 244);
   function openRates() { ui.show('rates', { transition: 'pop' }); }
 
@@ -136,7 +136,7 @@ export function createGacha(game) {
   }
   const dur = (ph) => { const f = game.settings.reduceFlash ? 0.8 : 1, k = S.ten ? 0.5 : 1; return ({ crank: S.first ? 0.9 : 0.35, drop: 0.6 * k + 0.1, crack: 0.55 * k + 0.1, reveal: S.ten ? 0.95 : 1e9 }[ph]) * (ph === 'reveal' ? 1 : f); };
   function startCap() {
-    clearCap(); const r = S.results[S.i], c = colorOf(r);
+    frameP.setVisible(true); clearCap(); const r = S.results[S.i], c = colorOf(r);
     const cp = capsule3d(THREE, c, lighten(c, 0.62)); cp.scale.setScalar(0); cp.position.set(0, 0.5, 1.7); root.add(cp);
     cap = { g: cp, color: c, vy: 0, y: 1.0, z: 1.9, bounce: 0 };
   }
@@ -161,7 +161,7 @@ export function createGacha(game) {
   }
 
   function showCard(r) {
-    clearCard(); card = ui.group(); ov.add(card); card.pos(390, 168, 4); cardT = 0;
+    clearCard(); frameP.setVisible(false); card = ui.group(); ov.add(card); card.pos(390, 168, 4); cardT = 0;
     const c = colorOf(r), nm = r.hero ? HERO[r.hero].name : '';
     const isHero = r.kind === 'hero' || r.isNew;
     scrim.material.color.setHex(0x120a24); rays.material.color.setHex(c);
@@ -169,7 +169,7 @@ export function createGacha(game) {
       const sz = isHero ? 136 : 116, p = ui.portrait(r.hero, { size: sz, color: c }); card.put(p, -200, -sz / 2 + 4);
       card.put(ui.text(nm, { size: 28, upper: true, color: 0xffffff, outlineW: 3 }), -44, -52);
       const rr = ui.panel({ w: 150, h: 28, r: 14, color: c, depth: 3, bevel: 2, ow: 2.4, shadow: false }); card.put(rr, -44, -12); rr.put(ui.text(HERO_RARITY[HERO[r.hero].rarity].name, { size: 13, align: 'center', valign: 'mid', upper: true }), 75, 15.5);
-      if (isHero) { const rb = ui.panel({ w: 210, h: 38, r: 19, color: 0xe0242e, depth: 4, bevel: 2.6, ow: 3, shadow: false }); card.put(rb, -44, -104); rb.put(ui.text('TƯỚNG MỚI!', { size: 21, align: 'center', valign: 'mid', upper: true }), 105, 20); }
+      if (isHero) { const rb = ui.panel({ w: 210, h: 38, r: 19, color: 0xe0242e, depth: 4, bevel: 2.6, ow: 3, shadow: false }); card.put(rb, -44, -104); rb.put(ui.text('THÚ MỚI!', { size: 21, align: 'center', valign: 'mid', upper: true }), 105, 20); }
       else card.put(ui.text('+' + r.n + ' mảnh', { size: 30, color: 0xffe27a, outlineW: 3.6 }), -44, 32);
     } else if (r.kind === 'gold') {
       for (let i = 0; i < 3; i++) card.put(ui.icon('gold', { size: 84, sway: i === 2 }), -190 + i * 40, -42 - i * 5 + (i === 1 ? 20 : 0));
@@ -193,7 +193,7 @@ export function createGacha(game) {
     if (S.ten) { clearCard(); buildSummary(); } else { clearCap(); finishSingle(); }
   }
   function buildSummary() {
-    clearCap(); clearCard(); S.phase = 'summary'; skip.setVisible(false); done.setVisible(true); scrim.material.opacity = 0.7;
+    clearCap(); clearCard(); frameP.setVisible(false); S.phase = 'summary'; skip.setVisible(false); done.setVisible(true); scrim.material.opacity = 0.7;
     const sp = ui.panel({ w: 646, h: 244, r: 22, color: 0x4a3a86, depth: 5, bevel: 3 }); ov.put(sp, 106, 48, 6); sumNodes.push(sp);
     const t = ui.text('KẾT QUẢ', { size: 18, align: 'center', upper: true }); sp.put(t, 323, 5); mui.regTitle('gacha', t);
     S.results.forEach((r, i) => {
@@ -201,7 +201,7 @@ export function createGacha(game) {
       const cellN = ui.panel({ w: 120, h: 100, r: 14, color: 0x2a2150, depth: 3, bevel: 2, ow: 2, shadow: false }); sp.put(cellN, x, y, 2);
       if (r.hero) cellN.put(ui.portrait(r.hero, { size: 56, color: c, shadow: false, fps: 8 }), 32, 5, 2);
       else cellN.put(ui.tile({ size: 56, color: r.item ? TIERS[r.item.tier].color : c, icon: r.kind === 'gold' ? 'gold' : r.item ? ITEM_ICON(r.item.item) : 'bag', shadow: false, sway: false }), 32, 5, 2);
-      const head = r.kind === 'hero' || r.isNew ? 'TƯỚNG MỚI' : r.kind === 'shard' ? '+' + r.n + ' mảnh' : r.kind === 'gold' ? '+' + r.n + ' vàng' : 'Trang bị';
+      const head = r.kind === 'hero' || r.isNew ? 'THÚ MỚI' : r.kind === 'shard' ? '+' + r.n + ' mảnh' : r.kind === 'gold' ? '+' + r.n + ' vàng' : 'Trang bị';
       cellN.put(ui.text(head, { size: 12, align: 'center', color: r.isNew || r.kind === 'hero' ? 0xffe27a : 0xffffff, outlineW: 2 }), 60, 65);
       cellN.put(ui.text(r.hero ? HERO[r.hero].name : r.item ? ITEM_DEF[r.item.item].name : '', { size: 11, align: 'center', color: lighten(c, 0.3), outlineW: 1.8, maxW: 112 }), 60, 81);
     });
@@ -209,7 +209,7 @@ export function createGacha(game) {
   }
   function doDone() {
     if (!S) return; clearCard(); clearCap(); for (const n of sumNodes) n.dispose(); sumNodes = []; scrim.material.opacity = 0;
-    S = null; done.setVisible(false); skip.setVisible(false); idleG.setVisible(true); lastKey = ''; game.chrome && game.chrome.setNav(true);
+    S = null; frameP.setVisible(true); done.setVisible(false); skip.setVisible(false); idleG.setVisible(true); lastKey = ''; game.chrome && game.chrome.setNav(true);
   }
   mui.gachaPhase = () => (S ? S.phase : 'idle');
 
@@ -235,7 +235,7 @@ export function createGacha(game) {
   return {
     name: 'gacha',
     show() { ui.show('gacha', { transition: 'none' }); if (!S) { idleG.setVisible(true); lastKey = ''; } },
-    hide() { ui.hide('gacha', { transition: 'none' }); ui.hide('rates', { transition: 'none' }); if (S) { clearCard(); clearCap(); for (const n of sumNodes) n.dispose(); sumNodes = []; S = null; done.setVisible(false); skip.setVisible(false); idleG.setVisible(true); } },
+    hide() { ui.hide('gacha', { transition: 'none' }); ui.hide('rates', { transition: 'none' }); if (S) { clearCard(); clearCap(); for (const n of sumNodes) n.dispose(); sumNodes = []; S = null; frameP.setVisible(true); done.setVisible(false); skip.setVisible(false); idleG.setVisible(true); } },
     update(dt) {
       if (!ui.isShown('gacha')) return;
       title.visible = scrim.material.opacity < 0.05; // the reveal scrim would dim it into a half-covered title

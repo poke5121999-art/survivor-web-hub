@@ -49,7 +49,7 @@ export function createResult(game) {
     const b = ui.button({ id: 'q-' + key, w: 84, h: 36, r: 12, color: PAL.blue, label, size: 14, onTap: () => { game.setSetting('quality', key); paint(); } });
     pause.put(b, 282 + i * 92, 234, 14); quals[key] = b;
   });
-  pause.put(ui.text('Áp dụng khi mở lại game', { size: 11, align: 'left', valign: 'mid', color: 0xb9b3cc, outlineW: 1.2 }), 566, 252, 14);
+  pause.put(ui.text('Áp dụng khi mở\nlại game', { size: 11, align: 'left', lineH: 13, color: 0xb9b3cc, outlineW: 1.2 }), 566, 240, 14);
   pause.resume = ui.button({ id: 'resume', w: 190, h: 48, r: 17, color: PAL.green, icon: 'play', label: 'TIẾP TỤC', size: 18, onTap: () => resume() }); pause.put(pause.resume, 96, 288, 14);
   pause.retry = ui.button({ id: 'retry', w: 130, h: 48, r: 15, color: PAL.orange, label: 'CHƠI LẠI', size: 14, onTap: () => { game.setPaused(false); open = false; game.retry(); } }); pause.put(pause.retry, 300, 288, 14);
   pause.home = ui.button({ id: 'home', w: 130, h: 48, r: 15, color: PAL.blue, label: 'VỀ NHÀ', size: 14, onTap: () => { open = false; game.leaveBattle(); } }); pause.put(pause.home, 440, 288, 14);
@@ -117,7 +117,7 @@ export function createResult(game) {
       for (const gid of r.gifts || []) {
         const gp = ui.panel({ w: MW, h: 48, r: 16, color: 0x7a2fa8, depth: 4, bevel: 2.6, ow: 2.6 }); rg.put(gp, MX, y, 12);
         gp.put(ui.portrait(gid, { size: 38, color: heroColor(gid), fps: 6, shadow: false }), 8, 5, 3);
-        gp.put(ui.text('TƯỚNG MỚI: ' + (HERO[gid] ? HERO[gid].name : gid).toLocaleUpperCase('vi'), { size: 17, valign: 'mid', outlineW: 2.6 }), 56, 24, 3);
+        gp.put(ui.text('THÚ MỚI: ' + (HERO[gid] ? HERO[gid].name : gid).toLocaleUpperCase('vi'), { size: 17, valign: 'mid', outlineW: 2.6 }), 56, 24, 3);
         gifts.push(HERO[gid] ? HERO[gid].name : gid); y += 54;
       }
       y += 8;
