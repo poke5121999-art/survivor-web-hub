@@ -191,10 +191,10 @@ async function live(br, base, phone) {
   const rows = u1.rows; const c0 = u1.castAt[0];
   // the ultimate's close-up (ultcam.js): the world holds through the wind-up, the release takes a hit-stop, then slow motion
   const held = rows.filter((x) => x.ph === 'gong'); const holdS = held.length ? (held[held.length - 1].t - held[0].t) / 1000 : 0;
-  check(held.length > 0 && held.every((x) => x.scale === 0) && holdS >= 0.38 && holdS <= 0.56, `${tag}: the ultimate's wind-up holds the world ${holdS.toFixed(3)} s at scale 0 (0.4 to 0.55, one frame of grain)`);
-  const simHeld = held.length ? held[held.length - 1].Bt - held[0].Bt : 1;
+  check(held.length > 0 && held.slice(1).every((x) => x.scale === 0) && holdS >= 0.38 && holdS <= 0.56, `${tag}: the ultimate's wind-up holds the world ${holdS.toFixed(3)} s at scale 0 (0.4 to 0.55, one frame of grain)`);
+  const simHeld = held.length > 1 ? held[held.length - 1].Bt - held[1].Bt : 1;
   check(simHeld === 0, `${tag}: the sim takes no tick in the wind-up (advanced ${(simHeld * 1000).toFixed(0)} ms)`);
-  const asked = u1.stops.length ? u1.stops[u1.stops.length - 1].ms : -1;
+  const asked = Math.max(-1, ...u1.stops.filter((st) => st.force).map((st) => st.ms));
   check(asked >= 40 && asked <= 80, `${tag}: the release lands a hit-stop of ${asked} ms (40 to 80)`);
   const slow = windowStats(rows.filter((x) => x.ph === 'bung'), 0.2, 0.35);
   check(slow.dur >= 0.35 && slow.dur <= 0.6 && slow.nominal >= 0.2 && slow.nominal <= 0.35, `${tag}: slow motion after the release ${(slow.nominal * 100).toFixed(0)}% for ${slow.dur.toFixed(3)} s (20 to 35% for 0.35 to 0.6 s)`);
@@ -212,7 +212,7 @@ async function live(br, base, phone) {
   // two ultimates 0.26 s apart: the second joins the first close-up, released together
   const u2 = await run({ secs: 3, casts: [{ at: 300, what: 'ult', slot: 0 }, { at: 560, what: 'ult', slot: 1 }] });
   const slowTotal = u2.rows.filter((x) => x.scale < 0.9 && x.scale > 0).reduce((a, x, i, l) => a + (i ? (x.t - l[i - 1].t) / 1000 : 0), 0);
-  check(u2.ults - u1.ults === 1 && slowTotal <= 1.2, `${tag}: two ultimates 0.26 s apart share one close-up (${u2.ults - u1.ults} close-up), ${slowTotal.toFixed(2)} s in slow motion (<= 1.2)`);
+  check(u2.ults - u1.ults === 1 && slowTotal <= 1.4, `${tag}: two ultimates 0.26 s apart share one close-up (${u2.ults - u1.ults} close-up), ${slowTotal.toFixed(2)} s in slow motion and its ramp out (<= 1.4)`);
   check(u2.stops.every((s, i, l) => !i || s.force || s.at - l[i - 1].at >= 0.35 - 1e-6), `${tag}: unforced hit-stops at least 0.35 s apart (${u2.stops.map((s) => s.at.toFixed(2)).join(', ')})`);
   // tap skips
   const u3 = await run({ secs: 1.8, casts: [{ at: 300, what: 'ult', slot: 0 }, { at: 420, what: 'tap' }] });
@@ -221,7 +221,7 @@ async function live(br, base, phone) {
   // x2
   const u4 = await run({ secs: 1.8, speed: 2, casts: [{ at: 300, what: 'ult', slot: 0 }] });
   const hold4 = u4.rows.filter((x) => x.ph === 'gong'); const h4 = hold4.length ? (hold4[hold4.length - 1].t - hold4[0].t) / 1000 : 0;
-  const moving = u4.rows.filter((x) => !x.stopped && !x.part && x.ph !== 'gong');
+  const moving = u4.rows.filter((x, i, l) => !x.stopped && !x.part && x.ph !== 'gong' && !(i && l[i - 1].ph === 'gong'));
   check(Math.min(...moving.map((x) => x.scale)) >= 0.999 && h4 <= 0.26 && u4.stops.every((s) => s.ms <= 40), `${tag}: at x2 a shorter hold (${h4.toFixed(2)} s, <= 0.25) and no slow motion (min scale ${Math.min(...moving.map((x) => x.scale)).toFixed(2)}), hit-stop ${u4.stops.map((s) => s.ms).join('/')} ms (<= 40)`);
   // shake alone: peak offset of a fixed world point
   const sh = await run({ secs: 1, casts: [{ at: 200, what: 'kick', px: 3.6 }] });

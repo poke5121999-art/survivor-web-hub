@@ -121,7 +121,7 @@ export function createUltCam(game, J) {
     for (let i = shorts.length - 1; i >= 0; i--) { const s = shorts[i]; s.t -= dt; if (s.t <= 0) { const fx = fxOf(); if (fx) fx.release(s.uid); shorts.splice(i, 1); } else scale = 0; }
     if (!S) return scale;
     S.t += dt;
-    if (S.phase === 'gong') { scale = 0; if (S.t >= S.D.gong) { release(); S.phase = 'bung'; S.t = 0; } }
+    if (S.phase === 'gong') { scale = 0; if (S.t >= S.D.gong) { release(); S.phase = 'bung'; S.t = 0; scale = S.fast ? 1 : SLOW; } }
     else if (S.phase === 'bung') { scale = S.fast ? 1 : SLOW; if (S.t >= S.D.bung) { S.phase = 'out'; S.t = 0; S.outFrom = 1; } }
     else if (S.phase === 'out') { const k = smooth(S.t / S.D.out); scale = S.fast ? 1 : mix(SLOW, 1, k); if (S.t >= S.D.out) { S = null; U.active = false; lastEnd = clock; layoutBars(0); return Math.min(1, scale); } }
     return scale;
