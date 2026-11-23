@@ -144,7 +144,10 @@ async function kindsTest(br, base) {
   const r = await openPage(br, base, 's22', 'autostart=1&stage=3&noaudio=1&seed=3&q=low');
   const info = await r.page.evaluate(() => {
     const G = window.__G; G.start(3, { seed: 3 }); G.paused = true; window.__step(4);
-    const H = G.host; const v = new H.THREE.Vector3(0, 1, -1.5).project(H.camera);
+    const H = G.host;
+    // the fight camera eases out to its framing over a few seconds: the empty and the pack shot of a kind must share one view
+    for (let i = 0, last = null; i < 300; i++) { window.__step(8); const p = H.camera.position.clone(); if (last && p.distanceTo(last) < 1e-3) break; last = p; }
+    const v = new H.THREE.Vector3(0, 1, -1.5).project(H.camera);
     return { kinds: G.actors.horde.kinds, cx: (v.x + 1) / 2 * H.size.w, cy: (1 - v.y) / 2 * H.size.h };
   });
   const shoot = async (name) => { await r.page.evaluate(() => window.__step(8)); const f = path.join(OUT, `kind-${name}.png`); await r.page.locator('#frame').screenshot({ path: f }); return f; };
