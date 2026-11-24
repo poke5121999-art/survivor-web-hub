@@ -1,16 +1,20 @@
-// Tướng tab, landscape: one screen with the collection grid at the left, the selected hero's live model in the middle and
+// Thú tab, landscape: one screen with the collection grid at the left, the selected hero's live model in the middle and
 // the stats, skills and LÊN CẤP at the right (selecting a tile updates the right side), plus the team chooser modal.
 // Everything is read from meta.acc and rebuilt after each meta command.
-import { HEROES, HERO } from '../data/heroes.js?v=20261122a';
-import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261122a';
-import { makeBackdrop, makeBurst, fmt, rarityColor } from './home.js?v=20261122a';
+import { HEROES, HERO } from '../data/heroes.js?v=20261124a';
+import { beastModel } from './beast-ui.js?v=20261124a';
+import { openEvolve } from './evolve.js?v=20261124a';
+import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261124a';
+import { makeBackdrop, makeBurst, fmt, fmtShort, rarityColor } from './home.js?v=20261124a';
 
+const FRAME_H = 188;
+const STONE = { dat: 'Đất', lua: 'Lửa', bang: 'Băng', gio: 'Gió', set: 'Sét', moc: 'Mộc' };
 const ROLE = { tank: 'Đỡ đòn', ranged: 'Bắn xa', healer: 'Hồi máu', melee: 'Cận chiến' };
 const RANK = { SSR: 0, SR: 1, R: 2 };
 const dim = (hex, k) => { const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255; return (Math.round(r * k) << 16) | (Math.round(g * k) << 8) | Math.round(b * k); };
 
 export function createHeroes(game) {
-  const ui = game.ui, meta = game.meta, PAL = ui.PAL, THREE = ui.THREE, mui = game.metaUi, BZ = window.BZ;
+  const ui = game.ui, meta = game.meta, PAL = ui.PAL, THREE = ui.THREE, mui = game.metaUi;
   const scr = ui.screen('heroes'), pick = ui.screen('team-pick', { modal: true });
   const bd = makeBackdrop(ui, 'heroes'); scr.put(bd, 0, 0, -40);
   const L = { gx: 106, gy: 52, gw: 228, gh: 296, mx: 342, mw: 160, rx: 510, rw: 242, top: 48 };
@@ -21,7 +25,7 @@ export function createHeroes(game) {
 
   // ================= header and grid =================
   const gBack = ui.button({ id: 'back', w: 48, h: 40, r: 12, color: PAL.blue, icon: 'left', shadow: false, onTap: () => game.goto('home') }); scr.put(gBack, L.gx, 6, 6);
-  const gTitle = ui.text('TƯỚNG', { size: 20, upper: true, outlineW: 3 }); scr.put(gTitle, L.gx + 56, 5, 6); mui.regTitle('heroes', gTitle);
+  const gTitle = ui.text('THÚ', { size: 20, upper: true, outlineW: 3 }); scr.put(gTitle, L.gx + 56, 5, 6); mui.regTitle('heroes', gTitle);
   const sub = ui.text('', { size: 11, color: 0xe8ffe8, maxW: 290, lineH: 12 }); scr.put(sub, L.gx + 56, 29, 6);
   const sc = ui.scroll({ w: L.gw, h: L.gh }); scr.put(sc, L.gx, L.gy, 4);
   let cells = [];
@@ -53,11 +57,11 @@ export function createHeroes(game) {
     list.forEach((h, i) => cells.push(cell(h, i))); mui.gridCount = cells.length;
     sc.setContentH(Math.ceil(list.length / 3) * 98 + 8); sc.scrollTo(keep);
     const n = HEROES.filter((h) => !owned(h.id)).length;
-    sub.set(mode === 'team' ? `Chạm một tướng để xếp vào ô ${from.slot + 1} của đội` : `Đã có ${HEROES.length - n}/${HEROES.length} tướng`);
+    sub.set(mode === 'team' ? `Chạm một thú để xếp vào ô ${from.slot + 1} của đội` : `Đã có ${HEROES.length - n}/${HEROES.length} thú`);
   }
   function onCell(hid) {
     if (mode === 'team') {
-      if (!owned(hid)) { ui.toast('Chưa có tướng này'); return; }
+      if (!owned(hid)) { ui.toast('Chưa có thú này'); return; }
       const t = meta.acc.team.slice(), s = from.slot, j = t.indexOf(hid);
       if (j >= 0 && j !== s) { if (s < t.length) { t[j] = t[s]; t[s] = hid; } else { t.splice(j, 1); t.push(hid); } }
       else if (j < 0) { if (s < t.length) t[s] = hid; else t.push(hid); }
@@ -72,7 +76,7 @@ export function createHeroes(game) {
   const disp = { atk: 0, hp: 0, pow: 0, lv: 0 };
   const nameT = ui.text('', { size: 20, upper: true, outlineW: 3, maxW: L.rw }); scr.put(nameT, L.rx, L.top - 1, 6); mui.regTitle('hero', nameT);
   const subT = ui.text('', { size: 11.5, maxW: L.rw }); scr.put(subT, L.rx, L.top + 24, 6);
-  const frame = ui.panel({ w: L.mw, h: 246, r: 20, color: 0x5a3fa0, depth: 5, bevel: 3 }); scr.put(frame, L.mx, L.top, 6);
+  const frame = ui.panel({ w: L.mw, h: FRAME_H, r: 20, color: 0x5a3fa0, depth: 5, bevel: 3 }); scr.put(frame, L.mx, L.top, 6);
   const lvT = ui.text('', { size: 15, outlineW: 2.4 }), powT = ui.text('', { size: 12, color: 0xffe9a8, outlineW: 2.2 });
   const statP = ui.panel({ w: L.rw, h: 48, r: 14, color: 0x3a2d78, depth: 4, bevel: 3 }); scr.put(statP, L.rx, 90, 6);
   const stat = (y, icon, label) => { statP.put(ui.icon(icon, { size: 24 }), 8, y - 1, 4); statP.put(ui.text(label, { size: 11, color: 0xffd9a0 }), 38, y + 4); return { v: ui.text('', { size: 15 }), n: ui.text('', { size: 12, color: 0x7dff8a }), y }; };
@@ -86,22 +90,20 @@ export function createHeroes(game) {
     skillRows.push({ n, d });
   }
   const shBar = ui.bar({ w: L.rw, h: 16, color: PAL.purple, r: 8, ghost: true, value: 0 }); scr.put(shBar, L.rx, 280, 6);
-  const shT = ui.text('', { size: 11, align: 'center', valign: 'mid', outlineW: 1.6 }); shBar.put(shT, L.rw / 2, 8.4, 2);
+  const shT = ui.text('', { size: 10, align: 'center', valign: 'mid', outlineW: 1.4 }); shBar.put(shT, L.rw / 2, 8.4, 2);
   const lvBtn = ui.button({ id: 'levelup', w: L.rw, h: 48, r: 16, color: PAL.green, label: 'LÊN CẤP', sub: ' ', size: 18, onTap: doLevel }); scr.put(lvBtn, L.rx, 300, 6);
   const lvLock = ui.icon('lock', { size: 28, sway: false }); lvBtn.put(lvLock, L.rw - 30, -10, 14); lvLock.setVisible(false);
   const tgBtn = ui.button({ id: 'team-toggle', w: L.mw, h: 48, r: 16, color: PAL.blue, label: 'VÀO ĐỘI', size: 16, onTap: doTeam }); scr.put(tgBtn, L.mx, 300, 6);
+  // TIẾN HOÁ under the model: the beast's own element stone and the ancient cores in the bag on its second line
+  const evBtn = ui.button({ id: 'evolve', w: L.mw, h: 46, r: 14, color: PAL.purple, label: 'TIẾN HOÁ', sub: ' ', size: 16, onTap: doEvolve }); scr.put(evBtn, L.mx, L.top + FRAME_H + 4, 6);
+  const evLock = ui.icon('lock', { size: 24, sway: false }); evBtn.put(evLock, L.mw - 24, -9, 14); evLock.setVisible(false);
   const burst = makeBurst(ui); scr.put(burst.node, 0, 0, 60);
 
   function buildModel() {
     if (vpNode) { vpNode.dispose(); vpNode = null; }
-    const bz = BZ && BZ.HEROES && BZ.HEROES.find((h) => h.id === id); const root = new THREE.Group(); modelM = null;
-    if (bz && BZ.heroModel) {
-      try { const m = BZ.heroModel(id); try { BZ.equipWeapon(m, bz.weapon); } catch (e) { /* weapon is decoration here */ } root.add(m.root); modelM = m; } catch (e) { console.warn('[heroes] model failed: ' + e.message); }
-    }
-    if (!modelM) root.add(new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.6), new THREE.MeshStandardMaterial({ color: rarityColor(id) })));
-    const st = { speed: 0, air: 0, vy: 0, swing: -1, mode: 'none', draw: 1, pitch: 0, kick: 0, kickL: 0, sprint: false, crouch: 0, hurt: 0 };
-    const col = rarityColor(id);
-    vpNode = ui.viewport(root, { w: L.mw - 12, h: 234, r: 15, bg: dim(col, 0.32), fps: 24, fov: 26, update: (dt) => { if (modelM) { if (!dragging) rotY += dt * 0.35; modelM.root.rotation.y = rotY; BZ.animHero(modelM, st, dt); } } });
+    modelM = beastModel(meta, id); const col = rarityColor(id);
+    vpNode = ui.viewport(modelM.root, { w: L.mw - 12, h: FRAME_H - 12, r: 15, bg: dim(col, 0.32), fps: 24, fov: 26, update: (dt) => { if (!dragging) rotY += dt * 0.35; modelM.root.rotation.y = rotY; modelM.update(dt); } });
+    { const m = modelM, vd = vpNode.dispose; vpNode.dispose = () => { m.dispose(); vd(); }; }
     frame.put(vpNode, 6, 6, 1); frame.setColor(col);
     frame.put(lvT, 14, 12, 12); frame.put(powT, 14, 32, 12);
   }
@@ -117,15 +119,32 @@ export function createHeroes(game) {
     sA.n.set(own ? '» ' + fmt(s.atk + nA) : ''); sH.n.set(own ? '» ' + fmt(s.hp + nH) : '');
     [h.s1, h.s2, h.ult].forEach((k, i) => { skillRows[i].n.set((i === 2 ? 'Tối thượng' : 'Kỹ năng ' + (i + 1)) + ' · ' + k.name); skillRows[i].d.set(k.desc); });
     const cost = own ? levelCost(st.level) : null, need = own ? cost.shards : HERO_RARITY[h.rarity].craft;
-    shBar.set(Math.min(1, st.shards / need)); shT.set(own ? `Mảnh ${fmt(st.shards)}/${fmt(need)}   ·   Vàng ${fmt(acc.gold)}` : `Mảnh ghép tướng ${st.shards}/${need}`);
+    shBar.set(Math.min(1, st.shards / need)); shT.set(own ? `Mảnh ${fmt(st.shards)}/${fmt(need)}   ·   Vàng ${fmtShort(acc.gold)}` : `Mảnh ghép thú ${st.shards}/${need}`);
     const c = meta.canLevelUp(id); let line;
     if (!own) line = `Còn thiếu ${need - st.shards} mảnh`; else if (c.ok) line = `${fmt(cost.shards)} mảnh · ${fmt(cost.gold)} vàng`;
     else line = c.why === 'thiếu mảnh' ? `Thiếu ${cost.shards - st.shards} mảnh` : `Thiếu ${fmt(cost.gold - acc.gold)} vàng`;
     lvBtn.setEnabled(c.ok); lvBtn.setLabel(own ? 'LÊN CẤP' : 'CHƯA CÓ'); lvBtn.setSub(line); mui.levelupText = line;
     const lk = !meta.unlocked('levelup'); lvLock.setVisible(lk);
     if (lk) { lvBtn.setEnabled(false); lvBtn.target.enabled = true; lvBtn.setSub(meta.lockText('levelup')); mui.levelupText = meta.lockText('levelup'); }
+    refreshEvolve(h, own);
     const inTeam = acc.team.includes(id);
     tgBtn.setLabel(inTeam ? 'RỜI ĐỘI' : 'VÀO ĐỘI'); tgBtn.setEnabled(own && !(inTeam && acc.team.length <= 1));
+  }
+  function refreshEvolve(h, own) {
+    const open = meta.unlocked('evolve'), mats = meta.acc.evo || {}, stone = mats.stone || null;
+    const el = h.element && STONE[h.element] ? h.element : null;
+    let line = '';
+    if (!open) line = meta.lockText('evolve');
+    else if (stone || mats.core !== undefined) line = (el ? `Đá Mầm ${STONE[el]} ${fmt((stone && stone[el]) || 0)}` : `Đá Mầm ${fmt(Object.values(stone || {}).reduce((a, b) => a + (b || 0), 0))}`) + ` · Lõi Cổ ${fmt(mats.core || 0)}`;
+    else line = own ? 'Đổi hình, chiêu, cách đi' : 'Chưa có thú này';
+    evBtn.setSub(line); mui.evolveText = line;
+    evLock.setVisible(!open); evBtn.setEnabled(open && own); evBtn.target.enabled = true;
+    const ready = open && own && !!(meta.canEvolve && meta.canEvolve(id).ok); evBtn.setBadge(ready); mui.evolveReady = ready;
+  }
+  function doEvolve() {
+    if (!meta.unlocked('evolve')) { ui.toast(meta.lockText('evolve')); return; }
+    if (!owned(id)) { ui.toast('Chưa có thú này'); return; }
+    if (openEvolve(id) === false) ui.toast('Màn tiến hoá sắp có');
   }
   function doLevel() {
     if (!meta.unlocked('levelup')) { ui.toast(meta.lockText('levelup')); return; }
@@ -157,7 +176,7 @@ export function createHeroes(game) {
 
   // drag to turn the model: pointer events on the frame, only inside the model's viewport
   const fr = document.getElementById('frame'); let dx0 = 0;
-  const inVp = (e) => { const r = fr.getBoundingClientRect(), k = r.width / 780, x = (e.clientX - r.left) / k, y = (e.clientY - r.top) / k; return x > L.mx + 6 && x < L.mx + L.mw - 6 && y > L.top + 6 && y < L.top + 240; };
+  const inVp = (e) => { const r = fr.getBoundingClientRect(), k = r.width / 780, x = (e.clientX - r.left) / k, y = (e.clientY - r.top) / k; return x > L.mx + 6 && x < L.mx + L.mw - 6 && y > L.top + 6 && y < L.top + FRAME_H - 6; };
   fr.addEventListener('pointerdown', (e) => { if (ui.isShown('heroes') && !ui.isShown('team-pick') && inVp(e)) { dragging = true; dx0 = e.clientX; } });
   fr.addEventListener('pointermove', (e) => { if (dragging) { rotY += (e.clientX - dx0) * 0.012; dx0 = e.clientX; } });
   const endDrag = () => { dragging = false; };

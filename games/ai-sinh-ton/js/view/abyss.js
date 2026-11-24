@@ -21,7 +21,7 @@ void main() { vec4 w = modelMatrix * vec4(position, 1.0); vWP = w.xyz; vec4 mvPo
 }`.replace('#include <fog_pars_vertex>', '\n#include <fog_pars_vertex>\n');
 
 const WATER_FRAG = `varying vec3 vWP; uniform vec2 uOrg; uniform float uTime; uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uFoam; uniform vec3 uHaze; uniform vec3 uSpark;
-uniform sampler2D uDist; uniform vec4 uBox; uniform vec4 uL[${NL}]; uniform vec3 uLC[${NL}]; uniform float uIce; uniform float uFarZ; uniform float uNearZ;
+uniform sampler2D uDist; uniform vec4 uBox; uniform vec4 uL[${NL}]; uniform vec3 uLC[${NL}]; uniform float uIce; uniform float uWave; uniform float uFarZ; uniform float uNearZ;
 #include <fog_pars_fragment>
 ${GLSL_NOISE}
 void main() {
@@ -31,9 +31,16 @@ void main() {
   float deep = smoothstep(0.2, 8.0, d);
   vec3 c = mix(uShallow, uDeep, deep);
   c *= 0.84 + 0.34 * (n1 * 0.6 + n2 * 0.4);
-  float plate = uIce * smoothstep(0.55, 0.6, vn(p * 0.45 + 3.0)) * (1.0 - deep * 0.6); c = mix(c, uFoam * 0.75, plate * 0.45);
   float far = smoothstep(uNearZ, uFarZ, p.y);
+  // ice plates thin out with distance: bright plates everywhere left the near and far water one tone in a close framing
+  float plate = uIce * smoothstep(0.55, 0.6, vn(p * 0.45 + 3.0)) * (1.0 - deep * 0.6) * (1.0 - far * 0.85); c = mix(c, uFoam * 0.75, plate * 0.45);
   float foam = 1.0 - smoothstep(0.0, 0.5 + 0.7 * n2, d); c = mix(c, uFoam, foam * 0.5);
+  // waves: foam rollers running in toward the shore, broken along their length, fading out to sea
+  if (uWave > 0.0) {
+    float ph = d * 1.5 - uTime * 0.85 + n1 * 2.4; float brk = smoothstep(0.3, 0.6, vn(p * 0.7 + vec2(uTime * 0.1, 0.0)));
+    float roll = smoothstep(0.8, 0.97, sin(ph)) * (1.0 - smoothstep(1.5, 9.0, d)) * smoothstep(0.15, 0.7, d) * brk;
+    c = mix(c, uFoam * 0.92, roll * 0.65 * uWave); c *= 1.0 - 0.12 * uWave * smoothstep(0.3, 0.7, sin(ph - 0.9)) * (1.0 - deep);
+  }
   // sparkle dashes that twinkle, thicker near the shore and the viewer
   vec2 g = p * vec2(1.8, 3.6) + vec2(uTime * 0.12, 0.0); vec2 gi = floor(g); float h = fh(gi); vec2 f = fract(g) - 0.5;
   float tw = max(0.0, sin(uTime * (1.6 + h * 3.0) + h * 40.0));
@@ -55,13 +62,41 @@ void main() {
 }`;
 
 const DEEP_FRAG = `varying vec3 vWP; uniform vec2 uOrg; uniform float uTime; uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uHaze; uniform sampler2D uDist; uniform vec4 uBox; uniform float uFarZ; uniform float uNearZ;
-uniform vec4 uL[${NL}]; uniform vec3 uLC[${NL}];
+uniform vec4 uL[${NL}]; uniform vec3 uLC[${NL}]; uniform float uLava; uniform float uCloud; uniform vec3 uHot; uniform vec3 uGlowL; uniform vec3 uCrust;
 #include <fog_pars_fragment>
 ${GLSL_NOISE}
 void main() {
   vec2 p = (vWP.xz + uOrg); float d = texture2D(uDist, (p - uBox.xy) / uBox.zw).r * 10.0;
   float n = fbm(p * 0.08 + vec2(uTime * 0.01, 0.0));
   float far = smoothstep(uNearZ, uFarZ, p.y);
+  if (uLava > 0.0) {
+    // a lava lake: black crust plates split by molten seams (ridges of a slow noise), the odd pool welling up, seams pulsing
+    float f = fbm(p * 0.2 + vec2(uTime * 0.015, uTime * 0.01)); float w = vn(p * 0.7 + vec2(0.0, uTime * 0.06));
+    float seam = 1.0 - smoothstep(0.0, 0.035 + 0.035 * w, abs(f - 0.5));
+    float pool = smoothstep(0.7, 0.82, fbm(p * 0.07 + vec2(7.0, uTime * 0.008)));
+    float g = max(seam, pool * (0.6 + 0.4 * w)) * (0.8 + 0.2 * sin(uTime * 1.4 + f * 18.0));
+    vec3 crust = uCrust * (0.55 + 0.9 * vn(p * 1.6) + 0.5 * vn(p * 4.3)) + uGlowL * 0.3 * vn(p * 0.5) * (0.6 + 0.4 * w);
+    vec3 lc = mix(uGlowL * 2.2, uHot, smoothstep(0.55, 1.0, g) * 0.8);
+    vec3 c = mix(crust, lc, g);
+    c = mix(c, uHaze, far * 0.7);
+    gl_FragColor = vec4(c, 1.0);
+    #include <colorspace_fragment>
+    return;
+  }
+  if (uCloud > 0.0) {
+    // a sea of cloud: big soft billows and smaller ones drifting over them, lit on the side toward the sun, shadowed in the
+    // hollows and under the islands
+    vec2 q = p + vec2(uTime * 0.25, uTime * 0.08);
+    float b1 = fbm(q * 0.06); float b2 = fbm(q * 0.17 + 3.0); float b3 = fbm((q + vec2(0.9, 1.2)) * 0.17 + 3.0);
+    float puff = smoothstep(0.3, 0.75, b1 * 0.55 + b2 * 0.45);
+    float lit = clamp(0.55 + (b2 - b3) * 3.0, 0.0, 1.0);
+    vec3 c = mix(uDeep, uShallow, puff * (0.55 + 0.45 * lit)) * (0.72 + 0.28 * smoothstep(0.0, 5.0, d));
+    c *= 0.92 + 0.12 * vn(p * 1.3 + vec2(uTime * 0.1, 0.0));
+    c = mix(c, uHaze, far * 0.6);
+    gl_FragColor = vec4(c, 1.0);
+    #include <colorspace_fragment>
+    return;
+  }
   vec3 c = mix(uDeep, uShallow, 0.25 + 0.5 * n) * (0.7 + 0.3 * (1.0 - smoothstep(0.0, 9.0, d)));
   // rolling cloud in the pit, 1-3 m blobs drifting slowly, so the far abyss is never one flat tone
   float cl = vn(p * 0.32 + vec2(uTime * 0.04, uTime * 0.025)) * 0.6 + vn(p * 0.9 - vec2(uTime * 0.03, 0.0)) * 0.4;
@@ -127,15 +162,15 @@ export function createAbyss({ scene, quality }) {
   const common = () => ({ uTime: { value: 0 }, uOrg: { value: org }, uDist: { value: distTex }, uBox: { value: new THREE.Vector4(-40, -30, 80, 60) }, uFarZ: { value: -24 }, uNearZ: { value: 4 },
     uL: { value: Array.from({ length: NL }, () => new THREE.Vector4()) }, uLC: { value: Array.from({ length: NL }, () => new THREE.Color()) } });
   const mk = (frag, uniforms, transparent) => new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: frag, uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, uniforms]), fog: !transparent, transparent, depthWrite: !transparent, defines: { OCT } });
-  const water = mk(WATER_FRAG, { ...common(), uDeep: { value: new THREE.Color() }, uShallow: { value: new THREE.Color() }, uFoam: { value: new THREE.Color() }, uHaze: { value: new THREE.Color() }, uSpark: { value: new THREE.Color() }, uIce: { value: 0 } });
-  const deep = mk(DEEP_FRAG, { ...common(), uDeep: { value: new THREE.Color() }, uShallow: { value: new THREE.Color() }, uHaze: { value: new THREE.Color() } });
+  const water = mk(WATER_FRAG, { ...common(), uDeep: { value: new THREE.Color() }, uShallow: { value: new THREE.Color() }, uFoam: { value: new THREE.Color() }, uHaze: { value: new THREE.Color() }, uSpark: { value: new THREE.Color() }, uIce: { value: 0 }, uWave: { value: 0 } });
+  const deep = mk(DEEP_FRAG, { ...common(), uDeep: { value: new THREE.Color() }, uShallow: { value: new THREE.Color() }, uHaze: { value: new THREE.Color() }, uLava: { value: 0 }, uCloud: { value: 0 }, uHot: { value: new THREE.Color() }, uGlowL: { value: new THREE.Color() }, uCrust: { value: new THREE.Color() } });
   // the pit hazes itself toward the far edge (uHaze): the scene fog on top of that washed its clouds to one tone 40 m out
   deep.fog = false;
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(DW, DD), water); plane.rotation.x = -Math.PI / 2; plane.position.z = DZ; plane.frustumCulled = false; group.add(plane);
   const SHEETS = low ? [{ y: 0.42, s: 0.05, a: 0.42, d: [0.04, 0.012] }] : [{ y: 0.3, s: 0.05, a: 0.36, d: [0.04, 0.012] }, { y: 0.62, s: 0.07, a: 0.3, d: [-0.03, 0.02] }];
   const sheets = SHEETS.map((S) => {
     const m = mk(MIST_FRAG, { uTime: { value: 0 }, uOrg: { value: org }, uCol: { value: new THREE.Color() }, uHaze: { value: new THREE.Color() }, uA: { value: S.a }, uScale: { value: S.s }, uDrift: { value: new THREE.Vector2(...S.d) }, uFarZ: { value: -24 }, uNearZ: { value: 4 } }, true);
-    const me = new THREE.Mesh(new THREE.PlaneGeometry(DW, DD), m); me.rotation.x = -Math.PI / 2; me.position.z = DZ; me.frustumCulled = false; me.renderOrder = 3; me.userData.k = S.y; group.add(me); return me;
+    const me = new THREE.Mesh(new THREE.PlaneGeometry(DW, DD), m); me.rotation.x = -Math.PI / 2; me.position.z = DZ; me.frustumCulled = false; me.renderOrder = 3; me.userData.k = S.y; me.userData.a = S.a; group.add(me); return me;
   });
   let mode = 'water';
 
@@ -248,12 +283,17 @@ export function createAbyss({ scene, quality }) {
       const mat = mode === 'water' ? water : deep; plane.material = mat; plane.position.y = A.type === 'water' ? A.y : A.y;
       const U = mat.uniforms; U.uDist.value = dist.tex; U.uBox.value.copy(dist.box);
       U.uDeep.value.set(A.deep); U.uShallow.value.set(A.shallow); U.uHaze.value.set(A.haze);
-      if (mode === 'water') { U.uFoam.value.set(A.foam); U.uSpark.value.set(A.spark); U.uIce.value = A.ice || 0; }
+      if (mode === 'water') { U.uFoam.value.set(A.foam); U.uSpark.value.set(A.spark); U.uIce.value = A.ice || 0; U.uWave.value = A.waves || 0; }
+      else {
+        // a lava lake keeps its own colours (a layout that darkens the abyss, the cave, must not grey the molten seams)
+        const Lv = A.lava || 0; U.uLava.value = Lv ? 1 : 0; U.uCloud.value = A.cloud || 0;
+        if (Lv) { U.uCrust.value.set(Lv.crust); U.uGlowL.value.set(Lv.glow); U.uHot.value.set(Lv.hot); }
+      }
       const warm = lights.filter((L) => L.warm).sort((a, b) => b.k - a.k).slice(0, NL);
       for (let i = 0; i < NL; i++) { const L = warm[i]; if (L) { U.uL.value[i].set(L.x, L.z, (mode === 'water' ? 0.5 : 0.8) * L.k, L.r * 0.55); U.uLC.value[i].setRGB(L.color[0], L.color[1] * 0.85, L.color[2] * 0.7); } else U.uL.value[i].set(0, 0, 0, 1); }
       for (const s of sheets) {
         s.visible = mode === 'mist'; const top = pads[0].centre.y - 1.5; s.position.y = top + (A.y - top) * s.userData.k;
-        s.material.uniforms.uCol.value.set(A.shallow).lerp(lin(A.haze), s.userData.k < 0.4 ? 0.5 : 0); s.material.uniforms.uHaze.value.set(A.haze);
+        s.material.uniforms.uCol.value.set(A.mist !== undefined ? A.mist : A.shallow).lerp(lin(A.haze), A.mist !== undefined ? 0 : s.userData.k < 0.4 ? 0.5 : 0); s.material.uniforms.uHaze.value.set(A.haze); s.material.uniforms.uA.value = s.userData.a * (A.mistK !== undefined ? A.mistK : 1);
       }
       // a finished run moved the pad along the map by its last shift; then the islands around the new pad
       acc.x += last.x; acc.z += last.z; last.x = last.z = 0;

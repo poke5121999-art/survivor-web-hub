@@ -5,7 +5,7 @@
 // creeps from its origin to the far edge over the wind-up (the hit lands when it is full), a boss warning adds a crimson
 // colour and a crawl of teeth outside its outline, a hero's own skill area is only a thin cool outline and fill front;
 // a shock is a burst of broken dust streaks, a ground flare a spray of rays, the edge wash a ragged glow off the rim.
-import { ARENA } from '../sim/battle.js?v=20261122a';
+import { ARENA } from '../sim/battle.js?v=20261124a';
 const THREE = window.THREE;
 
 const NOISE = `
@@ -352,8 +352,10 @@ export function createMarks(H) {
   // holds its position, scale, colour and opacity (the tools read those), copied into the batch every frame.
   const colB = batch(cylGeo, { map: gradTex, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }, VCAP.pillar + VCAP.wall, 6);
   const flashB = batch(planeGeo, { map: BZtex('glow'), blending: THREE.AdditiveBlending }, VCAP.flash, 6);
-  const writeCol = (r, M, C) => { if (!r.on || !r.mesh.visible) return 0; const m = r.mesh; M.makeScale(m.scale.x, m.scale.y, m.scale.z); M.setPosition(m.position); C.copy(m.material.color); return m.material.opacity; };
-    const writeFlash = (r, M, C) => { if (!r.on || !r.mesh.visible) return 0; const m = r.mesh; M.makeRotationFromQuaternion(H.camera.quaternion); M.scale(bS.set(m.scale.x, m.scale.y, 1)); M.setPosition(m.position); C.copy(m.material.color); return m.material.opacity; };
+  // in the ultimate's close-up (ultcam.js) columns, walls and flashes stand several times bigger and stack to white: halved there
+  const closeK = () => { const J = window.__G && window.__G.juice; return J && J.ult && J.ult.active ? 0.5 : 1; };
+  const writeCol = (r, M, C) => { if (!r.on || !r.mesh.visible) return 0; const m = r.mesh; M.makeScale(m.scale.x, m.scale.y, m.scale.z); M.setPosition(m.position); C.copy(m.material.color); return m.material.opacity * closeK(); };
+    const writeFlash = (r, M, C) => { if (!r.on || !r.mesh.visible) return 0; const m = r.mesh; M.makeRotationFromQuaternion(H.camera.quaternion); M.scale(bS.set(m.scale.x, m.scale.y, 1)); M.setPosition(m.position); C.copy(m.material.color); return m.material.opacity * closeK(); };
   const colItems = [];
   function flushVertical() { colItems.length = 0; colItems.push(...vpool.pillar, ...vpool.wall); colB.flush(colItems, writeCol); flashB.flush(vpool.flash, writeFlash); }
   // upright additive columns and walls stand about a quarter taller on screen at the 42 to 50 degree overview: dimmed to
@@ -584,7 +586,8 @@ export function createMarks(H) {
   }
   const swordStats = () => ({ ribbons: ribs.filter((r) => r.on).length, streaks: ribs.filter((r) => r.on && r.kind !== 'arc').length, arcs: ribs.filter((r) => r.on && r.kind === 'arc').length, ghosts: ghosts.filter((r) => r.on).length, whirls: whirls.filter((r) => r.on).length, leaves: leafMesh.count });
 
-  function update(dt, B) {
+  // zap: thin spark streaks (fx/beats.js); BZ's arc boxes stand still and fill an ultimate's close-up as white bars
+  function update(dt, B, zap) {
     clock += dt;
     updateRibs(dt); updateGhosts(dt); updateWhirls(dt); lastB = B || lastB;
     // a fast-forward moves the sim far ahead of the view clock: decals dry up on the sim clock as well
@@ -618,7 +621,7 @@ export function createMarks(H) {
       let a = Math.min(1, z.age / 0.25) * base * (delayed ? 0.35 : 1);
       if (z.end >= 0) { z.end += dt; a *= Math.max(0, 1 - z.end / 0.4); if (z.end >= 0.4) { dropZone(z); continue; } }
       z.uni.uA.value = a;
-      if (z.extra) { z.extra.position.x = z.x; z.extra.position.z = z.z; if (z.extra.isSprite) { z.extra.scale.setScalar(2.8 + Math.sin(clock * 20) * 0.35); if (G.rng.chance(dt * 14)) { const aa = G.rng.range(0, 6.28); G.fx.arc(new THREE.Vector3(z.x, 1.3, z.z), new THREE.Vector3(z.x + Math.cos(aa) * 2.4, 0.3, z.z + Math.sin(aa) * 2.4), 0xbfe8ff); } } else z.extra.material.opacity = 0.2 * a; }
+      if (z.extra) { z.extra.position.x = z.x; z.extra.position.z = z.z; if (z.extra.isSprite) { z.extra.scale.setScalar(2.8 + Math.sin(clock * 20) * 0.35); if (G.rng.chance(dt * 14)) { const aa = G.rng.range(0, 6.28); zap(z.x, 1.3, z.z, z.x + Math.cos(aa) * 2.4, 0.3, z.z + Math.sin(aa) * 2.4, 0xbfe8ff, false); } } else z.extra.material.opacity = 0.2 * a; }
       if (z.end < 0) zoneFx(z, dt);
     }
     for (const r of rings) if (r.on) { r.t += dt; const k = r.t / r.life; if (k >= 1) { r.on = false; continue; } const e = 1 - Math.pow(1 - k, 3); r.sx = r.sz = r.r0 + (r.r1 - r.r0) * e; r.op = r.a * Math.pow(1 - k, 1.3) * RING_K; }

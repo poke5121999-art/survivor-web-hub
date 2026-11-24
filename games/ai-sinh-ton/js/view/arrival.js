@@ -4,7 +4,7 @@
 // along a bridge when one lands near; one a skill spawns inside the arena just rises out of the floor. Shared by the
 // instanced horde (horde.js) and the Blockade Z puppets (actors.js). H.arrivalLog (a Map, set by a test) records the
 // first two drawn positions of each arrival.
-import { arenaNorm } from '../sim/battle.js?v=20261122a';
+import { arenaNorm } from '../sim/battle.js?v=20261124a';
 
 const SPAWN_T = 0.6;
 const paths = new Map();

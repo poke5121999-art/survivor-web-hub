@@ -1,6 +1,6 @@
 // Account level, the unlock table and the first-session guide (FTUE). Pure rules: meta.js stores the state,
 // the screens ask isUnlocked() and show lockText() on a padlock, tools/pacing.mjs reports when each thing opens.
-import { SLOTS, TIERS } from './equip.js?v=20261122a';
+import { SLOTS, TIERS } from './equip.js?v=20261124a';
 
 // ---- account level (separate from hero levels) ----
 export const XP = { wave: 10, clear: 30, first: 60 };
@@ -20,7 +20,7 @@ export function addXp(level, xp, gain) {
 }
 
 // ---- unlock table ----
-// need: { stage: N } = stage N cleared, { level: N } = account level N, { after: N } = N stages cleared since Trang Bị opened
+// need: { stage: N } = stage N cleared, { level: N } = account level N, { any: [need, ...] } = any one of the needs, { after: N } = N stages cleared since Trang Bị opened
 // (acc.equipAt), { triple: true } = the bag holds 3 identical items (latched in acc.mergeOpen), { upgrades: N } = N item
 // upgrades done (acc.stats.upgrades). `slots` lists the equipment slots a row opens. `guide` names the one-time guided step.
 export const UNLOCKS = [
@@ -40,6 +40,7 @@ export const UNLOCKS = [
   { id: 'slot_armor', name: 'Ô Giáp', need: { after: 1 }, slots: ['armor'] },
   { id: 'slot4', name: 'Ô đội hình 4', need: { level: 7 }, guide: 'team' },
   { id: 'autoult', name: 'Tự tung tối thượng', need: { level: 8 } },
+  { id: 'evolve', name: 'Tiến hoá', need: { any: [{ level: 8 }, { stage: 6 }] } },
   { id: 'slot_hands', name: 'Ô Găng Tay và Giày', need: { after: 2 }, slots: ['gloves', 'boots'] },
   { id: 'slot_charm', name: 'Ô Dây Chuyền và Thắt Lưng', need: { after: 4 }, slots: ['necklace', 'belt'] },
   { id: 'merge', name: 'Ghép trang bị', need: { triple: true }, guide: 'merge' },
@@ -73,7 +74,10 @@ export const hasTriple = (bag, wornUids) => mergeTriples(bag, wornUids).length >
 export function isUnlocked(acc, id) {
   const u = UNLOCK[id];
   if (!u) return true;
-  const n = u.need;
+  return needMet(acc, u.need);
+}
+function needMet(acc, n) {
+  if (n.any) return n.any.some((x) => needMet(acc, x));
   if (n.stage !== undefined && !(acc.cleared >= n.stage)) return false;
   if (n.level !== undefined && !(acc.level >= n.level)) return false;
   if (n.after !== undefined && !(isUnlocked(acc, 'equip') && Number.isFinite(acc.equipAt) && acc.cleared >= acc.equipAt + n.after)) return false;
@@ -84,6 +88,7 @@ export function isUnlocked(acc, id) {
 
 export function lockText(id, acc) {
   const n = UNLOCK[id].need;
+  if (n.any) return n.any.map((x) => (x.level !== undefined ? `cấp ${x.level}` : `khi qua ải ${x.stage}`)).join(' hoặc ').replace(/^/, 'Mở ở ');
   if (n.after !== undefined) return acc && Number.isFinite(acc.equipAt) ? `Rơi từ ải ${Math.max(1, acc.equipAt + n.after + 1)} trở đi` : 'Mở sau khi có Trang Bị';
   if (n.triple) return 'Có 3 món giống nhau thì mở';
   if (n.upgrades !== undefined) return 'Nâng cấp một món để mở';
@@ -122,13 +127,13 @@ export function expectedSlots(n) {
 }
 
 // ---- gifts that hand the player a team as the slots open ----
-export const FIRST_HERO = 'gio';
+export const FIRST_HERO = 'chon';
 // a brand-new account: one hero, a little gold, gems for three pulls after the free one
 export const NEW_ACCOUNT = { gold: 500, gems: 300, heroes: [FIRST_HERO] };
 export const GIFTS = [
-  { at: 'tutorial', hero: 'yta', why: 'Y Tá nhập đội giữa ải đầu' },
-  { at: 'firstPull', hero: 'mua', why: 'Lượt triệu hồi đầu miễn phí, chắc chắn ra Mưa Đạn' },
-  { at: { stage: 2 }, hero: 'thep', why: 'Quà qua ải 2' },
+  { at: 'tutorial', hero: 'loc', why: 'Lộc Đèn nhập đội giữa ải đầu' },
+  { at: 'firstPull', hero: 'nhim', why: 'Lượt triệu hồi đầu miễn phí, chắc chắn ra Nhím Gai' },
+  { at: { stage: 2 }, hero: 'tegiap', why: 'Quà qua ải 2' },
 ];
 
 // ---- the first session, in order. `where` is the screen, `target` the id of the one 3D button to press. ----
@@ -137,12 +142,12 @@ export const FTUE = [
   { id: 'intro', where: 'battle', when: 'tutorial:start', text: 'Tướng tự đánh. Bạn chỉ cần xem!', target: null, wait: 3 },
   { id: 'ult', where: 'battle', when: 'tutorial:ult_ready', text: 'Lửa đã cháy! Chạm để tung tối thượng', target: 'ult0', freeze: true },
   { id: 'pick', where: 'pick', when: 'tutorial:pick', text: 'Chọn 1 thẻ nâng cấp cho tướng', target: 'card1' },
-  { id: 'join', where: 'battle', when: 'tutorial:join', text: 'Y Tá nhập đội!', target: null, wait: 2.5 },
+  { id: 'join', where: 'battle', when: 'tutorial:join', text: 'Lộc Đèn nhập đội!', target: null, wait: 2.5 },
   { id: 'boss', where: 'battle', when: 'tutorial:boss', text: 'Boss tới! Né vùng đỏ, dồn tối thượng', target: null, wait: 3 },
   { id: 'reward', where: 'result', when: 'tutorial:won', text: 'Nhận thưởng', target: 'home', allow: ['tab-stats'] },
-  { id: 'levelup', where: 'heroes', when: 'home', text: 'Dùng mảnh và vàng để lên cấp tướng', path: ['tab-heroes', 'hero-gio', 'levelup', 'back'] },
+  { id: 'levelup', where: 'heroes', when: 'home', text: 'Dùng mảnh và vàng để lên cấp tướng', path: ['tab-heroes', 'hero-chon', 'levelup', 'back'] },
   { id: 'gacha', where: 'gacha', when: 'home', text: 'Lượt triệu hồi đầu miễn phí!', path: ['tab-gacha', 'pull1', 'done'] },
-  { id: 'team', where: 'heroes', when: 'home', text: 'Đưa tướng mới vào ô đội hình vừa mở', path: ['tab-heroes', 'hero-mua', 'team-toggle', 'back'] },
+  { id: 'team', where: 'heroes', when: 'home', text: 'Đưa tướng mới vào ô đội hình vừa mở', path: ['tab-heroes', 'hero-nhim', 'team-toggle', 'back'] },
   { id: 'start2', where: 'home', when: 'home', text: 'Vào ải 2!', path: ['tab-battle', 'stage-next', 'start'] },
 ];
 // one-time steps that come later, each when its unlock opens
@@ -183,7 +188,7 @@ export function tutorialStage(base) {
     ...base, n: 1, tutorial: true, name: 'Phố Hoang 1', hpMul: base.hpMul * 0.6, atkMul: base.atkMul * 0.45, bossHp: base.bossHp * 0.3, bossTier: 1,
     waves: [
       { groups: [g('walker', 4, 0, 0.5), g('walker', 4, 5, 3.4)], boss: null },
-      { groups: [g('walker', 5, 0, 1.5), g('runner', 3, 5, 4.5)], boss: null, join: 'yta' },
+      { groups: [g('walker', 5, 0, 1.5), g('runner', 3, 5, 4.5)], boss: null, join: 'loc' },
       { groups: [g('walker', 5, 0, 2.2), g('runner', 4, 4, 5.4), g('walker', 4, 8, 0.6)], boss: null },
       { groups: [g('runner', 5, 0, 3.0), g('walker', 6, 4, 0.2), g('spitter', 2, 8, 4.4)], boss: null },
       { groups: [g('giant', 1, 1.5, 1), g('walker', 4, 5, 4)], boss: 'giant' },

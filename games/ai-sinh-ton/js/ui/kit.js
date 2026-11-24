@@ -1,13 +1,14 @@
 // 3D UI kit: every panel, button, tile and HUD piece is a lit three.js mesh drawn over the battle by its own
 // orthographic scene. Design units are CSS px of a 780 wide landscape frame (780 x 360 at the S22 ratio) (x right, y DOWN, origin top-left). A node's
 // own origin is its top-left corner; world y is the negative of design y.
-import { makeGeo } from './kit-geo.js?v=20261122a';
-import { makeText } from './kit-text.js?v=20261122a';
-import { makeIcons } from './icons.js?v=20261122a';
+import { makeGeo } from './kit-geo.js?v=20261124a';
+import { makeText } from './kit-text.js?v=20261124a';
+import { makeIcons } from './icons.js?v=20261124a';
 
 export const PAL = {
-  gold: 0xffc21f, orange: 0xff8a1f, red: 0xff3b52, green: 0x35d65a, blue: 0x2f7bff, purple: 0x8f4dff, teal: 0x20c7c0, pink: 0xff5fa8,
-  ink: 0x1a1420, cream: 0xfff1cf, panel: 0x4a3a86, panelDark: 0x2a2150, disabled: 0x7d7a93,
+  // calmer than the first set (fully saturated orange, green and blue read as cheap next to the lit 3D world)
+  gold: 0xf0b83a, orange: 0xe8873e, red: 0xdc4a58, green: 0x3fb86c, blue: 0x3d7ade, purple: 0x8659da, teal: 0x2bb0aa, pink: 0xdd6aa3,
+  ink: 0x1a1420, cream: 0xfff1cf, panel: 0x4a3a86, panelDark: 0x2a2150, disabled: 0x75728a,
   rarity: { common: 0x98a6c4, good: 0x3fcf5f, rare: 0x2f86ff, epic: 0xa955ff, legend: 0xffa31f, myth: 0xff4056 },
 };
 
@@ -70,6 +71,8 @@ export function createUI({ THREE, renderer, frame }) {
     const { x, mode, dy } = g.anch; g.pos(x, mode === 'bottom' ? ui.H + dy : mode === 'center' ? ui.H / 2 + dy : dy);
   }
   ui.group = (o = {}) => mkNode(o.w || 0, o.h || 0);
+  // an invisible tap area (a spot on a 3D picture the owner keeps in place)
+  ui.hotspot = (o) => { const g = mkNode(o.w, o.h); addTarget(g, { id: o.id, onTap: o.onTap }); return g; };
 
   // ---------- text ----------
   const txt = makeText(THREE, { scale: () => ui.dpr * ui.u, mkNode });
@@ -88,11 +91,12 @@ export function createUI({ THREE, renderer, frame }) {
   }
   ui.panel = (o = {}) => {
     const w = o.w ?? 100, h = o.h ?? 60, r = o.r ?? 14, depth = o.depth ?? 6, color = o.color ?? PAL.panel;
-    const bevel = Math.min(o.bevel ?? 3, Math.max(1, r - 1)), ow = o.ow ?? 3, outline = o.outline === undefined ? PAL.ink : o.outline;
+    // a thin rim in the panel's own dark tone (a black 3 px ink line read as cheap); an explicit outline colour still wins
+    const bevel = Math.min(o.bevel ?? 3, Math.max(1, r - 1)), ow = Math.min(o.ow ?? 1.8, 2), rim = (c) => (o.outline === undefined ? geo.shade(c, -0.62) : o.outline);
     const g = mkNode(w, h); g.top = depth + bevel + 0.3;
     if (o.shadow !== false) addShadow(g, w, h, r, o.shadowY ?? 5);
     const gl = o.gloss !== false && h >= 14, bodyMat = geo.std(0xffffff, { vc: true });
-    const make = (c) => geo.panelBody(w, h, r, depth, bevel, c, ow, outline, gl);
+    const make = (c) => geo.panelBody(w, h, r, depth, bevel, c, ow, rim(c), gl);
     const body = new THREE.Mesh(make(color), bodyMat); g.add(body); g.body = body;
     g.setColor = (c) => { body.geometry = make(c); return g; };
     return g;
@@ -151,6 +155,7 @@ export function createUI({ THREE, renderer, frame }) {
     return liveTargets().map((e) => ({ id: e.t.id, x: r.left + e.hb.x * k, y: r.top + e.hb.y * k, w: e.hb.w * k, h: e.hb.h * k, enabled: e.t.enabled, screen: e.s.screenName, vx: r.left + e.vb.x * k, vy: r.top + e.vb.y * k, vw: e.vb.w * k, vh: e.vb.h * k }));  // v*: the visible box, h-box above is grown to 48 px
   };
   ui.node = (id) => { for (const t of targets) if (t.id === id) return t.node; return null; };
+  ui.targetNodes = () => liveTargets().map((e) => ({ id: e.t.id, node: e.t.node, enabled: e.t.enabled })); // live targets with their nodes (ids can repeat across screens); read by tools/text-fit-test.mjs
   function fire(t) { if (t.enabled && t.onTap) t.onTap(); }
   ui.tapId = (id) => {
     const e = liveTargets().find((q) => q.t.id === id); if (!e) return false;
@@ -163,7 +168,7 @@ export function createUI({ THREE, renderer, frame }) {
   frame.addEventListener('pointerdown', (e) => {
     if (down) return; scene.updateMatrixWorld();
     const [dx, dy] = toDesign(e.clientX, e.clientY), hit = pick(dx, dy);
-    down = { id: e.pointerId, x0: e.clientX, y0: e.clientY, hit, scroll: scrollAt(dx, dy), drag: false, lastY: e.clientY, lastT: performance.now(), v: 0, dead: false };
+    down = { id: e.pointerId, x0: e.clientX, y0: e.clientY, hit, scroll: scrollAt(dx, dy), drag: false, lastX: e.clientX, lastY: e.clientY, lastT: performance.now(), v: 0, dead: false };
     if (hit) hit.t.press(true);
     if (down.scroll) down.scroll.vy = 0;
     try { frame.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
@@ -173,8 +178,8 @@ export function createUI({ THREE, renderer, frame }) {
     const dist = Math.hypot(e.clientX - down.x0, e.clientY - down.y0);
     if (!down.drag && dist > 10) { down.drag = true; if (down.hit) { down.hit.t.press(false); } down.dead = true; }
     if (down.drag && down.scroll) {
-      const k = frame.getBoundingClientRect().width / 780, now = performance.now(), dyp = (e.clientY - down.lastY) / k;
-      down.scroll.drag(-dyp); const dtm = Math.max(1, now - down.lastT); down.v = down.v * 0.6 + (-dyp / dtm * 1000) * 0.4; down.lastY = e.clientY; down.lastT = now;
+      const k = frame.getBoundingClientRect().width / 780, now = performance.now(), dyp = (down.scroll.axisX ? e.clientX - down.lastX : e.clientY - down.lastY) / k;
+      down.scroll.drag(-dyp); const dtm = Math.max(1, now - down.lastT); down.v = down.v * 0.6 + (-dyp / dtm * 1000) * 0.4; down.lastX = e.clientX; down.lastY = e.clientY; down.lastT = now;
     }
   });
   const end = (e, cancel) => {
@@ -187,7 +192,7 @@ export function createUI({ THREE, renderer, frame }) {
   };
   frame.addEventListener('pointerup', (e) => end(e, false));
   frame.addEventListener('pointercancel', (e) => end(e, true));
-  frame.addEventListener('wheel', (e) => { const [dx, dy] = toDesign(e.clientX, e.clientY), s = scrollAt(dx, dy); if (s) { s.scrollBy(e.deltaY / (frame.getBoundingClientRect().width / 780)); e.preventDefault(); } }, { passive: false });
+  frame.addEventListener('wheel', (e) => { const [dx, dy] = toDesign(e.clientX, e.clientY), s = scrollAt(dx, dy); if (s) { s.scrollBy((s.axisX && Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / (frame.getBoundingClientRect().width / 780)); e.preventDefault(); } }, { passive: false });
 
   // squash-and-spring press response shared by every pressable node
   function pressable(g, sp, onUpdate) {
@@ -222,12 +227,12 @@ export function createUI({ THREE, renderer, frame }) {
     const flat = !!o.flat, alpha = o.alpha ?? 0.5;
     const { root: g, pivot, holder } = centred(w, h); g.top = flat ? 1 : 6 + 3 + 0.3;
     if (o.shadow !== false && !flat) addShadow(g, w, h + lip, r, 4, 0.5);
-    let base, body = null;
+    let base, body = null, sheenM = null;
     if (flat) { base = new THREE.Mesh(geo.plate(w, h, r), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: alpha, depthWrite: false, toneMapped: false })); holder.add(base); }
     else {
       base = new THREE.Mesh(geo.buttonBack(w, h, lip, r, color), geo.std(0xffffff, { vc: true })); g.add(base);
-      body = new THREE.Mesh(geo.slab(w, h, r, 6, 3), geo.std(color)); holder.add(body);
-      { const ins = 5.5, gw = w - ins * 2, gh = Math.max(5, (h - ins) * 0.4); const gl = new THREE.Mesh(geo.plate(gw, gh, Math.max(3, r - 4)), geo.basic(0xffffff, 0.24)); gl.position.set(ins, -3.6, 9.4); holder.add(gl); }
+      body = new THREE.Mesh(geo.buttonFace(w, h, r, color), geo.std(0xffffff, { vc: true, rough: 0.36 })); holder.add(body);
+      { const ins = 3.2; sheenM = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, toneMapped: false }); const gl = new THREE.Mesh(geo.sheen(w - ins * 2, h - ins * 2, Math.max(2, r - ins)), sheenM); gl.position.set(ins, -ins, 9.4); holder.add(gl); }
     }
     pivot.position.z = 3;
     const size = o.size ?? clamp(Math.round(h * 0.4), 12, 26);
@@ -257,7 +262,7 @@ export function createUI({ THREE, renderer, frame }) {
     g.setEnabled = (b) => {
       enabled = !!b; if (g.target) g.target.enabled = enabled;
       if (flat) base.material.opacity = enabled ? alpha : alpha * 0.7;
-      else { body.material = geo.std(enabled ? color : PAL.disabled); base.geometry = geo.buttonBack(w, h, lip, r, enabled ? color : PAL.disabled); }
+      else { body.geometry = geo.buttonFace(w, h, r, enabled ? color : PAL.disabled); base.geometry = geo.buttonBack(w, h, lip, r, enabled ? color : PAL.disabled); }
       label && label.setColor(enabled ? 0xffffff : 0xd4d0e4);
       return g;
     };
@@ -265,7 +270,8 @@ export function createUI({ THREE, renderer, frame }) {
     pressable(g, sp, (x, tm) => {
       const br = o.pulse && enabled ? Math.sin(tm * 3.6) * 0.022 + 0.022 : 0;
       if (flat) { const k = 1 - 0.08 * x; pivot.position.y = -h / 2; pivot.scale.set(k, k, 1); return; }
-      pivot.position.y = -h / 2 - x * lip * 0.85; pivot.scale.set(1 + 0.035 * x + br, 1 - 0.07 * x + br, 1);
+      // pressed: the face sinks onto its base, flattens a little and loses its sheen, so the press reads at a glance
+      pivot.position.y = -h / 2 - x * lip * 0.9; pivot.scale.set(1 + 0.02 * x + br, 1 - 0.05 * x + br, 1); sheenM.opacity = 1 - 0.85 * x;
     })({ id: o.id, onTap: o.onTap, h: () => (flat ? h : h + lip) });
     if (o.enabled === false) g.setEnabled(false);
     return g;
@@ -284,14 +290,15 @@ export function createUI({ THREE, renderer, frame }) {
     const fmat = clipMat(color, plane, 0.32), fill = new THREE.Mesh(geo.slab(iw, ih, ir, 1.5, 1), fmat); fill.position.set(ins, -ins, 3.2); g.add(fill);
     const sh = new THREE.Mesh(geo.plate(iw - 2, Math.max(2, ih * 0.34), Math.max(1, ir * 0.5)), (() => { const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.32, depthWrite: false, clippingPlanes: [plane], toneMapped: false }); return m; })());
     sh.position.set(ins + 1, -ins - ih * 0.1, 5.6); g.add(sh);
-    let target = o.value ?? 1, cur = target, gTarget = target, gCur = target, hold = 0; const auto = !!o.ghost;
-    g.set = (f, instant) => { f = clamp(f, 0, 1); if (auto && f < target) { hold = 0.35; } target = f; if (instant) cur = f, gCur = Math.max(gCur, f); if (auto) gTarget = f; return g; };
-    g.setGhost = (f) => { gCur = clamp(f, 0, 1); gTarget = target; hold = 0.35; return g; };
+    let target = o.value ?? 1, cur = target, gTarget = target, gCur = target, hold = 0; const auto = !!o.ghost; let gOn = auto;
+    g.set = (f, instant) => { f = Number.isFinite(f) ? clamp(f, 0, 1) : 0; if (auto && f < target && !instant) { hold = 0.35; } target = f; gTarget = f; if (instant) cur = gCur = f; return g; };
+    g.setGhost = (f) => { gOn = true; gCur = clamp(f, 0, 1); gTarget = target; hold = 0.35; return g; };
+    g.dbg = () => ({ value: target, shown: fill.visible ? cur : 0, ghost: ghost.visible ? gCur : 0 }); // read by tools/ui-bugs-test.mjs
     g.setColor2 = (c) => { fmat.color.set(c); return g; };
     anim(g, (dt) => {
       cur += (target - cur) * (1 - Math.exp(-dt * 11)); if (Math.abs(target - cur) < 0.0004) cur = target;
       if (hold > 0) hold -= dt; else gCur += (Math.max(gTarget, cur) - gCur) * (1 - Math.exp(-dt * 3.2));
-      if (gCur < cur) gCur = cur;
+      if (gCur < cur || !gOn) gCur = cur;
       g.updateWorldMatrix(true, false);
       const lx = ins + Math.max(cur * iw, cur > 0 ? ir * 0.6 : 0), gx = ins + Math.max(gCur * iw, 0);
       fill.visible = sh.visible = cur > 0.002; ghost.visible = gCur > cur + 0.004;
@@ -378,21 +385,17 @@ export function createUI({ THREE, renderer, frame }) {
   }
   const vp = { keep: null };
 
-  const PORTRAIT_ST = () => ({ speed: 0, air: 0, vy: 0, swing: -1, mode: 'none', draw: 1, pitch: 0, kick: 0, kickL: 0, sprint: false, crouch: 0, hurt: 0 });
   ui.portrait = (heroId, o = {}) => {
     const size = o.size ?? 56, col = o.color ?? PAL.rarity.rare, ins = Math.max(4, size * 0.085), vw = size - ins * 2;
     const { root: g, pivot, holder } = centred(size, size);
     const frameP = ui.panel({ w: size, h: size, r: size * 0.2, color: col, depth: 4, bevel: 2.4, shadow: o.shadow !== false, shadowY: 3, ow: 2.4 }); holder.add(frameP); g.top = 8;
     let view;
-    const BZ = typeof window !== 'undefined' ? window.BZ : null;
     let m = null;
-    if (BZ && BZ.heroModel) { try { m = BZ.heroModel(heroId); } catch (e) { console.warn('[ui] hero model failed: ' + e.message); } }
+    if (ui.portraitModel) { try { m = ui.portraitModel(heroId); } catch (e) { console.warn('[ui] portrait model failed: ' + e.message); } }
     if (m) {
-      const root = new THREE.Group(); root.add(m.root); const bb = new THREE.Box3().setFromObject(m.root), sz = bb.getSize(new THREE.Vector3());
-      const st = PORTRAIT_ST(); let tt = Math.random() * 5;
-      const cam = new THREE.PerspectiveCamera(26, 1, 0.1, 60), vh = sz.y * (o.bust ?? 0.5), d = vh / 2 / Math.tan(cam.fov * Math.PI / 360) + sz.z * 0.4;
-      cam.position.set(0, bb.max.y - vh / 2 + sz.y * 0.03, d); cam.lookAt(0, bb.max.y - vh / 2 + sz.y * 0.03, 0);
-      view = ui.viewport(root, { w: vw, h: vw, r: size * 0.12, camera: cam, bg: geo.mix(col, 0x1b1236, 0.55), fps: o.fps ?? 14, update: (dt) => { tt += dt; m.root.rotation.y = 0.35 + Math.sin(tt * 0.9) * 0.3; BZ.animHero(m, st, dt); } });
+      let tt = Math.random() * 5;
+      view = ui.viewport(m.root, { w: vw, h: vw, r: size * 0.12, fov: 26, bg: geo.mix(col, 0x1b1236, 0.55), fps: o.fps ?? 14, update: (dt) => { tt += dt; m.root.rotation.y = 0.45 + Math.sin(tt * 0.9) * 0.3; m.update(dt); } });
+      const vd = view.dispose; view.dispose = () => { m.dispose(); vd(); };
     } else {
       const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
       const grd = x.createLinearGradient(0, 0, 0, 128); const hx = (n) => '#' + n.toString(16).padStart(6, '0'); grd.addColorStop(0, hx(geo.mix(col, 0x1b1236, 0.35))); grd.addColorStop(1, hx(geo.mix(col, 0x1b1236, 0.7)));
@@ -407,10 +410,12 @@ export function createUI({ THREE, renderer, frame }) {
   };
 
   // ---------- scroll ----------
+  // o.axis 'x': the content runs sideways (contentH is then its width) and a drag moves it left and right
   ui.scroll = (o = {}) => {
     const g = mkNode(o.w ?? 340, o.h ?? 400), content = new THREE.Group(); g.add(content); g.slot = content; g.isScroll = true;
-    let y = 0, maxY = 0; g.vy = 0; g.dragging = false; g.contentH = o.contentH ?? g.h;
-    const setMax = () => { maxY = Math.max(0, g.contentH - g.h); };
+    const ax = o.axis === 'x'; g.axisX = ax;
+    let y = 0, maxY = 0; g.vy = 0; g.dragging = false; g.contentH = o.contentH ?? (ax ? g.w : g.h);
+    const setMax = () => { maxY = Math.max(0, g.contentH - (ax ? g.w : g.h)); };
     g.setContentH = (v) => { g.contentH = v; setMax(); return g; };
     g.scrollTo = (v) => { y = clamp(v, 0, maxY); g.vy = 0; return g; };
     g.scrollBy = (d) => { y = clamp(y + d, 0, maxY); g.vy = 0; return g; };
@@ -424,8 +429,8 @@ export function createUI({ THREE, renderer, frame }) {
         if (y < 0) { y += (0 - y) * Math.min(1, dt * 14); g.vy = 0; } else if (y > maxY) { y += (maxY - y) * Math.min(1, dt * 14); g.vy = 0; }
         else if (Math.abs(g.vy) > 4) { y += g.vy * dt; g.vy *= Math.exp(-dt * 4.2); if (y < 0 || y > maxY) g.vy *= 0.3; }
       }
-      content.position.y = y;
-      for (const c of content.children) { if (c.h === undefined || c.hiddenByUser) continue; c.visible = c.uy + c.h > y - 40 && c.uy < y + g.h + 40; }
+      if (ax) content.position.x = -y; else content.position.y = y;
+      for (const c of content.children) { if (c.h === undefined || c.hiddenByUser) continue; c.visible = ax ? c.ux + c.w > y - 40 && c.ux < y + g.w + 40 : c.uy + c.h > y - 40 && c.uy < y + g.h + 40; }
     });
     // pointerup clears dragging through fling; a plain release must clear it too
     return g;
@@ -475,10 +480,33 @@ export function createUI({ THREE, renderer, frame }) {
     if (toast) { toast.g.dispose(); toast = null; }
     const t = ui.text(str, { size: 13, valign: 'mid', align: 'center' }), w = Math.min(330, t.w + 34), h = 34, g = new THREE.Group(), holder = new THREE.Group();
     const p = ui.panel({ w, h, r: 17, color: 0x3a2a70, depth: 4, bevel: 2.4, ow: 2.4 }); holder.add(p); holder.add(t); t.pos(w / 2, h / 2 + 1, 10); holder.position.set(-w / 2, h / 2, 0); g.add(holder);
-    g.position.set(ui.toastAt.x, -ui.toastAt.y, 0); g.dispose = () => { p.dispose(); t.dispose(); g.parent && g.parent.remove(g); }; overlay.add(g); toast = { g, t: 0, w };
+    toastY = toastSpot(w, h); g.position.set(ui.toastAt.x, -toastY, 0); g.dispose = () => { p.dispose(); t.dispose(); g.parent && g.parent.remove(g); }; overlay.add(g); toast = { g, t: 0, w };
     g.scale.setScalar(0.01);
   };
-  ui.toastRect = () => (toast ? { x: ui.toastAt.x - toast.w / 2, y: ui.toastAt.y - 17, w: toast.w, h: 34 } : null);
+  ui.toastRect = () => (toast ? { x: ui.toastAt.x - toast.w / 2, y: toastY - 17, w: toast.w, h: 34 } : null);
+  // the toast goes to the height nearest ui.toastAt.y where it covers no text and no live button on screen;
+  // if every height covers something it takes the one that covers least
+  let toastY = ui.toastAt.y;
+  const _tb = new THREE.Box3();
+  function toastSpot(w, h) {
+    const keep = []; scene.updateMatrixWorld(true);
+    scene.traverse((o) => {
+      const n = o.parent; if (!(o.isMesh && n && n.mesh === o && n.canvas && n.str) || !shown(o)) return;
+      const s = screenOf(o); if (!s || s.hiding || o.material.opacity <= 0.05) return;
+      _tb.setFromObject(o); keep.push({ x: _tb.min.x, y: -_tb.max.y, w: _tb.max.x - _tb.min.x, h: _tb.max.y - _tb.min.y });
+    });
+    for (const e of liveTargets()) if (e.t.enabled) keep.push(e.vb);
+    const x0 = ui.toastAt.x - w / 2, ys = [];
+    for (let y = h / 2 + 4; y + h / 2 <= ui.H - 4; y += 4) ys.push(y);
+    ys.sort((a, b) => Math.abs(a - ui.toastAt.y) - Math.abs(b - ui.toastAt.y));
+    let best = ys[0], least = Infinity;
+    for (const y of ys) {
+      let a = 0; const y0 = y - h / 2;
+      for (const r of keep) { const ox = Math.min(x0 + w, r.x + r.w) - Math.max(x0, r.x), oy = Math.min(y0 + h, r.y + r.h) - Math.max(y0, r.y); if (ox > 1 && oy > 1) a += ox * oy; }
+      if (a < least) { least = a; best = y; } if (a === 0) break;
+    }
+    return best;
+  }
   const flies = [];
   ui.fly = (str, x, y, o = {}) => {
     const t = ui.text(str, { size: o.size ?? 20, color: o.color ?? PAL.gold, align: 'center', valign: 'mid', outlineW: 2.6 }); overlay.add(t); t.pos(x, y, 0); flies.push({ n: t, x, y, t: 0 });

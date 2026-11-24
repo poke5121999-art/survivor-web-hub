@@ -3,7 +3,7 @@
 //  - coverage: share of 24 x 24 design px cells with luminance std < 1.5 (<= 3%); BEFORE = the deployed portrait build
 //  - outline: the island outline polygon (from the page's own data) deviates from its best-fit ellipse by >= 0.5 m RMS and
 //    has >= 12 corners; no hazard-stripe texture on any mesh in the scene
-//  - lighting: >= 4 warm sources inside the frame; warm pixels (hue 15-55, sat > 0.35, value > 0.5) 0.5% .. 12%; ring
+//  - lighting: >= 4 warm sources whose pool lights the floor in view; warm pixels (hue 15-55, sat > 0.35, value > 0.5) 0.5% .. 12%; ring
 //    contrast (team rings vs the floor under them, measured by drawing the frame with and without the rings) >= the
 //    tree's value before the island (.chk/landscape/baseline-tree.json, written by --baseline on the old tree)
 //  - depth: the water/abyss alone differs between the near (bottom) and far (top) edge; >= 30 drifting light particles
@@ -57,7 +57,8 @@ const PROBE = () => {
   const G = window.__G; const H = G.host; const V = new H.THREE.Vector3(); const { w, h } = H.size; const u = H.size.u || 1;
   const pr = (x, y, z) => { V.set(x, y, z).project(H.camera); return [(V.x + 1) / 2 * w / u, (1 - V.y) / 2 * h / u, V.z]; };
   const W = H.world; const pad = W && W.pad;
-  const lights = W ? W.lights().map((L) => ({ warm: L.warm, p: pr(L.x, L.y, L.z) })) : [];
+  // each light with its pool on the floor: 8 points at half its radius around the foot of the light
+  const lights = W ? W.lights().map((L) => ({ warm: L.warm, p: pr(L.x, L.y, L.z), pool: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => pr(L.x + Math.cos(k * 0.785) * L.r * 0.5, L.ground, L.z + Math.sin(k * 0.785) * L.r * 0.5)) })) : [];
   const hero = []; for (const un of (G.B ? G.B.heroes : [])) { const n = G.actors.nodeOf(un.uid); if (!n) continue; const a = pr(n.position.x, 0, n.position.z); const b = pr(n.position.x, 2.7, n.position.z); hero.push(Math.abs(a[1] - b[1])); }
   let hazard = 0; H.scene.traverse((o) => { const m = o.material; for (const mm of [].concat(m || [])) if (mm && mm.map && /hazard/.test(mm.map.name || '')) hazard++; });
   const rim = []; for (let i = 0; i < 96; i++) { const a = i / 96 * Math.PI * 2; rim.push(pr(Math.cos(a) * 9.6 * 1.04, 0, Math.sin(a) * 4.6 * 1.04)); }
@@ -263,14 +264,19 @@ try {
         const bw = await look(br, srv.base, ph, st, 5, `world-${ph}-c${ch}-boss`, false);
         sheets[ph].push([[`${ph} ch${ch} wave 1`, a.file], [`${ph} ch${ch} boss`, bw.file]]);
         const k = `${ph} ch${ch} (${a.p.theme})`; const p = a.p;
-        const warmIn = p.lights.filter((L) => L.warm && L.p[2] < 1 && L.p[0] >= 0 && L.p[0] <= p.w / p.u && L.p[1] >= HUD.top && L.p[1] <= p.h / p.u).length;
+        // A warm source counts when the bright half of its pool falls on the floor in view (under the top bar, inside the frame).
+        // The camera frames the fight's cluster since W-cam2: the frame holds the fight floor, where no prop may stand, the flanks
+        // of the pad are out of it and the flames of the far rim sit behind the top bar (stage 16 s22: 1 flame in the frame, 10
+        // warm pools on the floor in view). The warm pixel share below still checks what the frame looks like.
+        const seen = (q) => q[2] < 1 && q[0] >= 0 && q[0] <= p.w / p.u && q[1] >= HUD.top && q[1] <= p.h / p.u;
+        const warmIn = p.lights.filter((L) => L.warm && (seen(L.p) || L.pool.some(seen))).length;
         console.log(`${k}: flat ${(100 * a.img.flat).toFixed(2)}% warm px ${(100 * a.img.warm).toFixed(2)}% white ${(100 * a.img.white).toFixed(2)}% warm sources in frame ${warmIn} motes ${p.motes} build ${p.buildMs.toFixed(0)} ms pitch ${p.pitch} fov ${p.fov} dist ${p.dist.toFixed(1)} hero px ${p.hero.map((x) => x.toFixed(0)).join(',')}`);
         for (const [lab, o] of [['wave 1', a], ['boss', bw]]) {
           check(o.img.flat <= 0.03, `${k} ${lab}: flat 24 px cells ${(100 * o.img.flat).toFixed(2)}% (<= 3%; deployed ${(100 * before.flat).toFixed(1)}%)`);
           check(o.img.white < 0.01, `${k} ${lab}: clipped white ${(100 * o.img.white).toFixed(2)}% (< 1%)`);
           check(o.problems.length === 0, `${k} ${lab}: no console problems ${o.problems.slice(0, 2).join(' | ')}`);
         }
-        check(warmIn >= 4, `${k}: warm light sources inside the frame ${warmIn} (>= 4)`);
+        check(warmIn >= 4, `${k}: warm light sources lighting the floor in view ${warmIn} (>= 4)`);
         check(a.img.warm >= 0.005 && a.img.warm <= 0.12, `${k}: warm pixel share ${(100 * a.img.warm).toFixed(2)}% (0.5..12%)`);
         check(p.motes >= 30, `${k}: drifting light particles ${p.motes} (>= 30)`);
         check(p.buildMs < 250, `${k}: world build ${p.buildMs.toFixed(0)} ms (< 250)`);

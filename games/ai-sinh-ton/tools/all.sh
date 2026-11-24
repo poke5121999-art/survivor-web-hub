@@ -18,8 +18,9 @@ if [ -z "$AST_BASE" ]; then
   run meta-test node tools/meta-test.mjs
   run pacing node tools/pacing.mjs 5 60
   run journey node tools/journey.mjs 5 30 260
+  run migrate-test node tools/migrate-test.mjs
 fi
-for t in smoke battle-test inframe-test fx-leak-test horde-test fx-shots grip-shots gio-shots boss-test stats-test meta-ui-test equip-test campaign-test ftue-test account-test orient-test view-shots floor-shots arena-look-test map-test cam-test spawn-test fx-circle-test bossintro-test text-fit-test ui-shots; do
+for t in smoke battle-test inframe-test fx-leak-test horde-test fx-shots fx-beats beast-shots boss-test stats-test meta-ui-test equip-test campaign-test ftue-test account-test orient-test view-shots floor-shots arena-look-test map-test layout-test cam-test spawn-test fx-circle-test bossintro-test text-fit-test ui-bugs-test world-test evolve-test ui-shots; do
   # floor-shots compares against a local extract of the old Blockade Z, which is not on the deployed site
   [ -n "$AST_BASE" ] && [ "$t" = floor-shots ] && continue
   # a tool missing on this tree (bossintro-test before its branch is merged) is skipped by the -f guard below

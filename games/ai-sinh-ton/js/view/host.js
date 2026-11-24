@@ -1,7 +1,7 @@
 // The view host: renderer, scene, lights, the battle world (world.js: the block island, its abyss and its lights), rain,
 // and the small `G` object that Blockade Z's fx, audio, zombie and boss code expects. The sim never touches it; actors.js
 // and camera.js read H and draw the battle on top.
-import { createWorld } from './world.js?v=20261122a';
+import { createWorld } from './world.js?v=20261124a';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -205,11 +205,11 @@ export async function createHost({ frame, canvas, params }) {
     rainOn = !!on; precip.visible = rainOn;
     G.post.strength = BZ.lerp(0.85, 0.3, BZ.clamp((sun.intensity - 1.1) / 1.2, 0, 1)) * 0.6;
   };
-  // The pad the fight belongs on: the wave's own while it is fought, the next one as soon as the wave is cleared (so the
-  // heroes run over while the cards wait). snap: jump there without the run (fast-forwarded tests).
+  // The pad the fight belongs on: the room of the wave being fought, the next wave's room as soon as the wave is cleared
+  // (so the heroes run over while the cards wait; rooms.js waveRoom). snap: jump there without the run (fast-forwarded tests).
   H.syncSection = (snap) => {
     const B = H.B; if (!B || H.sectionLock) return;
-    const want = Math.max(0, Math.min(4, B.phase === 'pick' ? B.wave : B.wave - 1));
+    const wr = B.plan.waveRoom; const want = wr[Math.max(0, Math.min(wr.length - 1, B.phase === 'pick' ? B.wave : B.wave - 1))];
     if (snap) { world.settle(); if (want !== world.sec) world.setStage(B.stage, want + 1); } else if (want !== world.sec && !world.busy) world.travelTo(want);
   };
   H.setStage({ chapter: 0, n: 1 });

@@ -1,9 +1,13 @@
 // Maps every effect key the sim emits (sim `fx`, `attack`, projectile, zone, dash, buff, state keys) to a look, and
 // plays it with Blockade Z's G.fx calls, own ground marks and sounds. A key missing from KEYS plays a generic burst
 // and is logged once. counters[key] counts the effects played per key (the view-shots tool reads it).
-import { arenaNorm } from '../sim/battle.js?v=20261122a';
-import { HEROES } from '../data/heroes.js?v=20261122a';
-import { ENEMIES } from '../data/enemies.js?v=20261122a';
+// On top of that base look every skill a beast casts plays three beats (fx/beats.js): the wind-up at the caster on its cast,
+// the impact where each part lands, the after-image. An instant skill's impact is drawn HOLD seconds after its cast so the
+// wind-up shows first; an ultimate's events are held while its close-up winds up (ultcam.js) and released together.
+import { arenaNorm } from '../sim/battle.js?v=20261124a';
+import { HEROES } from '../data/heroes.js?v=20261124a';
+import { ENEMIES } from '../data/enemies.js?v=20261124a';
+import { createBeats } from './fx/beats.js?v=20261124a';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -60,8 +64,8 @@ const STATE = { invuln: STYLE.holy, stealth: STYLE.void, taunt: STYLE.steel };
 const PROJ = {
 };
 const ULT_SPAN = 6;
-// Gió: the whirlwind lasts as long as the stun it casts (the sim's aoe is instant); the ultimate is ten cuts over the sim's own window
-const GIO = HEROES.find((h) => h.id === 'gio');
+// Chồn Gió (was Gió): the whirlwind lasts as long as the stun it casts (the sim's aoe is instant); the ultimate is ten cuts over the sim's own window
+const GIO = HEROES.find((h) => h.id === 'chon');
 const WHIRL_DUR = GIO.s2.ops[0].status.dur;
 const ULT_CUTS = GIO.ult.ops.find((o) => o.op === 'bolts');
 const SLASH_N = 10;
@@ -147,6 +151,11 @@ const BOSS_KEYS = (() => {
 })();
 const BOSS_DEATH = [['pillar', 14, 2, 1.2, 0.4], ['fount', 24, 12, 'fire', 5], ['plume', 5.5, 7, 'smoke', 4], ['wall', 1, 0.5, 1.4, 0.6], ['flash', 4]];
 const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+const HOLD = 0.09;          // s of view time between an instant skill's cast and its drawn impact (the wind-up)
+const SELF_TIMED = new Set(['aoe', 'cone', 'line', 'zone', 'rain', 'bolts']); // sim ops that wait out their own `delay`
+const BUNG_CAP = 6;         // impacts drawn per frame at most (a volley of bolts lands many at once)
+const HIT_CAP = 5;          // hero hit sparks per frame at most
+const PART_SHAPE = { burst: 'burst', cone: 'cone', line: 'line', bolt: 'bolt', heal: 'heal', shield: 'heal', mark: 'zone', pull: 'zone' };
 
 export function createFxMap(H, marks, ctx) {
   const { G, scene, camera } = H;
@@ -155,6 +164,11 @@ export function createFxMap(H, marks, ctx) {
   const shock = marks.shockGeo.clone().rotateX(-Math.PI / 2);
   scene.traverse((o) => { const m = o.isMesh && o.material; if (m && o.geometry.type === 'RingGeometry' && m.blending === THREE.AdditiveBlending && m.color.getHex() === 0xffe0b0) { m.color.multiplyScalar(0.4); o.geometry = shock; m.map = marks.shockTex; m.needsUpdate = true; } });
   const counters = {}; const missing = new Set(); const bump = (k) => { counters[k] = (counters[k] || 0) + 1; };
+  const beats = createBeats(H, marks);
+  const juice = () => window.__G && window.__G.juice;
+  // per hero: its last cast { t: sim time, slot, wait: seconds until the impact } and its ultimate hold
+  const lastCast = new Map(); let bungLeft = BUNG_CAP; let hitLeft = HIT_CAP;
+  const held = new Map(); // uid -> events held back while its ultimate winds up
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   let budget = { pop: 0, boom: 0, puff: 0 };
   const reduceFlash = () => !!(window.__G && window.__G.settings && window.__G.settings.reduceFlash);
@@ -214,7 +228,14 @@ export function createFxMap(H, marks, ctx) {
     return Math.atan2((b.y - a.y) * H.size.h, (b.x - a.x) * H.size.w);
   }
 
-  function pop(x, y, z, r, cols) { if (budget.pop-- > 0) G.fx.pop(V(x, y, z), r, cols); }
+  // BZ's pop has a white core at alpha 1.2: in the ultimate's close-up it is a white disc filling the middle of the frame, so
+  // there it is a smaller burst in the effect's own colours
+  function pop(x, y, z, r, cols) {
+    if (budget.pop-- <= 0) return;
+    const J = juice(); if (!(J && J.ult && J.ult.active)) { G.fx.pop(V(x, y, z), r, cols); return; }
+    G.fx.puff(V(x, y, z), { glow: true, s0: r * 0.5, s1: r * 2, life: 0.3, c0: cols[0], c1: cols[1] || cols[0], a0: 0.45, spin: 0 });
+    beats.sparks.burst(x, y, z, 6 + r * 4, { speed: [3, 7], up: 0.6, colors: cols, w: 0.08, len: 0.2, life: 0.4, grav: 4 });
+  }
   function boom(x, z, r) {
     if (budget.boom-- <= 0) return;
     if (reduceFlash()) { G.fx.pop(V(x, 0.3, z), r * 0.8, [0xffd070, 0xff6020]); return; }
@@ -255,12 +276,16 @@ export function createFxMap(H, marks, ctx) {
       const cols = teamCol(e.team, p); const style = k.bolt || 'tracer';
       const to = V(e.x, 1.2, e.z);
       if (style === 'sky') {
-        G.fx.bolt(V(e.x, 18, e.z), V(e.x, 0.2, e.z), cols[1]); G.fx.bolt(V(e.x + 0.2, 18, e.z), V(e.x, 0.2, e.z), cols[0]);
+        const J = juice();
+        if (J && J.ult && J.ult.active) beats.sparks.drop(e.x, e.z, 10, { colors: [cols[1], cols[0]], w: 0.35, n: 4 }); // BZ's bolt boxes are thick white bars up close
+        else { G.fx.bolt(V(e.x, 18, e.z), V(e.x, 0.2, e.z), cols[1]); G.fx.bolt(V(e.x + 0.2, 18, e.z), V(e.x, 0.2, e.z), cols[0]); }
         pop(e.x, 0.3, e.z, 1.4, cols); marks.ring(e.x, e.z, 0.3, 2.2, cols[1], 0.4, 0.9); snd(k.snd || 'thunder', e.x, e.z, 0.35); return;
       }
       if (e.key === 'blades' && cuts) cuts.q.push({ x: e.x, z: e.z });
       const from = V(e.fromX, 1.3, e.fromZ);
-      if (style === 'arc') G.fx.arc(from, to, cols[1]);
+      // a chain hop as thin streaks: BZ's arc boxes stop with the world when an ultimate's close-up freezes it and fill the
+      // close-up as thick white bars
+      if (style === 'arc') beats.zap(from.x, from.y, from.z, to.x, to.y, to.z, cols[1], false);
       else if (style === 'drain') { G.fx.bolt(to, from, 0xff4060); pop(e.x, 1, e.z, 0.7, [0xff7080, 0xa01028]); }
       else if (style === 'slash' && e.key === 'blades') { G.fx.puff(to, { glow: true, s0: 0.3, s1: 1.2, life: 0.18, c0: cols[1], c1: cols[1], a0: 0.7, spin: 0 }); }
       else if (style === 'slash') { G.fx.slash(to, cols[0], screenAng(e.fromX, e.fromZ, e.x, e.z), 1.5); G.fx.puff(to, { glow: true, s0: 0.3, s1: 1.4, life: 0.2, c0: 0xffffff, c1: cols[1], a0: 1, spin: 0 }); }
@@ -355,9 +380,65 @@ export function createFxMap(H, marks, ctx) {
     } else if (a.arc) { marks.arcEnd(a.arc); a.arc = null; }
   }
 
+  // ---- the beats of a beast's skills ----
+  const heroOf = (uid) => { const u = uid ? ctx.unit(uid) : null; return u && u.hero ? u : null; };
+  const skillOf = (u, slot) => (slot === 'ult' ? u.def && u.def.ult : u.skills && (u.skills.find((s) => s.slot === slot) || {}).def);
+  // seconds from a cast to its first impact: the longest own delay of a self-timed op, capped; 0 when it lands at once
+  function waitOf(def) { let w = 0; if (def && def.ops) for (const o of def.ops) if (o.delay && SELF_TIMED.has(o.op)) w = Math.max(w, o.delay); return Math.min(0.9, w); }
+  function heroCast(u, slot) {
+    const def = skillOf(u, slot); const wait = waitOf(def); lastCast.set(u.uid, { t: ctx.time(), slot, wait });
+    if (slot !== 'ult') beats.gong(u, wait || HOLD, { color: ctx.colorOf(u.uid) });
+  }
+  // an instant skill's part arrives in the cast's own tick: drawn HOLD later, after the wind-up
+  const instant = (uid) => { const c = lastCast.get(uid); return !!c && !c.wait && c.slot !== 'ult' && c.t === ctx.time(); };
+  function heroBung(u, e, shape) {
+    if (bungLeft-- <= 0) return;
+    const c = lastCast.get(u.uid); const isUlt = c && c.slot === 'ult' && ctx.time() - c.t < 0.05;
+    let x = e.x; let z = e.z; let r = e.r || (shape === 'bolt' ? 1.6 : 2); const o = { color: ctx.colorOf(u.uid) };
+    if (e.part === 'cone') { x = e.x + Math.cos(e.ang) * e.r * 0.55; z = e.z + Math.sin(e.ang) * e.r * 0.55; r = e.r * 0.6; }
+    if (e.part === 'line') { o.line = [e.x, e.z, e.x2, e.z2, e.w]; x = e.x2; z = e.z2; r = Math.max(1.2, e.w * 1.5); }
+    beats.bung(u, isUlt && shape === 'burst' && r >= 4 ? 'ult' : shape, x, z, r, o);
+    if (shape === 'burst') { const J = juice(); if (J && J.skillHit && !isUlt) J.skillHit(r); }
+    knock(u, e, c);
+  }
+  // knock-back you can see: the foes a burst pushes skid away on a short torn scar and a puff of dust
+  function knock(u, e, c) {
+    if (e.part !== 'burst' || !c) return; const def = skillOf(u, c.slot); const op = def && def.ops && def.ops.find((o) => o.kb); if (!op) return;
+    const B = window.__G && window.__G.B; if (!B) return; let n = 0;
+    for (const f of B.enemies) {
+      if (!f.alive || n >= 8) continue; const dx = f.x - e.x; const dz = f.z - e.z; const d = Math.hypot(dx, dz); if (d > (e.r || 2) + 0.5 || d < 0.05) continue;
+      n++; const L = Math.min(2.4, op.kb + 0.4); const ux = dx / d; const uz = dz / d;
+      beats.decals.add({ x: f.x - ux * L * 0.5, z: f.z - uz * L * 0.5, sx: L * 0.55, sz: 0.35, rot: Math.atan2(uz, ux), kind: 4, color: 0x2a2018, glow: 0x6a5040, life: 1.6 });
+      if (budget.puff-- > 0) G.fx.puff(V(f.x, 0.3, f.z), { vel: V(ux * 3, 0.6, uz * 3), drag: 2.4, s0: 0.6, s1: 1.6, life: 0.6, c0: 0xb8ae98, c1: 0x8a8070, a0: 0.5 });
+    }
+  }
+  // a beast's hit on a foe: a short glint where it lands; a critical is a bigger gold star with rays
+  function hitFeel(e) {
+    const by = heroOf(e.by); if (!by || e.dot || e.x === undefined) return;
+    const t = ctx.unit(e.uid); const y = t && t.boss ? 2.4 : 1.1;
+    if (e.crit) {
+      beats.sparks.emit({ x: e.x, y, z: e.z, life: 0.16, w: 0.9, len: 0.9, stretch: 0, color: 0xffe9a0, a: 0.9, kind: 1 });
+      beats.sparks.burst(e.x, y, e.z, 6, { speed: [5, 9], up: 0.5, colors: [0xffd860, 0xfff0c0], w: 0.07, len: 0.25, life: 0.22, grav: 0 });
+      bump('crit_glint'); return;
+    }
+    if (hitLeft-- <= 0) return;
+    const sk = beats.skinOf(by, ctx.colorOf(by.uid));
+    beats.sparks.burst(e.x, y, e.z, 3, { speed: [3, 6], up: 0.4, colors: [sk.core, sk.edge], w: 0.06, len: 0.18, life: 0.16, grav: 0 });
+  }
+  function hold(uid) { if (!held.has(uid)) held.set(uid, []); }
+  function release(uid) {
+    const q = held.get(uid); if (!q) return; held.delete(uid);
+    const u = ctx.unit(uid);
+    if (u) { beats.bung(u, 'release', u.x, u.z, 3, { color: ctx.colorOf(uid) }); bump('ult_release'); }
+    for (const e of q) dispatch(e);
+  }
+
   // ---- event handlers: return nothing; ctx supplies unit lookups ----
   const ON = {
     fx(e) {
+      const hu = e.team !== 1 && heroOf(e.by || e.uid);
+      if (hu && instant(hu.uid) && !e.late) { beats.later(HOLD, () => ON.fx({ ...e, late: true })); return; }
+      if (hu && PART_SHAPE[e.part]) heroBung(hu, e, PART_SHAPE[e.part]);
       const k = look(e.key); if (!k) { PART.burst(e, KEYS.slash, STYLE.steel); return; }
       const p = pal(k); const f = PART[e.part]; if (!f) return;
       f(e, k, p); bump(e.key);
@@ -370,6 +451,7 @@ export function createFxMap(H, marks, ctx) {
       const k = look(e.key); marks.tele(e.team === 1 && BOSS_KEYS.has(e.key) ? { ...e, boss: true } : e, k && k.fall); if (k) bump(e.key);
     },
     zone(e) {
+      if (e.team === 0) { const B = window.__G && window.__G.B; const u = B && B.heroes.find((h) => h.alive && lastCast.has(h.uid) && lastCast.get(h.uid).t === ctx.time()); if (u) beats.later(e.delay || (instant(u.uid) ? HOLD : 0), () => beats.bung(u, 'zone', e.x, e.z, e.r, { color: ctx.colorOf(u.uid) })); }
       const k = look(e.key); if (!k || !k.z) { if (k) bump(e.key); return; }
       marks.zoneStart(e, k.z); bump(e.key);
       const p = pal(k); marks.ring(e.x, e.z, 0.5, e.r, p[1], 0.5, 0.7);
@@ -377,11 +459,11 @@ export function createFxMap(H, marks, ctx) {
     },
     zone_end(e) { marks.zoneEnd(e.id); },
     // nothing on the ground outlives the wave: warnings, zones, rings and Blockade Z's decals go when it is cleared or the battle ends
-    wave_clear() { G.fx.clear(); marks.clear(); },
-    won() { G.fx.clear(); marks.clear(); },
-    lost() { G.fx.clear(); marks.clear(); },
+    wave_clear() { G.fx.clear(); marks.clear(); beats.clear(); },
+    won() { G.fx.clear(); marks.clear(); beats.clear(); },
+    lost() { G.fx.clear(); marks.clear(); beats.clear(); },
     cast(e) {
-      const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (!k) return; bump(e.key);
+      const u = ctx.unit(e.uid); if (!u) return; if (u.hero) heroCast(u, e.slot); const k = look(e.key); if (!k) return; bump(e.key);
       const p = u.hero ? [0xffffff, ctx.colorOf(e.uid)] : pal(k);
       rise(u.x, u.z, p[1], 5, 0.8); marks.flare(u.x, u.z, 2, p[1], 0.5, 0.3);
       if (k.snd && !u.hero) snd(k.snd, u.x, u.z, 0.5);
@@ -389,14 +471,29 @@ export function createFxMap(H, marks, ctx) {
     },
     ult(e) {
       const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (k) bump(e.key);
+      lastCast.set(u.uid, { t: ctx.time(), slot: 'ult', wait: 0 });
+      const J = juice(); const wait = J && J.ultBegin ? J.ultBegin(e) : 0;
+      beats.gong(u, wait || HOLD, { ult: true, real: wait > 0, color: ctx.colorOf(u.uid) });
+      if (wait > 0) {
+        hold(u.uid); held.get(u.uid).push({ ...e, e: 'ultFx' });
+        // a tracer still in flight would stand frozen through the hold and pass the close-up lens as a thick white bar
+        if (G.fx.dbgTracers) for (const t of G.fx.dbgTracers) { t.life = 0; t.m.visible = false; }
+      } else ON.ultFx(e);
+    },
+    // the ultimate's base look at the caster, drawn when its wind-up is over
+    ultFx(e) {
+      const u = ctx.unit(e.uid); if (!u) return;
       if (e.key === 'blades') cuts = { t0: ctx.time(), i: 0, q: [], uid: e.uid, n: 0 };
       const c = ctx.colorOf(e.uid); const col = new THREE.Color(c);
       marks.flare(u.x, u.z, 4.5, c, 0.9, 0.3); marks.ring(u.x, u.z, 0.5, ULT_SPAN, c, 0.7, 0.8); marks.ring(u.x, u.z, 0.3, ULT_SPAN * 0.6, c, 0.55, 0.4);
       pop(u.x, 1, u.z, 1.1, [col.getHex(), col.getHex()]); snd('wave_start', u.x, u.z, 0.4);
       const cc = { a: c, b: mixHex(c, 0xffffff, 0.35) }; marks.wash(c, 0.8, 0.22);
-      layers(GENERIC_ULT, u.x, u.z, cc, ULT_SPAN, e); layers(VERT[e.key] && VERT[e.key].ult, u.x, u.z, cc, ULT_SPAN, e);
+      const J = juice(); layers(J && J.ult && J.ult.active ? GENERIC_ULT.filter((L) => L[0] !== 'pillar') : GENERIC_ULT, u.x, u.z, cc, ULT_SPAN, e); layers(VERT[e.key] && VERT[e.key].ult, u.x, u.z, cc, ULT_SPAN, e);
     },
     dash(e) {
+      const hu = heroOf(e.uid);
+      if (hu && instant(hu.uid) && !e.late) { beats.later(HOLD, () => ON.dash({ ...e, late: true })); return; }
+      if (hu && bungLeft-- > 0) beats.bung(hu, 'dash', e.x2, e.z2, 2, { color: ctx.colorOf(hu.uid), line: [e.x, e.z, e.x2, e.z2, 1.4] });
       const k = look(e.key); if (k) bump(e.key);
       const p = pal(k); const dx = e.x2 - e.x; const dz = e.z2 - e.z; const d = Math.hypot(dx, dz);
       marks.strip(e.x, e.z, e.x2, e.z2, 1.1, p[1], 0.35, 0.7);
@@ -410,6 +507,7 @@ export function createFxMap(H, marks, ctx) {
     summon(e) {
       const u = ctx.unit(e.owner); const c = u && u.hero ? ctx.colorOf(e.owner) : 0xb0c0ff;
       pop(e.x, 0.6, e.z, 1.1, [0xffffff, c]); rise(e.x, e.z, c, 6, 1); bump('summon'); snd('pickup', e.x, e.z, 0.3);
+      if (u && u.hero && bungLeft-- > 0) beats.bung(u, 'heal', e.x, e.z, 1.4, { color: c });
     },
     spawn(e) {
       if (arenaNorm(e.x, e.z) < 0.98) { // spawned inside the arena by a skill: the old pop
@@ -458,6 +556,7 @@ export function createFxMap(H, marks, ctx) {
       if (budget.puff-- > 0) G.fx.puff(V(e.x, 0.5, e.z), { s0: 0.6, s1: 1.9, life: 0.55, c0: 0xa8a49c, c1: 0x7a766e, a0: 0.45 });
     },
     hit(e) {
+      hitFeel(e);
       if (dashWin.uid && e.by === dashWin.uid && ctx.time() <= dashWin.until && !e.dot && e.x !== undefined) dashHit(e);
       const u = ctx.unit(e.uid); if (!u || !u.hero) return;
       if (e.shield) { pop(u.x, 1.2, u.z, 0.45, [0xffffff, 0x9ad8ff]); return; }
@@ -465,13 +564,16 @@ export function createFxMap(H, marks, ctx) {
       pop(u.x, 1.3, u.z, 0.45, [0xffffff, 0xff5060]);
     },
     block(e) { const u = ctx.unit(e.uid); if (u) { pop(u.x, 1.3, u.z, 0.5, [0xffffff, 0xffd860]); marks.flash(u.x, 1.3, u.z, 1.2, 0xffd860, 0.3); } },
-    buff(e) { const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (k) bump(e.key); const p = pal(k); rise(u.x, u.z, p[1], 10, 1.1); },
+    buff(e) { const u = ctx.unit(e.uid); if (!u) return; const k = look(e.key); if (k) bump(e.key); const p = pal(k); rise(u.x, u.z, p[1], 10, 1.1); if (u.hero && lastCast.has(u.uid) && lastCast.get(u.uid).t === ctx.time() && bungLeft-- > 0) beats.bung(u, 'self', u.x, u.z, 2.2, { color: ctx.colorOf(u.uid) }); },
     state(e) {
       const u = ctx.unit(e.uid); if (!u) return; const k = look(e.fx); if (k) bump(e.fx);
       const p = STATE[e.key] || pal(k); rise(u.x, u.z, p[1], 10, 1.1); snd('saber_on', u.x, u.z, 0.3);
+      if (u.hero && lastCast.has(u.uid) && lastCast.get(u.uid).t === ctx.time() && bungLeft-- > 0) beats.bung(u, 'self', u.x, u.z, 2.2, { color: ctx.colorOf(u.uid) });
     },
     status(e) { const u = ctx.unit(e.uid); if (u && u.hero) { const c = { burn: 0xff7030, poison: 0x78d838, freeze: 0x8ae0ff, slow: 0x8ab8ff, stun: 0xffe860, root: 0x8a6a44, bleed: 0xc02838 }[e.k]; if (c) rise(u.x, u.z, c, 4, 0.7); } },
   };
+
+  function dispatch(e) { const h = ON[e.e]; if (h) h(e); }
 
   // ---- basic attacks ----
   function attack(e, from, hero) {
@@ -480,7 +582,13 @@ export function createFxMap(H, marks, ctx) {
     const tgt = V(e.tx, 1.0, e.tz); const kind = k.atk;
     if (e.kind === 'shot' || e.kind === 'cone') {
       const n = e.kind === 'cone' ? 3 : 1;
-      for (let i = 0; i < n; i++) G.fx.tracer(from.clone(), V(e.tx + G.rng.range(-0.3, 0.3) * (n > 1 ? 2 : 1), 1.0, e.tz + G.rng.range(-0.3, 0.3)), cols[1]);
+      // in the ultimate's close-up a tracer box passes near the lens as a thick white bar: a streak of light in its colour instead
+      const J = juice(); const close = J && J.ult && J.ult.active;
+      for (let i = 0; i < n; i++) {
+        const to = V(e.tx + G.rng.range(-0.3, 0.3) * (n > 1 ? 2 : 1), 1.0, e.tz + G.rng.range(-0.3, 0.3));
+        if (close) { const d = to.clone().sub(from); const L = d.length() || 1; beats.sparks.emit({ x: from.x, y: from.y, z: from.z, vx: d.x / 0.08, vy: d.y / 0.08, vz: d.z / 0.08, life: 0.08, w: 0.06, len: Math.min(2, L * 0.3), stretch: 0, color: cols[1], a: 0.8 }); }
+        else G.fx.tracer(from.clone(), to, cols[1]);
+      }
       G.fx.muzzle(from); if (e.key === 'shuriken' || e.key === 'javelin') pop(e.tx, 1, e.tz, 0.5, cols);
       if (!hero) snd(e.key === 'plasma' ? 'smg' : 'pistol', e.x, e.z, 0.3);
       return;
@@ -548,10 +656,15 @@ export function createFxMap(H, marks, ctx) {
 
   return {
     KEYS, counters, missing, STYLE, look,
-    onEvent(e) { const h = ON[e.e]; if (h) h(e); },
+    onEvent(e) { if (held.size && e.e !== 'ult') { for (const q of held.values()) { q.push(e); return; } } dispatch(e); },
+    hold, release, held, beats,
     attack, swordArc, WHIRL_DUR,
-    update(B, dt) { budget = { pop: 8, boom: 2, puff: 60 }; vb = 28; if (B) { syncProjs(B, dt); unitsFx(B, dt); updateCuts(B); } marks.update(dt, B); },
-    clear() { for (const r of projs.values()) dropProj(r); projs.clear(); marks.clear(); cuts = null; dashWin.uid = 0; },
+    update(B, dt) {
+      budget = { pop: 8, boom: 2, puff: 60 }; vb = 28; bungLeft = BUNG_CAP; hitLeft = HIT_CAP;
+      if (B) { syncProjs(B, dt); unitsFx(B, dt); updateCuts(B); } marks.update(dt, B, beats.zap);
+      const J = juice(); beats.update(dt, J ? J.realDt || dt : dt);
+    },
+    clear() { for (const r of projs.values()) dropProj(r); projs.clear(); marks.clear(); beats.clear(); held.clear(); lastCast.clear(); cuts = null; dashWin.uid = 0; },
     wrapA,
   };
 }

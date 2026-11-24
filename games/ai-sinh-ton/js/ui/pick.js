@@ -1,9 +1,9 @@
 // Upgrade pick between waves: a modal over the frozen fight. One hero at a time, three rarity-framed card buttons,
 // a progress row of the four heroes and an auto-pick button. The sim decides what is open (B.phase, B.picked);
 // this screen only mirrors it, so an auto pick from anywhere closes it as well.
-import { HERO } from '../data/heroes.js?v=20261122a';
-import { CARD, CARD_RARITY } from '../data/cards.js?v=20261122a';
-import { clamp, easeOut, heroColor, kill, roundPlane } from './hud.js?v=20261122a';
+import { HERO } from '../data/heroes.js?v=20261124a';
+import { CARD, CARD_RARITY } from '../data/cards.js?v=20261124a';
+import { clamp, easeOut, heroColor, kill, roundPlane } from './hud.js?v=20261124a';
 
 // 780 x 360: hero being upgraded at the left, three cards side by side in the middle, the auto button at the right
 const CARD_W = 152, CARD_H = 222, CARD_GAP = 8, CARDS_X = 166, CARDS_Y = 70, OUT_T = 0.34, IN_T = 0.3;
@@ -67,7 +67,7 @@ export function createPick(game) {
     if (u.cards.length) { content.put(ui.text('Đang có:', { size: 11, align: 'left', valign: 'mid', color: 0xffe9a6, outlineW: 1.3 }), 28, 226, 2); content.put(heldRow(u), 28, 236, 0); }
     else content.put(ui.text('Chưa có thẻ nào', { size: 11, align: 'center', valign: 'mid', color: 0xb9b3cc, outlineW: 1.3 }), 92, 232, 2);
     cardNodes = B.offers[slot].map((id, k) => { const b = cardButton(slot, k, id); b.homeX = CARDS_X + k * (CARD_W + CARD_GAP); content.put(b, b.homeX, CARDS_Y, 0); return b; });
-    shown = slot; sub.set(`Sau đợt ${B.wave}  ·  Tướng ${slot + 1}/${B.heroes.length}`);
+    shown = slot; sub.set(`Sau đợt ${B.wave}  ·  Thú ${slot + 1}/${B.heroes.length}`);
   }
 
   function choose(slot, k) {

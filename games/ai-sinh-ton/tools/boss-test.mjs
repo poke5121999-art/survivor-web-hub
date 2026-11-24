@@ -63,9 +63,10 @@ const SETUP = async ([n, kind, clean]) => {
   G.cam.spectate(clean && u.fly ? u.uid : 0); window.__step(90);
   const pool = G.host.G.zombies.list;
   const body = () => { const r = G.actors.nodeOf(u.uid); const z = pool.find((q) => q.body.root === r); return z && z.body; };
-  const nodes = () => { const out = []; body().root.traverse((o) => out.push(o)); return out; };
+  // the Z.update hook outlives this boss: once another fight has replaced it there is no body to read
+  const nodes = () => { const out = []; const b = body(); if (b) b.root.traverse((o) => out.push(o)); return out; };
   // every joint's rotation and position, the root's own heading and position left out (that is the walk, not the pose)
-  const snap = () => { const a = []; for (const o of nodes()) { const root = o === body().root; a.push(o.rotation.x, root ? 0 : o.rotation.y, o.rotation.z); if (!root) a.push(o.position.x, o.position.y, o.position.z); } return a; };
+  const snap = () => { const a = []; const b = body(); for (const o of nodes()) { const root = o === b.root; a.push(o.rotation.x, root ? 0 : o.rotation.y, o.rotation.z); if (!root) a.push(o.position.x, o.position.y, o.position.z); } return a; };
   const names = []; for (const o of nodes()) { const root = o === body().root; const id = (o.type || '') + ':' + (o.parent ? o.parent.children.indexOf(o) : 0) + (o.isInstancedMesh ? 'I' : ''); for (const c of root ? ['rx', 'ry', 'rz'] : ['rx', 'ry', 'rz', 'px', 'py', 'pz']) names.push(id + '.' + c); }
   const Z = G.host.G.zombies; const st = { pre: null, post: null };
   if (!Z.__wrapped) { const orig = Z.update; Z.update = function (dt) { const r = orig.call(this, dt); if (window.__bt && window.__bt.snap) window.__bt.st.pre = window.__bt.snap(); return r; }; Z.__wrapped = true; }
@@ -183,12 +184,17 @@ try {
           D.dress(n2); await new Promise((res) => setTimeout(res, 700));
           const b = D.boss; if (!b) return { err: 'no boss' };
           // the boss's visible geometries against a battle body of the same zombie type
-          const geos = new Set(); b.updateMatrixWorld(true); b.traverseVisible((o) => { if (o.isMesh && o.geometry) geos.add(o.geometry.uuid); });
+          // (only meshes on the camera's layer: the pool meshes a shell replaces stay in the tree, off the layer)
+          const geos = new Set(); b.updateMatrixWorld(true); b.traverseVisible((o) => { if (o.isMesh && o.geometry && (o.layers.mask & 1)) geos.add(o.geometry.uuid); });
           const pool = H.G.zombies.list; const T = window.BZ.ZOMBIES[k];
           const ref = pool.find((z) => z.T === T) || null; const refGeos = new Set();
           if (ref) ref.body.root.traverse((o) => { if (o.isMesh && o.geometry) refGeos.add(o.geometry.uuid); });
+          const qv = (document.querySelector('script[src*="main.js"]').src.match(/\?.*$/) || [''])[0];
+          const FB = await import(new URL('js/view/foe/bosses.js' + qv, location.href).href); for (const g of FB.shellGeos(k)) refGeos.add(g.uuid);
           let same = 0; for (const g of geos) if (refGeos.has(g)) same++;
-          // the boss's box corners through the diorama camera, in the camera's -1..1 frame
+          // the boss's box corners through the diorama camera, in the camera's -1..1 frame. The camera's matrices are brought up
+          // to date as a render would: the home screen opens on the world map, so the diorama may not have drawn yet
+          D.node.camera.updateMatrixWorld(true);
           const box = new THREE.Box3(); b.traverseVisible((o) => { if (o.isMesh) box.expandByObject(o); }); const v = new THREE.Vector3(); let lo = [9, 9], hi = [-9, -9];
           for (let i = 0; i < 8; i++) { v.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).project(D.node.camera); lo = [Math.min(lo[0], v.x), Math.min(lo[1], v.y)]; hi = [Math.max(hi[0], v.x), Math.max(hi[1], v.y)]; }
           // the diorama's own draws: its scene rendered once into its target
@@ -224,20 +230,24 @@ try {
       const G = window.__G; const J = G.juice;
       const sc = G.screens && G.screens[G.screen]; if (sc && sc.hide) sc.hide();
       G.start(3, { seed: 9, wave: 3, team: ['thep', 'mua', 'yta', 'gio'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } });
-      window.__sim(4); J.reset(); J.enabled = true; G.paused = false; G.speed = 1;
+      window.__sim(4); J.reset(); J.stops.length = 0; J.enabled = true; G.paused = false; G.speed = 1;
       const B = G.B; const rows = []; let game = 0; let last = 0; let hitAt = -1; let stallNext = false;
       const raf = () => new Promise((r) => requestAnimationFrame(r));
       last = await raf();
       for (let i = 0; i < 120; i++) {
         const ts = await raf(); if (stallNext) { stallNext = false; const e = performance.now() + stall; while (performance.now() < e) { /* the long frame */ } }
         const raw = (ts - last) / 1000; game += Math.min(0.1, raw); last = ts;
-        rows.push({ game, Bt: B.t, stopped: J.stopped, cut: Math.max(0, raw - 0.1) });
+        rows.push({ game, Bt: B.t + (G.simAcc || 0), stopped: J.stopped, cut: Math.max(0, raw - 0.1) });
         if (i === 40) { J.hit(ms, { force: true }); hitAt = rows.length - 1; stallNext = stall > 0; }
       }
       G.paused = true;
-      // sim clock minus game clock, averaged before the stop and well after it: the drop is the time the stop took
+      // sim clock minus game clock, averaged before the stop and well after it: the drop is the time the stop took. The sim clock
+      // counts the loop's held-back time (G.simAcc): B.t alone moves in 1/30 s ticks, and its phase against the frames moved
+      // the averages by up to a frame (lost 83-108 ms over runs of the same 138 ms stop)
       const off = (a, b) => { let s = 0; for (let i = a; i < b; i++) s += rows[i].Bt - rows[i].game; return s / (b - a); };
-      const lost = (off(5, hitAt) - off(hitAt + 30, rows.length)) * 1000;
+      // the fight goes on around the forced stop: a kill streak or a wide skill burst takes its own stop, which is not this one's
+      const others = J.stops.filter((st) => !st.force).reduce((a, st) => a + (st.real ?? st.ms), 0);
+      const lost = (off(5, hitAt) - off(hitAt + 30, rows.length)) * 1000 - others;
       const cut = rows.slice(hitAt, hitAt + 10).reduce((a, r) => a + r.cut, 0) * 1000;
       return { lost, cut, frames: rows.filter((r) => r.stopped).length, stops: J.stops.map((s) => [s.ms, Math.round(s.real || 0)]) };
     };

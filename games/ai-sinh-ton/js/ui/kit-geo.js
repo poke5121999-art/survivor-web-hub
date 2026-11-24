@@ -113,18 +113,36 @@ export function makeGeo(THREE) {
       const list = [{ g: slab(w, h, r, depth, bevel), color }];
       const moved = (g, dx, dy, dz) => { const c = g.index ? g.toNonIndexed() : g.clone(); c.translate(dx, dy, dz); return c; };
       if (outline != null) list.unshift({ g: moved(plate(w + ow * 2, h + ow * 2, r + ow), -ow, ow, -bevel - 0.6), color: outline });
-      if (gloss) { const ins = bevel + 2.5, gw = w - ins * 2, gh = Math.max(5, (h - ins * 2) * 0.4); list.push({ g: moved(plate(gw, gh, Math.max(2, r - ins)), ins, -ins, depth + bevel + 0.15), color: mix(color, 0xffffff, 0.2) }); }
+      if (gloss) { const ins = bevel + 2.5, gw = w - ins * 2, gh = Math.max(5, (h - ins * 2) * 0.32); list.push({ g: moved(plate(gw, gh, Math.max(2, r - ins)), ins, -ins, depth + bevel + 0.15), color: mix(color, 0xffffff, 0.09) }); }
       return merge(list);
     });
   }
   // the static underside of a button: its ink outline and its darker base slab
   function buttonBack(w, h, lip, r, color) {
     return memo(`bb${k(w)}|${k(h)}|${lip}|${k(r)}|${color}`, () => {
-      const o = plate(w + 6, h + lip + 6, r + 3).clone().toNonIndexed(); o.translate(-3, 3, -4);
+      const ro = 1.6, o = plate(w + ro * 2, h + lip + ro * 2, r + ro).clone().toNonIndexed(); o.translate(-ro, ro, -4);
       const b = slab(w, h, r, 3, 2).clone(); b.translate(0, -lip, 0);
-      return merge([{ g: o, color: 0x120a1c }, { g: b, color: shade(color, -0.45) }]);
+      return merge([{ g: o, color: shade(color, -0.68) }, { g: b, color: shade(color, -0.4) }]);
     });
   }
 
-  return { rrShape, slab, plate, plateUV, quad, arcTube, shadow, std, basic, shade, mix, merge, panelBody, buttonBack };
+  // a button face: the bevelled slab with its colour running from a lifted top to a slightly deeper bottom (lit material,
+  // no white stripe)
+  function buttonFace(w, h, r, color) {
+    return memo(`bf${k(w)}|${k(h)}|${k(r)}|${color}`, () => {
+      const g = slab(w, h, r, 6, 3).clone(), p = g.attributes.position, col = new Float32Array(p.count * 3), top = new THREE.Color(shade(color, 0.16)), bot = new THREE.Color(shade(color, -0.14)), c = new THREE.Color();
+      for (let i = 0; i < p.count; i++) { const t = Math.min(1, Math.max(0, -p.getY(i) / h)); c.copy(top).lerp(bot, t * t * (3 - 2 * t)); col.set([c.r, c.g, c.b], i * 3); }
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3)); return g;
+    });
+  }
+  // a soft sheen across the upper part of a face: white whose alpha fades from the top edge to nothing at 55% height
+  function sheen(w, h, r) {
+    return memo(`sh${k(w)}|${k(h)}|${k(r)}`, () => {
+      const g = new THREE.ShapeGeometry(rrShape(w, h, r), 8); const p = g.attributes.position, col = new Float32Array(p.count * 4);
+      for (let i = 0; i < p.count; i++) { const t = (h / 2 - p.getY(i)) / h, a = Math.max(0, 1 - t / 0.55); col.set([1, 1, 1, 0.26 * a * a], i * 4); }
+      g.setAttribute('color', new THREE.BufferAttribute(col, 4)); g.translate(w / 2, -h / 2, 0); return g;
+    });
+  }
+
+  return { rrShape, slab, plate, plateUV, quad, arcTube, shadow, std, basic, shade, mix, merge, panelBody, buttonBack, buttonFace, sheen };
 }

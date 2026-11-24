@@ -8,6 +8,7 @@ import { serve, launch, open, checker, sheet, ROOT } from './pw.mjs';
 import { HERO } from '../js/data/heroes.js';
 import { UNLOCK } from '../js/data/unlocks.js';
 import { itemStat } from '../js/data/equip.js';
+import { beastWords } from '../js/ui/words.js';
 
 const OUT = path.join(ROOT, '.chk', 'ftue-run-' + process.pid); fs.mkdirSync(OUT, { recursive: true });
 const LAND = path.join(ROOT, '.chk', 'landscape'); fs.mkdirSync(LAND, { recursive: true });
@@ -61,11 +62,12 @@ for (PHONE of PHONE_LIST) {
   const g = await fresh(); const { page } = g;
   await step(page, 20);
   const s0 = await page.evaluate(() => ({ screen: __G.screen, level: __G.meta.acc.level, heroes: Object.keys(__G.meta.acc.heroes), next: __G.meta.ftueNext({ screen: 'home', event: 'home' }), guide: __G.guide.dbg().active }));
-  check(s0.screen === 'home' && s0.level === 1 && s0.heroes.join() === 'gio' && s0.next === null && !s0.guide, 'fresh save: home, level 1, only Gió, no guide before the first stage');
+  check(s0.screen === 'home' && s0.level === 1 && s0.heroes.join() === 'chon' && s0.next === null && !s0.guide, 'fresh save: home, level 1, only Chồn Gió, no guide before the first stage');
   await snap(page, '00-home-fresh');
   const lockedTabs = await page.evaluate(() => __ui.targets().filter((t) => /^team-[123]$/.test(t.id)).length);
   check(lockedTabs === 3, 'fresh save: team slots 2 to 4 are visible targets (locked, they toast)');
 
+  let storyRun = false;
   const seq = []; const labels = []; let last = ''; let frozenOk = null; let resultInfo = null; let bad = 0; let n = 0;
   for (let it = 0; it < 2500; it++) {
     const st = await page.evaluate(() => ({ d: __G.guide.dbg(), screen: __G.screen, phase: __G.B && __G.B.phase, stage: __G.stageN, cleared: __G.meta.acc.cleared, session: __G.meta.acc.ftue.session, inBattle: !!__G.B }));
@@ -76,6 +78,21 @@ for (PHONE of PHONE_LIST) {
       resultInfo = await page.evaluate(() => ({ ...__G.screens.result.dbg(), xp: __G.lastReward.xp, lb: __G.lastReward.levelBefore, la: __G.lastReward.levelAfter, unlocked: __G.lastReward.unlocked, giftIds: __G.lastReward.gifts, won: __G.lastReward.won }));
       await snap(page, 'result-tutorial');
       continue;
+    }
+    if (d.story && d.story.on) {
+      if (!storyRun) {
+        await step(page, 40);
+        const t0 = await page.evaluate(() => __G.B.t); await step(page, 40); const t1 = await page.evaluate(() => __G.B.t);
+        const sd = await page.evaluate(() => ({ s: __G.guide.dbg().story, guide: __G.guide.dbg().active, skip: __ui.targets().some((q) => q.id === 'story-skip') }));
+        check(t0 === t1 && sd.s.shown === 1 && sd.s.lines.length === 2 && !sd.guide && sd.skip, `${P}the first fight opens on the story: fight frozen (t ${t0.toFixed(2)} -> ${t1.toFixed(2)}), line 1 of ${sd.s.lines.length}, BỎ QUA offered, no guide step yet`);
+        await snap(page, '00-story-1');
+        const [sx, sy] = await safePt(page); await tapAt(page, sx, sy); await step(page, 40);
+        const s2 = await page.evaluate(() => __G.guide.dbg().story);
+        check(s2.on && s2.shown === 2, `${P}a tap shows the second line ("${s2.lines[1]}")`);
+        await snap(page, '00-story-2');
+        storyRun = true; seq.push('story');
+      }
+      const [sx, sy] = await safePt(page); await tapAt(page, sx, sy); await step(page, 6); continue;
     }
     if (d.reveal) {
       if (!labels.includes(d.reveal.label)) { labels.push(d.reveal.label); await step(page, 100); await snap(page, `r-${String(labels.length).padStart(2, '0')}-reveal`); }
@@ -156,15 +173,15 @@ for (PHONE of PHONE_LIST) {
   // the first full ultimate and the first pick come in whichever order the fight gives them
   const swap = seq.indexOf('pick:card1') >= 0 && seq.indexOf('pick:card1') < seq.indexOf('ult:ult0');
   if (swap) { const i = seq.indexOf('pick:card1'); seq[i] = 'ult:ult0'; seq[i + 1] = 'pick:card1'; }
-  const want = ['intro:free', 'ult:ult0', 'pick:card1', 'join:free', 'boss:free', 'reward:home', 'levelup:tab-heroes', 'levelup:hero-gio', 'levelup:levelup', 'levelup:back', 'gacha:tab-gacha', 'gacha:pull1', 'gacha:done', 'team:tab-heroes', 'team:hero-mua', 'team:team-toggle', 'team:back', 'start2:tab-battle', 'start2:start'];
+  const want = ['story', 'intro:free', 'ult:ult0', 'pick:card1', 'join:free', 'boss:free', 'reward:home', 'levelup:tab-heroes', 'levelup:hero-chon', 'levelup:levelup', 'levelup:back', 'gacha:tab-gacha', 'gacha:pull1', 'gacha:done', 'team:tab-heroes', 'team:hero-nhim', 'team:team-toggle', 'team:back', 'start2:tab-battle', 'start2:start'];
   check(JSON.stringify(seq) === JSON.stringify(want), `the guide walked ${seq.length} steps in order (${seq.join(' ')})`);
   check(bad === 0, 'every tap on a target moved the guide on');
   check(!!resultInfo && resultInfo.won && resultInfo.xp === 140 && resultInfo.lb === 1 && resultInfo.la === 2, `tutorial result: won, 140 xp, level 1 -> 2 (${JSON.stringify(resultInfo && [resultInfo.won, resultInfo.xp, resultInfo.lb, resultInfo.la])})`);
-  check(!!resultInfo && resultInfo.xpText === '+140 XP' && resultInfo.lvUp === 'LÊN CẤP 2!' && resultInfo.gifts.join() === HERO.yta.name, `tutorial result screen shows "${resultInfo && resultInfo.xpText}", "${resultInfo && resultInfo.lvUp}" and the gift ${resultInfo && resultInfo.gifts}`);
+  check(!!resultInfo && resultInfo.xpText === '+140 XP' && resultInfo.lvUp === 'LÊN CẤP 2!' && resultInfo.gifts.join() === HERO.loc.name, `tutorial result screen shows "${resultInfo && resultInfo.xpText}", "${resultInfo && resultInfo.lvUp}" and the gift ${resultInfo && resultInfo.gifts}`);
   check(JSON.stringify(resultInfo && resultInfo.unlocked) === JSON.stringify(['slot2', 'levelup', 'gacha']), 'tutorial result lists the three new unlocks');
-  check(labels.join('|') === ['slot2', 'levelup', 'gacha'].map((id) => 'MỞ KHOÁ: ' + UNLOCK[id].name.toLocaleUpperCase('vi')).join('|'), `the reveal played once per unlock (${labels.join(' | ')})`);
+  check(labels.join('|') === ['slot2', 'levelup', 'gacha'].map((id) => 'MỞ KHOÁ: ' + beastWords(UNLOCK[id].name).toLocaleUpperCase('vi')).join('|'), `the reveal played once per unlock (${labels.join(' | ')})`);
   const fin = await page.evaluate(() => ({ heroes: Object.keys(__G.meta.acc.heroes).filter((k) => __G.meta.acc.heroes[k].level > 0).sort(), team: __G.meta.acc.team, level: __G.meta.acc.level, stage: __G.stageN, battle: !!__G.B, session: __G.meta.acc.ftue.session, freePull: __G.meta.acc.freePull, tutorial: __G.B && !!__G.B.stage.tutorial }));
-  check(fin.heroes.join() === 'gio,mua,yta' && fin.team.join() === 'gio,mua' && fin.level === 2 && fin.stage === 2 && fin.battle && fin.session && !fin.freePull && !fin.tutorial, `after the session: gio, yta and mua owned, team gio+mua, level 2, stage 2 started (${JSON.stringify(fin)})`);
+  check(fin.heroes.join() === 'chon,loc,nhim' && fin.team.join() === 'chon,nhim' && fin.level === 2 && fin.stage === 2 && fin.battle && fin.session && !fin.freePull && !fin.tutorial, `after the session: chon, loc and nhim owned, team chon+nhim, level 2, stage 2 started (${JSON.stringify(fin)})`);
   await snap(page, 'stage2-started');
   await page.evaluate(() => __sim(3)); await step(page, 5);
   const hud2 = await page.evaluate(() => __G.screens.hud.dbg());
@@ -242,8 +259,24 @@ for (PHONE of PHONE_LIST) {
     await tapId(p, 'team-3'); await step(p, 10);
     check((await p.evaluate(() => __G.screen)) === 'heroes', 'level 7: slot 4 opens the hero chooser');
     await winIn(p, 2, true); await p.evaluate(() => __G.meta.pull(1));
-    const bad = await p.evaluate(() => __G.meta.setTeam(['gio', 'yta', 'mua', 'thep']).ok);
+    const bad = await p.evaluate(() => __G.meta.setTeam(['chon', 'loc', 'nhim', 'tegiap']).ok);
     check(bad === true, 'level 7: four heroes are accepted (all granted by the gifts)');
+    await ctx.close();
+  }
+
+  // ============ the opening story: BỎ QUA closes it and it never comes back ============
+  {
+    const { page: p, ctx, problems } = await fresh(); await step(p, 20);
+    await tapId(p, 'start'); await step(p, 40);
+    let d = await guide(p);
+    check(d.story.on && !d.active, `${P}BẮT ĐẦU on a fresh save opens the story first`);
+    await tapId(p, 'story-skip'); await step(p, 30); d = await guide(p);
+    check(!d.story.on && d.active && d.id === 'intro', `${P}BỎ QUA closes the story and the first guide step comes up (${d.id})`);
+    for (let i = 0; i < 40 && (await guide(p)).id === 'intro'; i++) { await p.evaluate(() => __sim(0.2)); await step(p, 10); }
+    await p.reload(); await p.waitForFunction('window.__ready === true'); await step(p, 20);
+    await tapId(p, 'start'); await step(p, 40); d = await guide(p);
+    check(!d.story.on && (await p.evaluate(() => __G.tutorial)), `${P}after a reload the tutorial fight starts again without the story (story ${d.story.on})`);
+    check(problems.length === 0, `${P}the story logged no errors (${problems.slice(0, 2).join(' | ') || 'none'})`);
     await ctx.close();
   }
 
@@ -403,7 +436,7 @@ for (PHONE of PHONE_LIST) {
       await winIn(q, 1); await q.evaluate(() => __G.meta.ftueSkip());
       for (let k = 0; k < 12; k++) { const a = await accOf(q); if (a.level >= 5) break; await winQ(q, a.cleared + 1); }
       await winQ(q, (await accOf(q)).cleared + 1);
-      await q.evaluate(() => { const M = __G.meta; for (const id of Object.keys(M.acc.heroes)) if (id !== 'gio') delete M.acc.heroes[id]; M.acc.team = ['gio']; __G.goto('home', {}); });
+      await q.evaluate(() => { const M = __G.meta; for (const id of Object.keys(M.acc.heroes)) if (id !== 'chon') delete M.acc.heroes[id]; M.acc.team = ['chon']; __G.goto('home', {}); });
       await step(q, 90);
       for (let k = 0; k < 8 && (await guide(q)).reveal; k++) { await tapId(q, 'reveal-tap'); await step(q, 40); }
       await step(q, 40);
@@ -478,7 +511,7 @@ for (PHONE of PHONE_LIST) {
         check(o.open && o.g.active && o.g.id === 'merge', `one worn copy: merge is open and its guide runs (${JSON.stringify([o.open, o.g.id])})`);
         for (let k = 0; k < 60 && (await guide(q)).active; k++) { const d = await guide(q); if (d.reveal) { await tapId(q, 'reveal-tap'); await step(q, 40); continue; } if (!d.rect) { await step(q, 8); continue; } await tapId(q, d.target); await step(q, 12); }
         await step(q, 80);
-        const r = await q.evaluate(() => ({ bag: __G.meta.acc.bag.map((i) => [i.uid, i.tier]), worn: __G.meta.acc.equip.gio.weapon, done: !!__G.meta.acc.ftue.done.merge }));
+        const r = await q.evaluate(() => ({ bag: __G.meta.acc.bag.map((i) => [i.uid, i.tier]), worn: __G.meta.acc.equip.chon.weapon, done: !!__G.meta.acc.ftue.done.merge }));
         check(r.bag.length === 1 && r.bag[0][1] === 1 && r.worn === r.bag[0][0] && r.done, `the guided merge uses the worn piece as main and it stays worn (${JSON.stringify(r)})`);
       }
       check(pr3.length === 0, `worn-copy merge flow logged no errors (${pr3.slice(0, 2).join(' | ') || 'none'})`);

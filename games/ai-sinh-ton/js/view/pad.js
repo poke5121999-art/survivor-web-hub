@@ -5,8 +5,8 @@
 // Lighting is baked once per stage: cool ambient by normal, a soft key direction, warm falloff from every light,
 // ambient occlusion under steps and at the foot of props. One atlas material (voxtex.js), MeshBasic, so q=low pays nothing
 // per light.
-import { voxAtlas } from './voxtex.js?v=20261122a';
-import { LIGHTS } from './themes.js?v=20261122a';
+import { voxAtlas } from './voxtex.js?v=20261124a';
+import { LIGHTS } from './themes.js?v=20261124a';
 const THREE = window.THREE;
 
 const R2 = Math.SQRT1_2;
@@ -109,7 +109,7 @@ let MAT = null;
 export function voxMaterial() { if (!MAT) { MAT = new THREE.MeshBasicMaterial({ map: voxAtlas().tex, vertexColors: true }); MAT.name = 'vox'; } return MAT; }
 
 // ---- props: each a list of boxes in its local frame (base at y 0); lights come from LIGHTS by kind ----
-const C = { wood: [0.62, 0.5, 0.42], dark: [0.42, 0.42, 0.46], stone: [0.82, 0.8, 0.78], iron: [0.36, 0.36, 0.4], rust: [0.9, 0.62, 0.5], leaf: [0.8, 0.95, 0.8], white: [1, 1, 1] };
+const C = { wood: [0.62, 0.5, 0.42], dark: [0.42, 0.42, 0.46], stone: [0.82, 0.8, 0.78], iron: [0.36, 0.36, 0.4], rust: [0.9, 0.62, 0.5], leaf: [0.8, 0.95, 0.8], white: [1, 1, 1], moss: [0.8, 0.95, 0.75], cap: [2.0, 1.9, 0.6], teal: [0.6, 2.0, 1.7], wisp: [1.6, 2.4, 2.2] };
 const FLAME = [2.4, 1.35, 0.5]; const GLASS = [2.2, 1.6, 0.9];
 function flame(B, x, y, z, s) { B(x, y, z, 0.26 * s, 0.34 * s, 0.26 * s, { side: 'flame' }, FLAME, 1); B(x, y + 0.2 * s, z, 0.14 * s, 0.28 * s, 0.14 * s, { side: 'flame' }, [2.6, 1.9, 1.0], 1); }
 const PROPS = {
@@ -143,6 +143,73 @@ const PROPS = {
   fence: { h: 1.0, b(B) { for (const x of [-1.1, 0, 1.1]) B(x, 0, 0, 0.14, 1.0, 0.14, { side: 'plank' }, C.wood); B(0, 0.4, 0, 2.4, 0.12, 0.08, { side: 'plank' }, C.wood); B(0, 0.75, 0, 2.4, 0.12, 0.08, { side: 'plank' }, C.wood); } },
   bush: { h: 0.9, b(B, th, r) { const lf = th.day ? 'leaves' : 'leaves_teal'; B(0, 0, 0, 0.9, 0.7, 0.9, { side: lf }, C.leaf); if (r.chance(0.6)) B(0.5, 0, 0.3, 0.6, 0.5, 0.6, { side: lf }, C.leaf); } },
   urn: { h: 0.85, b(B) { B(0, 0, 0, 0.4, 0.12, 0.4, { side: 'sandstone' }, C.stone); B(0, 0.12, 0, 0.55, 0.5, 0.55, { side: 'sand_tile' }, [0.9, 0.7, 0.55]); B(0, 0.62, 0, 0.3, 0.2, 0.3, { side: 'sand_tile' }, [0.9, 0.7, 0.55]); } },
+  // forest: a giant trunk on flared roots under a wide stepped canopy
+  // canopy: the crown overhangs the rim terraces; only the trunk and roots count for where it may stand
+  oldtree: { h: 8, canopy: true, b(B, th, r) {
+    B(0, 0, 0, 1.3, 0.6, 1.3, { side: 'bark_old', top: 'moss_floor' }, C.wood); B(0, 0.6, 0, 1.1, 4.0, 1.1, { side: 'bark_old', top: 'bark_old' }, C.wood);
+    for (const [x, z, sx, sz] of [[0.6, 0.1, 0.5, 0.36], [-0.6, -0.1, 0.5, 0.36], [0.1, 0.6, 0.36, 0.5], [-0.1, -0.6, 0.36, 0.5]]) { B(x, 0, z, sx, 0.4, sz, { side: 'roots', top: 'bark_old' }, C.wood); B(x * 1.3, 0, z * 1.3, sx * 0.6, 0.22, sz * 0.6, { side: 'roots', top: 'moss_floor' }, C.moss); }
+    B(0.9, 3.2, 0, 1.0, 0.4, 0.5, { side: 'bark_old', top: 'bark_old' }, C.wood); B(-0.9, 3.7, 0.1, 1.0, 0.4, 0.5, { side: 'bark_old', top: 'bark_old' }, C.wood);
+    // canopy heights jitter per tree so two trees side by side never put leaf tops in one plane
+    const j = r.range(0, 0.35); B(0, 4.4 + j, 0, 3.8, 1.4, 3.8, { side: 'leaves_old' }, C.leaf); B(r.range(-0.2, 0.2), 5.7 + j, r.range(-0.2, 0.2), 3.0, 1.4, 3.0, { side: 'leaves_old' }, C.leaf); B(0, 7.0 + j, 0, 1.8, 1.1, 1.8, { side: 'leaves_old' }, C.leaf);
+    B(1.5, 4.0, 1.1, 1.2, 0.7, 1.2, { side: 'leaves_old' }, C.leaf); B(-1.5, 4.0, -1.0, 1.2, 0.7, 1.2, { side: 'leaves_old' }, C.leaf);
+    B(0.66, 1.9, 0.0, 0.1, 0.3, 0.4, { side: 'glowcap' }, C.teal, 1);
+  } },
+  roots: { h: 0.8, b(B, th, r) { let x = -0.9; for (let i = 0; i < 4; i++) { const hh = 0.35 + 0.25 * Math.sin(i * 1.3 + r.range(0, 1)); B(x + 0.25, 0, r.range(-0.1, 0.1), 0.55, hh, 0.36, { side: 'roots', top: 'bark_old' }, C.wood); x += 0.52; } B(-0.3, 0, 0.4, 0.28, 0.3, 0.6, { side: 'roots', top: 'bark_old' }, C.wood); B(0.4, 0, -0.4, 0.28, 0.26, 0.6, { side: 'roots', top: 'moss_floor' }, C.moss); } },
+  glowshroom: { h: 0.9, b(B, th, r) { for (let i = 0; i < 4; i++) { const x = r.range(-0.45, 0.45); const z = r.range(-0.45, 0.45); const s = r.range(0.7, 1.3); B(x, 0, z, 0.1 * s, 0.4 * s, 0.1 * s, { side: 'white' }, [0.75, 0.7, 0.55]); B(x, 0.4 * s, z, 0.42 * s, 0.16 * s, 0.42 * s, { side: 'white' }, C.cap, 1); B(x, 0.56 * s, z, 0.24 * s, 0.1 * s, 0.24 * s, { side: 'white' }, [2.4, 2.2, 0.9], 1); } }, light: [0, 0.6, 0] },
+  bluecap: { h: 0.9, b(B, th, r) { for (let i = 0; i < 4; i++) { const x = r.range(-0.45, 0.45); const z = r.range(-0.45, 0.45); const s = r.range(0.7, 1.3); B(x, 0, z, 0.1 * s, 0.4 * s, 0.1 * s, { side: 'white' }, [0.6, 0.8, 0.75]); B(x, 0.4 * s, z, 0.42 * s, 0.16 * s, 0.42 * s, { side: 'glowcap', top: 'glowcap' }, C.teal, 1); } }, light: [0, 0.6, 0] },
+  mossrock: { h: 1.3, b(B, th, r) { for (let i = 0; i < 3; i++) { const s = r.range(0.6, 1.2); const x = r.range(-0.5, 0.5); const z = r.range(-0.5, 0.5); B(x, 0, z, s, s * r.range(0.6, 1.0), s * r.range(0.8, 1.2), { side: 'moss_stone', top: 'moss_floor' }, C.moss); } } },
+  fern: { h: 0.7, b(B, th, r) { for (let i = 0; i < 4; i++) B(r.range(-0.4, 0.4), 0, r.range(-0.4, 0.4), r.range(0.5, 0.8), r.range(0.3, 0.6), r.range(0.5, 0.8), { side: 'leaves_old' }, [0.9, 1.1, 0.8]); } },
+  stump: { h: 1.2, b(B, th, r) { for (const [x, z, sx, sz] of [[0.6, 0, 0.5, 1.4], [-0.6, 0, 0.5, 1.4], [0, 0.6, 1.0, 0.5], [0, -0.6, 1.0, 0.5]]) B(x, 0, z, sx, 0.8 + r.range(0, 0.4), sz, { side: 'bark_old', top: 'bark_old' }, C.wood); B(0, 0, 0, 0.7, 0.2, 0.7, { side: 'moss_floor', top: 'moss_floor' }, C.moss); } },
+  // swamp: stilt roots arching over the water under a flat crown, reeds, rotten logs, wisps
+  mangrove: { h: 5.4, canopy: true, b(B, th, r) {
+    for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { B(sx * 0.65, 0, sz * 0.65, 0.34, 0.9, 0.34, { side: 'bark_wet' }, C.wood); B(sx * 0.55, 0.9, sz * 0.55, 0.34, 0.7, 0.34, { side: 'bark_wet' }, C.wood); B(sx * 0.42, 1.6, sz * 0.42, 0.42, 0.55, 0.42, { side: 'bark_wet' }, C.wood); }
+    B(0, 1.9, 0, 1.0, 0.5, 1.0, { side: 'bark_wet', top: 'bark_wet' }, C.wood); B(0, 2.4, 0, 0.8, 1.6, 0.8, { side: 'bark_wet', top: 'bark_wet' }, C.wood);
+    B(0, 3.8, 0, 4.2, 0.9, 4.2, { side: 'leaves_dark' }, [0.7, 0.85, 0.5]); B(r.range(-0.3, 0.3), 4.6, r.range(-0.3, 0.3), 3.0, 0.8, 3.0, { side: 'leaves_dark' }, [0.7, 0.85, 0.5]);
+    for (const [x, z] of [[1.6, 1.2], [-1.5, -1.3], [0.5, -1.8]]) B(x, 2.4, z, 0.08, 1.4, 0.08, { side: 'leaves_dark' }, [0.6, 0.75, 0.4]);
+    B(0.0, 0.0, 0.0, 0.3, 0.1, 0.3, { side: 'algae', top: 'algae' }, [0.9, 1, 0.8]);
+  } },
+  reeds: { h: 1.9, b(B, th, r) { for (let i = 0; i < 9; i++) { const hh = r.range(1.0, 1.8); const x = r.range(-0.45, 0.45); const z = r.range(-0.45, 0.45); B(x, 0, z, 0.1, hh, 0.1, { side: 'reed' }, [0.9, 1, 0.8]); if (i % 3 === 0) B(x, hh, z, 0.14, 0.26, 0.14, { side: 'bark_wet' }, [0.8, 0.7, 0.6]); } } },
+  log: { h: 0.8, b(B, th, r) { B(0, 0, 0, 1.8, 0.6, 0.6, { side: 'rotten', top: 'algae' }, [0.9, 0.95, 0.85]); B(-1.0, 0, 0.05, 0.3, 0.5, 0.5, { side: 'rotten', top: 'rotten' }, C.wood); if (r.chance(0.7)) B(0.3, 0.6, 0, 0.25, 0.14, 0.25, { side: 'cap_red', top: 'cap_red' }, [0.8, 0.8, 0.7]); B(0.4, 0.0, 0.45, 0.6, 0.3, 0.4, { side: 'rotten' }, C.wood); } },
+  wisp: { h: 2.0, b(B) { B(0, 0, 0, 0.5, 0.5, 0.5, { side: 'bark_wet', top: 'algae' }, C.wood); B(0, 0.5, 0, 0.3, 0.45, 0.3, { side: 'bark_wet' }, C.wood); B(0, 1.15, 0, 0.3, 0.42, 0.3, { side: 'wisp' }, C.wisp, 1); B(0, 1.5, 0, 0.16, 0.34, 0.16, { side: 'wisp' }, [2.6, 3.0, 2.8], 1); B(0.35, 1.0, 0.1, 0.12, 0.12, 0.12, { side: 'wisp' }, C.wisp, 1); B(-0.3, 1.3, -0.2, 0.1, 0.1, 0.1, { side: 'wisp' }, C.wisp, 1); }, light: [0, 1.3, 0] },
+  // volcano: clusters of basalt columns, smoking vents with a magma throat, obsidian shards, ash heaps, charred trunks
+  basaltcol: { h: 4.2, b(B, th, r) {
+    const n = r.int(4, 6); for (let i = 0; i < n; i++) { const a = i / n * 6.283 + r.range(-0.3, 0.3); const d = i ? r.range(0.35, 0.75) : 0; const hh = (i ? r.range(1.2, 3.2) : r.range(3.2, 4.2)); B(Math.cos(a) * d, 0, Math.sin(a) * d, 0.5, hh, 0.5, { side: 'basalt_col', top: 'basalt' }, [0.85, 0.82, 0.84]); }
+    B(r.range(-0.6, 0.6), 0, 0.7, 0.5, 0.4, 0.5, { side: 'basalt_col', top: 'ash' }, [0.8, 0.78, 0.8]);
+  } },
+  vent: { h: 1.6, b(B, th, r) {
+    for (const [x, z, s, h] of [[0.5, 0, 0.6, 0.7], [-0.5, 0.1, 0.6, 0.8], [0, 0.5, 0.7, 0.6], [0, -0.5, 0.7, 0.75]]) B(x, 0, z, s, h, s, { side: 'lava_rock', top: 'cinder' }, [0.9, 0.85, 0.85]);
+    B(0, 0, 0, 0.5, 0.62, 0.5, { side: 'magma' }, [1.6, 0.9, 0.5], 1);
+    // smoke: grey puffs stacked and drifting off the throat
+    B(0.05, 0.9, 0, 0.5, 0.35, 0.5, { side: 'ash' }, [0.75, 0.72, 0.72]); B(0.2, 1.3, 0.1, 0.4, 0.3, 0.4, { side: 'ash' }, [0.68, 0.66, 0.66]); B(0.4, 1.65, 0.15, 0.3, 0.25, 0.3, { side: 'ash' }, [0.6, 0.58, 0.58]);
+  }, light: [0, 0.7, 0] },
+  obshard: { h: 1.0, b(B, th, r) { for (let i = 0; i < 3; i++) B(r.range(-0.35, 0.35), 0, r.range(-0.35, 0.35), 0.26, r.range(0.4, 1.0), 0.26, { side: 'obsidian' }, [0.9, 0.8, 0.85]); B(0, 0, 0, 0.6, 0.18, 0.6, { side: 'cinder' }, [0.9, 0.9, 0.9]); } },
+  ashrock: { h: 1.1, b(B, th, r) { for (let i = 0; i < 3; i++) { const s = r.range(0.5, 1.0); B(r.range(-0.5, 0.5), 0, r.range(-0.5, 0.5), s, s * r.range(0.5, 0.9), s, { side: 'lava_rock', top: 'ash' }, [0.85, 0.82, 0.82]); } } },
+  charred: { h: 3.2, b(B, th, r) { B(0, 0, 0, 0.4, 2.4, 0.4, { side: 'burnt' }, [0.7, 0.66, 0.66]); B(0.4, 1.5, 0, 0.7, 0.16, 0.16, { side: 'burnt' }, [0.7, 0.66, 0.66]); B(0.7, 1.5, 0, 0.16, 0.8, 0.16, { side: 'burnt' }, [0.7, 0.66, 0.66]); B(-0.3, 2.0, 0.1, 0.5, 0.14, 0.14, { side: 'burnt' }, [0.7, 0.66, 0.66]); B(0.1, 0, 0.1, 0.12, 0.12, 0.12, { side: 'magma' }, [1.4, 0.7, 0.4], 1); } },
+  // snow: tiered snowy pines, clear ice blocks, snow-capped rocks, a frost crystal giving cold light
+  pine: { h: 5.4, b(B, th, r) {
+    B(0, 0, 0, 0.36, 1.4, 0.36, { side: 'bark_dark' }, C.wood);
+    let y = 1.0; for (const s of [2.4, 1.9, 1.4, 0.9]) { B(0, y, 0, s, 0.7, s, { side: 'pine', top: 'pine_snow' }, [0.95, 1.0, 1.0]); B(0, y + 0.7, 0, s * 0.7, 0.35, s * 0.7, { side: 'pine', top: 'pine_snow' }, [0.95, 1.0, 1.0]); y += 1.0; }
+    B(0, y, 0, 0.3, 0.5, 0.3, { side: 'pine_snow' }, [1, 1, 1]);
+  } },
+  iceblock: { h: 1.4, b(B, th, r) { for (let i = 0; i < 3; i++) { const s = r.range(0.5, 0.95); B(r.range(-0.45, 0.45), 0, r.range(-0.45, 0.45), s, s * r.range(0.9, 1.5), s, { side: 'ice_clear', top: 'ice_clear' }, [0.95, 1.05, 1.15]); } } },
+  snowrock: { h: 1.0, b(B, th, r) { for (let i = 0; i < 3; i++) { const s = r.range(0.45, 0.9); B(r.range(-0.5, 0.5), 0, r.range(-0.5, 0.5), s, s * r.range(0.6, 1.0), s, { side: 'snow_rock', top: 'pine_snow' }, [0.9, 0.95, 1.0]); } } },
+  frostcrystal: { h: 1.8, b(B, th, r) { B(0, 0, 0, 0.7, 0.3, 0.7, { side: 'snow_rock', top: 'pine_snow' }, C.stone); for (let i = 0; i < 3; i++) { const hh = r.range(0.6, 1.4) * (i ? 0.7 : 1); B(r.range(-0.2, 0.2), 0.3, r.range(-0.2, 0.2), 0.24, hh, 0.24, { side: 'ice_clear' }, [0.8, 1.1, 1.4], 1); } }, light: [0, 1.0, 0] },
+  // coast: a wreck's hull ribs, a broken mast with a torn sail, driftwood, sea stacks, a ship's lantern on a post, seaweed
+  ribs: { h: 2.6, b(B, th, r) {
+    B(0, 0, 0, 3.0, 0.3, 0.5, { side: 'wreck', top: 'wreck' }, [0.9, 0.86, 0.8]);
+    for (const x of [-1.2, -0.4, 0.4, 1.2]) { const hh = r.range(1.4, 2.4); for (const sd of [-1, 1]) { B(x, 0.2, sd * 0.5, 0.18, hh * 0.5, 0.18, { side: 'wreck' }, [0.8, 0.76, 0.7]); B(x, 0.2 + hh * 0.5, sd * 0.68, 0.18, hh * 0.5, 0.18, { side: 'wreck' }, [0.8, 0.76, 0.7]); } }
+    B(-0.8, 0.2, -0.7, 1.4, 0.6, 0.12, { side: 'wreck' }, [0.75, 0.72, 0.66]);
+  } },
+  mast: { h: 4.6, b(B, th, r) { B(0, 0, 0, 0.8, 0.3, 0.8, { side: 'wreck' }, C.wood); B(0, 0.3, 0, 0.3, 4.0, 0.3, { side: 'log' }, C.wood); B(0, 3.2, 0, 2.2, 0.16, 0.16, { side: 'log' }, C.wood); B(0.5, 2.0, 0.05, 1.0, 1.1, 0.06, { side: 'white' }, [0.72, 0.68, 0.6]); B(0.9, 0.0, 0.4, 0.5, 0.1, 0.08, { side: 'log' }, C.wood); } },
+  driftwood: { h: 0.6, b(B, th, r) { B(0, 0, 0, 1.8, 0.3, 0.3, { side: 'wreck', top: 'wreck' }, [0.85, 0.82, 0.76]); B(0.4, 0, 0.35, 0.9, 0.24, 0.24, { side: 'wreck' }, [0.8, 0.78, 0.72]); if (r.chance(0.6)) B(-0.5, 0, -0.35, 0.5, 0.2, 0.5, { side: 'seaweed', top: 'seaweed' }, [0.9, 1, 0.8]); } },
+  seastack: { h: 3.4, b(B, th, r) { B(0, 0, 0, 1.4, 1.4, 1.3, { side: 'cliff', top: 'cliff' }, C.stone); B(0.1, 1.4, 0, 1.0, 1.2, 1.0, { side: 'cliff', top: 'cliff' }, C.stone); B(-0.1, 2.6, 0.05, 0.6, 0.8, 0.6, { side: 'cliff', top: 'seaweed' }, C.stone); B(0.7, 0, 0.5, 0.6, 0.5, 0.6, { side: 'cliff', top: 'seaweed' }, C.stone); } },
+  lantern: { h: 2.2, b(B) { B(0, 0, 0, 0.5, 0.25, 0.5, { side: 'cliff' }, C.stone); B(0, 0.25, 0, 0.16, 1.7, 0.16, { side: 'wreck' }, C.wood); B(0.25, 1.85, 0, 0.6, 0.1, 0.1, { side: 'wreck' }, C.wood); B(0.45, 1.4, 0, 0.3, 0.38, 0.3, { side: 'glass' }, GLASS, 1); B(0.45, 1.78, 0, 0.2, 0.08, 0.2, { side: 'metal_dark' }, C.iron); }, light: [0.45, 1.55, 0] },
+  seaweed: { h: 0.6, b(B, th, r) { for (let i = 0; i < 4; i++) B(r.range(-0.45, 0.45), 0, r.range(-0.45, 0.45), r.range(0.3, 0.6), r.range(0.1, 0.25), r.range(0.3, 0.6), { side: 'seaweed', top: 'seaweed' }, [0.9, 1, 0.85]); B(0.3, 0, -0.3, 0.3, 0.2, 0.3, { side: 'cliff' }, C.stone); } },
+  // sky: round blossom trees, floating boulders over the meadow, cloud puffs on the rim, stone lanterns
+  skytree: { h: 4.8, b(B, th, r) { B(0, 0, 0, 0.4, 2.6, 0.4, { side: 'log', top: 'log_top' }, C.wood); B(0.3, 1.6, 0, 0.6, 0.14, 0.14, { side: 'log' }, C.wood); B(0, 2.3, 0, 2.4, 1.2, 2.4, { side: 'leaves' }, [0.85, 1.0, 0.8]); B(r.range(-0.2, 0.2), 3.5, r.range(-0.2, 0.2), 1.7, 0.9, 1.7, { side: 'leaves' }, [0.9, 1.05, 0.85]); B(0.9, 2.6, 0.9, 0.4, 0.3, 0.4, { side: 'white' }, [1.0, 0.78, 0.86]); B(-0.8, 3.2, -0.6, 0.35, 0.3, 0.35, { side: 'white' }, [1.0, 0.8, 0.9]); } },
+  floatrock: { h: 3.4, b(B, th, r) { B(0, 0, 0, 0.9, 0.25, 0.9, { side: 'skystone', top: 'meadow' }, C.stone); const y = r.range(1.5, 2.2); B(0, y, 0, 1.2, 0.6, 1.1, { side: 'skystone', top: 'meadow' }, C.stone); B(0.05, y - 0.4, 0, 0.8, 0.4, 0.7, { side: 'skystone' }, [0.7, 0.7, 0.72]); B(0.1, y - 0.7, 0, 0.4, 0.3, 0.4, { side: 'skystone' }, [0.6, 0.6, 0.64]); } },
+  cloudpuff: { h: 1.0, b(B, th, r) { for (let i = 0; i < 4; i++) { const s = r.range(0.5, 0.9); B(r.range(-0.6, 0.6), r.range(0, 0.25), r.range(-0.5, 0.5), s * 1.3, s * 0.6, s, { side: 'cloud', top: 'cloud' }, [0.9, 0.92, 0.96]); } } },
+  stonelamp: { h: 1.5, b(B) { B(0, 0, 0, 0.6, 0.2, 0.6, { side: 'skystone' }, C.stone); B(0, 0.2, 0, 0.26, 0.7, 0.26, { side: 'skystone' }, C.stone); B(0, 0.9, 0, 0.5, 0.36, 0.5, { side: 'glass' }, GLASS, 1); B(0, 1.26, 0, 0.7, 0.14, 0.7, { side: 'skystone' }, C.stone); B(0, 1.4, 0, 0.3, 0.12, 0.3, { side: 'skystone' }, C.stone); }, light: [0, 1.1, 0] },
   bones: { h: 0.3, b(B, th, r) { for (let i = 0; i < 4; i++) B(r.range(-0.4, 0.4), 0, r.range(-0.4, 0.4), r.range(0.3, 0.6), 0.1, 0.1, { side: 'white' }, [0.9, 0.88, 0.8]); B(0, 0, 0, 0.25, 0.22, 0.25, { side: 'white' }, [0.9, 0.88, 0.8]); } },
 };
 
@@ -240,7 +307,8 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
   // ---- props on the rim, lights first ----
   const props = []; const lights = []; const boxes = [];
   const free = (x, z, r) => props.every((p) => Math.hypot(p.x - x, p.z - z) > p.r + r + 0.3);
-  const near = (x, z) => z - cz > 0 && Math.abs(x - cx) < E.x * 0.8;
+  // 0.9 of the half width, not the 0.8 the look test measures: a tall prop just outside could lean its arm or crown in
+  const near = (x, z) => z - cz > 0 && Math.abs(x - cx) < E.x * 0.9;
   // the corridors heroes run through to the neighbouring pads stay free of props
   const inGate = (x, z, r) => gates.some((a) => { const ux = Math.cos(a); const uz = Math.sin(a); return (x - cx) * ux + (z - cz) * uz > 0 && Math.abs(-(x - cx) * uz + (z - cz) * ux) < GATE_W / 2 + r; });
   const cellAt = (x, z) => { const [u, v] = G(x, z); return cells.get(key(Math.floor(u), Math.floor(v))); };
@@ -257,7 +325,7 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
   const th2 = { ...theme, wall: theme.side.rows[0][0], rock: theme.name === 'crypt' ? 'sandstone' : 'rock' };
   const propRng = (x, z) => rngOf(Math.round(x * 100) * 31 + Math.round(z * 100) + seed);
   // a dry run of the prop's boxes: its radius about the origin and its height
-  const extent = (kind, x, z) => { let r = 0; let h = 0; PROPS[kind].b((lx, ly, lz, sx, sy, sz) => { r = Math.max(r, Math.hypot(Math.abs(lx) + sx / 2, Math.abs(lz) + sz / 2)); h = Math.max(h, ly + sy); }, th2, propRng(x, z)); return { r, h }; };
+  const extent = (kind, x, z) => { let r = 0; let h = 0; PROPS[kind].b((lx, ly, lz, sx, sy, sz) => { if (ly < 2.6 || !PROPS[kind].canopy) r = Math.max(r, Math.hypot(Math.abs(lx) + sx / 2, Math.abs(lz) + sz / 2)); h = Math.max(h, ly + sy); }, th2, propRng(x, z)); return { r, h }; };
   const place = (kind, x, z, rot) => {
     const X = extent(kind, x, z); const r = Math.max(0.5, X.r);
     if (!free(x, z, r)) return false; const c = spotOk(x, z, r, X.r + 0.05); if (!c) return false;
@@ -268,6 +336,13 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
   };
   if (decor) {
     const th = theme; const want = fight ? (boss ? 8 : 7) : 2;
+    // first four warm lights on the near rim, two each side of the hero cards: the fight framing (camera.js) leaves the flanks
+    // out of the frame and puts the flames of the far rim behind the top bar, so this arc is where rim lights show
+    const warmK = th.lights.filter((l) => LIGHTS[l[0]] && LIGHTS[l[0]].warm && LIGHTS[l[0]].h <= 0.8 && PROPS[l[0]] && PROPS[l[0]].light);
+    if (fight && warmK.length) for (const side of [-1, 1]) for (const a0 of [0.45, 0.85]) for (let t = 0; t < 30; t++) {
+      const a = Math.PI / 2 + side * (a0 + rng.range(-0.15, 0.15)); const kk = rng.range(1.2, 1.4);
+      if (place(rng.weighted(warmK), cx + Math.cos(a) * E.x * kk, cz + Math.sin(a) * E.z * kk, Math.PI / 4 + rng.int(0, 3) * Math.PI / 2)) break;
+    }
     // lights spread around the rim: try angles in order, each on the outer band of the floor or a terrace
     const tries = fight ? 40 : 10;
     for (let k = 0; k < want; k++) {
@@ -340,6 +415,12 @@ export function buildPad({ theme, seed, centre = { x: 0, y: 0, z: 0 }, ellipse, 
             const dk = Math.max(0.22, 1 - row * 0.16); const ao0 = Math.max(0.2, dk - 0.16); const sh = water && y0 < waterY + 0.8 ? 0.55 : 1;
             M.quad([[w0[0], y, w0[1]], [w1[0], y, w1[1]], [w1[0], y0, w1[1]], [w0[0], y0, w0[1]]], nrm, tile2, 1, y - y0, rimT, [dk, dk, ao0 * sh, ao0 * sh]);
           }
+          // theme.falls: now and then a rim face pours a waterfall down past the cliff into the abyss (emissive streaks, a foam lip)
+          if (th.falls && !nb && hash2(c.i * 7 + s, c.j, seed + 41) < th.falls) {
+            const o = 0.06; const ox = nrm[0] * o; const oz = nrm[2] * o; const len = th.falls_len || 12;
+            M.face([w0[0] + ox, c.top - len, w0[1] + oz], [w1[0] - w0[0], 0, w1[1] - w0[1]], [0, len, 0], nrm, 'falls', [0.78, 0.86, 0.95], true);
+            M.box((w0[0] + w1[0]) / 2 + nrm[0] * 0.12, c.top - 0.08, (w0[1] + w1[1]) / 2 + nrm[2] * 0.12, 0.9, 0.16, 0.3, Math.atan2(nrm[0], nrm[2]), { side: 'cloud', top: 'cloud' }, [0.85, 0.9, 0.95], true);
+          }
         }
       }
       // props
@@ -397,7 +478,7 @@ export function buildBridge(a, b, theme, { width = 1.3, steps = false } = {}) {
       }
       for (const k of [0.5, L / 2, L - 0.5]) for (const side of [-1, 1]) {
         const t = k / L; const y = a.y + (b.y - a.y) * t; const px = a.x + ux * k - uz * side * HW; const pz = a.z + uz * k + ux * side * HW;
-        M.box(px, y - 0.4, pz, 0.14, 1.4, 0.14, { side: 'log' }, [0.6, 0.5, 0.42]);
+        M.box(px, y - 0.4, pz, 0.14, 1.4, 0.14, 0, { side: 'log' }, [0.6, 0.5, 0.42]);
       }
       const nr = Math.ceil(L / 0.5);
       for (const side of [-1, 1]) for (let i = 0; i < nr; i++) { const t = (i + 0.5) / nr; const y = a.y + (b.y - a.y) * t; M.box(a.x + dx * t - uz * side * HW, y + 0.75, a.z + dz * t + ux * side * HW, L / nr, 0.07, 0.07, rot, { side: 'log' }, [0.55, 0.45, 0.38]); }

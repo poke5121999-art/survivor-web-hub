@@ -1,11 +1,15 @@
 // Game feel: hit-stop, time scale, camera shake and push-in, and the short ultimate scene. It only delays when sim ticks are
 // taken and when the view advances (one multiplier, `scale`); the sim itself never sees it, so runs stay deterministic.
 // The camera reads `view` (shake in CSS px, push 0..1, the pull focus) and applies it inside its own rim clamp.
+// An ultimate gets its close-up (ultcam.js): the world holds through the wind-up, then slows; camera.update is wrapped so the
+// close-up overrides the fight camera after it is computed.
+import { createUltCam } from './ultcam.js?v=20261124a';
 const HEAVY_FX = new Set(['boss_slam', 'tailspin', 'bloodnova', 'orbring', 'emp', 'wail']); // enemy bursts that land hard
 const HEAVY_DASH = new Set(['dive', 'charge_boss', 'charge', 'blooddash']);                   // only when a boss does them
-const STOP = { ult: 55, heavy: 50, streak: 45, bossDeath: 120 };
+const STOP = { ult: 55, heavy: 50, streak: 45, bossDeath: 120, skill: 30 };
 const STOP_GAP = 0.35;     // s between two hit-stops
-const SHAKE = { ult: 3.6, heavy: 2.4, streak: 1.4, bossDeath: 4 };
+const SHAKE = { ult: 3.6, heavy: 2.4, streak: 1.4, bossDeath: 4, skill: 1.5 };
+const SKILL_R = 3.5; // a hero skill burst this wide lands with a short stop and a little shake (fxmap calls skillHit when it draws it)
 const SHAKE_LIFE = 0.26;
 const SCENE = { slow: 0.26, hold: 0.3, holdAgain: 0.12, rampIn: 0.05, rampOut: 0.25, again: 1.2 };
 const STREAK = { n: 8, within: 0.5 };
@@ -58,7 +62,10 @@ export function createJuice(game) {
   J.onEvent = (e) => {
     if (J.silent || !J.enabled) return;
     const B = game.B;
-    if (e.e === 'ult') { if (e.key !== 'blades') hit(STOP.ult); kick(SHAKE.ult); startScene(e.uid, e.key === 'blades' ? BLADES : undefined); return; }
+    if (e.e === 'ult') {
+      if (ult.scene && (ult.scene.uid === e.uid || ult.scene.extra.includes(e.uid))) return; // the close-up lands its own stop and shake on release
+      if (e.key !== 'blades') hit(STOP.ult); kick(SHAKE.ult); startScene(e.uid, e.key === 'blades' ? BLADES : undefined); return;
+    }
     if (e.e === 'fx' && e.team === 1 && HEAVY_FX.has(e.key) && (e.part === 'burst' || e.part === 'cone')) { hit(STOP.heavy); kick(SHAKE.heavy); return; }
     if (e.e === 'dash' && HEAVY_DASH.has(e.key)) { const u = B && B.byUid.get(e.uid); if (u && u.boss) { hit(STOP.heavy); kick(SHAKE.heavy); } return; }
     if (e.e === 'die' && !e.expire) {
@@ -71,12 +78,15 @@ export function createJuice(game) {
   // one cut of Gió's ultimate: a short stop on the wall clock, halved at x2, never during __sim (hit() ignores silent runs)
   J.slash = (i, last) => hit((last ? BLADES.last : BLADES.cut) * (fast() ? 0.5 : 1), { force: true });
   J.hit = hit; J.kick = kick; J.skip = skip;
-  J.reset = () => { deadline = 0; scene = null; J.slow = 1; shakeAmp = 0; shakeT = 9; J.scale = 1; J.stopped = false; J.kills.length = 0; J.bossDown.clear(); view.shake.x = view.shake.y = view.shake.px = 0; view.push = 0; view.pull.k = 0; };
-  if (typeof window !== 'undefined') window.addEventListener('pointerdown', skip, true);
+  J.skillHit = (r) => { if (r >= SKILL_R) { hit(STOP.skill); kick(SHAKE.skill); } };
+  const ult = createUltCam(game, J); J.ult = ult; J.ultBegin = (e) => ult.begin(e); J.realDt = 0;
+  if (game.cam && game.cam.update) { const camUpdate = game.cam.update; game.cam.update = (B, dt) => { camUpdate(B, dt); ult.apply(); }; }
+  J.reset = () => { ult.reset(); deadline = 0; scene = null; J.slow = 1; shakeAmp = 0; shakeT = 9; J.scale = 1; J.stopped = false; J.kills.length = 0; J.bossDown.clear(); view.shake.x = view.shake.y = view.shake.px = 0; view.push = 0; view.pull.k = 0; };
+  if (typeof window !== 'undefined') window.addEventListener('pointerdown', () => { skip(); ult.skip(); }, true);
 
   // real seconds in; sets scale and the camera view for this frame
   J.update = (dt) => {
-    clock += dt;
+    clock += dt; J.realDt = dt;
     // the stop ends on the wall clock: a long frame cannot eat it, and the frame that crosses the deadline only runs its part past it
     let live = 1;
     if (deadline > 0) {
@@ -96,7 +106,7 @@ export function createJuice(game) {
     const B = game.B; const hero = scene && scene.slow && B && B.byUid.get(scene.uid);
     if (hero) { view.pull.x = hero.x; view.pull.z = hero.z; view.pull.k = k; } else view.pull.k = 0;
     // a boss entrance (bossintro.js) slows the view for a moment; the sim is held then, so only the picture slows
-    scale *= live * J.slow; J.partial = live < 1;
+    scale *= live * J.slow * (J.enabled && !J.silent ? ult.tick(dt) : 1); J.partial = live < 1;
     if (J.stopped) scale = 0;
     J.scale = scale;
     // shake: one offset that turns around and decays, so its peak is the amplitude

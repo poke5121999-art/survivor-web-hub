@@ -24,7 +24,7 @@ const bad = (list) => list.filter((x) => !/Failed to load resource|\/js\/ui\//.t
 const ENEMIES = ['walker', 'runner', 'spider', 'flyer', 'hound', 'spitter', 'bloater', 'shielder', 'brute', 'shrieker', 'armored', 'burner', 'frost',
   'giant', 'thrower', 'phantom', 'queen', 'brood', 'vampire', 'alien', 'pharaoh', 'ufo', 'guardian', 'dragon'];
 const BOSSES = ['giant', 'thrower', 'phantom', 'queen', 'brood', 'vampire', 'alien', 'pharaoh', 'ufo', 'guardian', 'dragon'];
-const HEROES = ['gio', 'thep', 'yta', 'mua', 'bong', 'phao', 'bang', 'hoa', 'sam', 'doc', 'ky', 'soi', 'nhen'];
+const HEROES = ['chon', 'tegiap', 'loc', 'nhim', 'cu', 'ech', 'duoi', 'kyda', 'bosat', 'oc', 'haily', 'bao', 'nhen', 'muc'];
 
 const shot = async (page, file) => { await page.locator('#frame').screenshot({ path: path.join(OUT, file) }); return path.join(OUT, file); };
 
@@ -156,7 +156,7 @@ try {
         const G = window.__G; const base = G.stageDef(1);
         const def = { ...base, hpMul: 1e6, atkMul: 0.0001, bossHp: 1, bossTier: 3, boss: k, waves: [{ groups: [{ kind: k, n: 3, at: 0, ang: 1.6, spread: 0.5 }], boss: null }] };
         window.__seen.clear();
-        const B = G.start({ custom: def }, { seed: 5, team: ['thep', 'mua', 'yta', 'gio'] });
+        const B = G.start({ custom: def }, { seed: 5, team: ['tegiap', 'nhim', 'loc', 'chon'] });
         window.__sim(k === 'bloater' ? 4 : 9); window.__step(4);
         const e = B.enemies.find((x) => x.alive && x.kind === k);
         return { uid: e && e.uid, seen: window.__seen.has(k), alive: B.enemies.filter((x) => x.alive).length };
@@ -201,7 +201,7 @@ try {
       for (const [id, keys] of skillKeys) {
         const left = await page.evaluate(([i, ks]) => {
           const G = window.__G; for (const k of Object.keys(G.actors.fx.counters)) delete G.actors.fx.counters[k];
-          G.start(6, { seed: 9, team: [i, 'thep'], auto: { ult: true, pick: 'best' }, hpFlat: 4000, atkFlat: 20 });
+          G.start(6, { seed: 9, team: [i, 'tegiap'], auto: { ult: true, pick: 'best' }, hpFlat: 4000, atkFlat: 20 });
           const need = new Set(ks);
           for (let t = 0; t < 10 && need.size; t++) { for (const h of G.B.heroes) { h.ult = 1; h.hp = h.maxHp * 0.5; } window.__sim(5); for (const k of [...need]) if (G.actors.fx.counters[k] > 0) need.delete(k); }
           return [...need];
@@ -219,7 +219,7 @@ try {
       const { ctx, page, problems } = await open(br, srv.base, 's22', 'noaudio=1&seed=9');
       await page.evaluate(WAIT); const ults = [];
       for (const id of HEROES) {
-        await page.evaluate((i) => { const B = window.__G.start(2, { seed: 9, team: [i, 'thep', 'yta', 'mua'], auto: { ult: true, pick: 'best' }, hpFlat: 3000 }); B.heroes[0].ult = 1; }, id);
+        await page.evaluate((i) => { const B = window.__G.start(2, { seed: 9, team: [i, 'tegiap', 'loc', 'nhim'], auto: { ult: true, pick: 'best' }, hpFlat: 3000 }); B.heroes[0].ult = 1; }, id);
         const e = await page.evaluate(([i]) => window.__wait('ult', `e.hero === '${i}'`, 60), [id]);
         if (!e) { check(false, `hero ${id}: ultimate never cast`); continue; }
         // the old real-time wait landed on a different moment every run: take the brightest of 12 fixed moments over the next
@@ -267,7 +267,7 @@ try {
       for (const kind of BOSSES) {
         const names = await page.evaluate((k) => {
           const G = window.__G; const def = { ...G.stageDef(1), hpMul: 1e6, atkMul: 0.0001, bossHp: 1, bossTier: 3, boss: k, waves: [{ groups: [{ kind: k, n: 1, at: 0, ang: 1.6, spread: 0.1 }], boss: null }] };
-          const B = G.start({ custom: def }, { seed: 5, team: ['thep', 'mua', 'yta', 'gio'] });
+          const B = G.start({ custom: def }, { seed: 5, team: ['tegiap', 'nhim', 'loc', 'chon'] });
           window.__sim(2); G.paused = true;
           const u = B.enemies.find((x) => x.alive && x.kind === k); G.cam.spectate(u.uid); window.__step(100);
           const n = G.actors.nodeOf(u.uid);
@@ -308,7 +308,7 @@ try {
         const r = await page.evaluate((k) => {
           const G = window.__G; const H = G.host;
           const def = { ...G.stageDef(1), hpMul: 1e6, atkMul: 0.0001, bossHp: 1, bossTier: 3, boss: k, waves: [{ groups: [{ kind: k, n: 3, at: 0, ang: 1.6, spread: 0.5 }], boss: null }] };
-          const B = G.start({ custom: def }, { seed: 5, team: ['thep', 'mua', 'yta', 'gio'] });
+          const B = G.start({ custom: def }, { seed: 5, team: ['tegiap', 'nhim', 'loc', 'chon'] });
           window.__sim(7); G.paused = true;
           const u = B.enemies.find((x) => x.alive && x.kind === k); if (!u) return null;
           G.cam.spectate(u.uid); window.__step(120);

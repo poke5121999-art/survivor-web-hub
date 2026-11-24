@@ -273,7 +273,7 @@ export function createBossIntro(game) {
           const side = V().set(-Math.sin(S.ang), 0, Math.cos(S.ang)); const w = 1.2 * S.scale * open;
           for (let k = 0; k < 2; k++) { const v = (Math.random() * 2 - 1); G.fx.puff(c.clone().add(V().set(0, v * hh, 0)).addScaledVector(side, (Math.random() - 0.5) * w * Math.sqrt(1 - v * v)), { vel: V().set(0, 0.2, 0), s0: 0.7 * open + 0.2, s1: 1.1, life: 0.5, c0: 0x14051e, c1: 0x30104a, a0: 0.9 }); }
           const ea = Math.random() * Math.PI * 2; const eb = ea + 0.5; const pa = (q) => c.clone().add(V().set(0, Math.sin(q) * hh, 0)).addScaledVector(side, Math.cos(q) * w);
-          G.fx.arc(pa(ea), pa(eb), col[2]);
+          const a = pa(ea); const b = pa(eb); game.actors.fx.beats.zap(a.x, a.y, a.z, b.x, b.y, b.z, col[2], false);
         }
         for (let i = 0; i < 6; i++) if (once('wisp' + i, t, 0.35 + i * 0.16)) G.fx.puff(top.clone().addScaledVector(S.o, 1.2), { glow: true, vel: tmp.set(Math.random() - 0.5, 1, Math.random() - 0.5), s0: 0.6, s1: 1.6, life: 0.8, c0: col[0], c1: col[1], a0: 0.8 });
         if (once('land', t, L)) { G.fx.pop(top, 1.4, [col[2], col[0]]); ring(col[0], 1, 8, 0.7); }

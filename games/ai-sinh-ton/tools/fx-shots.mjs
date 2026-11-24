@@ -1,7 +1,7 @@
 // Effects seen from above. Part A: for each of the 13 heroes both skills and the ultimate, and three boss skills, at the
 // peak frame at the s22 overview, before (deployed site, AST_BASE or the hub URL) and after (this tree), side by side in
 // .chk/fx/<name>.png and sheet.png; reach of the vertical layer (m) read from the rendered instances, clipped white.
-// Part B (live, real time, this tree): hit-stop, shake, time scale of the ultimate scene, the arena rim in frame, ground counts.
+// Part B (live, real time, this tree): hit-stop, shake, time scale of the ultimate scene, every unit in frame, ground counts.
 // Part C: cost at q=low on s22, stage 15, three ultimates, before and after.
 // Usage: PLAYWRIGHT_PATH=... timeout 900 node games/ai-sinh-ton/tools/fx-shots.mjs [--only=thep,gio] [--refresh-before] [--no-bosses] [--skip-shots] [--skip-live] [--skip-perf]
 import fs from 'node:fs';
@@ -34,7 +34,7 @@ const PREP = async ([kind, id, stage, wave]) => {
   window.__SIM = await import(new URL('js/sim/battle.js' + v, location.href).href);
   const sc = G.screens && G.screens[G.screen]; if (sc && sc.hide) sc.hide();
   G.paused = true; G.speed = 1;
-  const B = G.start(stage, { seed: 9, wave, team: kind === 'hero' ? [id] : ['thep'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } });
+  const B = G.start(stage, { seed: 9, wave, team: kind === 'hero' ? [id] : ['tegiap'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } });
   if (G.juice) G.juice.enabled = false;
   const hero = B.heroes[0]; const SIM = window.__SIM;
   for (let i = 0; i < 1500 && B.phase === 'fight'; i++) {
@@ -134,29 +134,28 @@ function items() {
 const LIVE = async ([mode, opt]) => {
   const G = window.__G; const H = G.host; const J = G.juice; const SIM = window.__SIM; const V = new H.THREE.Vector3();
   if (!J) return { noJuice: true };
-  const rim = []; for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2; rim.push([Math.cos(a) * opt.ax * 1.08, Math.sin(a) * opt.az * 1.08]); }
   const proj = (x, y, z) => { V.set(x, y, z).project(H.camera); return [V.x, V.y]; };
-  const rimMargin = () => { let m = 9; for (const [x, z] of rim) { const [px, py] = proj(x, 0, z); m = Math.min(m, 1 - Math.abs(px), 1 - Math.abs(py)); } return m; };
+  // the camera frames the fight's cluster (W-cam2), not the whole pad: what must stay in frame through shake and push is every
+  // living unit on the pad, its foot and its head, as a share of half the frame
+  const unitMargin = () => { let m = 9; for (const u of G.B.units) { if (!u.alive || u.egg || Math.abs(u.x) > opt.ax || Math.abs(u.z) > opt.az) continue; for (const y of [0, 1.4]) { const [px, py] = proj(u.x, y, u.z); m = Math.min(m, 1 - Math.abs(px), 1 - Math.abs(py)); } } return m; };
   const raf = () => new Promise((r) => requestAnimationFrame(r));
   J.reset(); J.stops.length = 0; J.scenes = 0; G.paused = false; G.speed = opt.speed || 1;
-  // the camera offset is read on the camera's own look point (game.cam.focus), not on the world origin: the MCD camera (16236ae0)
-  // pans after the team's centre, so a world point drifted 11 to 13 px over the 1 s shake run with the shake already back at 0
-  // (camera x 0.89 -> 0.25 m with shake 0, measured); the focus rides with that pan and moves on screen only by shake and push
-  const F = G.cam.focus; const fp = () => proj(F.x, F.y, F.z);
-  const B = G.B; const p0 = fp(); const rows = []; const castAt = [];
+  // the shake is read from the camera itself (G.cam.dbg.shake, the screen offset it added this frame): the framing follows
+  // the fight's cluster and drifts 10 to 13 px on its own in a second with the shake at 0, so a world point cannot tell them apart
+  const S = G.cam.dbg.shake;
+  const B = G.B; const rows = []; const castAt = [];
   const t0 = performance.now(); let step = 0; let stallNext = false;
   const casts = opt.casts || [];
   const total = opt.secs * 1000;
   while (performance.now() - t0 < total) {
     await raf(); if (stallNext) { stallNext = false; const e = performance.now() + opt.stall; while (performance.now() < e) { /* stalled frame */ } }
     const now = performance.now() - t0;
-    for (const c of casts) if (!c.done && now >= c.at) { c.done = true; castAt.push(performance.now() - t0); if (opt.stall) stallNext = true; if (c.what === 'ult') { const u = B.heroes[c.slot]; u.ult = 1; u.ultReady = true; SIM.castUlt(B, c.slot); } else if (c.what === 'kick') J.kick(c.px); else if (c.what === 'tap') window.dispatchEvent(new Event('pointerdown')); else if (c.what === 'boom') J.onEvent({ e: 'fx', team: 1, key: 'boss_slam', part: 'burst' }); }
-    const p = fp();
-    rows.push({ t: now, Bt: B.t, scale: J.scale, stopped: J.stopped, part: J.partial, shake: J.view.shake.px, push: J.view.push, off: Math.hypot((p[0] - p0[0]) * H.size.w / 2, (p[1] - p0[1]) * H.size.h / 2), offX: (p[0] - p0[0]) * H.size.w / 2, offY: (p[1] - p0[1]) * H.size.h / 2, margin: rimMargin() });
+    for (const c of casts) if (!c.done && now >= c.at) { c.done = true; castAt.push(performance.now() - t0); if (opt.stall) stallNext = true; if (c.what === 'ult') { const u = B.heroes[c.slot]; u.ult = 1; u.ultReady = true; SIM.castUlt(B, c.slot); } else if (c.what === 'kick') J.kick(c.px); else if (c.what === 'tap') window.dispatchEvent(new Event('pointerdown')); else if (c.what === 'boom') J.onEvent({ e: 'fx', team: 1, key: 'boss_slam', part: 'burst' }); else if (c.what === 'stop') J.hit(55, { force: true }); }
+    const U = J.ult; rows.push({ t: now, Bt: B.t, ult: !!(U && U.active), ph: U && U.scene ? U.scene.phase : '', scale: J.scale, stopped: J.stopped, part: J.partial, shake: J.view.shake.px, push: J.view.push, off: Math.hypot(S.x, S.y), offX: S.x, offY: S.y, margin: unitMargin() });
     step++;
   }
   G.paused = true; G.speed = 1;
-  return { rows, castAt, stops: J.stops.slice(), scenes: J.scenes, last: J.lastScene };
+  return { rows, castAt, stops: J.stops.slice(), scenes: J.scenes, last: J.lastScene, ults: J.ult ? J.ult.count : 0 };
 };
 const GROUND = () => {
   const G = window.__G; const s = G.actors.marks.stats(); const d = G.fx.debug();
@@ -165,8 +164,12 @@ const GROUND = () => {
 const QUIET = async () => {
   const G = window.__G; const v = (document.querySelector('script[src*="main.js"]').src.match(/\?.*$/) || [''])[0];
   window.__SIM = await import(new URL('js/sim/battle.js' + v, location.href).href);
+  // the first four heroes of this build's own roster: the deployed "before" build of the perf run may still have other ids
+  // (tegiap, nhim, loc, chon on this tree)
+  const { HEROES } = await import(new URL('js/data/heroes.js' + v, location.href).href);
   const sc = G.screens && G.screens[G.screen]; if (sc && sc.hide) sc.hide();
-  G.start(3, { seed: 9, wave: 3, team: ['thep', 'mua', 'yta', 'gio'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } });
+  window.__TEAM = HEROES.slice(0, 4).map((h) => h.id);
+  G.start(3, { seed: 9, wave: 3, team: window.__TEAM, hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } });
   window.__sim(6); if (G.juice) G.juice.reset(); G.paused = true;
 };
 
@@ -183,40 +186,46 @@ async function live(br, base, phone) {
   const r = await openPage(br, base, phone, 'noaudio=1&seed=9'); const { page } = r;
   await page.evaluate(QUIET);
   const o = { ax: ARENA.x, az: ARENA.z };
-  const run = async (opt) => { await page.evaluate(() => { window.__G.start(window.__G.stageN || 3, { seed: 9, wave: 3, team: ['thep', 'mua', 'yta', 'gio'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } }); window.__sim(5); }); return page.evaluate(LIVE, ['x', { ...o, ...opt }]); };
+  const run = async (opt) => { await page.evaluate(() => { window.__G.start(window.__G.stageN || 3, { seed: 9, wave: 3, team: ['tegiap', 'nhim', 'loc', 'chon'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } }); window.__sim(5); }); return page.evaluate(LIVE, ['x', { ...o, ...opt }]); };
   const tag = phone;
   // one ultimate at 1x
   const u1 = await run({ secs: 2.2, casts: [{ at: 300, what: 'ult', slot: 0 }] });
   if (u1.noJuice) { check(false, `${tag}: window.__G.juice missing`); await r.ctx.close(); return; }
-  const rows = u1.rows;
-  // from the cast to the first frame that runs again: the sim clock stands still for all of it (the cast frame itself is a long one)
-  const stop = (() => { const i = rows.findIndex((x) => x.stopped); if (i < 0) return { ms: 0, sim: 0, frames: 0 }; let j = i; while (j < rows.length && rows[j].stopped) j++; const k = Math.min(j, rows.length - 1); return { ms: rows[k].t - u1.castAt[0], sim: rows[k].Bt - rows[Math.max(0, i - 1)].Bt, frames: j - i }; })();
-  // the stop the game asks for must be 40 to 80 ms; on screen it starts and ends on a frame, so it shows for up to two frames longer
-  const asked = u1.stops.length ? u1.stops[u1.stops.length - 1].ms : -1;
-  check(asked >= 40 && asked <= 80 && stop.ms >= 40 && stop.ms <= asked + 34, `${tag}: hit-stop on an ultimate lasts ${stop.ms.toFixed(0)} ms of real time over ${stop.frames} frames (asked 40 to 80, shown at most two 60 Hz frames longer), the sim advanced ${(stop.sim * 1000).toFixed(0)} ms inside it; ideal ${u1.stops.length ? u1.stops[u1.stops.length - 1].ms : '-'} ms`);
-  // one 70 ms stalled frame right after the burst: the stop ends on the wall clock, so the sim takes no tick before the 55 ms deadline
-  const us = await run({ secs: 1.2, stall: 70, casts: [{ at: 300, what: 'ult', slot: 0 }] });
-  const c0 = us.castAt[0]; const ideal = us.stops.length ? us.stops[us.stops.length - 1].ms : 55;
-  const ci = us.rows.findIndex((x) => x.t >= c0 - 1); const first = us.rows.slice(ci + 1).find((x) => !x.stopped && x.t - c0 >= ideal - 1) || us.rows[us.rows.length - 1];
-  const prev = us.rows.slice(ci, us.rows.indexOf(first)); const simIn = (first.Bt - us.rows[ci].Bt) * 1000; const past = first.t - c0 - ideal;
-  check(prev.every((x) => x.t - c0 < ideal || x.stopped) && simIn <= Math.max(0, past) + 34, `${tag}: after a 70 ms stalled frame the stop (ideal ${ideal} ms) ends on the first frame past the deadline, at ${(first.t - c0).toFixed(0)} ms; sim advanced ${simIn.toFixed(0)} ms before it was over (past the deadline ${past.toFixed(0)} ms, 1 tick allowed); 40-80 ms real is not reachable with a 70 ms frame`);
-  const slow = windowStats(rows, 0.2, 0.3);
-  check(slow.dur >= 0.25 && slow.dur <= 0.37 && slow.nominal >= 0.2 && slow.nominal <= 0.35, `${tag}: ultimate scene time scale ${(slow.nominal * 100).toFixed(0)}% for ${slow.dur.toFixed(3)} s (20 to 35% for 0.25 to 0.35 s, plus one frame of measuring grain); sim ticks taken ${slow.ticks.toFixed(1)} of ${slow.expect.toFixed(1)} expected (measured rate ${(slow.rate * 100).toFixed(0)}%)`);
+  const rows = u1.rows; const c0 = u1.castAt[0];
+  // the ultimate's close-up (ultcam.js): the world holds through the wind-up, the release takes a hit-stop, then slow motion
+  const held = rows.filter((x) => x.ph === 'gong'); const holdS = held.length ? (held[held.length - 1].t - held[0].t) / 1000 : 0;
+  check(held.length > 0 && held.slice(1).every((x) => x.scale === 0) && holdS >= 0.38 && holdS <= 0.56, `${tag}: the ultimate's wind-up holds the world ${holdS.toFixed(3)} s at scale 0 (0.4 to 0.55, one frame of grain)`);
+  const simHeld = held.length > 1 ? held[held.length - 1].Bt - held[1].Bt : 1;
+  check(simHeld === 0, `${tag}: the sim takes no tick in the wind-up (advanced ${(simHeld * 1000).toFixed(0)} ms)`);
+  const asked = Math.max(-1, ...u1.stops.filter((st) => st.force).map((st) => st.ms));
+  check(asked >= 40 && asked <= 80, `${tag}: the release lands a hit-stop of ${asked} ms (40 to 80)`);
+  const slow = windowStats(rows.filter((x) => x.ph === 'bung'), 0.2, 0.35);
+  check(slow.dur >= 0.35 && slow.dur <= 0.6 && slow.nominal >= 0.2 && slow.nominal <= 0.35, `${tag}: slow motion after the release ${(slow.nominal * 100).toFixed(0)}% for ${slow.dur.toFixed(3)} s (20 to 35% for 0.35 to 0.6 s)`);
   check(Math.abs(slow.ticks - slow.expect) <= 1.6, `${tag}: sim ticks in the slow window ${slow.ticks.toFixed(1)} vs ${slow.expect.toFixed(1)} expected from the scale (within one tick and a half)`);
-  const minMargin = Math.min(...rows.map((x) => x.margin)); const maxPush = Math.max(...rows.map((x) => x.push)); const maxSh = Math.max(...rows.map((x) => x.shake));
-  check(minMargin > 0, `${tag}: arena rim stays in the frame through shake, push and the ultimate scene (min margin ${(minMargin * 100).toFixed(2)}% of half the frame, push ${(maxPush * 100).toFixed(0)}% of max, shake peak ${maxSh.toFixed(2)} px)`);
-  // two ultimates close together
+  const on = rows.filter((x) => x.ult); const span = on.length ? (on[on.length - 1].t - on[0].t) / 1000 : 0;
+  check(span >= 0.8 && span <= 1.5, `${tag}: the close-up lasts ${span.toFixed(2)} s (0.8 to 1.5), started ${on.length ? (on[0].t - c0).toFixed(0) : '-'} ms after the cast`);
+  const fight = rows.filter((x) => !x.ult); const minMargin = Math.min(...fight.map((x) => x.margin)); const maxSh = Math.max(...rows.map((x) => x.shake));
+  check(minMargin > 0, `${tag}: every unit on the pad stays in the frame through shake and push outside the close-up (min margin ${(minMargin * 100).toFixed(2)}% of half the frame, shake peak ${maxSh.toFixed(2)} px)`);
+  // a forced stop, then a 70 ms stalled frame: the stop ends on the wall clock, the sim takes no tick before the 55 ms deadline
+  const us = await run({ secs: 1.2, stall: 70, casts: [{ at: 300, what: 'stop' }] });
+  const s0 = us.castAt[0]; const ideal = 55;
+  const ci = us.rows.findIndex((x) => x.t >= s0 - 1); const first = us.rows.slice(ci + 1).find((x) => !x.stopped && x.t - s0 >= ideal - 1) || us.rows[us.rows.length - 1];
+  const prev = us.rows.slice(ci, us.rows.indexOf(first)); const simIn = (first.Bt - us.rows[ci].Bt) * 1000; const past = first.t - s0 - ideal;
+  check(prev.every((x) => x.t - s0 < ideal || x.stopped) && simIn <= Math.max(0, past) + 34, `${tag}: after a 70 ms stalled frame the stop (ideal ${ideal} ms) ends on the first frame past the deadline, at ${(first.t - s0).toFixed(0)} ms; sim advanced ${simIn.toFixed(0)} ms before it was over (1 tick allowed)`);
+  // two ultimates 0.26 s apart: the second joins the first close-up, released together
   const u2 = await run({ secs: 3, casts: [{ at: 300, what: 'ult', slot: 0 }, { at: 560, what: 'ult', slot: 1 }] });
-  const slowTotal = u2.rows.filter((x) => x.scale < 0.9).reduce((a, x, i, l) => a + (i ? (x.t - l[i - 1].t) / 1000 : 0), 0);
-  check(u2.scenes === 2 && u2.last && Math.abs(u2.last.hold - 0.12) < 1e-9 && slowTotal <= 0.9, `${tag}: two ultimates 0.26 s apart: second scene hold ${u2.last && u2.last.hold} s, ${slowTotal.toFixed(2)} s below 90% speed in all (<= 0.9), hit-stops ${u2.stops.length}`);
-  check(u2.stops.every((s, i, l) => !i || s.at - l[i - 1].at >= 0.35 - 1e-6), `${tag}: hit-stops at least 0.35 s apart (${u2.stops.map((s) => s.at.toFixed(2)).join(', ')})`);
+  const slowTotal = u2.rows.filter((x) => x.scale < 0.9 && x.scale > 0).reduce((a, x, i, l) => a + (i ? (x.t - l[i - 1].t) / 1000 : 0), 0);
+  check(u2.ults - u1.ults === 1 && slowTotal <= 1.4, `${tag}: two ultimates 0.26 s apart share one close-up (${u2.ults - u1.ults} close-up), ${slowTotal.toFixed(2)} s in slow motion and its ramp out (<= 1.4)`);
+  check(u2.stops.every((s, i, l) => !i || s.force || s.at - l[i - 1].at >= 0.35 - 1e-6), `${tag}: unforced hit-stops at least 0.35 s apart (${u2.stops.map((s) => s.at.toFixed(2)).join(', ')})`);
   // tap skips
-  const u3 = await run({ secs: 1.8, casts: [{ at: 300, what: 'ult', slot: 0 }, { at: 480, what: 'tap' }] });
-  const slow3 = windowStats(u3.rows, 0.2, 0.3);
-  check(slow3.dur < 0.2, `${tag}: a tap skips the scene (slow window ${slow3.dur.toFixed(3)} s, a full one is 0.3 s)`);
+  const u3 = await run({ secs: 1.8, casts: [{ at: 300, what: 'ult', slot: 0 }, { at: 420, what: 'tap' }] });
+  const on3 = u3.rows.filter((x) => x.ult); const span3 = on3.length ? (on3[on3.length - 1].t - on3[0].t) / 1000 : 0;
+  check(span3 < 0.45, `${tag}: a tap 0.12 s into the wind-up ends the close-up at ${span3.toFixed(2)} s (a full one is over 0.8 s)`);
   // x2
   const u4 = await run({ secs: 1.8, speed: 2, casts: [{ at: 300, what: 'ult', slot: 0 }] });
-  check(Math.min(...u4.rows.filter((x) => !x.stopped && !x.part).map((x) => x.scale)) >= 0.999 && Math.max(...u4.rows.map((x) => x.push)) > 0.5 && u4.stops.every((s) => s.ms <= 40), `${tag}: at x2 no slow motion (min scale outside hit-stops ${Math.min(...u4.rows.filter((x) => !x.stopped && !x.part).map((x) => x.scale)).toFixed(2)}), push kept (${Math.max(...u4.rows.map((x) => x.push)).toFixed(2)}), hit-stop ${u4.stops.map((s) => s.ms).join('/')} ms (<= 40)`);
+  const hold4 = u4.rows.filter((x) => x.ph === 'gong'); const h4 = hold4.length ? (hold4[hold4.length - 1].t - hold4[0].t) / 1000 : 0;
+  const moving = u4.rows.filter((x, i, l) => !x.stopped && !x.part && x.ph !== 'gong' && !(i && l[i - 1].ph === 'gong'));
+  check(Math.min(...moving.map((x) => x.scale)) >= 0.999 && h4 <= 0.26 && u4.stops.every((s) => s.ms <= 40), `${tag}: at x2 a shorter hold (${h4.toFixed(2)} s, <= 0.25) and no slow motion (min scale ${Math.min(...moving.map((x) => x.scale)).toFixed(2)}), hit-stop ${u4.stops.map((s) => s.ms).join('/')} ms (<= 40)`);
   // shake alone: peak offset of a fixed world point
   const sh = await run({ secs: 1, casts: [{ at: 200, what: 'kick', px: 3.6 }] });
   const peak = Math.max(...sh.rows.map((x) => x.off)); const rest = sh.rows[sh.rows.length - 1].off;
@@ -225,7 +234,7 @@ async function live(br, base, phone) {
   const peakB = Math.max(...boom.rows.map((x) => x.off));
   check(peakB >= 1 && peakB <= 6 && boom.stops.length === 1 && boom.stops[0].ms >= 40 && boom.stops[0].ms <= 80, `${tag}: a boss slam shakes ${peakB.toFixed(2)} px with ${boom.stops.length} hit-stop of ${boom.stops[0] ? boom.stops[0].ms : 0} ms`);
   await page.evaluate(() => window.__G.setSetting('shake', false));
-  const off = await run({ secs: 1, casts: [{ at: 200, what: 'kick', px: 3.6 }, { at: 300, what: 'ult', slot: 0 }] });
+  const off = await run({ secs: 1.6, casts: [{ at: 200, what: 'kick', px: 3.6 }, { at: 300, what: 'ult', slot: 0 }] });
   const peakOff = Math.max(...off.rows.map((x) => Math.abs(x.shake)));
   check(peakOff === 0, `${tag}: with the shake setting off the shake value is exactly ${peakOff} over ${off.rows.length} frames`);
   await page.evaluate(() => { window.__G.setSetting('shake', true); window.__G.setSetting('reduceFlash', true); });
@@ -233,12 +242,12 @@ async function live(br, base, phone) {
   check(Math.max(...rf.rows.map((x) => x.shake)) === 0, `${tag}: reduceFlash also turns the shake off`);
   await page.evaluate(() => window.__G.setSetting('reduceFlash', false));
   // __sim fast-forward: no hit-stop and no scene
-  const ff = await page.evaluate(() => { const G = window.__G; G.start(3, { seed: 9, wave: 3, team: ['thep', 'mua', 'yta', 'gio'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: true, pick: 'best' } }); G.juice.reset(); const n0 = G.juice.stops.length; const s0 = G.juice.scenes; for (const u of G.B.heroes) { u.ult = 1; u.ultReady = true; u.ultReadyT = -99; } window.__sim(12); return { stops: G.juice.stops.length - n0, scenes: G.juice.scenes - s0, ults: G.B.heroes.reduce((a, u) => a + (u.ults || 0), 0), scale: G.juice.scale }; });
-  check(ff.ults > 0 && ff.stops === 0 && ff.scenes === 0 && ff.scale === 1, `${tag}: __sim(12) with ${ff.ults} ultimates cast takes ${ff.stops} hit-stops and ${ff.scenes} scenes`);
+  const ff = await page.evaluate(() => { const G = window.__G; G.start(3, { seed: 9, wave: 3, team: ['tegiap', 'nhim', 'loc', 'chon'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: true, pick: 'best' } }); G.juice.reset(); const n0 = G.juice.stops.length; const s0 = G.juice.scenes; const k0 = G.juice.ult.count; for (const u of G.B.heroes) { u.ult = 1; u.ultReady = true; u.ultReadyT = -99; } window.__sim(12); return { stops: G.juice.stops.length - n0, scenes: G.juice.scenes - s0, close: G.juice.ult.count - k0, ults: G.B.heroes.reduce((a, u) => a + (u.ults || 0), 0), scale: G.juice.scale }; });
+  check(ff.ults > 0 && ff.stops === 0 && ff.scenes === 0 && ff.close === 0 && ff.scale === 1, `${tag}: __sim(12) with ${ff.ults} ultimates cast takes ${ff.stops} hit-stops, ${ff.scenes} scenes and ${ff.close} close-ups`);
   // ground effects return to baseline after the last cast
   const gr = await page.evaluate(async () => {
     const G = window.__G; G.juice.enabled = false; const SIM = window.__SIM;
-    G.start(3, { seed: 9, wave: 3, team: ['thep', 'mua', 'yta', 'gio'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } }); window.__sim(4);
+    G.start(3, { seed: 9, wave: 3, team: ['tegiap', 'nhim', 'loc', 'chon'], hpFlat: 90000, atkFlat: 0, mul: 0.5, auto: { ult: false, pick: 'best' } }); window.__sim(4);
     for (const e of G.B.enemies) e.hp = 0; for (let i = 0; i < 40; i++) SIM.step(G.B); for (let i = 0; i < 240; i++) window.__step(1); // quiet
     const g = () => { const s = G.actors.marks.stats(); const d = G.fx.debug(); return s.rings + s.flares + s.strips + (s.pillars || 0) + (s.walls || 0) + (s.flashes || 0); };
     const base = g(); const B = G.B;
@@ -255,7 +264,7 @@ async function live(br, base, phone) {
 // ---------- cost ----------
 const PERF = async () => {
   const G = window.__G; const H = G.host; const SIM = window.__SIM;
-  G.start(15, { seed: 15, wave: 5, team: ['thep', 'mua', 'yta', 'gio'], hpFlat: 400000, atkFlat: 0, mul: 0.3, auto: { ult: false, pick: 'best' } });
+  G.start(15, { seed: 15, wave: 5, team: window.__TEAM, hpFlat: 400000, atkFlat: 0, mul: 0.3, auto: { ult: false, pick: 'best' } });
   window.__sim(20); G.paused = false; G.speed = 1;
   const render = H.render; let cpu = 0; let calls = 0; H.render = (o) => { const t = performance.now(); render(o); cpu += performance.now() - t; calls++; };
   const raf = () => new Promise((r) => requestAnimationFrame(r)); const B = G.B;
