@@ -10,7 +10,7 @@ const ONLY = arg('only') || 'all';
 const QUICK = process.argv.includes('--quick');
 const want = (g) => ONLY === 'all' || ONLY === g || (ONLY === 'foe' && (g === 'zombie' || g === 'boss'));
 // the page's own cache key, so the tool imports the same module instances the page loaded
-const V = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8').match(/\?v=(\d{8}[a-z])/)[1];
+const V = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8').match(/js\/main\.js\?v=(\d{8}[a-z])/)[1];
 const DEMO = '/games/ai-sinh-ton/beast-demo.html';
 const { check, done } = checker();
 
