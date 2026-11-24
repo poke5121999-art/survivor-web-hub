@@ -61,7 +61,7 @@ export default {
     },
   },
   'loc.3a': {
-    height: 1.55, move: 'swimAir', attack: 'shoot', airH: 0.55, ghostOpacity: 0.55,
+    height: 1.5, move: 'swimAir', attack: 'shoot', airH: 0.55, ghostOpacity: 0.55,
     build(K) {
       const P = palette(0xbfe6ff, { belly: 0xf4fbff, snout: 0xf0f8ff, dark: 0x5a8ab0 });
       K.defBuf = 'ghost';

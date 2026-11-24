@@ -100,7 +100,7 @@ export class Kit {
         if (nr.lengthSq() < 1e-14) continue; nr.normalize();
         const base = B.n;
         corners.forEach((c, ci) => {
-          const zk = ((k === 2 ? s : L[2]) && 0) || this._zk(c, F, hz);
+          const zk = this._zk(c, F, hz);
           const [b0, b1, w] = skin ? skin(zk) : [bone, bone, 1];
           B.vert(c, nr, hex, [pc[ci][0], pc[ci][1], nu, nv], b0, b1, w);
         });
@@ -160,10 +160,10 @@ export class Kit {
         const t0 = s / steps; const t1 = (s + 1) / steps; const tm = (t0 + t1) / 2;
         const A = a.p.clone().lerp(b.p, t0); const Bp = a.p.clone().lerp(b.p, t1);
         const rx = (a.rx + (b.rx - a.rx) * tm) * K; const ry = (a.ry + (b.ry - a.ry) * tm) * K;
-        // overlap: into the neighbour span at joints, a short cap past the open ends
+        // overlap into the neighbour span at joints; open ends stop flat at their point (feet stay on the ground)
         const atStart = i === 0 && s === 0; const atEnd = i === spans - 1 && s === steps - 1;
         const d = Bp.clone().sub(A).normalize(); const m = Math.min(rx, ry);
-        A.addScaledVector(d, -(atStart ? m * 0.25 : s === 0 ? m * 0.55 : 0)); Bp.addScaledVector(d, atEnd ? m * 0.25 : s === steps - 1 ? m * 0.2 : 0);
+        A.addScaledVector(d, -(atStart ? 0 : s === 0 ? m * 0.55 : 0)); Bp.addScaledVector(d, atEnd ? 0 : s === steps - 1 ? m * 0.2 : 0);
         const c = (tm < 0.5 ? a.col : b.col) ?? opts.col ?? 0xffffff; const bel = (tm < 0.5 ? a.belly : b.belly) ?? opts.belly;
         const f = (i + tm) / spans;
         this.beam(A, Bp, rx, ry, { ...opts, up, bone: this.bi(a.bone), col: (lp, n) => face(c, bel)(lp, n, f), div: [1, bel !== undefined ? 3 : 1, 1] });
@@ -185,7 +185,8 @@ export class Kit {
     };
     const o = { ...opts, bone: bi, skin, col, div: [1, bel !== undefined ? 3 : 1, zc], taper: opts.taper };
     const small = Math.max(...R) < this.px * 2.2;
-    if (n >= 2.3 || small || opts.taper) {
+    // a see-through body is one box: stacked boxes would show their insides through each other
+    if (n >= 2.3 || small || opts.taper || opts.buf === 'ghost') {
       const k = n >= 2.3 ? 0.94 : 0.86;
       return this.box(F, [R[0] * k, R[1] * k, R[2] * k], o);
     }
@@ -240,11 +241,11 @@ export class Kit {
     }));
     return this;
   }
-  // a ring round an axis (aura bands, haloes, rims): blocks round an octagon (twelve-gon on portraits); rot turns the
+  // a ring round an axis (aura bands, haloes, rims): blocks round an octagon; rot turns the
   // default xz-plane ring
   torus(bone, c, R, r, opts = {}) {
     const F = frameOf(c, opts.rot); const bi = this.bi(bone); const arc = opts.arc ?? 1;
-    const N = Math.max(2, Math.round((this.hi ? 12 : 8) * arc)); const step = (Math.PI * 2 * arc) / (arc >= 0.999 ? N : Math.max(1, N - 1));
+    const N = Math.max(2, Math.round(8 * arc)); const step = (Math.PI * 2 * arc) / (arc >= 0.999 ? N : Math.max(1, N - 1));
     const chord = 2 * R * Math.sin(Math.min(step, Math.PI) / 2);
     for (let i = 0; i < N; i++) {
       const a = i * step; const p = F.o.clone().addScaledVector(F.ax, Math.cos(a) * R).addScaledVector(F.az, Math.sin(a) * R);
@@ -353,11 +354,11 @@ export class Kit {
     const root = new THREE.Group(); root.name = 'beast';
     const rootBone = this.bones[0]; root.add(rootBone);
     const skel = new THREE.Skeleton(this.bones); root.updateMatrixWorld(true);
-    const U = { uSelf: { value: opts.self ?? 0.28 }, uFlash: { value: new THREE.Color(0, 0, 0) }, uOutline: { value: opts.outline ?? 0.03 } };
+    const U = { uSelf: { value: opts.self ?? 0.16 }, uFlash: { value: new THREE.Color(0, 0, 0) }, uOutline: { value: opts.outline ?? 0.03 } };
     // the pixel pattern: each texel of a face a little lighter or darker by a hash, the texels along a block's edge darker
     const PIX = 'float pixK = 1.0;\n{ vec2 cl = floor(vPix.xy); vec3 p3 = fract(vec3(cl.xyx + vColor.rgb * 37.0) * 0.1031); p3 += dot(p3, p3.yzx + 33.33);'
-      + ' float hh = fract((p3.x + p3.y) * p3.z); pixK = 0.9 + 0.17 * hh;'
-      + ' if ((vPix.z > 2.5 && (cl.x < 0.5 || cl.x > vPix.z - 1.5)) || (vPix.w > 2.5 && (cl.y < 0.5 || cl.y > vPix.w - 1.5))) pixK *= 0.84;'
+      + ' float hh = fract((p3.x + p3.y) * p3.z); pixK = 0.88 + 0.2 * hh;'
+      + ' if ((vPix.z > 2.5 && (cl.x < 0.5 || cl.x > vPix.z - 1.5)) || (vPix.w > 2.5 && (cl.y < 0.5 || cl.y > vPix.w - 1.5))) pixK *= 0.8;'
       + ' diffuseColor.rgb *= pixK; }';
     const pixVert = (sh) => { sh.vertexShader = sh.vertexShader.replace('void main() {', 'attribute vec4 pix; varying vec4 vPix;\nvoid main() {\n vPix = pix;'); sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'varying vec4 vPix;\nvoid main() {').replace('#include <color_fragment>', '#include <color_fragment>\n' + PIX); };
     const self = (sh) => {
