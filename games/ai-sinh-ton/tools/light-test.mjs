@@ -2,13 +2,14 @@
 // hidden, stage (ch - 1) * 5 + 2 after 8 s of fight, at s22 and xiaomi:
 //  - floor: mean luma (Rec. 709 over sRGB 0..255) of the arena floor alone (a frame with only the island and the abyss
 //    drawn), sampled on a grid inside 0.9 of the arena ellipse; a chapter is "day" at >= DAY_FLOOR
-//  - white: share of pixels with min(r, g, b) >= 250 over the whole frame (< 1%)
-//  - black: share of pixels with max(r, g, b) < 20 over the whole frame (< 8%)
+//  - white: share of pixels with min(r, g, b) >= 250 over the frame without the skills' effects (< 1%); the share with
+//    the effects is printed beside it (the effects are the fx worker's)
+//  - black: share of pixels with max(r, g, b) < 20 over the same frame (< 8%)
 //  - units: each living hero and monster whose box is in view, the colour distance between its own pixels (those that
-//    differ between the full frame and the floor-only frame inside its projected box) and the floor behind them; the
+//    differ between the frame without effects and the floor-only frame inside its projected box) and the floor behind them; the
 //    chapter passes when the median unit is >= UNIT_MIN and no more than 15% of them are under UNIT_LOW
 //  - at least DAY_MIN of the ten chapters are day (counted on s22)
-// Shots: .chk/a11/light/<sub>/c<ch>-<phone>.png (full) and -floor.png; --root=<another checkout> serves that tree instead
+// Shots: .chk/a11/light/<sub>/c<ch>-<phone>.png (full), -units.png (no effects) and -floor.png; --root=<another checkout> serves that tree instead
 // (the old build: --root=$HOME/ai-sinh-ton/.wt-integ3 --sub=old). --sheet composes old | new | MCD reference per chapter
 // into .chk/a11/light/sheet-c<ch>.png from shots already taken.
 // Usage: PLAYWRIGHT_PATH=... timeout 900 node games/ai-sinh-ton/tools/light-test.mjs [--ch=1,2] [--phones=s22] [--q=medium]
@@ -31,7 +32,7 @@ const REFS = path.join(os.homedir(), 'handoff', 'ai-sinh-ton-refs');
 const DAY_FLOOR = 105; const DAY_MIN = 5; const UNIT_MIN = 45; const UNIT_LOW = 22;
 const BIOMES = ['forest', 'street', 'crypt', 'swamp', 'volcano', 'snow', 'coast', 'factory', 'sky', 'void'];
 // the nearest Minecraft Dungeons screenshot per biome (look and light, not layout)
-const REF = { forest: 'look-9-horde-grass.webp', street: 'look-4.webp', crypt: 'look-10-desert-temple.webp', swamp: 'look-6.webp', volcano: 'look-11-lava-bridge.png', snow: 'look-7.webp', coast: 'look-5.webp', factory: 'look-8.webp', sky: 'look-9-horde-grass.webp', void: 'look-12-boss.png' };
+const REF = { forest: 'look-9-horde-grass.webp', street: 'look-4.webp', crypt: 'look-10-desert-temple.webp', swamp: 'look-7.webp', volcano: 'look-11-lava-bridge.png', snow: 'look-6.webp', coast: 'look-4.webp', factory: 'look-5.webp', sky: 'look-8.webp', void: 'look-12-boss.png' };
 const py = (src, ...a) => execFileSync('python3', ['-c', src, ...a], { maxBuffer: 1 << 26 }).toString();
 
 if (argv.includes('--sheet')) {

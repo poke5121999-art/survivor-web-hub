@@ -3,7 +3,8 @@
 //  - coverage: share of 24 x 24 design px cells with luminance std < 1.5 (<= 3%); BEFORE = the deployed portrait build
 //  - outline: the island outline polygon (from the page's own data) deviates from its best-fit ellipse by >= 0.5 m RMS and
 //    has >= 12 corners; no hazard-stripe texture on any mesh in the scene
-//  - lighting: >= 4 warm sources whose pool lights the floor in view; warm pixels (hue 15-55, sat > 0.35, value > 0.5) 0.5% .. 12%; ring
+//  - lighting: >= 4 warm sources whose pool lights the floor in view; warm pixels (hue 15-55, sat > 0.35, value > 0.5) 0.5% .. 12%
+//    (no ceiling on a sunlit theme, one with cast shadows: its warm floor is the sun, not torch glare); ring
 //    contrast (team rings vs the floor under them, measured by drawing the frame with and without the rings) >= the
 //    tree's value before the island (.chk/landscape/baseline-tree.json, written by --baseline on the old tree)
 //  - depth: the water/abyss alone differs between the near (bottom) and far (top) edge; >= 30 drifting light particles
@@ -63,7 +64,7 @@ const PROBE = () => {
   let hazard = 0; H.scene.traverse((o) => { const m = o.material; for (const mm of [].concat(m || [])) if (mm && mm.map && /hazard/.test(mm.map.name || '')) hazard++; });
   const rim = []; for (let i = 0; i < 96; i++) { const a = i / 96 * Math.PI * 2; rim.push(pr(Math.cos(a) * 9.6 * 1.04, 0, Math.sin(a) * 4.6 * 1.04)); }
   return { w, h, u, lights, hero, hazard, rim, pitch: +(G.cam.pitch * 180 / Math.PI).toFixed(1), dist: G.cam.dist, fov: H.camera.fov,
-    outline: pad ? pad.outline : null, ellipse: pad ? pad.ellipse : null, boxes: pad ? pad.boxes : [], motes: W ? W.motesAlive() : 0, buildMs: W ? W.buildMs : 0, theme: pad ? pad.theme : '' };
+    outline: pad ? pad.outline : null, ellipse: pad ? pad.ellipse : null, boxes: pad ? pad.boxes : [], motes: W ? W.motesAlive() : 0, buildMs: W ? W.buildMs : 0, theme: pad ? pad.theme : '', sun: !!(W && W.theme && (W.theme.shadow || 0) > 0) };
 };
 
 const IMG = `
@@ -277,7 +278,8 @@ try {
           check(o.problems.length === 0, `${k} ${lab}: no console problems ${o.problems.slice(0, 2).join(' | ')}`);
         }
         check(warmIn >= 4, `${k}: warm light sources lighting the floor in view ${warmIn} (>= 4)`);
-        check(a.img.warm >= 0.005 && a.img.warm <= 0.12, `${k}: warm pixel share ${(100 * a.img.warm).toFixed(2)}% (0.5..12%)`);
+        // the ceiling keeps torchlight from burning a night floor orange; a sunlit theme (noon sand, an evening sun) is warm by design
+        check(a.img.warm >= 0.005 && (p.sun || a.img.warm <= 0.12), `${k}: warm pixel share ${(100 * a.img.warm).toFixed(2)}% (${p.sun ? '>= 0.5%, sunlit' : '0.5..12%'})`);
         check(p.motes >= 30, `${k}: drifting light particles ${p.motes} (>= 30)`);
         check(p.buildMs < 250, `${k}: world build ${p.buildMs.toFixed(0)} ms (< 250)`);
         check(p.hazard === 0, `${k}: no hazard-stripe texture in the scene (${p.hazard})`);
