@@ -4,10 +4,10 @@
 // the fires'. The boss floor cracks open in lava seams.
 export const VOLCANO = {
   name: 'volcano', centre: [0.16, 0.05, 0.02], lightK: 0.85, lightWhite: 0.4, rain: 0, fog: 0x2e140c, rise: 0x2a0a04, fly: [1.0, 0.42, 0.12],
-  abyss: { type: 'mist', y: -10, deep: 0x3a2822, shallow: 0x7a1c06, foam: 0xff7a1c, haze: 0x3a2018, spark: 0xff7030, mist: 0x3a302e, mistK: 0.45, lava: { crust: 0x3a2822, glow: 0x7a1c06, hot: 0xff7a1c },
+  abyss: { type: 'mist', y: -10, deep: 0x3a2018, shallow: 0xa02408, foam: 0xff8a20, haze: 0x4a2014, spark: 0xff8030, mist: 0x4a2a20, mistK: 0.4, lava: { crust: 0x34201a, glow: 0xa82808, hot: 0xff9a28 },
     far: { top: 0x3a3234, side: 0x1e1818 } },
-  amb: { sky: [0.48, 0.42, 0.44], ground: [0.3, 0.13, 0.08] }, key: { dir: [0.3, 0.55, -0.6], color: [0.42, 0.2, 0.1] },
-  hemi: { sky: 0xb8a4a4, ground: 0x8a3818, k: 1.5 }, sun: { color: 0xff8a50, k: 1.3 },
+  amb: { sky: [0.46, 0.38, 0.4], ground: [0.5, 0.16, 0.06] }, key: { dir: [0.25, 0.35, -0.7], color: [0.62, 0.24, 0.08] },
+  hemi: { sky: 0xa89494, ground: 0xb84818, k: 1.6 }, sun: { color: 0xff7a40, k: 1.5 },
   top: { base: [['basalt', 5], ['ash', 2]], patch: [['ash', 3], ['cinder', 1]], patchK: 0.24, tint: [1.12, 1.08, 1.12] },
   rimTint: [0.82, 0.78, 0.8],
   edge: [['basalt', 3], ['cinder', 2], ['lava_rock', 1]], side: { top: ['lava_rock', 'basalt_col'], rows: [['basalt_col', 3], ['lava_rock', 2], ['cinder', 1]] },
