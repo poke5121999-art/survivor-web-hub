@@ -3,11 +3,11 @@
 // torn sail, driftwood), palms and sea stacks, ship's lanterns and driftwood fires; the sea below rolls foam in toward the
 // shore. The boss pad is the wreck at dusk, its embers glowing in the cracks.
 export const COAST = {
-  name: 'coast', rain: 0, fog: 0x8ab4c8, rise: 0x2a6a7a, day: 1, lightWhite: 0.6, fly: [1.0, 0.96, 0.82],
+  name: 'coast', rain: 0, fog: 0x9cc8e0, rise: 0x2a6a7a, day: 1, shadow: 0.55, shadowC: 0x0a2a40, lightWhite: 0.6, lightK: 0.6, fly: [1.0, 0.96, 0.82],
   abyss: { type: 'water', y: -2.6, deep: 0x0c3a54, shallow: 0x2a8a9c, foam: 0xeaf6fa, haze: 0x8ab8cc, spark: 0xffffff, waves: 1 },
-  amb: { sky: [0.66, 0.7, 0.78], ground: [0.28, 0.27, 0.26] }, key: { dir: [-0.5, 0.75, 0.45], color: [0.38, 0.35, 0.3] },
-  hemi: { sky: 0xdce8ff, ground: 0x8a7e6a, k: 1.7 }, sun: { color: 0xfff2dc, k: 2.0 },
-  top: { base: [['sand_wet', 5], ['sand_dry', 2]], patch: [['sand_dry', 3], ['seaweed', 1]], patchK: 0.2, tint: [0.84, 0.84, 0.9] },
+  amb: { sky: [0.6, 0.64, 0.72], ground: [0.26, 0.26, 0.26] }, key: { dir: [0.5, 0.8, -0.35], color: [0.5, 0.47, 0.4] },
+  hemi: { sky: 0xdce8ff, ground: 0x7a6e5a, k: 1.3 }, sun: { color: 0xfff2dc, k: 1.9 },
+  top: { base: [['sand_wet', 5], ['sand_dry', 2]], patch: [['sand_dry', 3], ['seaweed', 1]], patchK: 0.2, tint: [1.04, 1.08, 1.26] },
   rimTint: [0.9, 0.88, 0.9],
   edge: [['sand_dry', 3], ['sand_wet', 1], ['cliff', 1]], side: { top: ['cliff'], rows: [['cliff', 3], ['rock', 1]] },
   lights: [['lantern', 3], ['campfire', 2], ['torch', 2]],

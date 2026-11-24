@@ -1,10 +1,10 @@
-// Bãi Xe Cũ: an old car park slab floating over brown fog, sodium lamps and wrecks on fire
+// Bãi Xe Cũ: an old car park slab floating over amber haze at sunset (the street's evening), sodium lamps and wrecks on fire
 export const PARKING = {
-  name: 'parking', centre: [0.14, 0.13, 0.14], lightK: 0.55,  rain: 0, fog: 0x2a2228, rise: 0x2a2024,
-  abyss: { type: 'mist', y: -9, deep: 0x120c10, shallow: 0x4a3a38, foam: 0x8a7464, haze: 0x5a4844, spark: 0xffc890 },
-  amb: { sky: [0.44, 0.40, 0.46], ground: [0.16, 0.12, 0.12] }, key: { dir: [0.5, 0.7, 0.5], color: [0.31, 0.27, 0.24] },
-  hemi: { sky: 0xb0a4b4, ground: 0x443a38, k: 1.35 }, sun: { color: 0xffc49a, k: 1.15 },
-  top: { base: [['asphalt', 5], ['concrete_dark', 2]], patch: [['concrete', 2], ['concrete_dark', 1]], patchK: 0.3, tint: [0.9, 0.87, 0.84] },
+  name: 'parking', lightK: 0.55, rain: 0, fog: 0xa87c64, rise: 0x3a2a26, shadow: 0.55, shadowC: 0x1a1030,
+  abyss: { type: 'mist', y: -9, deep: 0x2a1a18, shallow: 0x8a6450, foam: 0xd0a080, haze: 0x9a7460, spark: 0xffc890 },
+  amb: { sky: [0.6, 0.56, 0.66], ground: [0.22, 0.17, 0.18] }, key: { dir: [0.82, 0.45, -0.3], color: [0.78, 0.44, 0.2] },
+  hemi: { sky: 0xb8b0d0, ground: 0x5a4440, k: 1.45 }, sun: { color: 0xffa868, k: 2.1 },
+  top: { base: [['asphalt', 5], ['concrete_dark', 2]], patch: [['concrete', 2], ['concrete_dark', 1]], patchK: 0.3, tint: [1.2, 1.0, 0.84] },
   edge: [['concrete_dark', 2], ['rubble', 2]], side: { top: ['concrete_dark'], rows: [['concrete_dark', 2], ['rubble', 1], ['earth', 2]] },
   lights: [['lamp', 3], ['wreckfire', 2], ['barrelfire', 2]], tall: [['car', 3], ['pillar', 2], ['wall', 1]], low: [['cone', 2], ['tire', 2], ['crate', 1], ['barrel', 2], ['rocks', 1]],
   sat: { top: [['concrete_dark', 2], ['rubble', 1]], side: 'concrete_dark' }, glow: 0xffa850,

@@ -69,7 +69,7 @@ export async function createHost({ frame, canvas, params }) {
   sun.castShadow = quality.shadow > 0;
   if (sun.castShadow) {
     sun.shadow.mapSize.set(quality.shadow, quality.shadow);
-    const c = sun.shadow.camera; c.left = -26; c.right = 26; c.top = 15; c.bottom = -15; c.near = 5; c.far = 90;
+    const c = sun.shadow.camera; c.left = -30; c.right = 30; c.top = 20; c.bottom = -20; c.near = 2; c.far = 110;
     sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.04;
   }
   scene.add(sun); scene.add(sun.target);
@@ -158,10 +158,14 @@ export async function createHost({ frame, canvas, params }) {
 
   // rain falls only where the chapter has it (and never under ?weather=clear)
   const noRain = !!(params && params.weather === 'clear');
+  const sunDir = new THREE.Vector3(-0.35, 0.82, 0.45);
   H.setStage = (def, wave = 1) => {
     const th = world.setStage(def, wave);
     const fog = new THREE.Color(th.fog);
     scene.fog.color.copy(fog); scene.background = fog; renderer.setClearColor(fog, 1);
+    // the sun shines from the theme's key direction (the one baked into the blocks) and casts only where the theme has shadows
+    const kd = th.key.dir; const kl = Math.hypot(kd[0], kd[1], kd[2]); sunDir.set(kd[0] / kl, kd[1] / kl, kd[2] / kl);
+    sun.castShadow = gov.shadows && world.shadows();
     H.setRain(!noRain && th.rain > 0);
   };
 
@@ -172,7 +176,7 @@ export async function createHost({ frame, canvas, params }) {
     world.setBoss(!!(H.B && H.B.wave === 5 && H.B.phase === 'fight'));
     world.update(dt);
     const f = G.player.pos;
-    sun.position.set(f.x - 12, 32, f.z + 14); sun.target.position.set(f.x, 0, f.z); sun.target.updateMatrixWorld();
+    sun.position.set(f.x + sunDir.x * 50, sunDir.y * 50, f.z + sunDir.z * 50); sun.target.position.set(f.x, 0, f.z); sun.target.updateMatrixWorld();
   };
 
   // lower shadows and bloom first, then the pixel ratio down to the 1.0 floor, never below

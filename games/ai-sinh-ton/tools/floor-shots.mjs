@@ -1,7 +1,7 @@
 // The battle floor per chapter (the block island of js/view/pad.js and world.js), overview and spectate close-up, at s22.
 // Asserts per chapter: no clipped white (< 1%), a boss warning readable on the floor, the hero ring readable, the hero's
-// height at the arena centre, and the look checks of the island (flat 24 px cells <= 3%, warm pixels 0.5..12%, at least
-// 4 warm sources in the frame). The deeper look checks (outline, depth, spawns, cost) live in arena-look-test.mjs.
+// height at the arena centre, and the look checks of the island (flat 24 px cells <= 3%, warm pixels 0.5..12% with no
+// ceiling on a sunlit theme, at least 4 warm sources in the frame). The deeper look checks (outline, depth, spawns, cost) live in arena-look-test.mjs.
 // Sheet: .chk/floor/chapters.png (overview and close-up per chapter).
 // Usage: PLAYWRIGHT_PATH=... timeout 600 node games/ai-sinh-ton/tools/floor-shots.mjs [--ch=1,3]  (GL=swiftshader unless GL is set)
 import fs from 'node:fs';
@@ -95,14 +95,16 @@ try {
       // the hero's floor mark: points along its chevron (actors.markPts), or round the old 0.62..0.8 ring of a build without it
       const ringR = 0.71; const mp = G.actors.markPts ? G.actors.markPts(h0.uid) : null;
       const warm = H.world.lights().filter((L) => { if (!L.warm) return false; a.set(L.x, L.y, L.z).project(H.camera); const y = (1 - a.y) / 2 * H.size.h / H.size.u; return a.z < 1 && Math.abs(a.x) <= 1 && y >= 40 && a.y >= -1; }).length;
-      return { hs, hc, fh: H.size.h / H.size.u, warm, ringPts: mp && mp.length ? mp.map(([x, z]) => pr(x, z)) : [0, 1, 2, 3, 4, 5, 6, 7].map((k) => pr(n0.position.x + Math.cos(k * 0.785) * ringR, n0.position.z + Math.sin(k * 0.785) * ringR)), floorPt: pr(n0.position.x + 2.6, n0.position.z + 1.2), uid: h0.uid, theme: H.world.theme.name };
+      return { hs, hc, fh: H.size.h / H.size.u, warm, ringPts: mp && mp.length ? mp.map(([x, z]) => pr(x, z)) : [0, 1, 2, 3, 4, 5, 6, 7].map((k) => pr(n0.position.x + Math.cos(k * 0.785) * ringR, n0.position.z + Math.sin(k * 0.785) * ringR)), floorPt: pr(n0.position.x + 2.6, n0.position.z + 1.2), uid: h0.uid, theme: H.world.theme.name, sun: (H.world.theme.shadow || 0) > 0 };
     });
     const over = await shot(page, `ours-${tag}-overview.png`);
     const d = stats(over);
     const k = `chapter ${ch} (${info.theme})`;
     check(d.white < 0.01, `${k}: clipped white ${(d.white * 100).toFixed(2)}% (< 1%)`);
     check(d.flat <= 0.03, `${k}: flat 24 px cells ${(d.flat * 100).toFixed(2)}% (<= 3%)`);
-    check(d.warm >= 0.005 && d.warm <= 0.12, `${k}: warm pixels ${(d.warm * 100).toFixed(2)}% (0.5..12%)`);
+    // the 12% ceiling keeps torchlight from burning the night floors orange; a sunlit theme (noon sand, an evening sun) is warm
+    // all over by design, so it keeps only the floor
+    check(d.warm >= 0.005 && (info.sun || d.warm <= 0.12), `${k}: warm pixels ${(d.warm * 100).toFixed(2)}% (${info.sun ? '>= 0.5%, sunlit' : '0.5..12%'})`);
     check(info.warm >= 4, `${k}: warm light sources in the frame ${info.warm} (>= 4)`);
     // a boss warning circle injected near the centre: centre colour before and while it fills
     // the probe goes where no unit stands: of the points whose nine samples lie on the floor (inside 0.95 of the arena

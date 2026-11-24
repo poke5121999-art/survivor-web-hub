@@ -3,10 +3,10 @@
 // few campfires and braziers; ice plates on the dark water below and snow drifting in the air. The boss floor splits in
 // ice-blue seams.
 export const SNOW = {
-  name: 'snow', centre: [0.02, 0.05, 0.09], lightK: 0.6, lightWhite: 0.2, rain: 0, snow: 1, fog: 0x2a3a4c, rise: 0x1a2a3a, fly: [0.85, 0.92, 1.0],
-  abyss: { type: 'water', y: -2.6, deep: 0x0c2236, shallow: 0x3e6e8a, foam: 0xd0e4f4, haze: 0x4a6078, spark: 0xffffff, ice: 1 },
-  amb: { sky: [0.5, 0.56, 0.68], ground: [0.16, 0.19, 0.25] }, key: { dir: [-0.4, 0.8, 0.45], color: [0.28, 0.3, 0.34] },
-  hemi: { sky: 0xc8d8f0, ground: 0x4a5868, k: 1.4 }, sun: { color: 0xfff0e0, k: 1.25 },
+  name: 'snow', lightK: 0.4, lightWhite: 0.2, rain: 0, snow: 1, fog: 0xbcd0e4, rise: 0x4a6a8a, day: 1, shadow: 0.5, shadowC: 0x10284a, fly: [0.85, 0.92, 1.0],
+  abyss: { type: 'water', y: -2.6, deep: 0x123a5a, shallow: 0x4e8aaa, foam: 0xe8f4fc, haze: 0x9ab4cc, spark: 0xffffff, ice: 1 },
+  amb: { sky: [0.54, 0.6, 0.72], ground: [0.22, 0.26, 0.34] }, key: { dir: [0.45, 0.72, -0.5], color: [0.42, 0.42, 0.42] },
+  hemi: { sky: 0xd8e6f8, ground: 0x6a7a90, k: 1.6 }, sun: { color: 0xfff6ec, k: 2.0 },
   top: { base: [['snow_floor', 5], ['snow_path', 2]], patch: [['snow_path', 3], ['snow_rock', 1]], patchK: 0.24, tint: [0.84, 0.86, 0.92] },
   rimTint: [0.8, 0.84, 0.92],
   edge: [['snow_floor', 3], ['pine_snow', 1], ['snow_path', 1], ['snow_rock', 1]], side: { top: ['snow_rock'], rows: [['rock', 2], ['snow_rock', 1], ['ice_clear', 1]] },

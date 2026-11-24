@@ -161,7 +161,23 @@ export function createWorld(H) {
   // scene slides under them with the pads, in the same frame as the pads, so nothing lags a frame behind during a run
   const followers = []; let followSec = 0; const bases = {};
 
+  // Cast shadows of a sunlit theme (th.shadow: their darkness, th.shadowC: their tint): the blocks are drawn unlit with their
+  // light baked in (pad.js), so each block mesh carries a copy of itself in a ShadowMaterial that darkens what the sun does
+  // not reach. Tiers without a shadow map (q=low) and caves keep the baked light alone.
+  const shadowMat = new THREE.ShadowMaterial({ color: 0x0a1428, opacity: 0.4 });
+  W.shadows = () => quality.shadow > 0 && (W.theme.shadow || 0) > 0 && !W.theme.cave;
+  function shade(g) {
+    if (!W.shadows()) return;
+    for (const m of g.children) {
+      if (!m.isMesh || m.material !== voxMaterial()) continue;
+      // the baked geometry has no normals (the unlit material needs none) but the shadow lookup offsets along them (normalBias)
+      if (!m.geometry.attributes.normal) m.geometry.computeVertexNormals();
+      m.castShadow = true; const o = new THREE.Mesh(m.geometry, shadowMat); o.receiveShadow = true; o.renderOrder = 1; o.name = 'shade'; o.raycast = () => {}; m.add(o);
+    }
+  }
+
   function setUnitsLight(th, boss) {
+    shadowMat.opacity = th.shadow || 0; shadowMat.color.set(th.shadowC || 0x0a1428);
     if (!H.hemi) return;
     H.hemi.color.set(th.hemi.sky); H.hemi.groundColor.set(th.hemi.ground); H.hemi.intensity = th.hemi.k;
     H.sun.color.set(th.sun.color); H.sun.intensity = th.sun.k;
@@ -301,6 +317,7 @@ export function createWorld(H) {
     // heights: sink each pad mesh by its own few millimetres (main pad 0 or 2 mm by section parity, satellites 4 mm and down) so
     // no two overlapping tops share a depth and z-fight; the fight floor moves at most 2 mm
     let np = 0; for (const m of g.children) { m.matrixAutoUpdate = true; if (m.name === 'pad') { m.geometry.translate(0, -0.002 * (np * 2 + (i % 2)), 0); np++; } }
+    shade(g);
     root.add(g); S.group = g; S.sats = sats; S.lights = all; S.buildMs = performance.now() - t0; W.buildMs += S.buildMs;
     return S;
   }
