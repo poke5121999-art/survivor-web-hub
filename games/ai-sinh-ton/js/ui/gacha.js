@@ -6,6 +6,7 @@ import { HERO } from '../data/heroes.js?v=20261124a';
 import { ITEM as ITEM_DEF, TIERS } from '../data/equip.js?v=20261124a';
 import { ITEM_ICON } from './itemicons.js?v=20261124a';
 import { makeBackdrop, makeBurst, capsule3d, fmt } from './home.js?v=20261124a';
+import { blockify } from '../view/fx/blockify.js?v=20261124a';
 
 const GOLD = 0xffc21f, ITEM = 0x98a6c4;
 const PILLS = [[0xff8ad0, 0x6ad8ff], [0xffd21f, 0x8f4dff], [0x8aff9a, 0xff9a5a], [0xb48aff, 0xffe27a], [0x5ad0ff, 0xff6a8a], [0xff9a5a, 0x4af0c8]];
@@ -31,28 +32,28 @@ export function createGacha(game) {
   const std = (c, r = 0.4, e = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, emissive: e, emissiveIntensity: e ? 0.5 : 0 });
   const ink = new THREE.MeshBasicMaterial({ color: 0x1a1420, side: THREE.BackSide });
   const add = (parent, geo, mat, x, y, z, hullK) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (hullK) { const h = new THREE.Mesh(geo, ink); h.scale.setScalar(hullK); m.add(h); } parent.add(m); return m; };
-  add(machine, new THREE.CylinderGeometry(1.95, 2.1, 0.4, 36), std(0x2a1f5a), 0, 0.2, 0, 1.04);
-  add(machine, new THREE.CylinderGeometry(1.6, 1.8, 1.6, 36), std(0x7a45e8, 0.35), 0, 1.2, 0, 1.04);
-  for (const y of [0.55, 2.0]) add(machine, new THREE.TorusGeometry(y > 1 ? 1.62 : 1.78, 0.09, 8, 40), std(GOLD, 0.25), 0, y, 0).rotation.x = Math.PI / 2;
-  add(machine, new THREE.CylinderGeometry(1.5, 1.6, 0.35, 36), std(0xffa31f, 0.3), 0, 2.15, 0, 1.04);
+  add(machine, blockify(new THREE.CylinderGeometry(1.95, 2.1, 0.4, 36)), std(0x2a1f5a), 0, 0.2, 0, 1.04);
+  add(machine, blockify(new THREE.CylinderGeometry(1.6, 1.8, 1.6, 36)), std(0x7a45e8, 0.35), 0, 1.2, 0, 1.04);
+  for (const y of [0.55, 2.0]) add(machine, blockify(new THREE.TorusGeometry(y > 1 ? 1.62 : 1.78, 0.09, 8, 40)), std(GOLD, 0.25), 0, y, 0).rotation.x = Math.PI / 2;
+  add(machine, blockify(new THREE.CylinderGeometry(1.5, 1.6, 0.35, 36)), std(0xffa31f, 0.3), 0, 2.15, 0, 1.04);
   // front plate, crank and chute
   add(machine, new THREE.BoxGeometry(1.5, 0.9, 0.3), std(0xffc21f, 0.3), 0, 1.35, 1.68, 1.05);
   const crank = new THREE.Group(); crank.position.set(0, 1.35, 1.9); machine.add(crank);
-  add(crank, new THREE.CylinderGeometry(0.34, 0.34, 0.16, 20), std(0xff4a6a, 0.3), 0, 0, 0, 1.08).rotation.x = Math.PI / 2;
+  add(crank, blockify(new THREE.CylinderGeometry(0.34, 0.34, 0.16, 20)), std(0xff4a6a, 0.3), 0, 0, 0, 1.08).rotation.x = Math.PI / 2;
   add(crank, new THREE.BoxGeometry(0.16, 0.8, 0.12), std(0xfff1cf, 0.3), 0, 0.3, 0.12, 1.1);
-  add(crank, new THREE.SphereGeometry(0.2, 12, 10), std(0x35d65a, 0.3), 0, 0.7, 0.16, 1.1);
+  add(crank, blockify(new THREE.SphereGeometry(0.2, 12, 10)), std(0x35d65a, 0.3), 0, 0.7, 0.16, 1.1);
   add(machine, new THREE.BoxGeometry(1.1, 0.62, 0.7), std(0x1c1238, 0.6), 0, 0.5, 1.5, 1.05);
   add(machine, new THREE.BoxGeometry(1.3, 0.12, 0.8), std(GOLD, 0.3), 0, 0.2, 1.62);
   // dome with a pile of pills
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.55, 32, 20), new THREE.MeshStandardMaterial({ color: 0xcfeaff, roughness: 0.08, transparent: true, opacity: 0.22, depthWrite: false })); dome.position.y = 3.55; dome.renderOrder = 3; machine.add(dome);
+  const dome = new THREE.Mesh(blockify(new THREE.SphereGeometry(1.55, 32, 20)), new THREE.MeshStandardMaterial({ color: 0xcfeaff, roughness: 0.08, transparent: true, opacity: 0.22, depthWrite: false })); dome.position.y = 3.55; dome.renderOrder = 3; machine.add(dome);
   const pills = []; let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   for (let i = 0; i < 26; i++) {
     const a = rnd() * 6.283, rr = Math.sqrt(rnd()) * 1.0, y = 2.65 + rnd() * 1.1 - rr * 0.1, [ca, cb] = PILLS[i % PILLS.length];
     const c = capsule3d(THREE, ca, cb); c.scale.setScalar(0.52); c.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr * 0.9); c.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); machine.add(c); pills.push({ c, bx: c.position.x, by: y, bz: c.position.z, ph: rnd() * 6 });
   }
-  add(machine, new THREE.TorusGeometry(1.5, 0.12, 8, 40), std(GOLD, 0.25), 0, 2.45, 0).rotation.x = Math.PI / 2;
-  add(machine, new THREE.CylinderGeometry(0.55, 0.8, 0.3, 24), std(GOLD, 0.25), 0, 5.0, 0, 1.06);
-  add(machine, new THREE.SphereGeometry(0.2, 12, 10), std(0xff4a6a, 0.3), 0, 5.28, 0, 1.1);
+  add(machine, blockify(new THREE.TorusGeometry(1.5, 0.12, 8, 40)), std(GOLD, 0.25), 0, 2.45, 0).rotation.x = Math.PI / 2;
+  add(machine, blockify(new THREE.CylinderGeometry(0.55, 0.8, 0.3, 24)), std(GOLD, 0.25), 0, 5.0, 0, 1.06);
+  add(machine, blockify(new THREE.SphereGeometry(0.2, 12, 10)), std(0xff4a6a, 0.3), 0, 5.28, 0, 1.1);
   const glowCan = document.createElement('canvas'); glowCan.width = glowCan.height = 64;
   { const c = glowCan.getContext('2d'), g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.4)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); }
   const glowM = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowCan), transparent: true, opacity: 0, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });

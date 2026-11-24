@@ -10,6 +10,7 @@ import { createWorldMap, STORY } from './worldmap.js?v=20261124a';
 import { lockButton } from './guide.js?v=20261124a';
 import { xpNeed } from '../data/unlocks.js?v=20261124a';
 import { installBeastPortraits } from './beast-ui.js?v=20261124a';
+import { blockify } from '../view/fx/blockify.js?v=20261124a';
 
 export const MENU = ['home', 'heroes', 'hero', 'gacha', 'equip', 'rewards'];
 // rail geometry in design units: buttons start at x, the backdrop panel ends at right; content starts at right + 8
@@ -141,14 +142,14 @@ export function capsule3d(THREE, colA, colB) {
   const m = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: o.rough ?? 0.32, emissive: o.emi || 0, emissiveIntensity: o.emi ? 0.6 : 0 });
   const half = (c, sign) => {
     const h = new THREE.Group(), mat = m(c);
-    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len / 2, 20, 1, true), mat); cyl.position.y = sign * len / 4; h.add(cyl);
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 10, 0, Math.PI * 2, sign > 0 ? 0 : Math.PI / 2, Math.PI / 2), mat); cap.position.y = sign * len / 2; h.add(cap);
-    const gloss = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 })); gloss.scale.set(0.8, 1.9, 0.5); gloss.position.set(-0.22, sign * len * 0.5, 0.28); h.add(gloss);
-    const inner = new THREE.Mesh(new THREE.CircleGeometry(r * 0.98, 20), new THREE.MeshBasicMaterial({ color: 0x20153a, side: THREE.DoubleSide })); inner.rotation.x = Math.PI / 2; h.add(inner);
+    const cyl = new THREE.Mesh(blockify(new THREE.CylinderGeometry(r, r, len / 2, 20, 1, true)), mat); cyl.position.y = sign * len / 4; h.add(cyl);
+    const cap = new THREE.Mesh(blockify(new THREE.SphereGeometry(r, 20, 10, 0, Math.PI * 2, sign > 0 ? 0 : Math.PI / 2, Math.PI / 2)), mat); cap.position.y = sign * len / 2; h.add(cap);
+    const gloss = new THREE.Mesh(blockify(new THREE.SphereGeometry(0.1, 8, 6)), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 })); gloss.scale.set(0.8, 1.9, 0.5); gloss.position.set(-0.22, sign * len * 0.5, 0.28); h.add(gloss);
+    const inner = new THREE.Mesh(blockify(new THREE.CircleGeometry(r * 0.98, 20)), new THREE.MeshBasicMaterial({ color: 0x20153a, side: THREE.DoubleSide })); inner.rotation.x = Math.PI / 2; h.add(inner);
     return h;
   };
   const top = half(colA, 1), bot = half(colB, -1); g.add(top, bot);
-  const band = new THREE.Mesh(new THREE.TorusGeometry(r * 1.015, 0.045, 8, 24), m(0xffd21f, { rough: 0.25 })); band.rotation.x = Math.PI / 2; g.add(band);
+  const band = new THREE.Mesh(blockify(new THREE.TorusGeometry(r * 1.015, 0.045, 8, 24)), m(0xffd21f, { rough: 0.25 })); band.rotation.x = Math.PI / 2; g.add(band);
   g.userData = { top, bot, band, len, r };
   return g;
 }

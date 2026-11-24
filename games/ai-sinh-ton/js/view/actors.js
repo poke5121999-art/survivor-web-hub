@@ -9,6 +9,7 @@ import { buildBeast, LEGACY } from './beast/index.js?v=20261124a';
 import { actFor, stepAct, usePool } from './bossacts.js?v=20261124a';
 import { dressBoss } from './foe/bosses.js?v=20261124a';
 import { createWarn } from './foe/warn.js?v=20261124a';
+import { blockify } from './fx/blockify.js?v=20261124a';
 
 const THREE = window.THREE;
 const BZ = window.BZ;
@@ -200,7 +201,7 @@ export function createActors(H) {
   // ---- summons: small code-built bodies ----
   const lam = (c) => new THREE.MeshLambertMaterial({ color: c });
   const box = (w, h, d, c, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lam(c)); o.position.set(x, y, z); o.castShadow = H.quality.shadow > 0; return o; };
-  const cyl = (r0, r1, h, c, seg = 8) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, h, seg), lam(c)); o.castShadow = H.quality.shadow > 0; return o; };
+  const cyl = (r0, r1, h, c, seg = 8) => { const o = new THREE.Mesh(blockify(new THREE.CylinderGeometry(r0, r1, h, seg)), lam(c)); o.castShadow = H.quality.shadow > 0; return o; };
   function buildDrone() {
     const g = new THREE.Group(); const body = new THREE.Group(); g.add(body);
     body.add(box(0.55, 0.22, 0.55, 0x3c78d8)); body.add(box(0.3, 0.12, 0.3, 0xf0f4ff, 0, 0.16, 0));

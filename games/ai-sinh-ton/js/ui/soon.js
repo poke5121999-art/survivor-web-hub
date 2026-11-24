@@ -6,6 +6,7 @@ import { lockButton } from './guide.js?v=20261124a';
 import { CHAPTERS } from '../data/stages.js?v=20261124a';
 import { TIERS } from '../data/equip.js?v=20261124a';
 import { ITEM_ICON } from './itemicons.js?v=20261124a';
+import { blockify } from '../view/fx/blockify.js?v=20261124a';
 
 const CHEST_ROW = 70, COLA = RAIL.content + 2, COLB = 388, LIST = { x: COLB, y: 66, w: 364, h: 282 };
 const ROW_COLOR = { locked: 0x453a78, ready: 0xd8892a, claimed: 0x2f7a62 };
@@ -22,11 +23,11 @@ function buildChest(THREE) {
   const glowM = new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0, depthWrite: false });
   const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.3), glowM); glow.rotation.x = -Math.PI / 2; glow.position.y = 1.18; inner.add(glow);
   const hinge = new THREE.Group(); hinge.position.set(0, 1.2, -0.75); inner.add(hinge);
-  const lid = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 2.4, 24, 1, false, 0, Math.PI), m(wood))); lid.rotation.z = Math.PI / 2; lid.rotation.y = -Math.PI / 2; lid.position.set(0, 0, 0.75); hinge.add(lid);
-  for (const x of [-0.85, 0.85]) { const band = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.78, 0.26, 24, 1, false, 0, Math.PI), m(gold, 0.3)); band.rotation.z = Math.PI / 2; band.rotation.y = -Math.PI / 2; band.position.set(x, 0, 0.75); hinge.add(band); }
+  const lid = hull(new THREE.Mesh(blockify(new THREE.CylinderGeometry(0.75, 0.75, 2.4, 24, 1, false, 0, Math.PI)), m(wood))); lid.rotation.z = Math.PI / 2; lid.rotation.y = -Math.PI / 2; lid.position.set(0, 0, 0.75); hinge.add(lid);
+  for (const x of [-0.85, 0.85]) { const band = new THREE.Mesh(blockify(new THREE.CylinderGeometry(0.78, 0.78, 0.26, 24, 1, false, 0, Math.PI)), m(gold, 0.3)); band.rotation.z = Math.PI / 2; band.rotation.y = -Math.PI / 2; band.position.set(x, 0, 0.75); hinge.add(band); }
   const lock = hull(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.4, 0.14), m(gold, 0.25))); lock.position.set(0, 1.14, 0.78); inner.add(lock);
   const coins = [];
-  for (let i = 0; i < 8; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 14), m(gold, 0.25)); c.rotation.x = Math.PI / 2 + 0.5; c.position.set(-0.8 + (i % 4) * 0.5, 1.12 + (i > 3 ? 0.1 : 0), -0.2 + (i > 3 ? 0.3 : -0.1)); c.visible = false; inner.add(c); coins.push(c); }
+  for (let i = 0; i < 8; i++) { const c = new THREE.Mesh(blockify(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 14)), m(gold, 0.25)); c.rotation.x = Math.PI / 2 + 0.5; c.position.set(-0.8 + (i % 4) * 0.5, 1.12 + (i > 3 ? 0.1 : 0), -0.2 + (i > 3 ? 0.3 : -0.1)); c.visible = false; inner.add(c); coins.push(c); }
   g.userData = { inner, hinge, glowM, lock, coins };
   return g;
 }

@@ -7,6 +7,7 @@
 // Each region bakes its static parts into one vertex-coloured mesh plus one ink hull, so a region costs two draws.
 import { CHAPTERS } from '../data/stages.js?v=20261124a';
 import { beastModel } from './beast-ui.js?v=20261124a';
+import { blockify } from '../view/fx/blockify.js?v=20261124a';
 
 export const STORY = [
   'Quê nhà của Đội Hộ Vệ, nơi Mầm Sống thức tỉnh.',
@@ -70,12 +71,12 @@ export function createWorldMap(ui, meta, { w, h, onPick }) {
   }
 
   // ---- shapes ----
-  const cyl = (rt, rb, hh, seg = 8, open = false, th = Math.PI * 2) => new THREE.CylinderGeometry(rt, rb, hh, seg, 1, open, 0, th);
-  const cone = (r, hh, seg = 8) => new THREE.ConeGeometry(r, hh, seg);
+  const cyl = (rt, rb, hh, seg = 8, open = false, th = Math.PI * 2) => blockify(new THREE.CylinderGeometry(rt, rb, hh, seg, 1, open, 0, th));
+  const cone = (r, hh, seg = 8) => blockify(new THREE.ConeGeometry(r, hh, seg));
   const boxG = (x, y, z) => new THREE.BoxGeometry(x, y, z);
-  const ico = (r, d = 0) => new THREE.IcosahedronGeometry(r, d);
-  const dode = (r) => new THREE.DodecahedronGeometry(r);
-  const ball = (r, ws = 10, hs = 7) => new THREE.SphereGeometry(r, ws, hs);
+  const ico = (r, d = 0) => blockify(new THREE.IcosahedronGeometry(r, d));
+  const dode = (r) => blockify(new THREE.DodecahedronGeometry(r));
+  const ball = (r, ws = 10, hs = 7) => blockify(new THREE.SphereGeometry(r, ws, hs));
   const octa = (r) => new THREE.OctahedronGeometry(r);
   const rnd = (k) => { let s = (k * 9301 + 49297) % 233280; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; };
 
@@ -225,9 +226,9 @@ export function createWorldMap(ui, meta, { w, h, onPick }) {
   const floats = fx.float.map((f) => { const m = bake(f.list); m.position.set(f.x, f.y, f.z); root.add(m); return { m, ...f }; });
 
   // smoke from the volcano and the chimneys: one instanced draw, each puff rises, swells and shrinks away
-  const SMOKE_PER = 5, smoke = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.3, 0), new THREE.MeshStandardMaterial({ color: 0x9a9098, roughness: 1, flatShading: true }), fx.smoke.length * SMOKE_PER);
+  const SMOKE_PER = 5, smoke = new THREE.InstancedMesh(blockify(new THREE.IcosahedronGeometry(0.3, 0)), new THREE.MeshStandardMaterial({ color: 0x9a9098, roughness: 1, flatShading: true }), fx.smoke.length * SMOKE_PER);
   smoke.frustumCulled = false; root.add(smoke);
-  const sparks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.09, 0), glowMat(0x9affb0), Math.max(1, fx.wisps.length)); sparks.frustumCulled = false; root.add(sparks);
+  const sparks = new THREE.InstancedMesh(blockify(new THREE.IcosahedronGeometry(0.09, 0)), glowMat(0x9affb0), Math.max(1, fx.wisps.length)); sparks.frustumCulled = false; root.add(sparks);
   // sea waves at the coast: three crest strips sliding in and back
   const waveP = parts(); for (const wv of fx.waves) for (let i = 0; i < 3; i++) waveP.add(boxG(1.6 - i * 0.3, 0.05, 0.08), 0xf4fbff, wv.x + 1.1 + i * 0.1, G + 0.06, wv.z + 0.4 - i * 0.45, { ry: -0.3, ink: false });
   const waves = bake(waveP.list, false); root.add(waves);
@@ -237,11 +238,11 @@ export function createWorldMap(ui, meta, { w, h, onPick }) {
   const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.09 })); snow.frustumCulled = false; root.add(snow);
 
   // fog and locks over the closed regions
-  const fog = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ color: 0xdcd6f0, roughness: 1, flatShading: true, transparent: true, opacity: 0.93 }), regions.length * PUFFS);
+  const fog = new THREE.InstancedMesh(blockify(new THREE.IcosahedronGeometry(1, 1)), new THREE.MeshStandardMaterial({ color: 0xdcd6f0, roughness: 1, flatShading: true, transparent: true, opacity: 0.93 }), regions.length * PUFFS);
   fog.frustumCulled = false; root.add(fog);
   const puff = regions.map((rg) => { const r = rnd(rg.k + 40); return Array.from({ length: PUFFS }, (_, i) => { const a = (i / PUFFS) * 6.28 + r() * 0.5, d = i < 4 ? r() * 0.7 : R * (0.55 + r() * 0.45); return { x: rg.x + Math.cos(a) * d, y: 0.5 + r() * (i < 4 ? 1.9 : 1.0), z: rg.z + Math.sin(a) * d * 0.85, s: (i < 4 ? 1.15 : 0.8) + r() * 0.4, ph: r() * 6.28 }; }); });
   const lockBody = new THREE.InstancedMesh(new THREE.BoxGeometry(0.95, 0.78, 0.36), new THREE.MeshStandardMaterial({ color: 0xf0b83a, roughness: 0.35, metalness: 0.2 }), regions.length);
-  const lockLoop = new THREE.InstancedMesh(new THREE.TorusGeometry(0.3, 0.09, 8, 16, Math.PI), new THREE.MeshStandardMaterial({ color: 0xd8dfea, roughness: 0.3, metalness: 0.4 }), regions.length);
+  const lockLoop = new THREE.InstancedMesh(blockify(new THREE.TorusGeometry(0.3, 0.09, 8, 16, Math.PI)), new THREE.MeshStandardMaterial({ color: 0xd8dfea, roughness: 0.3, metalness: 0.4 }), regions.length);
   for (const m of [lockBody, lockLoop]) { m.frustumCulled = false; root.add(m); }
 
   // flag on the current region, a marker over a selected region the player is not on
