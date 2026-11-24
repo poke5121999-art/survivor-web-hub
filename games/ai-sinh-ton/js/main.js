@@ -56,6 +56,8 @@ async function boot() {
   const intro = createBossIntro(game); game.intro = intro;
 
   let acc = 0;
+  // game time the loop holds back for the next sim tick (s): B.t + simAcc is the sim clock to the millisecond, for the tools
+  Object.defineProperty(game, 'simAcc', { get: () => acc });
   function present(dt, realDt = dt) {
     const B = game.B;
     if (B) actors.sync(B, dt);

@@ -237,11 +237,13 @@ try {
       for (let i = 0; i < 120; i++) {
         const ts = await raf(); if (stallNext) { stallNext = false; const e = performance.now() + stall; while (performance.now() < e) { /* the long frame */ } }
         const raw = (ts - last) / 1000; game += Math.min(0.1, raw); last = ts;
-        rows.push({ game, Bt: B.t, stopped: J.stopped, cut: Math.max(0, raw - 0.1) });
+        rows.push({ game, Bt: B.t + (G.simAcc || 0), stopped: J.stopped, cut: Math.max(0, raw - 0.1) });
         if (i === 40) { J.hit(ms, { force: true }); hitAt = rows.length - 1; stallNext = stall > 0; }
       }
       G.paused = true;
-      // sim clock minus game clock, averaged before the stop and well after it: the drop is the time the stop took
+      // sim clock minus game clock, averaged before the stop and well after it: the drop is the time the stop took. The sim clock
+      // counts the loop's held-back time (G.simAcc): B.t alone moves in 1/30 s ticks, and its phase against the frames moved
+      // the averages by up to a frame (lost 83-108 ms over runs of the same 138 ms stop)
       const off = (a, b) => { let s = 0; for (let i = a; i < b; i++) s += rows[i].Bt - rows[i].game; return s / (b - a); };
       // the fight goes on around the forced stop: a kill streak or a wide skill burst takes its own stop, which is not this one's
       const others = J.stops.filter((st) => !st.force).reduce((a, st) => a + (st.real ?? st.ms), 0);
