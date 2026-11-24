@@ -1,7 +1,7 @@
 // Nhện Tơ Ngọc (ranged, trapper, wood): a spiderling with eight short legs and a jade abdomen, then long legs with jade
 // joints and a patterned back, then a balloon spider hanging under a silk canopy with a glowing abdomen (SCOPE 3.1 #13).
-import { palette } from '../families.js?v=20261122a';
-import { shade } from '../kit.js?v=20261122a';
+import { palette } from '../families.js?v=20261124a';
+import { shade } from '../kit.js?v=20261124a';
 
 const P0 = palette(0xb8743a, { belly: 0xe8c08a, dark: 0x3a2214, jade: 0x3ad0a0, jade2: 0x1e9a78, fang: 0xf0d8a0 });
 

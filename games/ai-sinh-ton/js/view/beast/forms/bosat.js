@@ -1,7 +1,7 @@
 // Bọ Sét (ranged, magic, lightning): a round beetle whose feelers spark, then a stag beetle with open wing cases and
 // buzzing wings, then either a storm king with tesla-coil horns or a quartz-armoured burrower (SCOPE 3.1 #11).
-import { palette } from '../families.js?v=20261122a';
-import { shade } from '../kit.js?v=20261122a';
+import { palette } from '../families.js?v=20261124a';
+import { shade } from '../kit.js?v=20261124a';
 
 const THREE = window.THREE;
 const P0 = palette(0x3a5ad0, { belly: 0x2a2a48, dark: 0x16182c, bolt: 0xffe040, head: 0x22264a });

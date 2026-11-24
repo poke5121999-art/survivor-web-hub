@@ -14,16 +14,16 @@
 // from which it runs over a bridge into the first fight. Each fight pad has the spawn gates the sim walks later packs out
 // of (gates.js, rooms.js), and the camp spots where the first pack waits are lit by embers. Monsters of a room the team
 // has not reached yet are drawn on that room's pad (roomOffset).
-import { ARENA } from '../sim/battle.js?v=20261122a';
-import { THEMES, themeOf } from './themes.js?v=20261122a';
-import { buildPad, buildBridge, rngOf, voxMaterial, mesher } from './pad.js?v=20261122a';
-import { LAYOUTS, RAFT_Y } from './layouts/index.js?v=20261122a';
-import { createHazards } from './layouts/hazards.js?v=20261122a';
-import { createModes } from './layouts/modes.js?v=20261122a';
-import { createAbyss } from './abyss.js?v=20261122a';
-import { roomPlan } from '../sim/rooms.js?v=20261122a';
-import { gateSpots, emitGates, gateLights, buildGateFx } from './gates.js?v=20261122a';
-import { voxAtlas } from './voxtex.js?v=20261122a';
+import { ARENA } from '../sim/battle.js?v=20261124a';
+import { THEMES, themeOf } from './themes.js?v=20261124a';
+import { buildPad, buildBridge, rngOf, voxMaterial, mesher } from './pad.js?v=20261124a';
+import { LAYOUTS, RAFT_Y } from './layouts/index.js?v=20261124a';
+import { createHazards } from './layouts/hazards.js?v=20261124a';
+import { createModes } from './layouts/modes.js?v=20261124a';
+import { createAbyss } from './abyss.js?v=20261124a';
+import { roomPlan } from '../sim/rooms.js?v=20261124a';
+import { gateSpots, emitGates, gateLights, buildGateFx } from './gates.js?v=20261124a';
+import { voxAtlas } from './voxtex.js?v=20261124a';
 const THREE = window.THREE;
 
 // satellites at the frame's corners (world x, z of the pad centre; the frame is about 21 m wide at the fight's depth)

@@ -16,13 +16,13 @@
 //   links: raft(a, b, th) for 'raft', cart(a, b, th) for 'rail' (a ride: { mesh, path, carry, deckY, emit?, speed, maxT }),
 //              bridge(a, b, th, opts) for 'bridge' and 'stairs' instead of the plank bridge (pad.js buildBridge)
 //   tick(time) optional: every frame
-import { BRIDGES } from './bridges.js?v=20261122a';
-import { ARENA_RING } from './arena.js?v=20261122a';
-import { SPIRAL } from './spiral.js?v=20261122a';
-import { RIVER, RAFT_Y } from './river.js?v=20261122a';
-import { ISLANDS } from './islands.js?v=20261122a';
-import { MAZE } from './maze.js?v=20261122a';
-import { RAIL } from './rail.js?v=20261122a';
-import { CAVE } from './cave.js?v=20261122a';
+import { BRIDGES } from './bridges.js?v=20261124a';
+import { ARENA_RING } from './arena.js?v=20261124a';
+import { SPIRAL } from './spiral.js?v=20261124a';
+import { RIVER, RAFT_Y } from './river.js?v=20261124a';
+import { ISLANDS } from './islands.js?v=20261124a';
+import { MAZE } from './maze.js?v=20261124a';
+import { RAIL } from './rail.js?v=20261124a';
+import { CAVE } from './cave.js?v=20261124a';
 export { RAFT_Y };
 export const LAYOUTS = { bridges: BRIDGES, arena: ARENA_RING, spiral: SPIRAL, river: RIVER, islands: ISLANDS, maze: MAZE, rail: RAIL, cave: CAVE };

@@ -1,7 +1,7 @@
 // Crisp canvas text for the UI kit: rasterised at devicePixelRatio * u texels per design px, cached by
 // string and style, drawn on a quad. Padding is measured from the real glyph ink, so Ầ Ễ Ộ Ữ are never clipped.
 
-import { beastWords } from './words.js?v=20261122a';
+import { beastWords } from './words.js?v=20261124a';
 
 const FAMILY = '"Arial Black","Segoe UI Black",Roboto,"Noto Sans","DejaVu Sans",sans-serif';
 const MAX_TEX = 2048;

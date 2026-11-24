@@ -3,8 +3,8 @@
 // are joined by short walled corridors (a stone causeway with knee-high walls and a lantern at each end). Around the rooms,
 // out to the frame's edges, the labyrinth's other walls rise out of the water or the mist on a three-metre grid, their tops
 // at knee height: the pad reads as one room of a maze seen from above. Rooms the team only crosses are plain rooms too.
-import { outerAt, takenDirs, isOpen, bakeBoxes, deckRule, DECK, FLAME } from './shared.js?v=20261122a';
-import { LIGHTS } from '../themes.js?v=20261122a';
+import { outerAt, takenDirs, isOpen, bakeBoxes, deckRule, DECK, FLAME } from './shared.js?v=20261124a';
+import { LIGHTS } from '../themes.js?v=20261124a';
 
 const DIRS4 = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const GRID = 3;          // metres between the labyrinth's wall lines (in the stage's frame, so neighbouring rooms share them)

@@ -1,11 +1,11 @@
 // One modal screen with three modes: 'pause' (resume, settings, retry, home), 'result' (win or loss: a reward tab and a
 // per-hero statistics tab, with the next steps always in view) and 'settings' (the same switches, opened from the home screen).
-import { HERO } from '../data/heroes.js?v=20261122a';
-import { ITEM, TIERS } from '../data/equip.js?v=20261122a';
-import { fmt, heroColor } from './hud.js?v=20261122a';
-import { xpNeed } from '../data/unlocks.js?v=20261122a';
-import { ITEM_ICON } from './itemicons.js?v=20261122a';
-import { createStatsPanel } from './stats.js?v=20261122a';
+import { HERO } from '../data/heroes.js?v=20261124a';
+import { ITEM, TIERS } from '../data/equip.js?v=20261124a';
+import { fmt, heroColor } from './hud.js?v=20261124a';
+import { xpNeed } from '../data/unlocks.js?v=20261124a';
+import { ITEM_ICON } from './itemicons.js?v=20261124a';
+import { createStatsPanel } from './stats.js?v=20261124a';
 
 const SWITCHES = [['Âm thanh', 'sound', 'set-sound'], ['Rung', 'vibrate', 'set-vibrate'], ['Giảm chớp sáng', 'reduceFlash', 'set-flash'], ['Rung màn hình', 'shake', 'set-shake'], ['Cận cảnh tối thượng', 'ultCam', 'set-ultcam'], ['Tự tung tối thượng', 'autoUlt', 'set-autoult', 'autoult']];
 // switches that are on until the player turns them off (absent from an old save means on)

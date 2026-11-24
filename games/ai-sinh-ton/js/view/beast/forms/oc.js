@@ -1,7 +1,7 @@
 // Ốc Độc (melee, plague, wood): a snail with a green coiled shell and eyes on stalks, then a bigger snail whose shell
 // grows dripping venom spikes, then a crystal snail whose shell is a violet gem full of swirling poison (SCOPE 3.1 #9).
-import { palette } from '../families.js?v=20261122a';
-import { shade } from '../kit.js?v=20261122a';
+import { palette } from '../families.js?v=20261124a';
+import { shade } from '../kit.js?v=20261124a';
 
 const THREE = window.THREE;
 

@@ -6,7 +6,7 @@
 // glowing seams up the posts and sparks that rise through the mouth.
 // A gate idles faintly; about a second before it releases a pack it charges (brighter, faster, the spill reaching further);
 // the release is a flash and then it settles back. world.js feeds the levels from the sim's queue each frame.
-import { rngOf, liftCoplanar } from './pad.js?v=20261122a';
+import { rngOf, liftCoplanar } from './pad.js?v=20261124a';
 const THREE = window.THREE;
 
 // per theme: the look of the standing structure (`kind`) and of the one in the floor (`floor`), block tiles, and the energy's

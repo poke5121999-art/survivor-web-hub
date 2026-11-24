@@ -4,8 +4,8 @@
 // SHELLS[kind] = { burst, parts: { <joint>: (g) => void } }: one FoeGeo per joint, in that joint's local space (pool units,
 // before T.scale). A part with ph: 1 shows only in phase 2 (under half life), ph: 2 only in phase 1.
 // The geometry is built once per kind and joint and shared; materials are per shell (flash, phase and dissolve per boss).
-import { FoeGeo, shellMaterials } from './kit.js?v=20261122a';
-import { KIT_SHELLS } from './bosses-kit.js?v=20261122a';
+import { FoeGeo, shellMaterials } from './kit.js?v=20261124a';
+import { KIT_SHELLS } from './bosses-kit.js?v=20261124a';
 
 const THREE = window.THREE;
 const LAVA = 0xff6a20;

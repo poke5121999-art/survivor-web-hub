@@ -1,7 +1,7 @@
 // Cú Bóng (ranged, assassin, wind): a round fluffy owlet, then a night owl with long violet-edged wings and ear tufts,
 // then an eclipse owl with a crescent moon behind it and a tail of stars (SCOPE 3.1 #6).
-import { palette } from '../families.js?v=20261122a';
-import { shade } from '../kit.js?v=20261122a';
+import { palette } from '../families.js?v=20261124a';
+import { shade } from '../kit.js?v=20261124a';
 
 const P0 = palette(0x9a86b8, { belly: 0xeee4f4, disc: 0xf6f0fa, beak: 0xf0b030, iris: 0xffc830, dark: 0x3a2a4a, foot: 0xf0a030 });
 

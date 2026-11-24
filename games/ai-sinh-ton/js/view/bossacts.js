@@ -3,7 +3,7 @@
 // their skills names a pose here; the six kit bosses play their own moves and only get a body lean on top.
 // Data shape: SKILL_POSE[enemy kind][i] is the pose of ENEMY[kind].skills[i]; POSES[name](b, k, w) edits the limbs the pool
 // just posed, k the progress of the cast over its lock (0..1, past 1 while it eases out) and w the blend weight.
-import { dressBoss } from './foe/bosses.js?v=20261122a';
+import { dressBoss } from './foe/bosses.js?v=20261124a';
 
 const THREE = window.THREE;
 const BZ = window.BZ;

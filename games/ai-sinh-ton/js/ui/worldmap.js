@@ -5,8 +5,8 @@
 //   open: how many regions are open (the first `open` chapters); current: the region the player is on (flag and team);
 //   sel: the region of the selected stage; team: the beast ids standing on the current region.
 // Each region bakes its static parts into one vertex-coloured mesh plus one ink hull, so a region costs two draws.
-import { CHAPTERS } from '../data/stages.js?v=20261122a';
-import { beastModel } from './beast-ui.js?v=20261122a';
+import { CHAPTERS } from '../data/stages.js?v=20261124a';
+import { beastModel } from './beast-ui.js?v=20261124a';
 
 export const STORY = [
   'Quê nhà của Đội Hộ Vệ, nơi Mầm Sống thức tỉnh.',

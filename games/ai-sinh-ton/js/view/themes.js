@@ -8,18 +8,18 @@
 //     black crust, colours kept whatever the layout does to the abyss) or `cloud` (a lit cloud sea), and `mist` (the sheets' colour)
 //   falls: share of rim faces that pour a waterfall down into the abyss (pad.js)
 //   lights: the light-giving props placed on the rim (warm ones count for the look test); tall / low: other rim props
-import { STREET } from './themes/street.js?v=20261122a';
-import { PARKING } from './themes/parking.js?v=20261122a';
-import { FACTORY } from './themes/factory.js?v=20261122a';
-import { CRYPT } from './themes/crypt.js?v=20261122a';
-import { LANDING } from './themes/landing.js?v=20261122a';
-import { VOID } from './themes/void.js?v=20261122a';
-import { FOREST } from './themes/forest.js?v=20261122a';
-import { SWAMP } from './themes/swamp.js?v=20261122a';
-import { VOLCANO } from './themes/volcano.js?v=20261122a';
-import { SNOW } from './themes/snow.js?v=20261122a';
-import { COAST } from './themes/coast.js?v=20261122a';
-import { SKY } from './themes/sky.js?v=20261122a';
+import { STREET } from './themes/street.js?v=20261124a';
+import { PARKING } from './themes/parking.js?v=20261124a';
+import { FACTORY } from './themes/factory.js?v=20261124a';
+import { CRYPT } from './themes/crypt.js?v=20261124a';
+import { LANDING } from './themes/landing.js?v=20261124a';
+import { VOID } from './themes/void.js?v=20261124a';
+import { FOREST } from './themes/forest.js?v=20261124a';
+import { SWAMP } from './themes/swamp.js?v=20261124a';
+import { VOLCANO } from './themes/volcano.js?v=20261124a';
+import { SNOW } from './themes/snow.js?v=20261124a';
+import { COAST } from './themes/coast.js?v=20261124a';
+import { SKY } from './themes/sky.js?v=20261124a';
 export const THEMES = [FOREST, STREET, PARKING, CRYPT, SWAMP, VOLCANO, SNOW, COAST, FACTORY, SKY, LANDING, VOID];
 // The themes of each biome; a biome with two takes them in turn by stage number.
 export const BIOME_THEMES = {

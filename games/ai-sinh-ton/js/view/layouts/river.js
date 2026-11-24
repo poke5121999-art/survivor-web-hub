@@ -2,7 +2,7 @@
 // (world.js drops a 'collapse' link's deck behind the team). The water is raised to just under the floors whatever the
 // theme's abyss was, so a mist world gets a dark river of its own colours. The ford across each fight pad is a hazard
 // (layouts/hazards.js 'current').
-import { mesher, voxMaterial } from '../pad.js?v=20261122a';
+import { mesher, voxMaterial } from '../pad.js?v=20261124a';
 
 export const RAFT_Y = -0.28;    // the raft's deck under the floors (the water is at -0.7); clear of the shore blocks' tops at whole half metres
 const DOCK = 1.4;               // metres from the bank to where the raft lies at either end

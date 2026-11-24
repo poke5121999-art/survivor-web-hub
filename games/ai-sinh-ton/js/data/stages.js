@@ -1,8 +1,8 @@
 // Stages: five waves each, the fifth is the stage's boss. A stage is fully determined by its number, so every
 // player meets the same waves. Stages 1-50 are the campaign (ten chapters); past 50 the same rules keep scaling without end.
 // Stages 31-50 follow the late line the endless run used, with the endless boss rotation.
-import { ENEMY } from './enemies.js?v=20261122a';
-import { expectedSlots } from './unlocks.js?v=20261122a';
+import { ENEMY } from './enemies.js?v=20261124a';
+import { expectedSlots } from './unlocks.js?v=20261124a';
 
 // Ten chapters of five stages, one biome each (SCOPE section 8). `biome` names the world the stage is fought in; the view
 // picks the theme for it (js/view/themes.js BIOME_THEMES). `stones`: the Seed Stone elements the chapter drops.

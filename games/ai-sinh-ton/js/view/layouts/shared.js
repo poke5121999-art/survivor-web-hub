@@ -1,6 +1,6 @@
 // Small helpers the layout pieces share: how far a pad's blocks reach along a direction, and which directions around a pad
 // are taken by its links and spawn gates (nothing may stand there).
-import { mesher, voxMaterial } from '../pad.js?v=20261122a';
+import { mesher, voxMaterial } from '../pad.js?v=20261124a';
 export const FLAME = [2.4, 1.35, 0.5];
 export function outerAt(main, a) { let last = 0; for (let s = 0; s < 34; s += 0.25) if (main.cellAt(Math.cos(a) * s, Math.sin(a) * s)) last = s; return last; }
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));

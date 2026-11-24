@@ -1,7 +1,7 @@
 // Ếch Pháo (ranged, fire): a frog pup with a puffed throat sac, then a cannon throat and a chimney back, then either
 // a volcano toad or a jet frog with goggles (SCOPE 3.1 #5).
-import { palette } from '../families.js?v=20261122a';
-import { shade } from '../kit.js?v=20261122a';
+import { palette } from '../families.js?v=20261124a';
+import { shade } from '../kit.js?v=20261124a';
 
 const THREE = window.THREE;
 const P0 = palette(0x6cc04a, { belly: 0xf4eaa0, dark: 0x2a4a1a, sac: 0xf8d890, spot: 0x3e8a2e, foot: 0x8ad860 });

@@ -4,10 +4,10 @@
 // On top of that base look every skill a beast casts plays three beats (fx/beats.js): the wind-up at the caster on its cast,
 // the impact where each part lands, the after-image. An instant skill's impact is drawn HOLD seconds after its cast so the
 // wind-up shows first; an ultimate's events are held while its close-up winds up (ultcam.js) and released together.
-import { arenaNorm } from '../sim/battle.js?v=20261122a';
-import { HEROES } from '../data/heroes.js?v=20261122a';
-import { ENEMIES } from '../data/enemies.js?v=20261122a';
-import { createBeats } from './fx/beats.js?v=20261122a';
+import { arenaNorm } from '../sim/battle.js?v=20261124a';
+import { HEROES } from '../data/heroes.js?v=20261124a';
+import { ENEMIES } from '../data/enemies.js?v=20261124a';
+import { createBeats } from './fx/beats.js?v=20261124a';
 const THREE = window.THREE;
 const BZ = window.BZ;
 

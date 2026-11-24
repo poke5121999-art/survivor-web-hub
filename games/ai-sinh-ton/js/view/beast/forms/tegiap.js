@@ -1,7 +1,7 @@
 // Tê Giáp (tank, earth): a chubby rhino calf that grows shields, then either a mossy fortress on its back or a spiked
 // armour ball (SCOPE 3.1 #1).
-import { quad, palette } from '../families.js?v=20261122a';
-import { shade } from '../kit.js?v=20261122a';
+import { quad, palette } from '../families.js?v=20261124a';
+import { shade } from '../kit.js?v=20261124a';
 
 const P0 = palette(0xa89480, { belly: 0xeadfca, snout: 0xcdbca6, dark: 0x4a3a30, plate: 0xe8ac3c, horn: 0xf6ecd4, ear: 0xd09a90 });
 

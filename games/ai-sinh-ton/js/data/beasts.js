@@ -3,7 +3,7 @@
 // to this form, oldest first), `form`, `branch`, `look`, `atk0` (form-1 attack, what the ultimate charge is scaled by).
 // A form builds on the one before: form 3 takes form 2's skill patches, then its own. An old hero id resolves through
 // LEGACY_IDS, so a team or a test written with the human roster still fights.
-import { HERO, LEGACY_IDS } from './heroes.js?v=20261122a';
+import { HERO, LEGACY_IDS } from './heroes.js?v=20261124a';
 
 export const FORM_MUL = [1, 1, 1.25, 1.6];
 export const formKey = (id, form = 1, branch = null) => `${id}.${form}${form === 3 && branch ? branch : ''}`;

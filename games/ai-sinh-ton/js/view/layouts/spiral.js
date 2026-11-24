@@ -1,8 +1,8 @@
 // Spiral: a switchback climb up a mountain. Every pad stands higher than the last; crags of stacked rock rise past the far
 // rim of each pad (the mountain the path winds up), and behind the summit (the boss pad) a spire with a beacon fire.
-import { mesher, voxMaterial } from '../pad.js?v=20261122a';
-import { LIGHTS } from '../themes.js?v=20261122a';
-import { outerAt, takenDirs, isOpen, FLAME } from './shared.js?v=20261122a';
+import { mesher, voxMaterial } from '../pad.js?v=20261124a';
+import { LIGHTS } from '../themes.js?v=20261124a';
+import { outerAt, takenDirs, isOpen, FLAME } from './shared.js?v=20261124a';
 
 export const SPIRAL = {
   gap: 5, sats: true,

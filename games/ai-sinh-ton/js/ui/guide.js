@@ -5,8 +5,8 @@
 //   'reveal' - the padlock pops open and the new feature flies in; tap to continue.
 //   'story'  - the two-sentence opening story over the first fight (createStory at the end).
 // meta.ftueNext() says what to show, game.events says when; pressing the target (a pointer press on it) completes a step.
-import { UNLOCK } from '../data/unlocks.js?v=20261122a';
-import { clamp, easeOut, easeBack } from './hud.js?v=20261122a';
+import { UNLOCK } from '../data/unlocks.js?v=20261124a';
+import { clamp, easeOut, easeBack } from './hud.js?v=20261124a';
 
 const GIVE_UP = 8;
 const HAND_LEN = 46, HAND_HALF = 17, HAND_GAP = 4, HAND_BOB = 7;

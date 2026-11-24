@@ -2,14 +2,14 @@
 // account level top-right, the warm backdrop) and the Ra Trận tab. The other menu screens (heroes.js, gacha.js, soon.js)
 // never draw the chrome: they only name themselves in MENU. Their content lives right of RAIL.right (106) and below the
 // counters (y 48) on the right; the toast sits top-centre (ui.toastAt) unless text or a button is there (kit toastSpot).
-import { stageDef, expectedLevel, CHAPTERS } from '../data/stages.js?v=20261122a';
-import { HERO } from '../data/heroes.js?v=20261122a';
-import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261122a';
-import { createDiorama } from './diorama.js?v=20261122a';
-import { createWorldMap, STORY } from './worldmap.js?v=20261122a';
-import { lockButton } from './guide.js?v=20261122a';
-import { xpNeed } from '../data/unlocks.js?v=20261122a';
-import { installBeastPortraits } from './beast-ui.js?v=20261122a';
+import { stageDef, expectedLevel, CHAPTERS } from '../data/stages.js?v=20261124a';
+import { HERO } from '../data/heroes.js?v=20261124a';
+import { HERO_RARITY, levelMul } from '../data/economy.js?v=20261124a';
+import { createDiorama } from './diorama.js?v=20261124a';
+import { createWorldMap, STORY } from './worldmap.js?v=20261124a';
+import { lockButton } from './guide.js?v=20261124a';
+import { xpNeed } from '../data/unlocks.js?v=20261124a';
+import { installBeastPortraits } from './beast-ui.js?v=20261124a';
 
 export const MENU = ['home', 'heroes', 'hero', 'gacha', 'equip', 'rewards'];
 // rail geometry in design units: buttons start at x, the backdrop panel ends at right; content starts at right + 8

@@ -1,6 +1,6 @@
 // Chồn Gió (melee, wind): a long weasel kit with a brush tail, then twin sickle tails and a wind scarf, then three
 // blade tails, a whirlwind mane and paws that never touch the ground (SCOPE 3.1 #4).
-import { quad, palette } from '../families.js?v=20261122a';
+import { quad, palette } from '../families.js?v=20261124a';
 
 const P0 = palette(0xd8964e, { belly: 0xfff4e4, snout: 0xfff0dc, dark: 0x3a2214, wind: 0x6ad8ff });
 

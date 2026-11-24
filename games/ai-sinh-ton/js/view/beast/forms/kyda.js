@@ -1,7 +1,7 @@
 // Kỳ Đà Lửa (melee, brawler, fire): a red monitor-lizard hatchling with a forked tongue, then a ridge of flame fins
 // and a burning tail, then either a lava dragon of glowing-seamed basalt or a winged fire lizard (SCOPE 3.1 #8).
-import { quad, palette } from '../families.js?v=20261122a';
-import { shade } from '../kit.js?v=20261122a';
+import { quad, palette } from '../families.js?v=20261124a';
+import { shade } from '../kit.js?v=20261124a';
 
 const P0 = palette(0xd8502a, { belly: 0xf4c890, snout: 0xe87a4a, dark: 0x4a1a10, tongue: 0xff5a8a, scale: 0xa83a1a, ear: 0xd8502a });
 

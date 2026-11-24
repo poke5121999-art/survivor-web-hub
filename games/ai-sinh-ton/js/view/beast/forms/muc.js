@@ -1,8 +1,8 @@
 // Mực Sao (ranged, magic, wood): a teardrop squid pup with six short arms and star-speckled skin, then a finned squid
 // with long glowing arms swimming through the air, then an astronomer squid whose skin is a moving star map with a
 // small planet ring round it (SCOPE 3.1 #14).
-import { palette } from '../families.js?v=20261122a';
-import { shade } from '../kit.js?v=20261122a';
+import { palette } from '../families.js?v=20261124a';
+import { shade } from '../kit.js?v=20261124a';
 
 const THREE = window.THREE;
 const P0 = palette(0x5a4ac8, { belly: 0xd0c4f4, dark: 0x1e1848, star: 0xfff0a8, arm: 0x7a6ae0, sucker: 0xf0d8ff });

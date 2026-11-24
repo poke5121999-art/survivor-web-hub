@@ -5,10 +5,10 @@
 // every flash. At a fork (form 2 -> 3) the player picks the path first; at form 3 the other path can be bought (ĐỔI NHÁNH).
 // openEvolve(heroId) is what the beast screen's TIẾN HOÁ button calls. Every drawn string is registered in
 // game.evolveUi (texts, phase, phases seen) so tools/evolve-test.mjs can read and audit the screen.
-import { HERO, ELEMENTS } from '../data/heroes.js?v=20261122a';
-import { heroDef, branchesOf, maxForm } from '../data/beasts.js?v=20261122a';
-import { levelMul } from '../data/economy.js?v=20261122a';
-import { buildBeast } from '../view/beast/index.js?v=20261122a';
+import { HERO, ELEMENTS } from '../data/heroes.js?v=20261124a';
+import { heroDef, branchesOf, maxForm } from '../data/beasts.js?v=20261124a';
+import { levelMul } from '../data/economy.js?v=20261124a';
+import { buildBeast } from '../view/beast/index.js?v=20261124a';
 
 export const MOVE_NAME = { walk: 'Đi bộ', gallop: 'Phi nước đại', hop: 'Nhảy cóc', leap: 'Nhảy xa', roll: 'Lăn tròn', slither: 'Trườn', fly: 'Bay', glide: 'Lướt', swimAir: 'Bơi trên không', blink: 'Dịch chuyển', burrow: 'Đào đất', stomp: 'Dậm đất' };
 // the moment, in order; `dur` in seconds

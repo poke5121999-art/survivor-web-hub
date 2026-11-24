@@ -1,9 +1,9 @@
 // Arena: one round arena where all five waves are fought. Stands rise in tiers behind the far rim (a crowd of dark shapes
 // on the seats, braziers and banners along the top), two tiers on the flanks, and only a knee-high wall on the near side so
 // nothing stands between the camera and the fight. The stands open where the start room's bridge and the gates are.
-import { mesher, voxMaterial } from '../pad.js?v=20261122a';
-import { LIGHTS } from '../themes.js?v=20261122a';
-import { outerAt, takenDirs, isOpen, FLAME } from './shared.js?v=20261122a';
+import { mesher, voxMaterial } from '../pad.js?v=20261124a';
+import { LIGHTS } from '../themes.js?v=20261124a';
+import { outerAt, takenDirs, isOpen, FLAME } from './shared.js?v=20261124a';
 
 export const ARENA_RING = {
   gap: 5, sats: false,

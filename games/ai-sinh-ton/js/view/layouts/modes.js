@@ -5,7 +5,7 @@
 //            the carrier to the gate it heads for
 //   survive  nothing in the scene: the HUD calls the time (hud.js)
 // Everything is placed each frame in the scene's frame through world.roomOffset (the egg) and actors.headPos (the carrier).
-import { modeState } from '../../sim/maprules.js?v=20261122a';
+import { modeState } from '../../sim/maprules.js?v=20261124a';
 const THREE = window.THREE;
 
 const EGG_V = `varying vec3 vP; varying vec3 vN; void main() { vP = position; vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;

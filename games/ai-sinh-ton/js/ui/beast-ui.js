@@ -1,6 +1,6 @@
 // Beast models for the UI: portraits on cards, the HUD and gacha, and the big turning model of the beast and equipment
 // pages, all from the shared builder at the form the account owns (acc.heroes[id].form / .branch, default 1 / none).
-import { buildBeast } from '../view/beast/index.js?v=20261122a';
+import { buildBeast } from '../view/beast/index.js?v=20261124a';
 
 export const beastSpec = (meta, id) => { const h = (meta && meta.acc.heroes[id]) || {}; return { id, form: h.form || 1, branch: h.branch || null }; };
 

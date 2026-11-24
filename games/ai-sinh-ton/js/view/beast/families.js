@@ -1,7 +1,7 @@
 // Body plans, one per family (SCOPE section 3): each lays the skeleton and the base body on a Kit and returns the
 // anchors the form files hang their parts on. All beasts are chibi: a head as wide as the body, short legs.
 // Model space: +z forward, y up, sizes before the height fit (index.js scales the finished beast).
-import { shade, tint } from './kit.js?v=20261122a';
+import { shade, tint } from './kit.js?v=20261124a';
 
 // default palette from one colour
 export function palette(hex, o = {}) {

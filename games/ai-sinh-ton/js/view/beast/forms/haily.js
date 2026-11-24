@@ -1,7 +1,7 @@
 // Hải Ly Thợ (ranged, summoner, earth): a beaver kit with big front teeth and a flat paddle tail, then a master builder
 // with a tool belt, a wooden hard hat and a mallet tail, then a beaver riding a wood-and-brass mech (SCOPE 3.1 #10).
-import { quad, palette } from '../families.js?v=20261122a';
-import { shade } from '../kit.js?v=20261122a';
+import { quad, palette } from '../families.js?v=20261124a';
+import { shade } from '../kit.js?v=20261124a';
 
 const P0 = palette(0x9a6a40, { belly: 0xe0c49a, snout: 0xd8b88a, dark: 0x3a2414, tooth: 0xfff8e0, paddle: 0x4a3a30, nose: 0x2a1a10 });
 

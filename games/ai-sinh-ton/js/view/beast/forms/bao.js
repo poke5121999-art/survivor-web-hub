@@ -1,7 +1,7 @@
 // Báo Mây (melee, hunter, lightning): a clouded-leopard cub with cloud blotches and a long tail, then a cloud mane and
 // glowing stripes, then a ghost leopard whose back half is cloud and who leaves after-images (SCOPE 3.1 #12).
-import { quad, palette } from '../families.js?v=20261122a';
-import { shade } from '../kit.js?v=20261122a';
+import { quad, palette } from '../families.js?v=20261124a';
+import { shade } from '../kit.js?v=20261124a';
 
 const THREE = window.THREE;
 

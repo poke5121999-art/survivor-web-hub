@@ -1,7 +1,7 @@
 // Lộc Đèn (healer, wood): a spotted fawn with one little lantern, then branching antlers hung with lantern fruit, then a
 // see-through spirit deer whose antlers are a festival lantern tree, or a dark-coated night stag with crimson lamps
 // (SCOPE 3.1 #3).
-import { quad, palette } from '../families.js?v=20261122a';
+import { quad, palette } from '../families.js?v=20261124a';
 
 const P0 = palette(0xc8905a, { belly: 0xfaecd6, snout: 0xf2dcc0, dark: 0x4a2e1c, antler: 0xe8d4a8 });
 

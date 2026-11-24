@@ -1,7 +1,7 @@
 // The thirteen zombie kinds as code: one FoeGeo each, built once and drawn by instancing (horde.js).
 // KINDS[id] = { gait, sw, cloth, s, top, build(g) }: gait feeds the shader (kit.js foeMaterials), sw is how fast the gait
 // cycles per metre, cloth the tints an instance may wear on its cloth parts, s the scale the body is drawn at, top its height.
-import { FoeGeo } from './kit.js?v=20261122a';
+import { FoeGeo } from './kit.js?v=20261124a';
 
 const DARK = 0x1c1418;
 const EYE = 0xfff27a;

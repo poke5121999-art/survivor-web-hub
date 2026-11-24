@@ -1,14 +1,14 @@
 // Draws the sim's units: the four beasts of the team (beast/ kit), the zombie pool in puppet mode, and a few code-built summons.
 // sync(B, dt) is called once per rendered frame after the sim ticks; onEvent(e) is called for every sim event.
-import { FLY_Y } from './keys.js?v=20261122a';
-import { createMarks } from './marks.js?v=20261122a';
-import { createFxMap } from './fxmap.js?v=20261122a';
-import { createHorde } from './horde.js?v=20261122a';
-import { arrive } from './arrival.js?v=20261122a';
-import { buildBeast, LEGACY } from './beast/index.js?v=20261122a';
-import { actFor, stepAct, usePool } from './bossacts.js?v=20261122a';
-import { dressBoss } from './foe/bosses.js?v=20261122a';
-import { createWarn } from './foe/warn.js?v=20261122a';
+import { FLY_Y } from './keys.js?v=20261124a';
+import { createMarks } from './marks.js?v=20261124a';
+import { createFxMap } from './fxmap.js?v=20261124a';
+import { createHorde } from './horde.js?v=20261124a';
+import { arrive } from './arrival.js?v=20261124a';
+import { buildBeast, LEGACY } from './beast/index.js?v=20261124a';
+import { actFor, stepAct, usePool } from './bossacts.js?v=20261124a';
+import { dressBoss } from './foe/bosses.js?v=20261124a';
+import { createWarn } from './foe/warn.js?v=20261124a';
 
 const THREE = window.THREE;
 const BZ = window.BZ;

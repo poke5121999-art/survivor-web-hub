@@ -1,9 +1,9 @@
 // 3D UI kit: every panel, button, tile and HUD piece is a lit three.js mesh drawn over the battle by its own
 // orthographic scene. Design units are CSS px of a 780 wide landscape frame (780 x 360 at the S22 ratio) (x right, y DOWN, origin top-left). A node's
 // own origin is its top-left corner; world y is the negative of design y.
-import { makeGeo } from './kit-geo.js?v=20261122a';
-import { makeText } from './kit-text.js?v=20261122a';
-import { makeIcons } from './icons.js?v=20261122a';
+import { makeGeo } from './kit-geo.js?v=20261124a';
+import { makeText } from './kit-text.js?v=20261124a';
+import { makeIcons } from './icons.js?v=20261124a';
 
 export const PAL = {
   // calmer than the first set (fully saturated orange, green and blue read as cheap next to the lit 3D world)
