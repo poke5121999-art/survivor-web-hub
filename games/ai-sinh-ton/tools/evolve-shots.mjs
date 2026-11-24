@@ -15,7 +15,7 @@ const phase = (page) => page.evaluate(() => __G.evolveUi.phase);
 
 async function steps(page, phone, full) {
   const all = await page.evaluate(async () => {
-    const { HEROES } = await import('/games/ai-sinh-ton/js/data/heroes.js?v=20261122a'); const bz = await import('/games/ai-sinh-ton/js/data/beasts.js?v=20261122a');
+    const { HEROES } = await import(document.querySelector('script[src*="js/main.js"]').src.replace('main.js', 'data/heroes.js')); const bz = await import(document.querySelector('script[src*="js/main.js"]').src.replace('main.js', 'data/beasts.js'));
     return HEROES.map((h) => ({ id: h.id, br: bz.branchesOf(h.id) }));
   });
   const box = await page.evaluate(() => { const r = document.getElementById('frame').getBoundingClientRect(), k = r.width / 780; return { x: r.x + 30 * k, y: r.y + 36 * k, width: 344 * k, height: 240 * k }; });
@@ -28,7 +28,7 @@ async function steps(page, phone, full) {
         const A = __G.meta.acc; A.heroes[id] = Object.assign(A.heroes[id] || {}, { level: 30, shards: 999, form, branch });
         A.gold = 1e7; for (const k of Object.keys(A.evo.stone)) A.evo.stone[k] = 999; A.evo.core = 99; A.cleared = Math.max(A.cleared, 20);
       }, { id, form, branch });
-      await page.evaluate(async ({ id, pick }) => { const m = await import('/games/ai-sinh-ton/js/ui/evolve.js?v=20261122a'); __G.goto('heroes', { id }); m.openEvolve(id, { branch: pick || undefined }); }, { id, pick });
+      await page.evaluate(async ({ id, pick }) => { const m = await import(document.querySelector('script[src*="js/main.js"]').src.replace('main.js', 'ui/evolve.js')); __G.goto('heroes', { id }); m.openEvolve(id, { branch: pick || undefined }); }, { id, pick });
       await step(page, 40);
       const tag = `${id}-${form}${pick || ''}`;
       const snap = async (name) => {

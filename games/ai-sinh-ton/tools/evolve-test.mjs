@@ -63,7 +63,7 @@ const stock = (page) => page.evaluate(() => {
   const A = __G.meta.acc;
   Object.assign(A.heroes.tegiap, { level: 30, shards: 999, form: 1, branch: null }); A.gold = 1e6; A.evo.stone.dat = 200; A.evo.core = 9; A.cleared = Math.max(A.cleared, 20); __G.meta.save();
 });
-const openEvo = (page, id) => page.evaluate(async (hid) => { const m = await import('/games/ai-sinh-ton/js/ui/evolve.js?v=20261122a'); __G.goto('heroes', { id: hid }); return m.openEvolve(hid); }, id);
+const openEvo = (page, id) => page.evaluate(async (hid) => { const m = await import(document.querySelector('script[src*="js/main.js"]').src.replace('main.js', 'ui/evolve.js')); __G.goto('heroes', { id: hid }); return m.openEvolve(hid); }, id);
 
 for (const phone of ['s22', 'xiaomi']) {
   const { page, problems, ctx } = await open(br, srv.base, phone, 'noaudio=1&q=low', { freeze: true });
@@ -121,8 +121,8 @@ for (const phone of ['s22', 'xiaomi']) {
   // every beast at every step, rich and poor (the poor price line carries the reason too): nothing spills or hides under a button
   await tap(page, 'evolve-close'); await step(page, 10);
   const sweep = await page.evaluate(async () => {
-    const m = await import('/games/ai-sinh-ton/js/ui/evolve.js?v=20261122a'); const bz = await import('/games/ai-sinh-ton/js/data/beasts.js?v=20261122a');
-    const { HEROES } = await import('/games/ai-sinh-ton/js/data/heroes.js?v=20261122a');
+    const m = await import(document.querySelector('script[src*="js/main.js"]').src.replace('main.js', 'ui/evolve.js')); const bz = await import(document.querySelector('script[src*="js/main.js"]').src.replace('main.js', 'data/beasts.js'));
+    const { HEROES } = await import(document.querySelector('script[src*="js/main.js"]').src.replace('main.js', 'data/heroes.js'));
     const A = __G.meta.acc, out = []; let n = 0;
     for (const id of HEROES.map((h) => h.id)) {
       if (!A.heroes[id]) A.heroes[id] = { level: 1, shards: 0, form: 1, branch: null };

@@ -145,7 +145,7 @@ async function toastAndWords(br, srv, phone) {
   const said = [];
   const look = async (where) => { await step(page, 30); for (const q of await page.evaluate(() => __TB())) if (/tướng/i.test(q.str.normalize('NFC'))) said.push(`${where}: "${q.str}"`); };
   for (const tab of ['tab-gacha', 'tab-equip', 'tab-heroes', 'tab-rewards', 'tab-battle']) { if (await tap(page, tab)) await look(tab); }
-  await page.evaluate(async () => { const m = await import('/games/ai-sinh-ton/js/ui/evolve.js?v=20261122a'); __G.goto('heroes'); m.openEvolve(); }); await look('evolve');
+  await page.evaluate(async () => { const m = await import(document.querySelector('script[src*="js/main.js"]').src.replace('main.js', 'ui/evolve.js')); __G.goto('heroes'); m.openEvolve(); }); await look('evolve');
   // S1
   await page.evaluate(() => { __G.goto('home'); __G.openSettings(); }); await step(page, 30);
   const lab = () => page.evaluate(() => { const t = __TB().find((q) => q.own === 'set-ultcam'); const n = __TB().find((q) => q.str === 'Cận cảnh tối thượng'); return { btn: t && t.str, label: !!n, v: __G.settings.ultCam, saved: JSON.parse(localStorage.getItem('aisinhton.settings.v1') || '{}').ultCam }; });

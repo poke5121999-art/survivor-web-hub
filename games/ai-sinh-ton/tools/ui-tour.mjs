@@ -26,12 +26,12 @@ async function shoot(page, tag, name) {
 async function fullAccount(page) {
   await page.evaluate(async () => {
     const M = __G.meta, A = M.acc;
-    const { HEROES } = await import('./js/data/heroes.js?v=20261122a');
+    const { HEROES } = await import(document.querySelector('script[src*="js/main.js"]').src.replace('main.js', 'data/heroes.js'));
     HEROES.forEach((h, i) => { A.heroes[h.id] = { level: 5 + ((i * 7) % 56), shards: (i * 13) % 90, form: 1, branch: null }; });
     A.team = HEROES.slice(0, 4).map((h) => h.id);
     A.cleared = 22; A.level = 34; A.gold = 1234567; A.gems = 98765; A.mergeOpen = true;
     A.bag = []; const mk = (item, tier, lv) => { const it = { uid: ++A.uidSeq, item, tier, lv }; A.bag.push(it); return it.uid; };
-    const { ITEMS } = await import('./js/data/equip.js?v=20261122a');
+    const { ITEMS } = await import(document.querySelector('script[src*="js/main.js"]').src.replace('main.js', 'data/equip.js'));
     ITEMS.forEach((it, i) => { for (let t = 0; t < 3; t++) mk(it.id, (i + t) % 6, 1 + ((i * 5 + t * 3) % 30)); });
     for (let k = 0; k < 3; k++) mk(ITEMS[0].id, 0, 1);
     for (let c = 0; c < 4; c++) A.chapters[c] = c < 2;
