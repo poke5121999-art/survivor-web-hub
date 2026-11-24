@@ -8,10 +8,12 @@ const THREE = window.THREE;
 
 const VS = `
 attribute vec3 aPos; attribute vec3 aVel; attribute vec4 aCol; attribute vec3 aShape;
-varying vec2 vUv; varying vec4 vCol; varying vec3 vShape;
+varying vec2 vUv; varying vec4 vCol; varying vec3 vShape; varying float vNear;
 void main() {
   vUv = uv; vCol = aCol; vShape = aShape;
   vec4 c = viewMatrix * vec4(aPos, 1.0);
+  // a particle at arm's length from the lens (a close-up in the crowd) thins out instead of painting the frame white
+  vNear = clamp((-c.z - 2.0) / 12.0, 0.2, 1.0);
   vec3 d = (viewMatrix * vec4(aVel, 0.0)).xyz; vec2 dir = d.xy; float sp = length(dir);
   vec2 ax = sp > 1e-4 ? dir / sp : vec2(0.0, 1.0); vec2 px = vec2(-ax.y, ax.x);
   float len = aShape.y + sp * aShape.z; float w = aShape.x;
@@ -20,7 +22,7 @@ void main() {
   gl_Position = projectionMatrix * c;
 }`;
 const FRAG = `
-varying vec2 vUv; varying vec4 vCol; varying vec3 vShape;
+varying vec2 vUv; varying vec4 vCol; varying vec3 vShape; varying float vNear;
 uniform float uFlash;
 varying float vKind;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -47,8 +49,8 @@ void main() {
     float body = (1.0 - smoothstep(0.3, 1.0, u)) * smoothstep(0.0, 0.35, v) * (1.0 - smoothstep(0.7, 1.0, v));
     a = body * smoothstep(1.0 - A * 0.9, 1.0, n + 0.35);
   }
-  a = floor(a * 4.0 + 0.5) / 4.0;
-  a *= A * uFlash;
+  a = floor(a * 4.0 + 0.3) / 4.0;
+  a *= A * uFlash * vNear;
   if (a < 0.004) discard;
   gl_FragColor = vec4(vCol.rgb * a, 1.0);
 }`;
@@ -78,7 +80,7 @@ export function createSparks(H) {
 
   const reduce = () => !!(window.__G && window.__G.settings && window.__G.settings.reduceFlash);
   // in the ultimate's close-up everything is several times bigger on screen and overlaps more: dimmer, so it does not clip white
-  const closeK = () => { const J = window.__G && window.__G.juice; return J && J.ult && J.ult.active ? 0.65 : 1; };
+  const closeK = () => { const J = window.__G && window.__G.juice; return J && J.ult && J.ult.active ? 0.35 : 1; };
 
   // o: { x y z vx vy vz life w len stretch color a grav drag kind real delay }
   function emit(o) {
