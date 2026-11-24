@@ -97,17 +97,25 @@ export default {
     height: 1.25, move: 'roll', attack: 'bite', ball: true, ballR: 0.5,
     build(K) {
       const P = { ...P0, body: 0xd8c8e8, belly: 0xf4ecff, gem: 0x9a5ae0, gem2: 0xc890ff, mist: 0x9aff6a };
-      // the snail is drawn round the ball centre, so the roll gait spins it in place: a violet crystal shell (see-through)
-      // with poison mist swirling inside, crystal points, the soft head peeking out low at the front
+      // the snail is drawn round the ball centre, so the roll gait spins it in place: a violet crystal shell of stepped
+      // blocks (a big block, a smaller one stepped up and back, a cap), a square spiral of glowing poison pixels on both
+      // flanks, a crown of crystal points, the soft head peeking out low at the front
       const C = [0, 0.5, 0];
       K.bone('body', 'root', C); K.bone('chest', 'body', [0, 0.45, 0.2]); K.bone('hip', 'body', [0, 0.5, -0.2]);
       K.bone('neck', 'chest', [0, 0.32, 0.42]); K.bone('head', 'neck', [0, 0.34, 0.5]);
-      K.blob('body', C, [0.46, 0.46, 0.46], { col: P.gem, buf: 'ghost', steps: K.hi ? 14 : 9, n: 2.0 });
-      K.bone('mist', 'body', C); K.roles.orbits.push({ bone: 'mist', speed: 2.2, axis: 'x' });
-      for (let i = 0; i < 3; i++) K.torus('mist', C, 0.18 + i * 0.08, 0.03, { col: i === 1 ? P.mist : 0xd0ff9a, buf: 'glow', rot: [0, i * 1.1, Math.PI / 2], arc: 0.6 });
-      K.blob('mist', C, [0.1, 0.1, 0.1], { col: P.mist, buf: 'glow', steps: 4 });
-      const dirs = [[0, 1, -0.2], [0.6, 0.7, -0.3], [-0.6, 0.7, -0.3], [0.8, 0.1, -0.5], [-0.8, 0.1, -0.5], [0, 0.4, -1], [0.5, 0.9, 0.3], [-0.5, 0.9, 0.3], [0, -0.3, -1]];
-      dirs.forEach((d, i) => { const v = new THREE.Vector3(...d).normalize(); K.crystal('body', [C[0] + v.x * 0.38, C[1] + v.y * 0.38, C[2] + v.z * 0.38], [v.x, v.y, v.z], 0.26 - (i % 3) * 0.04, 0.07, i % 2 ? P.gem2 : P.gem, { sides: 5, buf: 'toon' }); });
+      const shell = P.gem;
+      K.blob('body', [0, 0.47, -0.02], [0.47, 0.4, 0.46], { col: shell, n: 3 });
+      K.blob('body', [0, 0.8, -0.1], [0.36, 0.16, 0.36], { col: shell, n: 3 });
+      K.blob('body', [0, 0.98, -0.16], [0.2, 0.08, 0.2], { col: P.gem2, n: 3 });
+      K.blob('body', [0, 0.14, -0.02], [0.4, 0.06, 0.4], { col: shade(P.gem, 0.6), n: 3 });
+      // the spiral: a square spiral path in the flank plane, one thin glowing bar per leg
+      const sp = [[0, 0], [0.08, 0], [0.08, 0.08], [-0.08, 0.08], [-0.08, -0.08], [0.16, -0.08], [0.16, 0.16], [-0.16, 0.16], [-0.16, -0.16], [0.24, -0.16], [0.24, 0.24], [-0.24, 0.24]];
+      for (const sx of [-1, 1]) for (let i = 0; i < sp.length - 1; i++) {
+        const P0x = [sx * 0.445, 0.47 + sp[i][1], -0.02 + sp[i][0]]; const P1x = [sx * 0.445, 0.47 + sp[i + 1][1], -0.02 + sp[i + 1][0]];
+        K.beam(P0x, P1x, 0.022, 0.022, { buf: 'glow', col: i % 2 ? P.mist : 0xd0ff9a, bone: K.bi('body'), up: [1, 0, 0], ext: 0.022 });
+      }
+      const tips = [[0, 1, -0.3, 0.3], [0.5, 0.8, -0.4, 0.22], [-0.5, 0.8, -0.4, 0.22], [0, 0.6, -1, 0.2]];
+      tips.forEach(([x, y, z, l], i) => { const v = new THREE.Vector3(x, y, z).normalize(); K.crystal('body', [v.x * 0.3, 0.75 + v.y * 0.25, -0.1 + v.z * 0.3], [v.x, v.y, v.z], l, 0.07, i % 2 ? P.gem2 : 0xe8c8ff, { buf: 'toon' }); });
       K.tube([{ p: [0, 0.2, 0.18], rx: 0.2, ry: 0.13, bone: 'chest' }, { p: [0, 0.28, 0.44], rx: 0.18, ry: 0.16, bone: 'neck' }, { p: [0, 0.34, 0.52], rx: 0.16, ry: 0.15, bone: 'head' }], { col: P.body, belly: P.belly });
       K.torus('head', [0, 0.3, 0.52], 0.12, 0.011, { arc: 0.5, col: 0x3a2a4a });
       for (const s of [-1, 1]) stalkEye(K, s, [s * 0.07, 0.44, 0.52], [s * 0.15, 0.66, 0.6], 0.07, P.body, { pupil: 0x3a1a4a });

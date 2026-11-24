@@ -6,7 +6,6 @@ import { HERO } from '../data/heroes.js?v=20261124a';
 import { ITEM as ITEM_DEF, TIERS } from '../data/equip.js?v=20261124a';
 import { ITEM_ICON } from './itemicons.js?v=20261124a';
 import { makeBackdrop, makeBurst, capsule3d, fmt } from './home.js?v=20261124a';
-import { blockify } from '../view/fx/blockify.js?v=20261124a';
 
 const GOLD = 0xffc21f, ITEM = 0x98a6c4;
 const PILLS = [[0xff8ad0, 0x6ad8ff], [0xffd21f, 0x8f4dff], [0x8aff9a, 0xff9a5a], [0xb48aff, 0xffe27a], [0x5ad0ff, 0xff6a8a], [0xff9a5a, 0x4af0c8]];
@@ -32,28 +31,35 @@ export function createGacha(game) {
   const std = (c, r = 0.4, e = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, emissive: e, emissiveIntensity: e ? 0.5 : 0 });
   const ink = new THREE.MeshBasicMaterial({ color: 0x1a1420, side: THREE.BackSide });
   const add = (parent, geo, mat, x, y, z, hullK) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (hullK) { const h = new THREE.Mesh(geo, ink); h.scale.setScalar(hullK); m.add(h); } parent.add(m); return m; };
-  add(machine, blockify(new THREE.CylinderGeometry(1.95, 2.1, 0.4, 36)), std(0x2a1f5a), 0, 0.2, 0, 1.04);
-  add(machine, blockify(new THREE.CylinderGeometry(1.6, 1.8, 1.6, 36)), std(0x7a45e8, 0.35), 0, 1.2, 0, 1.04);
-  for (const y of [0.55, 2.0]) add(machine, blockify(new THREE.TorusGeometry(y > 1 ? 1.62 : 1.78, 0.09, 8, 40)), std(GOLD, 0.25), 0, y, 0).rotation.x = Math.PI / 2;
-  add(machine, blockify(new THREE.CylinderGeometry(1.5, 1.6, 0.35, 36)), std(0xffa31f, 0.3), 0, 2.15, 0, 1.04);
+  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+  // a stepped block body: dark plinth, purple cabinet between two thin gold bands, an orange lid
+  add(machine, B(3.7, 0.36, 3.4), std(0x2a1f5a), 0, 0.18, 0, 1.03);
+  add(machine, B(3.3, 0.14, 3.0), std(GOLD, 0.25), 0, 0.43, 0);
+  add(machine, B(3.1, 1.36, 2.8), std(0x7a45e8, 0.35), 0, 1.18, 0, 1.03);
+  add(machine, B(3.3, 0.14, 3.0), std(GOLD, 0.25), 0, 1.92, 0);
+  add(machine, B(2.9, 0.26, 2.6), std(0xffa31f, 0.3), 0, 2.12, 0, 1.04);
   // front plate, crank and chute
-  add(machine, new THREE.BoxGeometry(1.5, 0.9, 0.3), std(0xffc21f, 0.3), 0, 1.35, 1.68, 1.05);
-  const crank = new THREE.Group(); crank.position.set(0, 1.35, 1.9); machine.add(crank);
-  add(crank, blockify(new THREE.CylinderGeometry(0.34, 0.34, 0.16, 20)), std(0xff4a6a, 0.3), 0, 0, 0, 1.08).rotation.x = Math.PI / 2;
-  add(crank, new THREE.BoxGeometry(0.16, 0.8, 0.12), std(0xfff1cf, 0.3), 0, 0.3, 0.12, 1.1);
-  add(crank, blockify(new THREE.SphereGeometry(0.2, 12, 10)), std(0x35d65a, 0.3), 0, 0.7, 0.16, 1.1);
-  add(machine, new THREE.BoxGeometry(1.1, 0.62, 0.7), std(0x1c1238, 0.6), 0, 0.5, 1.5, 1.05);
-  add(machine, new THREE.BoxGeometry(1.3, 0.12, 0.8), std(GOLD, 0.3), 0, 0.2, 1.62);
-  // dome with a pile of pills
-  const dome = new THREE.Mesh(blockify(new THREE.SphereGeometry(1.55, 32, 20)), new THREE.MeshStandardMaterial({ color: 0xcfeaff, roughness: 0.08, transparent: true, opacity: 0.22, depthWrite: false })); dome.position.y = 3.55; dome.renderOrder = 3; machine.add(dome);
+  add(machine, B(1.4, 0.82, 0.2), std(0xffc21f, 0.3), 0, 1.28, 1.48, 1.05);
+  const crank = new THREE.Group(); crank.position.set(0, 1.28, 1.66); machine.add(crank);
+  add(crank, B(0.56, 0.56, 0.14), std(0xff4a6a, 0.3), 0, 0, 0, 1.08);
+  add(crank, B(0.14, 0.62, 0.1), std(0xfff1cf, 0.3), 0, 0.3, 0.1, 1.1);
+  add(crank, B(0.28, 0.28, 0.28), std(0x35d65a, 0.3), 0, 0.62, 0.14, 1.1);
+  add(machine, B(1.0, 0.52, 0.5), std(0x1c1238, 0.6), 0, 0.68, 1.38, 1.05);
+  add(machine, B(1.2, 0.1, 0.62), std(GOLD, 0.3), 0, 0.42, 1.46);
+  // the dome: a see-through glass block with a thin gold frame along its edges, a pile of block pills inside
+  const DW = 2.6, DH = 2.2, DD = 2.4, DY = 2.25 + DH / 2;
+  const dome = new THREE.Mesh(B(DW, DH, DD), new THREE.MeshStandardMaterial({ color: 0xcfeaff, roughness: 0.08, transparent: true, opacity: 0.22, depthWrite: false })); dome.position.y = DY; dome.renderOrder = 3; machine.add(dome);
+  const rimM = std(GOLD, 0.25), rimT = 0.07;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(machine, B(rimT, DH, rimT), rimM, sx * DW / 2, DY, sz * DD / 2);
+  for (const y of [DY - DH / 2, DY + DH / 2]) for (const s of [-1, 1]) { add(machine, B(DW + rimT, rimT, rimT), rimM, 0, y, s * DD / 2); add(machine, B(rimT, rimT, DD + rimT), rimM, s * DW / 2, y, 0); }
   const pills = []; let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   for (let i = 0; i < 26; i++) {
-    const a = rnd() * 6.283, rr = Math.sqrt(rnd()) * 1.0, y = 2.65 + rnd() * 1.1 - rr * 0.1, [ca, cb] = PILLS[i % PILLS.length];
-    const c = capsule3d(THREE, ca, cb); c.scale.setScalar(0.52); c.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr * 0.9); c.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); machine.add(c); pills.push({ c, bx: c.position.x, by: y, bz: c.position.z, ph: rnd() * 6 });
+    const x = (rnd() - 0.5) * (DW - 0.6), z = (rnd() - 0.5) * (DD - 0.6), y = 2.5 + rnd() * 0.9 + (1 - Math.abs(x) / DW) * 0.2, [ca, cb] = PILLS[i % PILLS.length];
+    // block pills lie roughly flat, turned about the vertical, as if dropped in a box
+    const c = capsule3d(THREE, ca, cb); c.scale.setScalar(0.5); c.position.set(x, y, z); c.rotation.set((rnd() - 0.5) * 0.5, rnd() * 3, (rnd() - 0.5) * 0.5); machine.add(c); pills.push({ c, bx: x, by: y, bz: z, ph: rnd() * 6 });
   }
-  add(machine, blockify(new THREE.TorusGeometry(1.5, 0.12, 8, 40)), std(GOLD, 0.25), 0, 2.45, 0).rotation.x = Math.PI / 2;
-  add(machine, blockify(new THREE.CylinderGeometry(0.55, 0.8, 0.3, 24)), std(GOLD, 0.25), 0, 5.0, 0, 1.06);
-  add(machine, blockify(new THREE.SphereGeometry(0.2, 12, 10)), std(0xff4a6a, 0.3), 0, 5.28, 0, 1.1);
+  add(machine, B(1.1, 0.22, 1.0), std(GOLD, 0.25), 0, DY + DH / 2 + 0.12, 0, 1.06);
+  add(machine, B(0.34, 0.34, 0.34), std(0xff4a6a, 0.3), 0, DY + DH / 2 + 0.4, 0, 1.1);
   const glowCan = document.createElement('canvas'); glowCan.width = glowCan.height = 64;
   { const c = glowCan.getContext('2d'), g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.4)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); }
   const glowM = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowCan), transparent: true, opacity: 0, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
@@ -67,7 +73,7 @@ export function createGacha(game) {
     t0 += dt; crank.rotation.z -= crankSpeed * dt; shake += (0 - shake) * (1 - Math.exp(-dt * 6));
     const amp = (S && S.phase === 'crank' ? 1 : 0), idle = Math.sin(t0 * 1.2) * 0.1;
     machine.rotation.y = idle * (1 - amp); machine.position.x = Math.sin(t0 * 55) * 0.06 * amp; machine.position.y = Math.abs(Math.sin(t0 * 38)) * 0.05 * amp;
-    for (const p of pills) { const j = 0.04 + amp * 0.12; p.c.position.set(p.bx + Math.sin(t0 * 2 + p.ph) * j, p.by + Math.abs(Math.sin(t0 * (3 + amp * 12) + p.ph)) * (0.03 + amp * 0.18), p.bz + Math.cos(t0 * 2.2 + p.ph) * j); p.c.rotation.z += dt * (0.4 + amp * 5); }
+    for (const p of pills) { const j = 0.04 + amp * 0.12; p.c.position.set(p.bx + Math.sin(t0 * 2 + p.ph) * j, p.by + Math.abs(Math.sin(t0 * (3 + amp * 12) + p.ph)) * (0.03 + amp * 0.18), p.bz + Math.cos(t0 * 2.2 + p.ph) * j); p.c.rotation.y += dt * (0.4 + amp * 5); }
     if (!S) crankSpeed = 0.9 + Math.sin(t0) * 0.3;
     if (cap) capStep(dt);
   }

@@ -160,6 +160,7 @@ const fightRoots = `() => { const H = window.__G.host; const r = H.renderer.domE
 const uiRoots = `() => { const ui = window.__ui; const out = [{ tag: 'ui', scene: ui.scene, cam: null, w: 0, h: 0 }]; ui.scene.traverse((o) => { if (o.scene3 && o.visible) { let vis = true; for (let p = o; p; p = p.parent) if (!p.visible) vis = false; if (vis) out.push({ tag: 'viewport', scene: o.scene3, cam: o.camera, w: 100, h: 100 }); } }); return out; }`;
 
 const rows = []; const summonKinds = new Set();
+const bad = (list) => list.filter((x) => !/Failed to load resource/.test(x));
 const srv = await serve(); const br = await launch();
 const runScan = async (page, rootsFn, skip, tag) => {
   await page.evaluate(`window.__blk = ${ANALYZE.toString()}; window.__scan = ${SCAN.toString()}`);
@@ -201,6 +202,7 @@ try {
         }
         for (const s of kinds) seenKinds.add(s);
       }
+      check(bad(g.problems).length === 0, `${tag}: no console problems ${bad(g.problems).slice(0, 2).join(' | ')}`);
       console.log(`  ${tag}: summons on the field during the scans ${[...seenKinds].join(',') || 'none'}`);
       for (const s of seenKinds) summonKinds.add(s);
       await g.ctx.close();
@@ -219,6 +221,8 @@ try {
     check(tapped, 'home: switched the frame to the chapter diorama');
     await runScan(g.page, uiRoots, [], 'screen home-chapter');
     if (SHOTS) await g.page.locator('#frame').screenshot({ path: path.join(SHOTS, 'screen-home-chapter.png') });
+    // a screen that failed to build is not a screen without round meshes
+    check(bad(g.problems).length === 0, `screens: no console problems ${bad(g.problems).slice(0, 2).join(' | ')}`);
     await g.ctx.close();
   }
 } finally { await br.close(); srv.close(); }
