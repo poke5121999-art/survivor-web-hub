@@ -40,7 +40,7 @@ export const KEYS = {
   turret: K('metal', { self: true }), armor_up: K('metal', { self: true }), fortress: K('metal', { self: true, ult: true }),
   ball_lightning: K('shock', { ult: true, z: [5, 0x2080ff, 0xe0f4ff, 0, 'ball'] }), smite: K('holy', { bolt: 'sky', sky: true }), thunder: K('shock', { bolt: 'sky', sky: true, ult: true, snd: 'thunder' }),
   pounce: K('blood', { bolt: 'slash', trail: true }), howl: K('earth', { self: true, snd: 'roar' }), werewolf: K('blood', { self: true, ult: true }),
-  swing: K('web', { trail: true }), web_pull: K('web', { pull: true }), web_net: K('web', { ult: true, mark: true, z: [3, 0xb8c0d8, 0xffffff, 0] }),
+  swing: K('web', { trail: true }), web_pull: K('web', { pull: true }), web_net: K('web', { ult: true, mark: true, z: [3, 0xb8c0d8, 0xd8e0f0, 0] }),
   // enemy attacks
   claw: K('blood', { atk: 'claw' }), bite: K('blood', { atk: 'bite' }), acid: K('poison', { n: 0.8 }), smash: K('earth', { atk: 'smash', n: 1.4, snd: 'heavy' }),
   boulder: K('earth', { n: 1.2, snd: 'boom' }), plasma: K('plasma', { atk: 'tracer', n: 0.9 }), scarab: K('sand', { n: 1 }), void_ball: K('void', { n: 1.3, snd: 'boom' }),
@@ -154,13 +154,14 @@ const BOSS_DEATH = [['pillar', 14, 2, 1.2, 0.4], ['fount', 24, 12, 'fire', 5], [
 const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const HOLD = 0.09;          // s of view time between an instant skill's cast and its drawn impact (the wind-up)
 const SELF_TIMED = new Set(['aoe', 'cone', 'line', 'zone', 'rain', 'bolts']); // sim ops that wait out their own `delay`
+const GLOW_CLOSE = 0.55;  // glow dots' brightness in the ultimate's close-up, where they fill the frame (fx-beats clipped white < 1%)
 const BUNG_CAP = 6;         // impacts drawn per frame at most (a volley of bolts lands many at once)
 const HIT_CAP = 5;          // hero hit sparks per frame at most
 const PART_SHAPE = { burst: 'burst', cone: 'cone', line: 'line', bolt: 'bolt', heal: 'heal', shield: 'heal', mark: 'zone', pull: 'zone' };
 
 export function createFxMap(H, marks, ctx) {
   const { G, scene, camera } = H;
-  pixelTextures(scene);
+  const pix = pixelTextures(scene);
   // Blockade Z's blast shock rings are additive 0xffe0b0 at 0.9: on the pale chapter floors they clip to pure white, so they are
   // tinted down; and they are flat ruled rings, so they take the marks' burst of dust streaks instead (same unit radius, same scaling)
   const shock = marks.shockGeo.clone().rotateX(-Math.PI / 2);
@@ -666,6 +667,7 @@ export function createFxMap(H, marks, ctx) {
     hold, release, held, beats,
     attack, swordArc, WHIRL_DUR,
     update(B, dt) {
+      { const J = juice(); pix.glowK(J && J.ult && J.ult.active ? GLOW_CLOSE : 1); }
       budget = { pop: 8, boom: 2, puff: 60 }; vb = 28; bungLeft = BUNG_CAP; hitLeft = HIT_CAP;
       if (B) { syncProjs(B, dt); unitsFx(B, dt); updateCuts(B); } marks.update(dt, B, beats.zap);
       const J = juice(); beats.update(dt, J ? J.realDt || dt : dt);

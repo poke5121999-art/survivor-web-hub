@@ -44,7 +44,7 @@ export function pixelTextures(scene) {
       return [255, 255, 255, a];
     });
   }
-  let gp = null;
+  let gp = null; const boards = [];
   scene.traverse((o) => {
     const m = o.material; if (!m || !m.uniforms || !m.uniforms.map || m.uniforms.map.value !== puff || m.blending !== THREE.AdditiveBlending) return;
     if (!gp) {
@@ -52,7 +52,11 @@ export function pixelTextures(scene) {
       repaint(gp, 8, (dx, dy, cx, cy) => { const d = Math.max(Math.abs(dx), Math.abs(dy)) + (hash(cx, cy, 3) - 0.5) * 0.9; const a = d < 1.6 ? 170 : d < 2.7 ? 85 : d < 3.6 && hash(cx, cy, 4) < 0.5 ? 34 : 0; return [255, 255, 255, a]; });
     }
     m.uniforms.map.value = gp;
+    // a brightness knob: in the ultimate's close-up the glow dots stand several times bigger and stack to white
+    m.uniforms.uK = { value: 1 }; m.fragmentShader = m.fragmentShader.replace('uniform sampler2D map;', 'uniform sampler2D map; uniform float uK;').replace('vC * t.a * vA', 'vC * t.a * vA * uK'); m.needsUpdate = true;
+    boards.push(m);
   });
+  return { glowK(k) { for (const m of boards) m.uniforms.uK.value = k; } };
 }
 
 // boxes [cx, cy, cz, sx, sy, sz, yaw = 0, pitch = 0] merged into one flat-shaded geometry (one draw call)

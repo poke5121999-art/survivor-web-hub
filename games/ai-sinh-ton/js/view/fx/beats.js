@@ -122,7 +122,7 @@ export function createBeats(H, marks) {
     drop(c, h) { sparks.drop(c.x, c.z, h, { colors: [c.s.core, c.s.edge], w: 0.5 * c.s.tier.size, real: c.real }); },
     spikes(c, n, h) { const m = Math.round(n * c.s.tier.count); for (let i = 0; i < m; i++) { const a = (i / m) * 6.283 + rnd(-0.3, 0.3); const d = rnd(0.4, 1) * Math.max(1, c.r * 0.6); marks.pillar(c.x + Math.cos(a) * d, c.z + Math.sin(a) * d, c.s.edge, { h: h * rnd(0.6, 1), r: 0.32, life: 0.9, a: 0.5, rise: 0.06 + i * 0.02 }); } },
     embers(c, n) { sparks.burst(c.x, 0.4, c.z, n * c.s.tier.count, { speed: [0.6, 2.2], up: 1, lift: 1.5, colors: [c.s.core, c.s.edge, 0xffa040], kind: 2, w: 0.12, life: 1.6, grav: -0.4, drag: 0.6, spread: 0.6, real: c.real }); },
-    mist(c, n) { sparks.wisps(c.x, 0.1, c.z, n * c.s.tier.count, { colors: [0xe8f6ff, c.s.edge], rise: 0.6, out: 1.2, r: c.r * 0.6, w: 0.9, len: 1.2, life: 1.6, a: 0.35, spread: 0.5, real: c.real }); },
+    mist(c, n) { sparks.wisps(c.x, 0.1, c.z, n * c.s.tier.count, { colors: [0xa8d8ff, c.s.edge], rise: 0.6, out: 1.2, r: c.r * 0.6, w: 0.9, len: 1.2, life: 1.6, a: 0.35, spread: 0.5, real: c.real }); },
     funnel(c, n) {
       const m = Math.round(n * c.s.tier.count * qual());
       for (let i = 0; i < m; i++) { const a = (i / m) * 6.283 * 2; const y = 0.2 + (i / m) * 4 * c.s.tier.size; const rr = 0.4 + y * 0.35; sparks.emit({ x: c.x + Math.cos(a) * rr, y, z: c.z + Math.sin(a) * rr, vx: -Math.sin(a) * 6, vy: 1.6, vz: Math.cos(a) * 6, life: 0.6, w: 0.3, len: 0.7, stretch: 0.08, color: i % 2 ? c.s.glow : c.s.edge, a: 0.55, kind: 3, real: c.real, delay: i * 0.012 }); }
