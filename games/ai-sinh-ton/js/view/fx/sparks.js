@@ -27,21 +27,27 @@ float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 float vnoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
 void main() {
-  float u = abs(vUv.x - 0.5) * 2.0; float v = vUv.y; float kind = vKind; float A = vCol.a; float a = 0.0;
+  // every kind is drawn on a coarse grid of effect pixels: a streak 3 cells across, a shard and an ember a few cells, a
+  // wisp a torn ribbon of cells; the brightness steps in quarters, so a particle reads as pixels, never a soft dot
+  float kind = vKind; float A = vCol.a; float a = 0.0;
+  vec2 cells = kind < 0.5 ? vec2(3.0, 8.0) : kind < 1.5 ? vec2(5.0, 5.0) : kind < 2.5 ? vec2(4.0, 4.0) : vec2(5.0, 9.0);
+  vec2 q = (floor(vUv * cells) + 0.5) / cells;
+  float u = abs(q.x - 0.5) * 2.0; float v = q.y;
   if (kind < 0.5) {            // streak: hot head at v ~ 0.8, tail fading to v = 0
     float head = smoothstep(0.0, 0.8, v) * (1.0 - smoothstep(0.85, 1.0, v));
-    a = head * (1.0 - smoothstep(0.15, 1.0, u)) * (0.55 + 0.45 * (1.0 - u));
-  } else if (kind < 1.5) {     // shard: a diamond glint with a sharp edge
+    a = head * (1.0 - smoothstep(0.5, 1.0, u)) * (0.55 + 0.45 * (1.0 - u));
+  } else if (kind < 1.5) {     // shard: a stepped diamond glint
     float d = u + abs(v - 0.5) * 2.0;
-    a = (1.0 - smoothstep(0.82, 1.0, d)) * (0.45 + 0.55 * (1.0 - d));
-  } else if (kind < 2.5) {     // ember: a small hot point
-    float d = length(vec2(u, (v - 0.5) * 2.0));
-    a = pow(max(0.0, 1.0 - d), 2.2);
+    a = step(d, 1.0) * (0.45 + 0.55 * (1.0 - d));
+  } else if (kind < 2.5) {     // ember: a square block, a hot 2 x 2 core in a dimmer ring
+    float d = max(u, abs(v - 0.5) * 2.0);
+    a = d < 0.5 ? 1.0 : 0.45;
   } else {                     // wisp: a ribbon torn by noise, more of it gone as it ages
-    float n = vnoise(vec2(vUv.x * 3.0 + vShape.y * 3.7, v * 5.0 - vShape.y * 2.3));
+    float n = vnoise(vec2(q.x * 3.0 + vShape.y * 3.7, v * 5.0 - vShape.y * 2.3));
     float body = (1.0 - smoothstep(0.3, 1.0, u)) * smoothstep(0.0, 0.35, v) * (1.0 - smoothstep(0.7, 1.0, v));
     a = body * smoothstep(1.0 - A * 0.9, 1.0, n + 0.35);
   }
+  a = floor(a * 4.0 + 0.5) / 4.0;
   a *= A * uFlash;
   if (a < 0.004) discard;
   gl_FragColor = vec4(vCol.rgb * a, 1.0);

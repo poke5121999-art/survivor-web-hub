@@ -8,6 +8,7 @@ import { arenaNorm } from '../sim/battle.js?v=20261124a';
 import { HEROES } from '../data/heroes.js?v=20261124a';
 import { ENEMIES } from '../data/enemies.js?v=20261124a';
 import { createBeats } from './fx/beats.js?v=20261124a';
+import { pixelTextures } from './fx/pixel.js?v=20261124a';
 const THREE = window.THREE;
 const BZ = window.BZ;
 
@@ -159,6 +160,7 @@ const PART_SHAPE = { burst: 'burst', cone: 'cone', line: 'line', bolt: 'bolt', h
 
 export function createFxMap(H, marks, ctx) {
   const { G, scene, camera } = H;
+  pixelTextures(scene);
   // Blockade Z's blast shock rings are additive 0xffe0b0 at 0.9: on the pale chapter floors they clip to pure white, so they are
   // tinted down; and they are flat ruled rings, so they take the marks' burst of dust streaks instead (same unit radius, same scaling)
   const shock = marks.shockGeo.clone().rotateX(-Math.PI / 2);
@@ -620,10 +622,13 @@ export function createFxMap(H, marks, ctx) {
   function buildProj(def) {
     const g = new THREE.Group();
     const col = (c) => new THREE.MeshBasicMaterial({ color: c });
-    if (def.mesh === 'rocket') { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.7, 8), new THREE.MeshLambertMaterial({ color: 0xe8e8f0 })); b.rotation.x = Math.PI / 2; const n = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.3, 8), col(0xff4a30)); n.rotation.x = Math.PI / 2; n.position.z = 0.5; g.add(b, n); }
-    else if (def.mesh === 'rock') g.add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.55), new THREE.MeshLambertMaterial({ color: 0x8a7a68 })));
-    else if (def.mesh === 'scarab') { const b = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6), col(0x30c890)); b.scale.set(1, 0.6, 1.3); g.add(b); const w = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.04, 0.3), col(0xffd860)); w.position.y = 0.2; g.add(w); }
-    else g.add(new THREE.Mesh(new THREE.SphereGeometry(0.3 * def.size, 10, 8), col(def.c)));
+    // every projectile is a block: a rocket a long box with a red tip, a rock a tumbling lump, a scarab a shell box with
+    // gold wing plates, anything else a glowing cube that spins as it flies
+    const box = (sx, sy, sz, m) => new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m);
+    if (def.mesh === 'rocket') { const b = box(0.26, 0.26, 0.7, new THREE.MeshLambertMaterial({ color: 0xe8e8f0 })); const n = box(0.18, 0.18, 0.22, col(0xff4a30)); n.position.z = 0.45; g.add(b, n); }
+    else if (def.mesh === 'rock') { const r = box(0.8, 0.66, 0.74, new THREE.MeshLambertMaterial({ color: 0x8a7a68 })); r.userData.tumble = 1; g.add(r); }
+    else if (def.mesh === 'scarab') { const b = box(0.5, 0.3, 0.66, col(0x30c890)); g.add(b); const w = box(0.7, 0.04, 0.3, col(0xffd860)); w.position.y = 0.2; g.add(w); }
+    else { const s = 0.44 * def.size; const c = box(s, s, s, col(def.c)); c.userData.tumble = 1; g.add(c); }
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZ.tex('glow'), color: def.c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     sp.scale.setScalar(1.4 * def.size); g.add(sp); scene.add(g); return g;
   }
@@ -636,6 +641,7 @@ export function createFxMap(H, marks, ctx) {
       const left = Math.hypot(p.tx - r.x, p.tz - r.z); const prog = Math.min(1, Math.max(0, 1 - left / r.d0));
       const y = 1.2 + Math.sin(Math.PI * prog) * r.def.arc; r.g.position.set(r.x, y, r.z);
       if (r.def.spin) r.g.rotation.y += r.def.spin * dt; else r.g.lookAt(p.tx, 1.0, p.tz);
+      const c0 = r.g.children[0]; if (c0.userData.tumble) { c0.rotation.x += dt * 7; c0.rotation.z += dt * 5; }
       if (r.def.trail && budget.puff > 0) G.fx.trail(r.g.position);
       else if (r.def.mesh === 'blob' && budget.puff-- > 0 && G.rng.chance(0.5)) G.fx.puff(r.g.position.clone(), { glow: true, s0: 0.5, s1: 0.1, life: 0.25, c0: r.def.c, c1: r.def.c, a0: 0.6, spin: 0 });
     }
