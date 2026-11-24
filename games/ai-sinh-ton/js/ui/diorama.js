@@ -4,6 +4,7 @@
 // chunk, idling and now and then playing one of its skill poses; the small zombies are boxed figures built here.
 import { stageDef, CHAPTERS } from '../data/stages.js?v=20261124a';
 import { bossModel, idlePose, stepAct, skillPoses } from '../view/bossacts.js?v=20261124a';
+import { blockify } from '../view/fx/blockify.js?v=20261124a';
 
 const INK = 0x1a1420;
 
@@ -24,7 +25,7 @@ export function createDiorama(ui, { w = 318, h = 212 } = {}) {
   const inkMat = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
   const hull = (mesh, k = 1.07) => { const o = new THREE.Mesh(mesh.geometry, inkMat); o.scale.setScalar(k); mesh.add(o); return mesh; };
   const box = (w2, h2, d, color, x = 0, y = 0, z = 0, o) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w2, h2, d), std(color, o)); m.position.set(x, y, z); if (!(o && o.nohull)) hull(m); return m; };
-  const ball = (r, color, x = 0, y = 0, z = 0, o) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), std(color, o)); m.position.set(x, y, z); if (!(o && o.nohull)) hull(m, 1.08); return m; };
+  const ball = (r, color, x = 0, y = 0, z = 0, o) => { const m = new THREE.Mesh(blockify(new THREE.SphereGeometry(r, 16, 12)), std(color, o)); m.position.set(x, y, z); if (!(o && o.nohull)) hull(m, 1.08); return m; };
 
   // ---- one boxed body: legs, torso, raised arms, head with glowing eyes; returns the group and its idle ticker ----
   function figure(look, scale = 1) {
@@ -67,13 +68,13 @@ export function createDiorama(ui, { w = 318, h = 212 } = {}) {
   const floorCan = document.createElement('canvas'); floorCan.width = floorCan.height = 256;
   const floorTex = new THREE.CanvasTexture(floorCan); floorTex.colorSpace = THREE.SRGBColorSpace; floorTex.anisotropy = 4;
   const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.8 });
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(3.25, 3.25, 0.3, 48), [new THREE.MeshStandardMaterial({ color: 0x4a3a66, roughness: 0.7 }), floorMat, new THREE.MeshStandardMaterial({ color: 0x4a3a66, roughness: 0.7 })]);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(3.25, 0.09, 8, 64), std(0xfff1cf, { nohull: true })); rim.rotation.x = Math.PI / 2; rim.position.y = 0.15;
+  const top = new THREE.Mesh(blockify(new THREE.CylinderGeometry(3.25, 3.25, 0.3, 48)), [new THREE.MeshStandardMaterial({ color: 0x4a3a66, roughness: 0.7 }), floorMat, new THREE.MeshStandardMaterial({ color: 0x4a3a66, roughness: 0.7 })]);
+  const rim = new THREE.Mesh(blockify(new THREE.TorusGeometry(3.25, 0.09, 8, 64)), std(0xfff1cf, { nohull: true })); rim.rotation.x = Math.PI / 2; rim.position.y = 0.15;
   const topHull = new THREE.Mesh(top.geometry, inkMat); topHull.scale.set(1.04, 1.25, 1.04); top.add(topHull);
-  const under = new THREE.Mesh(new THREE.ConeGeometry(3.2, 2.3, 9, 1), std(0x5a4a7a, { flat: true })); under.rotation.x = Math.PI; under.position.y = -1.25; hull(under, 1.05);
+  const under = new THREE.Mesh(blockify(new THREE.ConeGeometry(3.2, 2.3, 9, 1)), std(0x5a4a7a, { flat: true })); under.rotation.x = Math.PI; under.position.y = -1.25; hull(under, 1.05);
   baseG.add(top, rim, under);
   const pebbles = [];
-  for (let i = 0; i < 4; i++) { const p = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22 + (i % 2) * 0.1), std(0x6a5a8a, { flat: true })); hull(p, 1.1); baseG.add(p); pebbles.push({ p, a: i * 1.6, r: 3.5 + (i % 2) * 0.4, y: -1.4 - i * 0.3, s: 0.4 + i * 0.1 }); }
+  for (let i = 0; i < 4; i++) { const p = new THREE.Mesh(blockify(new THREE.DodecahedronGeometry(0.22 + (i % 2) * 0.1)), std(0x6a5a8a, { flat: true })); hull(p, 1.1); baseG.add(p); pebbles.push({ p, a: i * 1.6, r: 3.5 + (i % 2) * 0.4, y: -1.4 - i * 0.3, s: 0.4 + i * 0.1 }); }
 
   function paintFloor(color) {
     const c = floorCan.getContext('2d'), hex = (n) => '#' + n.toString(16).padStart(6, '0');
