@@ -322,6 +322,8 @@ export class Kit {
       if (iris) this.box(F(inX * q * 0.25, -q * 0.15, t * 2.6), [q * 0.72, q * 0.78, t * 0.6], { buf: 'toon', col: iris, bone: bi, noSolid: true });
       this.box(F(inX * q * 0.45, -q * 0.25, t * 3.4), [q * 0.45, q * (iris ? 0.5 : 0.7), t * 0.6], { buf: 'toon', col: pupil, bone: bi, noSolid: true });
       this.box(F(-inX * q * 0.5, q * 0.5, t * 4.2), [q * 0.22, q * 0.22, t * 0.5], { buf: 'glow', col: 0xffffff, bone: bi });
+      // portrait only: a pixel brow over each eye, a texel row tilted down towards the nose
+      if (opts.brow !== undefined && this.hi) { const bf = F(inX * q * 0.1, q * 1.45, t * 1.5); this.box(bf, [q * 0.9, q * 0.2, t * 1.2], { buf: 'toon', col: opts.brow, bone: bi, noSolid: true }); }
     }
     return this;
   }

@@ -38,7 +38,7 @@ export function quad(K, o = {}) {
   K.blob('head', [hx, sny, snz], [hr * sn[0], hr * sn[1], hr * sn[2]], { col: P.snout, n: 2.2 });
   K.mouth = [hx, sny, snz + hr * sn[2]];
   K.blob('head', [hx, sny + hr * sn[1] * 0.55, snz + hr * sn[2] * 0.85], [hr * 0.16, hr * 0.11, hr * 0.1], { col: P.dark });
-  K.eyes('head', [hr * 0.5, hy + hr * 0.12, hz + hr * 0.68], hr * (o.eyeK ?? 0.26), { iris: o.iris, yaw: 0.42 });
+  K.eyes('head', [hr * 0.5, hy + hr * 0.12, hz + hr * 0.68], hr * (o.eyeK ?? 0.26), { iris: o.iris, yaw: 0.42, brow: shade(P.body, 0.45) });
   for (const s of [-1, 1]) K.blob('head', [s * hr * 0.72, sny + hr * 0.06, hz + hr * 0.55], [hr * 0.15, hr * 0.09, hr * 0.06], { col: tint(P.body, 0xff7080, 0.5), steps: 4, seg: 8 });
   // ears on spring bones
   const ears = o.ears ?? 'round'; const ek = o.earK ?? 1;
