@@ -1,11 +1,11 @@
 // Shells for the six kit bosses (js/bz/boss-<kind>.js): parts hung on the nodes of each kit rig's node table ('n.torso',
 // 'n.arms.0.sh', ...), written in the rig's own units (before T.scale). `keep` lists the rig nodes that carry skill effects
-// (glow sprites, muzzles, beams' anchors, the UFO's glass dome) so they stay on screen under the new body.
+// (glow sprites, muzzles, beams' anchors) so they stay on screen under the new body.
 // ph: 1 shows only in phase 2 (under half life), ph: 2 only in phase 1.
 const THREE = window.THREE;
 
-// a flat three-cornered sheet (cape hem, wing membrane, fin, ear): the 6-sided cone flattened to thickness t, apex at `apex`,
-// base from b1 to b2
+// a flat three-cornered sheet (cape hem, wing membrane, fin, ear) as three stacked slabs of thickness t, widest on the
+// base from b1 to b2 and stepping in toward the apex
 function tri(g, apex, b1, b2, t, o) {
   const A = new THREE.Vector3(...apex); const B1 = new THREE.Vector3(...b1); const B2 = new THREE.Vector3(...b2);
   const M = B1.clone().add(B2).multiplyScalar(0.5);
@@ -13,8 +13,11 @@ function tri(g, apex, b1, b2, t, o) {
   const X = B2.clone().sub(B1); const w = X.length(); X.addScaledVector(Y, -X.dot(Y)).normalize();
   const Z = new THREE.Vector3().crossVectors(X, Y);
   const e = new THREE.Euler().setFromRotationMatrix(new THREE.Matrix4().makeBasis(X, Y, Z));
-  const c = A.clone().add(M).multiplyScalar(0.5);
-  return g.put('cone', [w / 0.866, len, t], [c.x, c.y, c.z], [e.x, e.y, e.z], o);
+  for (let i = 0; i < 3; i++) {
+    const c = M.clone().lerp(A, (i + 0.5) / 3);
+    g.put('box', [w * (1 - i / 3) * 0.92, len / 3 * 1.02, t], [c.x, c.y, c.z], [e.x, e.y, e.z], o);
+  }
+  return g;
 }
 // a flat strap of width w and thickness t from a to b, its flat side facing `up` (default +z)
 function strap(g, a, b, w, t, o, up = [0, 0, 1]) {
@@ -360,18 +363,21 @@ function phHand(g) {
 
 // ---------------- UFO: a saucer with a pilot under the dome ----------------
 const UF = { hull: 0x9ca2b8, hull2: 0xbcc0d0, dark: 0x464a5c, dark2: 0x2e3240, skin: 0x8aa88a, ink: 0x101418, cyan: 0x50d8f0, mag: 0xf060c0, yel: 0xf0d050, red: 0xff4040 };
-const saucer = (g, rx, ry, at, col) => { g.ball(rx, ry, rx, at, { col }); g.ball(rx, ry, rx, at, { col }, [0, Math.PI / 8, 0]); };
+const saucer = (g, rx, ry, at, col) => { g.box(rx * 1.7, ry * 2, rx * 1.7, at, { col }); g.box(rx * 1.7, ry * 2, rx * 1.7, at, { col }, [0, Math.PI / 4, 0]); };
 const ufo = {
   burst: 0x40e0ff,
-  keep: ['n.aura', 'n.dome', 'n.bGlow', 'n.rings.0', 'n.rings.1'],
+  keep: ['n.aura', 'n.bGlow', 'n.rings.0', 'n.rings.1'],
   parts: {
     'n.tilt': (g) => {
-      // a smooth two-tone saucer: dark underside, light upper hull, a raised deck, a gold collar round the dome
+      // an eight-sided two-tone saucer: dark underside, light upper hull, a raised deck, a gold collar round the cockpit
       saucer(g, 1.5, 0.19, [0, -0.13, 0], UF.dark);
       saucer(g, 1.56, 0.07, [0, -0.03, 0], UF.dark2);
       saucer(g, 1.46, 0.22, [0, 0.03, 0], UF.hull);
       saucer(g, 0.88, 0.14, [0, 0.2, 0], UF.hull2);
       g.ball(0.64, 0.06, 0.64, [0, 0.3, 0], { col: 0xc8a050 });
+      // the cockpit: four glass posts and a lit cap over the pilot, open between so the pilot shows
+      for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + Math.PI / 4; g.box(0.08, 0.5, 0.08, [Math.sin(a) * 0.46, 0.58, Math.cos(a) * 0.46], { col: UF.cyan, glow: 0.5 }); }
+      g.box(0.78, 0.07, 0.78, [0, 0.85, 0], { col: UF.cyan, glow: 0.45 }); g.box(0.42, 0.08, 0.42, [0, 0.92, 0], { col: UF.cyan, glow: 0.7 });
       for (let i = 0; i < 8; i++) {
         const a = i / 8 * Math.PI * 2 + 0.2; const c = Math.sin(a); const s = Math.cos(a);
         g.put('box', [0.07, 0.07, 0.5], [c * 1.08, 0.19, s * 1.08], [0, a, 0], { col: UF.dark });

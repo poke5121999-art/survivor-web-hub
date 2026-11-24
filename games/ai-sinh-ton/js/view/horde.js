@@ -48,8 +48,8 @@ export function createHorde(H) {
   const DEFAULT = ST.walker;
   const F = meshes[0].position; // where the world has moved the horde's frame (world.follow)
 
-  // death shards: flat chips of the body's colour that tumble and bounce
-  const shardGeo = new THREE.OctahedronGeometry(0.5, 0); shardGeo.scale(1, 0.45, 0.8);
+  // death shards: little cubes of the body's colour that tumble and bounce
+  const shardGeo = new THREE.BoxGeometry(0.62, 0.62, 0.62);
   const shards = new THREE.InstancedMesh(shardGeo, new THREE.MeshLambertMaterial({}), SHARDS);
   shards.frustumCulled = false; shards.count = 0; shards.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   shards.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(SHARDS * 3), 3); scene.add(shards);
