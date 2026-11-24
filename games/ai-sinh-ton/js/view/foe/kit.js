@@ -160,6 +160,8 @@ vec3 pixelSkin(vec3 col, vec3 loc, float cloth, float glow) {
   vec2 c = floor(uv * uCell); vec2 C = floor(uv * uCell / 3.);
   float h = pxHash(vec3(c + 40., face)); float big = pxHash(vec3(C + 80., face * 1.7));
   if (glow > 0.5) return col * (0.82 + 0.36 * step(0.45, h));
+  // a near-white base (ice, bone, plate) would clip under a day sun plus uSelf: scale it down, keeping its hue
+  float mx = max(col.r, max(col.g, col.b)); if (mx > 0.74) col *= 0.74 / mx;
   float k = 0.84 + 0.1 * floor(h * 3.) + (h > 0.94 ? 0.12 : 0.);
   if (cloth > 0.5) { if (big > 0.78 && h > 0.3) k *= 0.55; else if (big < 0.12) k *= 0.82; }
   else if (big > 0.7) col = mix(col, col * vec3(0.7, 0.82 + 0.1 * uRot, 0.6), 0.45 + 0.4 * uRot);
@@ -210,7 +212,7 @@ export function foeMaterials(gait) {
     sh.fragmentShader = sh.fragmentShader
       .replace('void main() {', 'void main() { float edge = foeCut();')
       .replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = pixelSkin(diffuseColor.rgb, vLoc, vCloth, vGlow);')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * (uSelf + vGlow * 1.6) + vec3(vFlash * 0.6) + uBurst * edge * 2.;');
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * (uSelf + vGlow * 1.6 + vFlash * 0.7) + vec3(vFlash * 0.2) + uBurst * edge * 2.;');
   };
   toon.customProgramCacheKey = () => 'foeToon';
   const line = new THREE.MeshBasicMaterial({ color: 0x1c1418, side: THREE.BackSide });
@@ -267,7 +269,7 @@ float shellCut() {
     sh.vertexShader = pre + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMat = aMat; vLoc = position; vONrm = normal;');
     sh.fragmentShader = PIXEL + fpre + sh.fragmentShader.replace('void main() {', 'void main() { float edge = shellCut();')
       .replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = pixelSkin(diffuseColor.rgb, vLoc, 0., vMat.x);')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * (uSelf + vMat.x * (1.4 + uPulse * uP2)) + vec3(uFlash * 0.8) + uBurst * edge * 2. + uBurst * uP2 * (0.12 + 0.16 * uPulse);');
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * (uSelf + vMat.x * (1.4 + uPulse * uP2)) + diffuseColor.rgb * uFlash * 0.8 + vec3(uFlash * 0.25) + uBurst * edge * 2. + uBurst * uP2 * (0.12 + 0.16 * uPulse);');
   };
   toon.customProgramCacheKey = () => 'foeShell';
   const line = new THREE.MeshBasicMaterial({ color: 0x1c1418, side: THREE.BackSide });

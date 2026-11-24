@@ -233,12 +233,12 @@ export const KINDS = {
     s: 1.08, sw: 0.85, cloth: [0x78b8f0, 0x5a8ac8],
     gait: { mode: 0, amp: 0.6, arm: -0.85, swingArm: 0, lean: 0.1, hip: 0.82, atk: 0, burst: 0xc8f0ff },
     build(g) {
-      const J = human(g, { skin: 0xa8d4f0, shirt: 0x6a9ad0, pants: 0x3a5a90, torso: [0.5, 0.62, 0.32], eye: 0xe0ffff });
+      const J = human(g, { skin: 0x6f9cc4, shirt: 0x6a9ad0, pants: 0x3a5a90, torso: [0.5, 0.62, 0.32], eye: 0x9ff0ff });
       // ice crystals out of the shoulders and spine, icicles off the jaw, a frosted crown
-      g.pair((s) => { const j = [s * J.sx, J.sy, 0]; g.gem(0.07, 0.2, 0.07, [s * (J.sx - 0.02), J.sy + 0.16, -0.02], { col: 0xdaf4ff, glow: 0.5, bone: armOf(s), piv: j }, [0, 0, -s * 0.4]); g.gem(0.05, 0.14, 0.05, [s * (J.sx + 0.08), J.sy + 0.1, 0.04], { col: 0xb8e8ff, glow: 0.5, bone: armOf(s), piv: j }, [0, 0, -s * 0.9]); });
-      for (let i = 0; i < 4; i++) g.gem(0.06, 0.16 - i * 0.02, 0.06, [0, J.hip + 0.56 - i * 0.14, -J.td / 2 - 0.05], { col: 0xdaf4ff, glow: 0.5 }, [-0.8, 0, 0]);
-      for (let i = -1; i <= 1; i++) g.spike([i * 0.05, J.hy - J.hr * 0.7, J.hz + 0.08], [i * 0.05, J.hy - J.hr * 1.4, J.hz + 0.1], 0.025, { col: 0xe8faff, glow: 0.4, ...J.hb });
-      for (let i = 0; i < 5; i++) g.gem(0.035, 0.09, 0.035, [Math.cos(i * 1.256) * 0.13, J.hy + J.hr * 0.9, J.hz + Math.sin(i * 1.256) * 0.13], { col: 0xe8faff, glow: 0.6, ...J.hb });
+      g.pair((s) => { const j = [s * J.sx, J.sy, 0]; g.gem(0.07, 0.2, 0.07, [s * (J.sx - 0.02), J.sy + 0.16, -0.02], { col: 0x74b4dc, glow: 0.1, bone: armOf(s), piv: j }, [0, 0, -s * 0.4]); g.gem(0.05, 0.14, 0.05, [s * (J.sx + 0.08), J.sy + 0.1, 0.04], { col: 0x64a4d0, glow: 0.1, bone: armOf(s), piv: j }, [0, 0, -s * 0.9]); });
+      for (let i = 0; i < 4; i++) g.gem(0.06, 0.16 - i * 0.02, 0.06, [0, J.hip + 0.56 - i * 0.14, -J.td / 2 - 0.05], { col: 0x74b4dc, glow: 0.1 }, [-0.8, 0, 0]);
+      for (let i = -1; i <= 1; i++) g.spike([i * 0.05, J.hy - J.hr * 0.7, J.hz + 0.08], [i * 0.05, J.hy - J.hr * 1.4, J.hz + 0.1], 0.025, { col: 0x80bce0, glow: 0.08, ...J.hb });
+      for (let i = 0; i < 5; i++) g.gem(0.035, 0.09, 0.035, [Math.cos(i * 1.256) * 0.13, J.hy + J.hr * 0.9, J.hz + Math.sin(i * 1.256) * 0.13], { col: 0x84c0e4, glow: 0.12, ...J.hb });
     },
   },
 };
