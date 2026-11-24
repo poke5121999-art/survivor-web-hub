@@ -20,8 +20,8 @@
 // B.mapState.mode holds the rule's state; modeState(B) is what the view and the HUD read. The battle needs no hook: a loss is
 // called here (B.phase 'lost', the 'lost' event with `why`), and a broken egg or a fleeing carrier leaves monsters standing,
 // so the step's own end-of-wave check cannot overrule it in the same tick.
-import { _test } from './battle.js?v=20261124a';
-import { WAVES } from './rooms.js?v=20261124a';
+import { _test } from './battle.js?v=20261124b';
+import { WAVES } from './rooms.js?v=20261124b';
 
 export const MODES = {
   defend: { title: 'BẢO VỆ TRỨNG MẦM', rule: 'Trứng vỡ là thua', hpK: 1.6, heal: 0.3, taunt: 0.5, r: 0.75 },

@@ -16,7 +16,7 @@
 // (far is z < 0); every room is the same ellipse in its own frame.
 //
 // In the bridges layout the draws come in the same order as before layouts existed, so those stages keep their maps.
-import { CHAPTERS, chapterOf } from '../data/stages.js?v=20261124a';
+import { CHAPTERS, chapterOf } from '../data/stages.js?v=20261124b';
 
 export function rngOf(seed) {
   let s = seed >>> 0;

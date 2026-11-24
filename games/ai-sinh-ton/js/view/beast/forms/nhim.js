@@ -1,6 +1,6 @@
 // Nhím Gai (ranged, ice): a round hedgehog pup, then fire-tipped quills with a quill pouch, then a floating body inside
 // a spinning ring of steel needles (SCOPE 3.1 #2).
-import { quad, palette } from '../families.js?v=20261124a';
+import { quad, palette } from '../families.js?v=20261124b';
 
 const P0 = palette(0x8a6248, { belly: 0xf4dcb8, snout: 0xf0d2aa, dark: 0x3a2418, quill: 0xe8d2a8, ear: 0xe8a890 });
 // quills over the back half of the body ellipsoid, swept backwards

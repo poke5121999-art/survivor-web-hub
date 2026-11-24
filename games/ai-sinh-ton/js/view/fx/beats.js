@@ -6,9 +6,9 @@
 // a line, a bolt, a dash, a zone, a self buff, a heal) and FORM (what form 2 and form 3 add on top). A recipe is a list
 // of steps [primitive, ...args]; sizes and counts scale with the form's tier (fx/palette.js). Nothing here is a flat
 // circle: fronts are rays and dust walls, marks are torn decals.
-import { skinOf, mixHex } from './palette.js?v=20261124a';
-import { createSparks } from './sparks.js?v=20261124a';
-import { createDecals, DECAL } from './decals.js?v=20261124a';
+import { skinOf, mixHex } from './palette.js?v=20261124b';
+import { createSparks } from './sparks.js?v=20261124b';
+import { createDecals, DECAL } from './decals.js?v=20261124b';
 const THREE = window.THREE;
 
 // the material of each beast's skills (by beast id and by the id of the human hero it replaced)

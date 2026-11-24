@@ -3,7 +3,7 @@
 // The camera reads `view` (shake in CSS px, push 0..1, the pull focus) and applies it inside its own rim clamp.
 // An ultimate gets its close-up (ultcam.js): the world holds through the wind-up, then slows; camera.update is wrapped so the
 // close-up overrides the fight camera after it is computed.
-import { createUltCam } from './ultcam.js?v=20261124a';
+import { createUltCam } from './ultcam.js?v=20261124b';
 const HEAVY_FX = new Set(['boss_slam', 'tailspin', 'bloodnova', 'orbring', 'emp', 'wail']); // enemy bursts that land hard
 const HEAVY_DASH = new Set(['dive', 'charge_boss', 'charge', 'blooddash']);                   // only when a boss does them
 const STOP = { ult: 55, heavy: 50, streak: 45, bossDeath: 120, skill: 30 };

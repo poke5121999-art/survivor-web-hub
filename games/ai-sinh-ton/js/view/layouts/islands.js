@@ -2,8 +2,8 @@
 // crystal pylons, with rails of light on both sides; the panes climb in floating treads where the next island stands two
 // metres or more higher or lower). Under every pad its rock tapers down in a rough cone with spikes hanging off the rim and
 // a crystal at the tip. The satellite islets bob slowly up and down (world.js, L.bob); the fight pad never moves.
-import { voxMaterial } from '../pad.js?v=20261124a';
-import { outerAt, bakeBoxes, deckRule, DECK } from './shared.js?v=20261124a';
+import { voxMaterial } from '../pad.js?v=20261124b';
+import { outerAt, bakeBoxes, deckRule, DECK } from './shared.js?v=20261124b';
 
 const LIGHT = [0.42, 1.05, 1.45];   // the deck's panes (emissive tint of the white tile)
 const RAIL = [0.9, 1.9, 2.3];       // the rails of light

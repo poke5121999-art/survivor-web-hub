@@ -967,7 +967,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/ai-sinh-ton.png",
     // three.js r160, không asset: xem games/ai-sinh-ton/README.md. Kiểm: sh games/ai-sinh-ton/tools/all.sh
     path: "games/ai-sinh-ton/index.html",
-    rev: "20261124a",
+    rev: "20261124b",
     status: "available",
     tags: ["Đấu tự động", "Tiến hoá", "Màn ngang"]
   },

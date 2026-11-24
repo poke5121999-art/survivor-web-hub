@@ -5,7 +5,7 @@
 //   current   a band of shallow water across the pad, flow lines running downstream
 //   collapse  cracks in the floor; they glow and the ground shakes in the warning, then the spot is a dark hole
 // Nothing here is a flat disc: pools and holes follow the 0.5 m cells, wind and water are lines.
-import { hazardState } from '../../sim/maprules.js?v=20261124a';
+import { hazardState } from '../../sim/maprules.js?v=20261124b';
 const THREE = window.THREE;
 const CELL = 0.5;
 

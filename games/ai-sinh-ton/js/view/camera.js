@@ -11,8 +11,8 @@
 // it lives, and the lift slides the picture up or down when a tall body or a flyer would still reach a band.
 // During a run between pads the camera frames the team only and eases out to the whole-pad distance, so the next pad shows.
 // Spectate: a chase camera behind and above one unit, blended in and out.
-import { ARENA } from '../sim/battle.js?v=20261124a';
-import { FLY_Y } from './keys.js?v=20261124a';
+import { ARENA } from '../sim/battle.js?v=20261124b';
+import { FLY_Y } from './keys.js?v=20261124b';
 const THREE = window.THREE;
 const BZ = window.BZ;
 

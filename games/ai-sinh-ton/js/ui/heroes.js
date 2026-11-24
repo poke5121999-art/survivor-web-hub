@@ -1,11 +1,11 @@
 // Thú tab, landscape: one screen with the collection grid at the left, the selected hero's live model in the middle and
 // the stats, skills and LÊN CẤP at the right (selecting a tile updates the right side), plus the team chooser modal.
 // Everything is read from meta.acc and rebuilt after each meta command.
-import { HEROES, HERO } from '../data/heroes.js?v=20261124a';
-import { beastModel } from './beast-ui.js?v=20261124a';
-import { openEvolve } from './evolve.js?v=20261124a';
-import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261124a';
-import { makeBackdrop, makeBurst, fmt, fmtShort, rarityColor } from './home.js?v=20261124a';
+import { HEROES, HERO } from '../data/heroes.js?v=20261124b';
+import { beastModel } from './beast-ui.js?v=20261124b';
+import { openEvolve } from './evolve.js?v=20261124b';
+import { HERO_RARITY, levelCost, levelMul } from '../data/economy.js?v=20261124b';
+import { makeBackdrop, makeBurst, fmt, fmtShort, rarityColor } from './home.js?v=20261124b';
 
 const FRAME_H = 188;
 const STONE = { dat: 'Đất', lua: 'Lửa', bang: 'Băng', gio: 'Gió', set: 'Sét', moc: 'Mộc' };

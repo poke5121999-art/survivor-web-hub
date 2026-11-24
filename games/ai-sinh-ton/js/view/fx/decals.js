@@ -5,7 +5,7 @@
 //   kind 0 scorch  dark torn blot, embers that cool          kind 3 ink    glossy blot with splatter drops
 //   kind 1 crack   branching fissures glowing then dark       kind 4 scar   a long torn streak (line skills, dashes)
 //   kind 2 frost   pale spikes growing out, sparkle            kind 5 light  a short glow on the floor (a dynamic light)
-import { PXQ, FX_PX } from './pixel.js?v=20261124a';
+import { PXQ, FX_PX } from './pixel.js?v=20261124b';
 const THREE = window.THREE;
 export const DECAL = { scorch: 0, crack: 1, frost: 2, ink: 3, scar: 4, light: 5 };
 

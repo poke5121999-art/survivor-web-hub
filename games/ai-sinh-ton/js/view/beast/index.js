@@ -5,23 +5,23 @@
 //   state = { anim: 'idle'|'run'|'attack'|'cast'|'ult'|'hit'|'stun'|'die'|'evolve', animT, move, speed, air, face, turn }
 //   opts = { lod: 'battle' (<= 4 draws, default) | 'portrait', color (for beasts without a drawn look), shadow }
 // A beast faces +z and stands on y = 0; `height` is its standing height in metres.
-import { Kit } from './kit.js?v=20261124a';
-import { createRig } from './rig.js?v=20261124a';
-import * as FAM from './families.js?v=20261124a';
-import TEGIAP from './forms/tegiap.js?v=20261124a';
-import NHIM from './forms/nhim.js?v=20261124a';
-import LOC from './forms/loc.js?v=20261124a';
-import CHON from './forms/chon.js?v=20261124a';
-import ECH from './forms/ech.js?v=20261124a';
-import CU from './forms/cu.js?v=20261124a';
-import DUOI from './forms/duoi.js?v=20261124a';
-import KYDA from './forms/kyda.js?v=20261124a';
-import OC from './forms/oc.js?v=20261124a';
-import HAILY from './forms/haily.js?v=20261124a';
-import BOSAT from './forms/bosat.js?v=20261124a';
-import BAO from './forms/bao.js?v=20261124a';
-import NHEN from './forms/nhen.js?v=20261124a';
-import MUC from './forms/muc.js?v=20261124a';
+import { Kit } from './kit.js?v=20261124b';
+import { createRig } from './rig.js?v=20261124b';
+import * as FAM from './families.js?v=20261124b';
+import TEGIAP from './forms/tegiap.js?v=20261124b';
+import NHIM from './forms/nhim.js?v=20261124b';
+import LOC from './forms/loc.js?v=20261124b';
+import CHON from './forms/chon.js?v=20261124b';
+import ECH from './forms/ech.js?v=20261124b';
+import CU from './forms/cu.js?v=20261124b';
+import DUOI from './forms/duoi.js?v=20261124b';
+import KYDA from './forms/kyda.js?v=20261124b';
+import OC from './forms/oc.js?v=20261124b';
+import HAILY from './forms/haily.js?v=20261124b';
+import BOSAT from './forms/bosat.js?v=20261124b';
+import BAO from './forms/bao.js?v=20261124b';
+import NHEN from './forms/nhen.js?v=20261124b';
+import MUC from './forms/muc.js?v=20261124b';
 
 const THREE = window.THREE;
 

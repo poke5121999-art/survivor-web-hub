@@ -1,7 +1,7 @@
 // Đuối Băng (melee, control, ice): a little ray skimming the air with a whip tail, then frost spines down its back and
 // clear fins, then a glacier ray with a vast wingspan, crystal slabs on its back and a split tail (SCOPE 3.1 #7).
-import { palette } from '../families.js?v=20261124a';
-import { shade } from '../kit.js?v=20261124a';
+import { palette } from '../families.js?v=20261124b';
+import { shade } from '../kit.js?v=20261124b';
 
 const P0 = palette(0x5aa8d8, { belly: 0xf0f8ff, dark: 0x1a3a5a, edge: 0x9ad8f4, ice: 0xb8f0ff });
 

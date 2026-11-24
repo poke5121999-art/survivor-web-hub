@@ -3,9 +3,9 @@
 // sits at each end under the platform's lip and a lamp beside it (a tall one on the far side, a low lantern on the near
 // side, so nothing stands up between the camera and the fight). A mine cart waits at the platform: the team steps in, the
 // cart rolls the whole line (world.js moves it under the group, carry) and the team steps out at the next station.
-import { mesher, voxMaterial } from '../pad.js?v=20261124a';
-import { LIGHTS } from '../themes.js?v=20261124a';
-import { DECK } from './shared.js?v=20261124a';
+import { mesher, voxMaterial } from '../pad.js?v=20261124b';
+import { LIGHTS } from '../themes.js?v=20261124b';
+import { DECK } from './shared.js?v=20261124b';
 
 const CART = { L: 3.4, W: 2.5 };
 const DOCK = CART.L / 2 + 0.9;  // metres from the platform to the cart's middle where it waits at either end

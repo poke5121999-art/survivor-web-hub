@@ -6,10 +6,10 @@
 // A monster belongs to a room (its pad, e.room): one in a room the team has not reached yet, a camp still waiting (B.camp)
 // or a pack woken while the run is on, is drawn on that room's pad through world.roomOffset, and not at all while that pad
 // is not built.
-import { FLY_Y } from './keys.js?v=20261124a';
-import { arrive } from './arrival.js?v=20261124a';
-import { foeMesh } from './foe/kit.js?v=20261124a';
-import { KINDS, zombieGeos } from './foe/zombies.js?v=20261124a';
+import { FLY_Y } from './keys.js?v=20261124b';
+import { arrive } from './arrival.js?v=20261124b';
+import { foeMesh } from './foe/kit.js?v=20261124b';
+import { KINDS, zombieGeos } from './foe/zombies.js?v=20261124b';
 
 const THREE = window.THREE;
 const BZ = window.BZ;

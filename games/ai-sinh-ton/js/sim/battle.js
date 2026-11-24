@@ -4,14 +4,14 @@
 //
 // Flow: phase 'fight' -> (wave cleared) 'pick' -> 'fight' ... -> 'won' | 'lost'.
 // The only commands are castUlt(B, heroIndex) and pickCard(B, heroIndex, cardIndex).
-import { HERO, SUMMONS } from '../data/heroes.js?v=20261124a';
-import { ENEMY } from '../data/enemies.js?v=20261124a';
-import { stageDef, MAX_ALIVE, BASE } from '../data/stages.js?v=20261124a';
-import { CARD, offerCards } from '../data/cards.js?v=20261124a';
-import { roomPlan } from './rooms.js?v=20261124a';
-import { moveUnit, moveTick, moveEnter, moveAct } from './move.js?v=20261124a';
-import { mapTick } from './maprules.js?v=20261124a';
-import { heroDef } from '../data/beasts.js?v=20261124a';
+import { HERO, SUMMONS } from '../data/heroes.js?v=20261124b';
+import { ENEMY } from '../data/enemies.js?v=20261124b';
+import { stageDef, MAX_ALIVE, BASE } from '../data/stages.js?v=20261124b';
+import { CARD, offerCards } from '../data/cards.js?v=20261124b';
+import { roomPlan } from './rooms.js?v=20261124b';
+import { moveUnit, moveTick, moveEnter, moveAct } from './move.js?v=20261124b';
+import { mapTick } from './maprules.js?v=20261124b';
+import { heroDef } from '../data/beasts.js?v=20261124b';
 
 export const DT = 1 / 30;
 // The arena is an ellipse sized to a portrait phone frame: x is across the screen, z is up the screen. The whole

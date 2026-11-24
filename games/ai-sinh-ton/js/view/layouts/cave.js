@@ -4,7 +4,7 @@
 // (world.js, L.lantern). Units keep most of the theme's light (hemisphere and key on the units dimmed only a little), so
 // heroes, monsters and the boss stand out bright against the darker rock. Cave walls rise tall behind the far rim, lower on
 // the flanks; on the near rim only knee-high stalagmites, so nothing stands between the camera and the fight.
-import { outerAt, takenDirs, isOpen, bakeBoxes, deckRule, DECK } from './shared.js?v=20261124a';
+import { outerAt, takenDirs, isOpen, bakeBoxes, deckRule, DECK } from './shared.js?v=20261124b';
 
 const mix = (a, b, k) => { const c = (h, s) => (h >> s) & 255; let o = 0; for (const s of [16, 8, 0]) o |= Math.round(c(a, s) + (c(b, s) - c(a, s)) * k) << s; return o; };
 const scale = (v, k) => v.map((x) => x * k);

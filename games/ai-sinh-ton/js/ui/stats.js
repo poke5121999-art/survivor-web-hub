@@ -2,9 +2,9 @@
 // detail card (damage by source, cards picked, stats then and now, support numbers). The numbers come from the sim's
 // battleReport; this file only formats and draws them. Every drawn string is also written to game.statsUi so the
 // tools can compare what the screen says with the report.
-import { HERO } from '../data/heroes.js?v=20261124a';
-import { CARD, CARD_RARITY } from '../data/cards.js?v=20261124a';
-import { heroColor } from './hud.js?v=20261124a';
+import { HERO } from '../data/heroes.js?v=20261124b';
+import { CARD, CARD_RARITY } from '../data/cards.js?v=20261124b';
+import { heroColor } from './hud.js?v=20261124b';
 
 // ---------- formatting ----------
 const nf = (n, d = 0) => { try { return n.toLocaleString('vi-VN', { maximumFractionDigits: d }); } catch (e) { return String(n); } };
