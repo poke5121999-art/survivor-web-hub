@@ -1,11 +1,11 @@
-// Đầm Lầy: a murky swamp. Mud and algae floor, mangroves on stilt roots, rotten logs and reeds on the rim, cold wisps over
+// Đầm Lầy: a murky swamp by overcast day: a green haze, soft light from a hidden sun, faint shadows. Mud and algae floor, mangroves on stilt roots, rotten logs and reeds on the rim, cold wisps over
 // brackish olive water under a green haze. Warm light stays a few torches and fires so the wisps read as the odd ones out.
 export const SWAMP = {
-  name: 'swamp', centre: [0.06, 0.12, 0.08], rain: 0, fog: 0x2a3a1c, rise: 0x141c0c, lightK: 0.9, lightWhite: 0.2, fly: [0.35, 1.1, 0.9],
-  abyss: { type: 'water', y: -2.4, deep: 0x141c08, shallow: 0x586a28, foam: 0xa8b870, haze: 0x4a5a2a, spark: 0xd0ffa8 },
-  amb: { sky: [0.5, 0.58, 0.4], ground: [0.16, 0.16, 0.1] }, key: { dir: [-0.5, 0.7, 0.4], color: [0.3, 0.32, 0.2] },
-  hemi: { sky: 0xb0c88a, ground: 0x3a3a22, k: 1.4 }, sun: { color: 0xffe0a0, k: 1.2 },
-  top: { base: [['mud', 6], ['algae', 2]], patch: [['moss_path', 3], ['algae', 2], ['mud', 1]], patchK: 0.26, tint: [0.92, 0.96, 0.8] },
+  name: 'swamp', rain: 0, fog: 0x7c9468, rise: 0x2a3a1c, day: 1, shadow: 0.34, shadowC: 0x101c08, lightK: 0.6, lightWhite: 0.2, fly: [0.6, 1.1, 0.7],
+  abyss: { type: 'water', y: -2.4, deep: 0x22300e, shallow: 0x6a7c34, foam: 0xc0d090, haze: 0x6a8050, spark: 0xe0ffc0 },
+  amb: { sky: [0.68, 0.78, 0.6], ground: [0.26, 0.28, 0.18] }, key: { dir: [0.35, 0.85, -0.35], color: [0.4, 0.42, 0.3] },
+  hemi: { sky: 0xcce0b0, ground: 0x5a5a34, k: 1.7 }, sun: { color: 0xf0f0c8, k: 1.3 },
+  top: { base: [['mud', 6], ['algae', 2]], patch: [['moss_path', 3], ['algae', 2], ['mud', 1]], patchK: 0.26, tint: [1.36, 1.36, 1.08] },
   rimTint: [0.86, 0.92, 0.76],
   edge: [['mud', 3], ['algae', 2], ['moss_path', 1]], side: { top: ['mud_side'], rows: [['mud_side', 2], ['earth', 2], ['roots', 1], ['rock', 1]] },
   lights: [['torch', 3], ['campfire', 1], ['wisp', 4], ['bluecap', 1]],
