@@ -213,6 +213,12 @@ try {
       await runScan(g.page, uiRoots, [], `screen ${scr}`);
       if (SHOTS) await g.page.locator('#frame').screenshot({ path: path.join(SHOTS, `screen-${scr}.png`) });
     }
+    // home's frame in chapter view: the stage diorama replaces the world map (two sibling viewports, one shown at a time)
+    // home's frame in chapter view: the stage diorama replaces the world map (the same button the player taps)
+    const tapped = await g.page.evaluate(() => { window.__G.goto('home', {}); window.__step(10); const ok = window.__ui.tapId('view-chapter'); window.__step(40); return ok; });
+    check(tapped, 'home: switched the frame to the chapter diorama');
+    await runScan(g.page, uiRoots, [], 'screen home-chapter');
+    if (SHOTS) await g.page.locator('#frame').screenshot({ path: path.join(SHOTS, 'screen-home-chapter.png') });
     await g.ctx.close();
   }
 } finally { await br.close(); srv.close(); }
