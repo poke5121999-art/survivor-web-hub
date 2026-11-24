@@ -8,60 +8,73 @@ const THREE = window.THREE;
 
 export const BONE = { body: 0, head: 1, armL: 2, armR: 3, legA: 4, legB: 5, wingL: 6, wingR: 7, tail: 8, hips: 9 };
 const V = (a) => (a ? new THREE.Vector3(a[0], a[1], a[2]) : new THREE.Vector3());
-const PRIM = {
-  box: () => new THREE.BoxGeometry(1, 1, 1),
-  ball: () => new THREE.SphereGeometry(0.5, 8, 6),
-  ball4: () => new THREE.SphereGeometry(0.5, 6, 4),
-  cyl: () => new THREE.CylinderGeometry(0.5, 0.5, 1, 8),
-  cone: () => new THREE.ConeGeometry(0.5, 1, 6),
-  tet: () => new THREE.OctahedronGeometry(0.5, 0),
-};
+// Every part is a box: a ball is a stepped block (two crossed boxes), a limb a square bar, a spike a stack of shrinking
+// boxes, a gem a cube turned on its edge. Each box keeps its own four corners per face, so normals stay flat.
 const protos = {};
-const proto = (k) => { if (protos[k]) return protos[k]; const g = PRIM[k](); if (!g.index) g.setIndex([...Array(g.attributes.position.count).keys()]); return (protos[k] = g); };
+const proto = (k) => { if (protos[k]) return protos[k]; const g = new THREE.BoxGeometry(1, 1, 1); return (protos[k] = g); };
+const Y1 = new THREE.Vector3(0, 1, 0);
+const GEM = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(0.6155, 0, Math.PI / 4));
 
 export class FoeGeo {
   constructor() { this.P = []; this.N = []; this.C = []; this.B = []; this.Pv = []; this.M = []; this.I = []; this.top = 0; }
-  // one primitive: unit shape k scaled by scl, turned by rot (euler xyz), placed at `at`; o: { col, bone, piv, glow, cloth }
-  put(k, scl, at, rot, o) {
-    const g = proto(k);
-    const m = new THREE.Matrix4().compose(V(at), new THREE.Quaternion().setFromEuler(new THREE.Euler(...(rot || [0, 0, 0]))), V(scl));
-    const nm = new THREE.Matrix3().getNormalMatrix(m);
-    const p = g.attributes.position; const n = g.attributes.normal; const base = this.P.length / 3;
+  // one unit box placed by matrix m (taper: the +y face shrunk to that fraction); o: { col, bone, piv, glow, cloth, ph }
+  emit(m, o, taper = 1) {
+    const g = proto('box'); const p = g.attributes.position; const base = this.P.length / 3;
     const c = new THREE.Color(o.col ?? 0x888888); const bone = BONE[o.bone || 'body']; const piv = o.piv || [0, 0, 0];
-    const v = new THREE.Vector3(); const w = new THREE.Vector3();
+    const v = new THREE.Vector3(); const pts = [];
     for (let i = 0; i < p.count; i++) {
-      v.fromBufferAttribute(p, i).applyMatrix4(m); w.fromBufferAttribute(n, i).applyMatrix3(nm).normalize();
-      this.P.push(v.x, v.y, v.z); this.N.push(w.x, w.y, w.z); this.C.push(c.r, c.g, c.b);
-      this.B.push(bone); this.Pv.push(piv[0], piv[1], piv[2]); this.M.push(o.glow || 0, o.ph ?? (o.cloth ? 1 : 0));
-      if (v.y > this.top && bone !== BONE.wingL && bone !== BONE.wingR) this.top = v.y;
+      v.fromBufferAttribute(p, i); if (taper !== 1) { const k = 1 + (taper - 1) * (v.y + 0.5); v.x *= k; v.z *= k; }
+      pts.push(v.clone().applyMatrix4(m));
+    }
+    // flat normal per face (four corners each, from the face's own corners so a taper tilts it)
+    const e1 = new THREE.Vector3(); const e2 = new THREE.Vector3();
+    for (let f = 0; f < 6; f++) {
+      const [a, b, d] = [pts[f * 4], pts[f * 4 + 1], pts[f * 4 + 2]];
+      e1.subVectors(b, a); e2.subVectors(d, a); const n = new THREE.Vector3().crossVectors(e2, e1);
+      if (n.lengthSq() < 1e-14) { const q = pts[f * 4 + 3]; e1.subVectors(q, b); e2.subVectors(d, b); n.crossVectors(e1, e2); }
+      n.normalize(); if (m.determinant() < 0) n.negate();
+      for (let j = 0; j < 4; j++) {
+        const w = pts[f * 4 + j];
+        this.P.push(w.x, w.y, w.z); this.N.push(n.x, n.y, n.z); this.C.push(c.r, c.g, c.b);
+        this.B.push(bone); this.Pv.push(piv[0], piv[1], piv[2]); this.M.push(o.glow || 0, o.ph ?? (o.cloth ? 1 : 0));
+        if (w.y > this.top && bone !== BONE.wingL && bone !== BONE.wingR) this.top = w.y;
+      }
     }
     for (let i = 0; i < g.index.count; i++) this.I.push(g.index.array[i] + base);
     return this;
   }
+  // a box of size scl turned by rot (euler xyz) at `at`; k 'gem' turns it on a corner first
+  put(k, scl, at, rot, o) {
+    const m = new THREE.Matrix4().compose(V(at), new THREE.Quaternion().setFromEuler(new THREE.Euler(...(rot || [0, 0, 0]))), V(scl));
+    if (k === 'gem') m.multiply(GEM);
+    return this.emit(m, o);
+  }
   box(w, h, d, at, o, rot) { return this.put('box', [w, h, d], at, rot, o); }
-  ball(rx, ry, rz, at, o, rot) { return this.put(o.lo ? 'ball4' : 'ball', [rx * 2, ry * 2, rz * 2], at, rot, o); }
-  gem(rx, ry, rz, at, o, rot) { return this.put('tet', [rx * 2, ry * 2, rz * 2], at, rot, o); }
-  // a round bar from a to b, radius r0 at a and r1 at b (the cylinder's +y runs a -> b)
+  // a ball's place as a stepped block: a wide flat box crossed with a tall narrow one (lo: one box, for eyes and studs)
+  ball(rx, ry, rz, at, o, rot) {
+    if (o.lo || Math.min(rx, ry, rz) < 0.06) return this.put('box', [rx * 1.8, ry * 1.8, rz * 1.8], at, rot, o);
+    this.put('box', [rx * 1.96, ry * 1.5, rz * 1.96], at, rot, o);
+    return this.put('box', [rx * 1.5, ry * 1.96, rz * 1.5], at, rot, o);
+  }
+  gem(rx, ry, rz, at, o, rot) { return this.put('gem', [rx * 1.25, ry * 1.25, rz * 1.25], at, rot, o); }
+  // a square bar from a to b, half-width r0 at a narrowing or widening toward r1 at b (k 'cone' lets a skirt flare more)
   limb(a, b, r0, r1, o, k = 'cyl') {
     const A = V(a); const Bv = V(b); const d = Bv.clone().sub(A); const len = d.length();
-    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize());
-    const g = k === 'cone' ? proto('cone') : null;
-    const m = new THREE.Matrix4().compose(A.clone().add(Bv).multiplyScalar(0.5), q, new THREE.Vector3(1, len, 1));
-    // taper by hand: scale the ring at each end
-    const src = g || proto('cyl'); const p = src.attributes.position; const n = src.attributes.normal; const base = this.P.length / 3;
-    const c = new THREE.Color(o.col ?? 0x888888); const bone = BONE[o.bone || 'body']; const piv = o.piv || a;
-    const v = new THREE.Vector3(); const w = new THREE.Vector3(); const nm = new THREE.Matrix3().getNormalMatrix(m);
-    for (let i = 0; i < p.count; i++) {
-      v.fromBufferAttribute(p, i); const t = v.y + 0.5; const r = (r0 + (r1 - r0) * t) * 2; v.x *= r; v.z *= r; v.applyMatrix4(m);
-      w.fromBufferAttribute(n, i).applyMatrix3(nm).normalize();
-      this.P.push(v.x, v.y, v.z); this.N.push(w.x, w.y, w.z); this.C.push(c.r, c.g, c.b);
-      this.B.push(bone); this.Pv.push(piv[0], piv[1], piv[2]); this.M.push(o.glow || 0, o.ph ?? (o.cloth ? 1 : 0));
-      if (v.y > this.top) this.top = v.y;
+    const q = new THREE.Quaternion().setFromUnitVectors(Y1, d.clone().normalize());
+    const w = r0 * 1.8; const taper = Math.min(k === 'cone' ? 3 : 1.6, Math.max(0.45, r1 / Math.max(r0, 1e-4)));
+    const m = new THREE.Matrix4().compose(A.clone().add(Bv).multiplyScalar(0.5), q, new THREE.Vector3(w, len, w));
+    return this.emit(m, { ...o, piv: o.piv || a }, taper);
+  }
+  // a horn, claw or flame from a to b: two or three stacked boxes, each narrower than the last
+  spike(a, b, r, o) {
+    const A = V(a); const d = V(b).sub(A); const n = r >= 0.05 ? 3 : 2;
+    const q = new THREE.Quaternion().setFromUnitVectors(Y1, d.clone().normalize()); const len = d.length();
+    for (let i = 0; i < n; i++) {
+      const w = r * 1.8 * (1 - i / n); const c = A.clone().addScaledVector(d, (i + 0.5) / n);
+      this.emit(new THREE.Matrix4().compose(c, q, new THREE.Vector3(w, len / n * 1.02, w)), { ...o, piv: o.piv || a });
     }
-    for (let i = 0; i < src.index.count; i++) this.I.push(src.index.array[i] + base);
     return this;
   }
-  spike(a, b, r, o) { return this.limb(a, b, r, 0.001, o, 'cone'); }
   // the same parts mirrored left/right: fn(side) with side -1 (left, -x) and +1 (right, +x)
   pair(fn) { fn(-1); fn(1); return this; }
   geometry() {
@@ -84,7 +97,7 @@ const ANIM = /* glsl */`
 attribute float aBone; attribute vec3 aPiv; attribute vec2 aMat;
 attribute vec4 iA; attribute vec4 iB; attribute vec3 iC;
 uniform vec4 uG; uniform vec4 uH;
-varying vec3 vLoc; varying float vDie; varying float vFlash; varying float vGlow;
+varying vec3 vLoc; varying float vDie; varying float vFlash; varying float vGlow; varying float vCloth; varying vec3 vONrm;
 mat3 rX(float a) { float c = cos(a), s = sin(a); return mat3(1., 0., 0., 0., c, s, 0., -s, c); }
 mat3 rY(float a) { float c = cos(a), s = sin(a); return mat3(c, 0., -s, 0., 1., 0., s, 0., c); }
 mat3 rZ(float a) { float c = cos(a), s = sin(a); return mat3(c, s, 0., -s, c, 0., 0., 0., 1.); }
@@ -134,9 +147,28 @@ void foeAnim(inout vec3 p, inout vec3 n) {
   if (iB.x != 0.) { mat3 F = rX(-iB.x); p = F * p; n = F * n; }
 }
 `;
+// The pixel skin: every face of every box is cut into square texels (uCell per model unit) on the two axes the face lies
+// along, each texel one of a few tones; bigger 3x3 patches rot the skin (uRot) or rip the cloth into dark cells, and a
+// glowing part reads as a lit grid. Coordinates are the rest pose's, so the texels ride with the animated body.
+const PIXEL = /* glsl */`
+uniform float uCell; uniform float uRot; varying vec3 vONrm;
+float pxHash(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
+vec3 pixelSkin(vec3 col, vec3 loc, float cloth, float glow) {
+  vec3 a = abs(vONrm); float ax = a.x > a.y && a.x > a.z ? 1. : 0.; float ay = ax < 0.5 && a.y > a.z ? 1. : 0.;
+  vec2 uv = ax > 0.5 ? loc.zy : ay > 0.5 ? loc.xz : loc.xy;
+  float face = ax * 3. + ay * 5. + 7. + step(0., dot(vONrm, vec3(1.))) * 11.;
+  vec2 c = floor(uv * uCell); vec2 C = floor(uv * uCell / 3.);
+  float h = pxHash(vec3(c + 40., face)); float big = pxHash(vec3(C + 80., face * 1.7));
+  if (glow > 0.5) return col * (0.82 + 0.36 * step(0.45, h));
+  float k = 0.84 + 0.1 * floor(h * 3.) + (h > 0.94 ? 0.12 : 0.);
+  if (cloth > 0.5) { if (big > 0.78 && h > 0.3) k *= 0.55; else if (big < 0.12) k *= 0.82; }
+  else if (big > 0.7) col = mix(col, col * vec3(0.7, 0.82 + 0.1 * uRot, 0.6), 0.45 + 0.4 * uRot);
+  return col * k;
+}
+`;
 const ANIM_FRAG = /* glsl */`
 uniform vec3 uBurst; uniform float uSelf;
-varying vec3 vLoc; varying float vDie; varying float vFlash; varying float vGlow;
+varying vec3 vLoc; varying float vDie; varying float vFlash; varying float vGlow; varying float vCloth;
 float foeCut() {
   if (vDie <= 0.) return 0.;
   float h = fract(sin(dot(floor(vLoc * 7.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
@@ -149,7 +181,7 @@ const vShare = (sh) => {
   sh.vertexShader = ANIM + sh.vertexShader;
   sh.fragmentShader = ANIM_FRAG + sh.fragmentShader;
 };
-const setVary = 'vLoc = position; vDie = iA.w; vFlash = iB.y; vGlow = aMat.x;';
+const setVary = 'vLoc = position; vDie = iA.w; vFlash = iB.y; vGlow = aMat.x; vCloth = aMat.y; vONrm = normal;';
 
 // The gradient MeshToonMaterial shades with: three bands, the dark band light enough for night maps
 let grad = null;
@@ -166,17 +198,19 @@ export function foeMaterials(gait) {
     uG: { value: new THREE.Vector4(gait.amp, gait.arm, gait.swingArm || 0, gait.mode) },
     uH: { value: new THREE.Vector4(gait.lean, gait.hip, gait.atk || 0, gait.bob ?? 0.05) },
     uBurst: { value: new THREE.Color(gait.burst) }, uSelf: { value: 0.3 }, uOutline: { value: gait.outline ?? 0.035 },
+    uCell: { value: gait.cell ?? 26 }, uRot: { value: 1 },
   };
   const toon = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradient() });
   toon.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, U); vShare(sh);
+    Object.assign(sh.uniforms, U); vShare(sh); sh.fragmentShader = PIXEL + sh.fragmentShader;
     sh.vertexShader = sh.vertexShader
       .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = normal; vec3 fP = position; foeAnim(fP, objectNormal);')
       .replace('#include <begin_vertex>', 'vec3 transformed = fP; ' + setVary)
       .replace('#include <color_vertex>', '#include <color_vertex>\n if (aMat.y > 0.5) vColor.rgb *= iC;');
     sh.fragmentShader = sh.fragmentShader
       .replace('void main() {', 'void main() { float edge = foeCut();')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += vColor.rgb * (uSelf + vGlow * 1.6) + vec3(vFlash * 0.6) + uBurst * edge * 2.;');
+      .replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = pixelSkin(diffuseColor.rgb, vLoc, vCloth, vGlow);')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * (uSelf + vGlow * 1.6) + vec3(vFlash * 0.6) + uBurst * edge * 2.;');
   };
   toon.customProgramCacheKey = () => 'foeToon';
   const line = new THREE.MeshBasicMaterial({ color: 0x1c1418, side: THREE.BackSide });
@@ -213,8 +247,8 @@ export function foeMesh(geo, gait, cap) {
 // aMat.y here is the phase a part belongs to: 0 always, 1 only after the boss drops under half its life, 2 only before.
 // uP2 the phase (0/1), uPulse the phase-2 glow throb, uFlash a hit flash, uDie the dissolve after death.
 export function shellMaterials() {
-  const U = { uP2: { value: 0 }, uPulse: { value: 0 }, uFlash: { value: 0 }, uDie: { value: 0 }, uSelf: { value: 0.3 }, uOutline: { value: 0.035 }, uBurst: { value: new THREE.Color(0xffa040) } };
-  const pre = /* glsl */`attribute vec2 aMat; varying vec2 vMat; varying vec3 vLoc;
+  const U = { uP2: { value: 0 }, uPulse: { value: 0 }, uFlash: { value: 0 }, uDie: { value: 0 }, uSelf: { value: 0.3 }, uOutline: { value: 0.035 }, uBurst: { value: new THREE.Color(0xffa040) }, uCell: { value: 18 }, uRot: { value: 0 } };
+  const pre = /* glsl */`attribute vec2 aMat; varying vec2 vMat; varying vec3 vLoc; varying vec3 vONrm;
 `;
   const fpre = /* glsl */`uniform float uP2; uniform float uPulse; uniform float uFlash; uniform float uDie; uniform float uSelf; uniform vec3 uBurst; varying vec2 vMat; varying vec3 vLoc;
 float shellCut() {
@@ -230,15 +264,16 @@ float shellCut() {
   const toon = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradient() });
   toon.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
-    sh.vertexShader = pre + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMat = aMat; vLoc = position;');
-    sh.fragmentShader = fpre + sh.fragmentShader.replace('void main() {', 'void main() { float edge = shellCut();')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += vColor.rgb * (uSelf + vMat.x * (1.4 + uPulse * uP2)) + vec3(uFlash * 0.8) + uBurst * edge * 2. + uBurst * uP2 * (0.12 + 0.16 * uPulse);');
+    sh.vertexShader = pre + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMat = aMat; vLoc = position; vONrm = normal;');
+    sh.fragmentShader = PIXEL + fpre + sh.fragmentShader.replace('void main() {', 'void main() { float edge = shellCut();')
+      .replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = pixelSkin(diffuseColor.rgb, vLoc, 0., vMat.x);')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * (uSelf + vMat.x * (1.4 + uPulse * uP2)) + vec3(uFlash * 0.8) + uBurst * edge * 2. + uBurst * uP2 * (0.12 + 0.16 * uPulse);');
   };
   toon.customProgramCacheKey = () => 'foeShell';
   const line = new THREE.MeshBasicMaterial({ color: 0x1c1418, side: THREE.BackSide });
   line.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
-    sh.vertexShader = pre + 'uniform float uOutline;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normalize(normal) * uOutline; vMat = aMat; vLoc = position;');
+    sh.vertexShader = pre + 'uniform float uOutline;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normalize(normal) * uOutline; vMat = aMat; vLoc = position; vONrm = normal;');
     sh.fragmentShader = fpre + sh.fragmentShader.replace('void main() {', 'void main() { float edge = shellCut();')
       .replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = mix(mix(diffuseColor.rgb, uBurst * 0.8, uP2 * 0.55 * (0.5 + 0.5 * uPulse)), uBurst, edge) + vec3(uFlash * 0.4);');
   };
