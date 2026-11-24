@@ -106,25 +106,25 @@ try {
   ctl('merged smooth box', controls.smoothBox, true, 'smooth');
 
   if (want('beast')) {
-    const keys = await d.page.evaluate(async (v) => (Object.keys((await import(`/games/ai-sinh-ton/js/view/beast/index.js?v=${v}`)).FORMS)), '20261122a');
+    const keys = await d.page.evaluate(async (v) => (Object.keys((await import(new URL(`js/view/beast/index.js?v=${v}`, location.href).href)).FORMS)), V);
     for (const lod of QUICK ? ['battle'] : ['battle', 'portrait']) {
       for (const key of keys) {
-        const geos = await d.page.evaluate(async ([k, l]) => {
-          const { buildBeast } = await import('/games/ai-sinh-ton/js/view/beast/index.js?v=20261122a');
+        const geos = await d.page.evaluate(async ([k, l, v]) => {
+          const { buildBeast } = await import(new URL(`js/view/beast/index.js?v=${v}`, location.href).href);
           const [id, f] = k.split('.'); const b = buildBeast({ id, form: +f[0], branch: f[1] || null }, { lod: l });
           const out = []; const seen = new Set();
           b.root.traverse((o) => { if (!o.isMesh || !o.visible || /line$/.test(o.name) || seen.has(o.geometry.uuid)) return; seen.add(o.geometry.uuid); const g = o.geometry; out.push({ pos: Array.from(g.attributes.position.array), idx: g.index ? Array.from(g.index.array) : null, nor: g.attributes.normal ? Array.from(g.attributes.normal.array) : null }); });
           b.dispose(); return window.__blk(out);
-        }, [key, lod]);
+        }, [key, lod, V]);
         verdict('beast', `beast ${key} ${lod}`, geos);
       }
     }
   }
   if (want('zombie')) {
-    const kinds = await d.page.evaluate(async (v) => { const { zombieGeos } = await import(`/games/ai-sinh-ton/js/view/foe/zombies.js?v=${v}`); const z = zombieGeos(); return Object.keys(z); }, V);
+    const kinds = await d.page.evaluate(async (v) => { const { zombieGeos } = await import(new URL(`js/view/foe/zombies.js?v=${v}`, location.href).href); const z = zombieGeos(); return Object.keys(z); }, V);
     for (const k of kinds) {
       const r = await d.page.evaluate(async ([v, kind]) => {
-        const { zombieGeos } = await import(`/games/ai-sinh-ton/js/view/foe/zombies.js?v=${v}`); const g = zombieGeos()[kind].geo;
+        const { zombieGeos } = await import(new URL(`js/view/foe/zombies.js?v=${v}`, location.href).href); const g = zombieGeos()[kind].geo;
         return window.__blk([{ pos: Array.from(g.attributes.position.array), idx: g.index ? Array.from(g.index.array) : null, nor: g.attributes.normal ? Array.from(g.attributes.normal.array) : null }]);
       }, [V, k]);
       verdict('zombie', `zombie ${k}`, r);
@@ -136,10 +136,10 @@ try {
     const g = await open(br, srv.base, 'desktop', 'autostart=1&stage=1&noaudio=1&seed=1&q=low', { noWait: true });
     await g.page.waitForFunction('window.__ready === true', null, { timeout: 60000 });
     await g.page.evaluate(`window.__blk = ${ANALYZE.toString()}`);
-    const kinds = await g.page.evaluate(async (v) => { const { SHELLS } = await import(`/games/ai-sinh-ton/js/view/foe/bosses.js?v=${v}`); return [...new Set([...Object.keys(SHELLS), 'giant', 'thrower', 'phantom', 'queen', 'brood'])]; }, V);
+    const kinds = await g.page.evaluate(async (v) => { const { SHELLS } = await import(new URL(`js/view/foe/bosses.js?v=${v}`, location.href).href); return [...new Set([...Object.keys(SHELLS), 'giant', 'thrower', 'phantom', 'queen', 'brood'])]; }, V);
     for (const kind of kinds) {
       const r = await g.page.evaluate(async ([v, k]) => {
-        const { bossModel } = await import(`/games/ai-sinh-ton/js/view/bossacts.js?v=${v}`);
+        const { bossModel } = await import(new URL(`js/view/bossacts.js?v=${v}`, location.href).href);
         const m = bossModel(k); if (!m) return null;
         m.root.updateMatrixWorld(true);
         const out = []; const seen = new Set(); let old = 0, shell = 0;
