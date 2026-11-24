@@ -68,7 +68,8 @@ export const KINDS = {
     gait: { mode: 2, amp: 0.42, arm: 0, lean: 0, hip: 0.5, atk: 3, bob: 0.04, burst: 0x8a4ab0 },
     build(g) {
       // swollen abdomen with glowing spots, a small body, a zombie face up front with fangs, eight jointed legs
-      g.ball(0.42, 0.36, 0.48, [0, 0.62, -0.5], { col: 0x3a2850 });
+      g.ball(0.36, 0.3, 0.44, [0, 0.62, -0.5], { col: 0x55327a });
+      g.box(0.5, 0.36, 0.5, [0, 0.66, -0.52], { col: 0x6e44a8 });
       for (const [x, y, z] of [[0.18, 0.86, -0.42], [-0.2, 0.8, -0.62], [0.05, 0.95, -0.66], [-0.12, 0.88, -0.3], [0.26, 0.66, -0.75]]) g.ball(0.07, 0.06, 0.07, [x, y, z], { col: 0xa0ff60, glow: 1, lo: true });
       g.ball(0.11, 0.1, 0.11, [0, 0.55, -0.98], { col: 0x6a3a8a, cloth: true, lo: true });
       g.ball(0.26, 0.2, 0.3, [0, 0.52, 0.05], { col: 0x4a3460, cloth: true });
@@ -79,7 +80,7 @@ export const KINDS = {
         for (let i = 0; i < 4; i++) {
           const z = 0.22 - i * 0.14; const j = [s * 0.16, 0.52, z]; const b = (i + (s > 0 ? 1 : 0)) % 2 ? 'legA' : 'legB';
           const k = [s * 0.55, 0.82, z + (1.5 - i) * 0.12]; const f = [s * 0.82, 0.02, z + (1.5 - i) * 0.3];
-          g.limb(j, k, 0.04, 0.035, { col: 0x2e2040, bone: b, piv: j }); g.limb(k, f, 0.035, 0.015, { col: 0x2e2040, bone: b, piv: j });
+          g.limb(j, k, 0.04, 0.035, { col: 0x46305e, bone: b, piv: j }); g.limb(k, f, 0.035, 0.015, { col: 0x46305e, bone: b, piv: j });
           g.ball(0.04, 0.04, 0.04, k, { col: 0xa0ff60, glow: 0.6, bone: b, piv: j, lo: true });
         }
       });
@@ -151,9 +152,10 @@ export const KINDS = {
     build(g) {
       const J = human(g, { hip: 0.6, hx: 0.2, leg: 0.11, torso: [0.6, 0.6, 0.45], sx: 0.42, skin: 0xdcc85a, shirt: 0xc8b070, pants: 0x6a5a30, arm: 0.5, armR: 0.085, head: 0.15, neck: 0.02 });
       // a belly twice the body's width, stitched, with glowing pustules about to pop
-      g.ball(0.52, 0.5, 0.5, [0, J.hip + 0.36, 0.1], { col: 0xe0d070 });
-      for (let i = 0; i < 4; i++) g.box(0.03, 0.42, 0.02, [-0.18 + i * 0.12, J.hip + 0.36, 0.6], { col: 0x5a3a2a }, [0, 0, 0.1 * (i - 1.5)]);
-      for (const [x, y, z] of [[0.3, 0.55, 0.44], [-0.32, 0.3, 0.42], [0.1, 0.08, 0.52], [-0.12, 0.66, 0.4], [0.42, 0.2, 0.3]]) g.ball(0.09, 0.09, 0.08, [x, J.hip + y, z], { col: 0xfff060, glow: 0.9, lo: true });
+      g.ball(0.44, 0.42, 0.4, [0, J.hip + 0.36, 0.08], { col: 0xe0d070 });
+      g.box(0.62, 0.5, 0.2, [0, J.hip + 0.34, 0.4], { col: 0xe8da80 });
+      for (let i = 0; i < 4; i++) g.box(0.03, 0.42, 0.02, [-0.18 + i * 0.12, J.hip + 0.36, 0.51], { col: 0x5a3a2a }, [0, 0, 0.1 * (i - 1.5)]);
+      for (const [x, y, z] of [[0.26, 0.5, 0.5], [-0.28, 0.3, 0.5], [0.1, 0.12, 0.5], [-0.12, 0.6, 0.48], [0.4, 0.2, 0.3]]) g.ball(0.09, 0.09, 0.08, [x, J.hip + y, z], { col: 0xfff060, glow: 0.9, lo: true });
     },
   },
   shielder: {
