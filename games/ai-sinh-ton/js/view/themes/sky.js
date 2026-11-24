@@ -8,7 +8,7 @@ export const SKY = {
     far: { top: 0x6a8a52, side: 0x8a8a94 } },
   amb: { sky: [0.76, 0.8, 0.9], ground: [0.32, 0.32, 0.36] }, key: { dir: [0.45, 0.8, -0.4], color: [0.6, 0.56, 0.46] },
   hemi: { sky: 0xe0eaff, ground: 0x6a6a7a, k: 1.0 }, sun: { color: 0xfff4e0, k: 1.5 },
-  top: { base: [['meadow', 6]], patch: [['dirt', 2], ['skystone', 1]], patchK: 0.2, tint: [1.4, 1.12, 0.9] },
+  top: { base: [['skystone', 5], ['meadow', 2]], patch: [['meadow', 3], ['dirt', 1]], patchK: 0.28, tint: [1.0, 0.96, 0.9] },
   rimTint: [0.95, 0.9, 0.95],
   edge: [['meadow', 3], ['skystone', 1]], side: { top: ['meadow_side'], rows: [['skystone', 3], ['rock', 1]] },
   lights: [['torch', 3], ['stonelamp', 3], ['brazier', 1]],
