@@ -147,7 +147,7 @@ export function createActors(H) {
     const node = new THREE.Group(); node.add(beast.root); scene.add(node);
     // where the hero's chevron is drawn (flushChevrons): a holder for position, visibility and colour, not in the scene
     const disc = new THREE.Object3D(); disc.position.y = 0.03; disc.userData.color = new THREE.Color(color);
-    const bubble = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffd860, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+    const bubble = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.7, 1.7), new THREE.MeshBasicMaterial({ color: 0xffd860, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     bubble.visible = false; scene.add(bubble);
     const bz = BZ.HEROES.find((h) => h.id === (OLD_ID[sp.id] || sp.id)); const W = (bz && BZ.WEAPONS[bz.weapon]) || {};
     const a = {

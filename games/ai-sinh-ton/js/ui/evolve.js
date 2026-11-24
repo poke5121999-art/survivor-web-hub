@@ -9,6 +9,7 @@ import { HERO, ELEMENTS } from '../data/heroes.js?v=20261124a';
 import { heroDef, branchesOf, maxForm } from '../data/beasts.js?v=20261124a';
 import { levelMul } from '../data/economy.js?v=20261124a';
 import { buildBeast } from '../view/beast/index.js?v=20261124a';
+import { boxGeo } from '../view/fx/pixel.js?v=20261124a';
 
 export const MOVE_NAME = { walk: 'Đi bộ', gallop: 'Phi nước đại', hop: 'Nhảy cóc', leap: 'Nhảy xa', roll: 'Lăn tròn', slither: 'Trườn', fly: 'Bay', glide: 'Lướt', swimAir: 'Bơi trên không', blink: 'Dịch chuyển', burrow: 'Đào đất', stomp: 'Dậm đất' };
 // the moment, in order; `dur` in seconds
@@ -94,19 +95,25 @@ export function createEvolve(game) {
   // ---------- the 3D stage ----------
   const root = new THREE.Group();
   const pedMat = new THREE.MeshStandardMaterial({ color: 0x5a4a8a, roughness: 0.55, metalness: 0.15, flatShading: true });
-  const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.6, 0.32, 28), pedMat); ped.position.y = -0.16; root.add(ped);
-  const rune = new THREE.Mesh(new THREE.TorusGeometry(1.32, 0.045, 8, 56), new THREE.MeshStandardMaterial({ color: 0x9a7aff, emissive: 0x6a3aff, emissiveIntensity: 0.6 })); rune.rotation.x = Math.PI / 2; rune.position.y = 0.01; root.add(rune);
+  // the stage is built like the world: a square plinth of two stepped slabs, a rune of glowing pixel blocks round its top
+  const ped = new THREE.Mesh(boxGeo([[0, 0.06, 0, 2.6, 0.2, 2.6], [0, -0.09, 0, 2.9, 0.14, 2.9]]), pedMat); ped.position.y = -0.16; root.add(ped);
+  const runeBits = []; for (let i = 0; i < 48; i++) { if (i % 6 === 5) continue; const t = i / 48 * 4, side = Math.floor(t), f = (t - side) * 2.3 - 1.15, s2 = side < 2 ? 1 : -1; const [x, z] = side % 2 ? [s2 * 1.15, f * s2] : [f * s2, s2 * 1.15]; runeBits.push([x, 0, z, 0.1, 0.05, 0.1]); }
+  const rune = new THREE.Mesh(boxGeo(runeBits), new THREE.MeshStandardMaterial({ color: 0x9a7aff, emissive: 0x6a3aff, emissiveIntensity: 0.6, flatShading: true })); rune.position.y = 0.025; root.add(rune);
   const cocoonMat = new THREE.MeshStandardMaterial({ color: 0xe8a040, emissive: 0x7a3a08, emissiveIntensity: 0.6, roughness: 0.45, metalness: 0.1, transparent: true, opacity: 0.95, flatShading: true });
-  const cocoon = new THREE.Mesh(new THREE.IcosahedronGeometry(0.75, 1), cocoonMat); root.add(cocoon);
+  // the cocoon is a stepped block egg: seven layers, each a cross of two boxes so its corners step in like voxels
+  const COCOON = [0.34, 0.54, 0.68, 0.74, 0.68, 0.52, 0.3]; const LH = 1.5 / COCOON.length;
+  const cocoon = new THREE.Mesh(boxGeo(COCOON.flatMap((hw, i) => { const y = -0.75 + (i + 0.5) * LH; return [[0, y, 0, hw * 2, LH, hw * 1.4], [0, y, 0, hw * 1.4, LH, hw * 2]]; })), cocoonMat); root.add(cocoon);
   // cracks: thin glowing strips laid over the shell, grown during the crack beat
   const crackMat = new THREE.MeshBasicMaterial({ color: 0xfff6d0, transparent: true, opacity: 1, toneMapped: false });
   const cracks = [];
   for (let i = 0; i < 9; i++) {
-    const c = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.75, 0.07), crackMat); const a = i * 2.4, b = (i % 3 - 1) * 0.6;
-    const el = b * 0.7; c.position.set(Math.cos(a) * Math.cos(el) * 0.74, Math.sin(el) * 0.74 + 0.15, Math.sin(a) * Math.cos(el) * 0.74); c.lookAt(0, 0, 0); c.rotateZ(b * 1.3); c.userData.k = 0; cocoon.add(c); cracks.push(c);
+    // a seam of light on one face of a layer, a pixel wide, tilted a little
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.62, 0.08), crackMat); const face = i % 4, li = 2 + (i % 3), hw = COCOON[li];
+    const y = -0.75 + (li + 0.5) * LH, off = ((i * 0.37) % 1 - 0.5) * hw * 0.9, yaw = face * Math.PI / 2;
+    c.position.set(Math.sin(yaw) * (hw + 0.01) + Math.cos(yaw) * off, y, Math.cos(yaw) * (hw + 0.01) - Math.sin(yaw) * off); c.rotation.set(0, yaw, ((i % 3) - 1) * 0.5); c.userData.k = 0; cocoon.add(c); cracks.push(c);
   }
-  // shards: tetrahedra thrown out at the burst
-  const N_SHARD = 36, shardGeo = new THREE.TetrahedronGeometry(0.12), shards = new THREE.InstancedMesh(shardGeo, cocoonMat, N_SHARD); root.add(shards);
+  // shards: blocks of the shell thrown out at the burst
+  const N_SHARD = 36, shardGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15), shards = new THREE.InstancedMesh(shardGeo, cocoonMat, N_SHARD); root.add(shards);
   const shardV = []; for (let i = 0; i < N_SHARD; i++) { const a = (i / N_SHARD) * 6.283 * 3.1, u = (i % 7) / 6 - 0.5; shardV.push(new THREE.Vector3(Math.cos(a) * (1 - Math.abs(u)), u * 1.6 + 0.6, Math.sin(a) * (1 - Math.abs(u))).multiplyScalar(2.4 + (i % 5) * 0.5)); }
   // a cool light from behind outlines dark beasts against the dark stage
   const rim = new THREE.DirectionalLight(0xb9a2ff, 1.4); rim.position.set(0.5, 2.2, -3); root.add(rim);
@@ -122,8 +129,8 @@ export function createEvolve(game) {
     const t = new THREE.CanvasTexture(c); return t;
   })();
   const shadowGeo = new THREE.PlaneGeometry(1, 1); shadowGeo.rotateX(-Math.PI / 2);
-  // bits of earth (burrow, landing) and sparks (blink): low-poly pieces with a short life
-  const N_BIT = 28, bits = new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.06), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, flatShading: true }), N_BIT);
+  // bits of earth (burrow, landing) and sparks (blink): small blocks with a short life
+  const N_BIT = 28, bits = new THREE.InstancedMesh(new THREE.BoxGeometry(0.085, 0.085, 0.085), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, flatShading: true }), N_BIT);
   bits.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N_BIT * 3), 3); bits.count = 0; root.add(bits);
   const BIT = []; const col = new THREE.Color();
   function spray(x, y, z, color, n, sp = 1.4) {
@@ -136,8 +143,9 @@ export function createEvolve(game) {
   }
   // the burrower's mound: a ridge of earth lumps that runs where the beast is underground
   const mound = new THREE.Group(); const lumpMat = new THREE.MeshStandardMaterial({ color: 0x8a6a42, roughness: 0.95, flatShading: true });
-  for (let i = 0; i < 6; i++) { const l = new THREE.Mesh(new THREE.DodecahedronGeometry(0.11 + (i % 3) * 0.03), lumpMat); l.position.set((i % 2 - 0.5) * 0.14, 0.02, (i - 2.5) * 0.09); mound.add(l); }
+  for (let i = 0; i < 6; i++) { const ls = 0.2 + (i % 3) * 0.05; const l = new THREE.Mesh(new THREE.BoxGeometry(ls, ls * 0.75, ls), lumpMat); l.rotation.y = i * 0.7; l.position.set((i % 2 - 0.5) * 0.14, 0.02, (i - 2.5) * 0.09); mound.add(l); }
   mound.visible = false; root.add(mound);
+  reg.fx = [ped, rune, cocoon, shards, chevron, bits, mound];
 
   const cam = new THREE.PerspectiveCamera(30, (L.lw - 12) / (L.lh - 60), 0.1, 50);
   const TAN = Math.tan(cam.fov * Math.PI / 360);

@@ -53,31 +53,91 @@ const FIRE = ([type, x, z]) => {
   }
   return [h.x, h.z];
 };
-// visible effect meshes drawn as flat circles: RingGeometry / CircleGeometry, or a flat glow quad as wide as long
-const CENSUS = () => {
-  const G = window.__G; const H = G.host; const T = H.THREE; const glow = window.BZ.tex('glow'); const hits = {};
-  const M = new T.Matrix4(); const sx = new T.Vector3(); const q = new T.Quaternion(); const p = new T.Vector3();
-  const shown = (o) => { for (let x = o; x; x = x.parent) if (!x.visible) return false; return true; };
-  H.scene.traverse((o) => {
-    if (!o.isMesh || o.isSprite || !shown(o)) return; if (o.isInstancedMesh && o.count === 0) return;
-    const g = o.geometry; const mats = [].concat(o.material || []);
-    if (mats.every((m) => m.opacity === 0 && !m.isShaderMaterial)) return;
-    let kind = '';
-    if (g.type === 'RingGeometry' || g.type === 'CircleGeometry') kind = g.type;
-    else if (mats.some((m) => m.map && (m.map === glow || m.map.image === glow.image))) {
-      if (!g.boundingBox) g.computeBoundingBox(); const bb = g.boundingBox; const flatY = bb.max.y - bb.min.y < 1e-3;
-      if (flatY) {
-        const n = o.isInstancedMesh ? o.count : 1; let round = 0;
-        for (let i = 0; i < n; i++) { if (o.isInstancedMesh) o.getMatrixAt(i, M); else M.copy(o.matrixWorld); M.decompose(p, q, sx); const r = Math.abs(sx.x) / Math.max(1e-6, Math.abs(sx.z)); if (r > 0.7 && r < 1.4 && sx.x > 1e-4) round++; }
-        if (round) kind = 'flat glow disc';
+// Round-soft census (Addendum 11.3: effects speak the block language). An effect mesh is a hit when its geometry is a
+// round solid (sphere, circle, ring, torus, rounded polyhedron, lathe, capsule), a cylinder or cone of more than 8 sides,
+// or when any texture it draws with is a soft round dot: alpha graded in 3+ levels whose outline is the same distance from
+// its centre in every direction (spread of 32 radii under 7% of their mean), as a square or a star never is. A dark round
+// blot (mean colour under 20%) is a drop shadow, not a dot of light, and is left to the shadows' owner.
+// where: 'battle' walks the scene minus the world (island, glow, abyss, mode props), the horde and every unit's own model;
+// 'evolve' walks the evolution stage's own pieces (pedestal, rune, cocoon, shards, bits, mound).
+const ROUNDS = (where) => {
+  const G = window.__G; const hits = {};
+  const ROUND = new Set(['SphereGeometry', 'CircleGeometry', 'RingGeometry', 'TorusGeometry', 'IcosahedronGeometry', 'DodecahedronGeometry', 'LatheGeometry', 'CapsuleGeometry']);
+  const memo = window.__roundTex || (window.__roundTex = new Map());
+  const roundSoft = (t) => {
+    if (memo.has(t.uuid + t.version)) return memo.get(t.uuid + t.version);
+    let res = false; const img = t.image;
+    if (img && img.width && img.height) {
+      const w = img.width, h = img.height; let d;
+      if (img.data) d = img.data; else { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.drawImage(img, 0, 0); d = c.getImageData(0, 0, w, h).data; }
+      const A = new Float32Array(w * h); let mx = 0; let opaque = true;
+      for (let i = 0; i < w * h; i++) if (d[i * 4 + 3] < 250) opaque = false;
+      for (let i = 0; i < w * h; i++) { A[i] = opaque ? (d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) / 765 : d[i * 4 + 3] / 255; mx = Math.max(mx, A[i]); }
+      if (mx > 0) {
+        let n = 0, sx = 0, sy = 0, x0 = w, x1 = 0, y0 = h, y1 = 0; const lv = new Set();
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const a = A[y * w + x]; if (a > 0.12 * mx) { n++; sx += x; sy += y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); lv.add(Math.round(a / mx * 15)); } }
+        const asp = (x1 - x0 + 1) / (y1 - y0 + 1);
+        if (n >= 9 && n < 0.97 * w * h && asp > 0.8 && asp < 1.25 && lv.size >= 3) {
+          const cx = sx / n, cy = sy / n; const rs = [];
+          for (let k = 0; k < 32; k++) { const an = k * Math.PI / 16; let r = 0; for (let s = 0; s < w + h; s += 0.25) { const x = Math.floor(cx + 0.5 + Math.cos(an) * s), y = Math.floor(cy + 0.5 + Math.sin(an) * s); if (x < 0 || y < 0 || x >= w || y >= h || A[y * w + x] <= 0.12 * mx) break; r = s; } rs.push(r); }
+          const m = rs.reduce((a, b) => a + b, 0) / rs.length; const sd = Math.sqrt(rs.reduce((a, b) => a + (b - m) * (b - m), 0) / rs.length);
+          // a dark round blot is a unit's drop shadow (actors.js, out of the effects' scope), not a dot of light
+          let lum = 0; for (let i = 0; i < w * h; i++) if (A[i] > 0.12 * mx) lum += (d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) / 765;
+          res = m > 1 && sd / m < 0.07 && (opaque || lum / n > 0.2);
+        }
       }
     }
-    if (!kind) return;
-    const c = mats[0] && mats[0].color ? mats[0].color.getHexString() : '-';
-    const label = `${kind} r${(g.parameters && (g.parameters.innerRadius ?? g.parameters.radius)) ?? '-'} order${o.renderOrder} col#${c}${o.name ? ' ' + o.name : ''}`;
-    hits[label] = (hits[label] || 0) + (o.isInstancedMesh ? o.count : 1);
-  });
+    memo.set(t.uuid + t.version, res); return res;
+  };
+  const texOf = (m) => { const out = []; if (m.map) out.push(m.map); if (m.uniforms) for (const u of Object.values(m.uniforms)) if (u && u.value && u.value.isTexture) out.push(u.value); return out; };
+  const skip = new Set(); let roots;
+  if (where === 'evolve') roots = (G.evolveUi && G.evolveUi.fx) || [];
+  else {
+    const A = G.actors; const B = G.B; const H = G.host;
+    if (B) for (const u of B.units) { const n = A.nodeOf(u.uid); if (n) skip.add(n); }
+    roots = H.scene.children.filter((o) => !['island', 'glow', 'abyss', 'mode'].includes(o.name) && !/^horde\./.test(o.name));
+  }
+  const shown = (o) => { for (let x = o; x; x = x.parent) if (!x.visible) return false; return true; };
+  const walk = (o) => {
+    if (skip.has(o)) return;
+    if ((o.isMesh || o.isSprite) && shown(o) && !(o.isInstancedMesh && o.count === 0) && !(o.geometry && o.geometry.isInstancedBufferGeometry && o.geometry.instanceCount === 0)) {
+      const g = o.geometry; const mats = [].concat(o.material || []);
+      if (!mats.every((m) => m.opacity === 0 && !m.isShaderMaterial)) {
+        const kinds = [];
+        if (g && ROUND.has(g.type)) kinds.push(g.type);
+        const seg = g && g.parameters && g.parameters.radialSegments;
+        if (g && (g.type === 'CylinderGeometry' || g.type === 'ConeGeometry') && seg > 8) kinds.push(`${g.type} ${seg} sides`);
+        for (const m of mats) for (const t of texOf(m)) if (roundSoft(t)) kinds.push(`soft round texture ${t.name || t.uuid.slice(0, 6)}`);
+        for (const k of kinds) { const c = mats[0] && mats[0].color ? mats[0].color.getHexString() : '-'; const l = `${k} col#${c}${o.name ? ' ' + o.name : ''}`; hits[l] = (hits[l] || 0) + (o.isInstancedMesh ? o.count : 1); }
+      }
+    }
+    for (const c of o.children) walk(c);
+  };
+  for (const r of roots) walk(r);
   return hits;
+};
+// one large still particle of each kind the effects draw with (spark streak, shard, ember, wisp; the blast board's glow
+// and smoke puffs; the local flash), alone over an empty frame, at fixed points on a 4 x 2 grid
+const PARTS = [['spark-streak', 0], ['spark-shard', 1], ['spark-ember', 2], ['spark-wisp', 3], ['puff-glow'], ['puff-smoke'], ['flash']];
+const SOLO = ([on, PARTS]) => {
+  const G = window.__G; const H = G.host; const T = H.THREE; const fx = G.actors.fx;
+  if (on === null) return null;
+  fx.beats.sparks.clear(); G.fx.clear(); G.actors.marks.clear();
+  const cam = H.camera; const at = (i) => { const v = new T.Vector3((i % 4 - 1.5) * 0.42, (i < 4 ? 0.25 : -0.25), 0.5).unproject(cam); const d = v.sub(cam.position).normalize(); return cam.position.clone().addScaledVector(d, 9); };
+  const pts = [];
+  PARTS.forEach(([name, kind], i) => {
+    const p = at(i); pts.push([name, (i % 4 - 1.5) * 0.21 + 0.5, (i < 4 ? -0.125 : 0.125) + 0.5]);
+    if (name.startsWith('spark')) fx.beats.sparks.emit({ x: p.x, y: p.y, z: p.z, vx: 0, vy: 0, vz: 0, life: kind === 3 ? 0.15 : 0.4, w: 1.1, len: 1.1, stretch: 0, color: 0xffd080, a: 1, grav: 0, drag: 0, kind });
+    else if (name === 'puff-glow') G.fx.puff(p, { glow: true, s0: 1.2, s1: 1.2, life: 50, c0: 0xffd080, c1: 0xffd080, a0: 1, spin: 0, rot: 0 });
+    else if (name === 'puff-smoke') G.fx.puff(p, { s0: 1.2, s1: 1.2, life: 0.3, c0: 0xffd080, c1: 0xffd080, a0: 1, spin: 0, rot: 0 });
+    else G.actors.marks.flash(p.x, p.y, p.z, 1.2, 0xffd080, 1);
+  });
+  return pts;
+};
+const SOLO_HIDE = (on) => {
+  const H = window.__G.host; const puff = window.BZ.tex('puff');
+  const keep = (o) => o.name === 'fx-sparks' || o.name === 'fx-flash' || !!(o.material && o.material.uniforms && o.material.uniforms.map && (o.material.uniforms.map.value === puff || o.material.uniforms.map.value.name === 'fx_glowpuff'));
+  H.scene.children.forEach((o) => { if (o.isLight || o.isCamera) return; if (on) { if (o.__vis2 === undefined) o.__vis2 = o.visible; o.visible = keep(o); } else if (o.__vis2 !== undefined) { o.visible = o.__vis2; delete o.__vis2; } });
 };
 // show only the floor and the named effect layer ('tele' warnings, 'zone' zones) or nothing of it
 const ALONE = ([what, on]) => {
@@ -152,6 +212,33 @@ for y in range(0, a.height, 2):
         if abs(p[0] - q[0]) + abs(p[1] - q[1]) + abs(p[2] - q[2]) > 24:
             u, v = lab(p), lab(q); s += sum((u[k] - v[k]) ** 2 for k in range(3)) ** 0.5; n += 1; L = [L[k] + u[k] for k in range(3)]
 print(json.dumps({'de': s / max(1, n), 'n': n, 'lab': [c / max(1, n) for c in L]}))`;
+// each particle's window (frame fractions, a quarter of the width wide): masked pixels on vs off, then the spread of 32
+// radii from the mask centroid over their mean, the count of brightness levels (16 steps) and how much of its box it fills
+const PARTSHAPE = `
+import sys, json, math
+from PIL import Image
+a = Image.open(sys.argv[1]).convert('RGB'); b = Image.open(sys.argv[2]).convert('RGB'); W, H = a.size; pa = a.load(); pb = b.load(); out = {}
+for name, fx, fy in json.loads(sys.argv[3]):
+    x0 = int((fx - 0.105) * W); x1 = int((fx + 0.105) * W); y0 = int((fy - 0.12) * H); y1 = int((fy + 0.12) * H)
+    pts = []; lv = set(); mx = 1
+    for y in range(max(0, y0), min(H, y1)):
+        for x in range(max(0, x0), min(W, x1)):
+            p = pa[x, y]; q = pb[x, y]; d = abs(p[0] - q[0]) + abs(p[1] - q[1]) + abs(p[2] - q[2])
+            if d > 30: pts.append((x, y, d)); mx = max(mx, d)
+    if not pts: out[name] = {'n': 0, 'cv': 1, 'levels': 0, 'fill': 0}; continue
+    S = set((x, y) for x, y, _ in pts); cx = sum(x for x, _, _ in pts) / len(pts); cy = sum(y for _, y, _ in pts) / len(pts)
+    for _, _, d in pts: lv.add(round(d / mx * 15))
+    rs = []
+    for k in range(32):
+        an = k * math.pi / 16; r = 0; s = 0
+        while s < W:
+            if (int(cx + 0.5 + math.cos(an) * s), int(cy + 0.5 + math.sin(an) * s)) not in S: break
+            r = s; s += 0.5
+        rs.append(r)
+    m = sum(rs) / 32; sd = (sum((r - m) ** 2 for r in rs) / 32) ** 0.5
+    bx = max(x for x, _, _ in pts) - min(x for x, _, _ in pts) + 1; by = max(y for _, y, _ in pts) - min(y for _, y, _ in pts) + 1
+    out[name] = {'n': len(pts), 'cv': sd / max(1e-6, m), 'levels': len(lv), 'fill': len(pts) / (bx * by)}
+print(json.dumps(out))`;
 const CROP = `
 import sys
 from PIL import Image
@@ -191,16 +278,30 @@ try {
     if (!argv.includes('--no-census')) {
       const hits = {};
       const add = (h) => { for (const [l, n] of Object.entries(h)) hits[l] = Math.max(hits[l] || 0, n); };
-      for (let i = 0; i < 24; i++) { await page.evaluate(() => { window.__sim(0.5); window.__step(3); }); add(await page.evaluate(CENSUS)); }
+      for (let i = 0; i < 24; i++) { await page.evaluate(() => { window.__sim(0.5); window.__step(3); }); add(await page.evaluate(ROUNDS, 'battle')); }
       const c0 = await page.evaluate(() => { const B = window.__G.B; const h = B.heroes.find((u) => u.alive) || B.heroes[0]; return [h.x + 2.5, h.z]; });
       for (const [type, frames] of TYPES) {
         await page.evaluate(FIRE, [type, c0[0], c0[1]]);
-        for (let f = 0; f < frames; f += 3) { await page.evaluate(() => window.__step(3)); add(await page.evaluate(CENSUS)); }
+        for (let f = 0; f < frames; f += 3) { await page.evaluate(() => window.__step(3)); add(await page.evaluate(ROUNDS, 'battle')); }
       }
       res.census[ch] = hits;
       const list = Object.entries(hits);
-      check(list.length === 0, `${k}: effect meshes drawn as a flat circle / ring / glow disc during a boss wave and every fired type: ${list.length}${list.length ? ' — ' + list.map(([l, n]) => `${l} x${n}`).join('; ') : ''}`);
+      check(list.length === 0, `${k}: effect meshes round or soft-round (sphere, circle, ring, cylinder > 8 sides, soft round texture) during a boss wave and every fired type: ${list.length}${list.length ? ' — ' + list.map(([l, n]) => `${l} x${n}`).join('; ') : ''}`);
       await page.evaluate(() => { window.__G.actors.marks.clear(); window.__step(2); });
+    }
+    // ---- E: one still particle of each kind alone, its outline read along 32 rays (chapter 1 only: the shapes are themed by nothing) ----
+    if (ch === CH[0]) {
+      const pts = await page.evaluate(SOLO, [true, PARTS]); await page.evaluate(SOLO_HIDE, true); await page.evaluate(() => window.__step(2));
+      const fOn = path.join(DIR, 'parts-on.png'); await page.locator('#frame').screenshot({ path: fOn, scale: 'css' });
+      await page.evaluate(() => { const G = window.__G; G.actors.fx.beats.sparks.clear(); G.fx.clear(); G.actors.marks.clear(); window.__step(2); });
+      const fOff = path.join(DIR, 'parts-off.png'); await page.locator('#frame').screenshot({ path: fOff, scale: 'css' });
+      await page.evaluate(SOLO_HIDE, false); await page.evaluate(SOLO, [null, PARTS]);
+      const pr = JSON.parse(py(PARTSHAPE, fOn, fOff, JSON.stringify(pts))); res.parts = pr;
+      for (const [name, m] of Object.entries(pr)) {
+        console.log(`particle ${name}: ${m.n} px, outline spread ${m.cv.toFixed(3)} of its mean radius, ${m.levels} brightness levels, fill of its box ${m.fill.toFixed(2)}`);
+        check(m.n > 30, `particle ${name} drawn alone (${m.n} px)`);
+        check(!(m.cv < 0.07 && m.levels >= 3), `particle ${name} is not a soft round dot (outline spread ${m.cv.toFixed(3)} >= 0.07 or < 3 levels)`);
+      }
     }
     // ---- B, C, D: each type alone at a fixed point near the heroes, frozen ----
     await page.evaluate(() => { window.__G.paused = true; });
@@ -239,6 +340,25 @@ try {
     }
     const bad = problems.filter((x) => !/Failed to load resource|\/js\/ui\//.test(x));
     check(bad.length === 0, `${k}: no console problems ${bad.slice(0, 2).join(' | ')}`);
+    await ctx.close();
+  }
+  // ---- F: the evolution stage's own pieces through every beat of one evolution ----
+  {
+    const { ctx, page } = await openPage(br, srv.base, 'xiaomi', 'noaudio=1&q=low', { freeze: true });
+    await page.evaluate(() => { const A = window.__G.meta.acc; A.heroes.tegiap = Object.assign(A.heroes.tegiap || {}, { level: 30, shards: 999, form: 1 }); A.gold = 1e7; for (const k of Object.keys(A.evo.stone)) A.evo.stone[k] = 999; A.evo.core = 99; A.cleared = Math.max(A.cleared, 20); });
+    await page.evaluate(async () => { const m = await import(document.querySelector('script[src*="js/main.js"]').src.replace('main.js', 'ui/evolve.js')); window.__G.goto('heroes', { id: 'tegiap' }); m.openEvolve('tegiap', {}); });
+    await page.evaluate(() => window.__step(40));
+    const hits = {}; const add = (h) => { for (const [l, n] of Object.entries(h)) hits[l] = Math.max(hits[l] || 0, n); };
+    add(await page.evaluate(ROUNDS, 'evolve'));
+    const go = (await page.evaluate(() => window.__ui.targets())).find((q) => q.id === 'evolve-go');
+    await page.touchscreen.tap(go.x + go.w / 2, go.y + go.h / 2); await page.evaluate(() => window.__step(2));
+    const phases = new Set();
+    for (let i = 0; i < 300; i++) { await page.evaluate(() => window.__step(3)); phases.add(await page.evaluate(() => window.__G.evolveUi.phase)); add(await page.evaluate(ROUNDS, 'evolve')); if (phases.has('done')) break; }
+    const pieces = await page.evaluate(() => (window.__G.evolveUi.fx || []).length);
+    res.census.evolve = hits; const list = Object.entries(hits);
+    check(pieces >= 5, `evolution stage lists its own pieces for the census (${pieces})`);
+    check(['cocoon', 'crack', 'burst', 'pose', 'done'].every((p) => phases.has(p)), `evolution walked cocoon, crack, burst, pose, done (${[...phases].join(' ')})`);
+    check(list.length === 0, `evolution stage: round or soft-round pieces through every beat: ${list.length}${list.length ? ' — ' + list.map(([l, n]) => `${l} x${n}`).join('; ') : ''}`);
     await ctx.close();
   }
   fs.writeFileSync(path.join(OUT, `${TAG}.json`), JSON.stringify(res, null, 1));

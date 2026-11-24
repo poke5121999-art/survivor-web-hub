@@ -5,6 +5,7 @@
 //   kind 0 scorch  dark torn blot, embers that cool          kind 3 ink    glossy blot with splatter drops
 //   kind 1 crack   branching fissures glowing then dark       kind 4 scar   a long torn streak (line skills, dashes)
 //   kind 2 frost   pale spikes growing out, sparkle            kind 5 light  a short glow on the floor (a dynamic light)
+import { PXQ, FX_PX } from './pixel.js?v=20261124a';
 const THREE = window.THREE;
 export const DECAL = { scorch: 0, crack: 1, frost: 2, ink: 3, scar: 4, light: 5 };
 
@@ -26,9 +27,10 @@ float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 float vnoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
 float fbm(vec2 p) { return vnoise(p) * 0.55 + vnoise(p * 2.1 + 7.0) * 0.3 + vnoise(p * 4.3 + 3.0) * 0.15; }
+${PXQ}
 void main() {
   float kind = vK.x; float seed = vK.y * 31.0; float age = vK.z;
-  vec2 m = (vUv - 0.5) * 2.0; float d = length(m); float an = atan(m.y, m.x);
+  vec2 m = pxq((vUv - 0.5) * vS, max(${FX_PX.toFixed(3)}, max(vS.x, vS.y) / 28.0)) / (vS * 0.5); float d = length(m); float an = atan(m.y, m.x);
   float edgeN = fbm(vec2(an * 2.2 + seed, seed)) * 0.45 + fbm(m * 3.0 + seed) * 0.25;
   float dark = 0.0; vec3 glow = vec3(0.0);
   float hot = 1.0 - smoothstep(0.0, 0.45, age);          // the light in a mark dies in the first half of its life

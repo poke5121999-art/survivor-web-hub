@@ -6,13 +6,16 @@
 // colour and a crawl of teeth outside its outline, a hero's own skill area is only a thin cool outline and fill front;
 // a shock is a burst of broken dust streaks, a ground flare a spray of rays, the edge wash a ragged glow off the rim.
 import { ARENA } from '../sim/battle.js?v=20261124a';
+import { PXQ, FX_PX, pixTex } from './fx/pixel.js?v=20261124a';
 const THREE = window.THREE;
 
 const NOISE = `
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
-float fbm(vec2 p) { return vnoise(p) * 0.55 + vnoise(p * 2.1 + 7.0) * 0.3 + vnoise(p * 4.3 + 3.0) * 0.15; }`;
+float fbm(vec2 p) { return vnoise(p) * 0.55 + vnoise(p * 2.1 + 7.0) * 0.3 + vnoise(p * 4.3 + 3.0) * 0.15; }
+${PXQ}
+#define PX ${FX_PX.toFixed(3)}`;
 const VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
 
 // One warning per instance: vP = (fill 0..1, opacity, shape 0 circle / 1 line / 2 cone, cone half angle), vS = size (m),
@@ -23,7 +26,7 @@ uniform float uTime; varying vec4 vP; varying vec2 vS; varying vec3 vC; varying 
 ${NOISE}
 void main() {
   float K = vP.x; float A = vP.y; float shape = vP.z; float hang = vP.w;
-  vec2 m = (vUv - 0.5) * vS; float boss = step(1.5, vT); float hero = 1.0 - step(0.5, vT);
+  vec2 m = pxq((vUv - 0.5) * vS, max(PX, max(vS.x, vS.y) / 28.0)); float boss = step(1.5, vT); float hero = 1.0 - step(0.5, vT);
   float edge; float prog; float s;
   if (shape < 0.5) { float R = vS.x * 0.5; float d = length(m); edge = R - d; prog = d / R; s = atan(m.y, m.x) * R; }
   else if (shape < 1.5) { vec2 h = vS * 0.5; edge = min(h.x - abs(m.x), h.y - abs(m.y)); prog = (m.x + h.x) / vS.x; s = m.x + abs(m.y) * 2.0; }
@@ -62,7 +65,7 @@ const ZONE_FRAG = `
 uniform float uStyle; uniform float uT; uniform float uA; uniform float uHalf; uniform vec3 uC1; uniform vec3 uC2; uniform float uR;
 varying vec2 vUv; ${NOISE}
 void main() {
-  vec2 m = (vUv - 0.5) * 2.0; float d = length(m); float an = atan(m.y, m.x);
+  vec2 m = pxq((vUv - 0.5) * 2.0 * uR, max(PX, uR / 14.0)) / uR; float d = length(m); float an = atan(m.y, m.x);
   float edge = uHalf > 0.0 ? min(1.0 - d, (uHalf - abs(an)) * d) : 1.0 - d; edge *= uR;
   edge += (fbm(m * uR * 0.8 + 5.0) - 0.5) * 0.8 - 0.4; // torn outline, pulled inside the quad
   float inside = step(0.0, edge);
@@ -95,14 +98,16 @@ void main() {
   gl_FragColor = vec4(col, a * uA);
 }`;
 
+// what falls on a warning is a block: a stone, a burning lump, a bomb with a lit fuse, a shell with a hot nose, a gob
+const FALL_BOX = (sx, sy, sz, m) => new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m);
 const FALL_LOOK = {
-  rock: () => new THREE.Mesh(new THREE.DodecahedronGeometry(0.75), new THREE.MeshLambertMaterial({ color: 0x8a7a68 })),
-  meteor: () => { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.8, 0), new THREE.MeshBasicMaterial({ color: 0xff8a30 })); return m; },
-  bomb: () => { const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), new THREE.MeshLambertMaterial({ color: 0x2a2e3c }))); const c = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.3, 6), new THREE.MeshBasicMaterial({ color: 0xff4a30 })); c.position.y = 0.55; g.add(c); return g; },
-  shell: () => { const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.0, 8), new THREE.MeshLambertMaterial({ color: 0x8a929e }))); const n = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.4, 8), new THREE.MeshLambertMaterial({ color: 0xff7a30 })); n.position.y = -0.7; n.rotation.x = Math.PI; g.add(n); return g; },
-  acid: () => new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), new THREE.MeshBasicMaterial({ color: 0x9cff3a })),
-  blood: () => new THREE.Mesh(new THREE.SphereGeometry(0.45, 10, 8), new THREE.MeshBasicMaterial({ color: 0xd8203a })),
-  nade: () => new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), new THREE.MeshLambertMaterial({ color: 0x6a8a3a })),
+  rock: () => FALL_BOX(1.2, 1.0, 1.1, new THREE.MeshLambertMaterial({ color: 0x8a7a68 })),
+  meteor: () => FALL_BOX(1.2, 1.2, 1.2, new THREE.MeshBasicMaterial({ color: 0xff8a30 })),
+  bomb: () => { const g = new THREE.Group(); g.add(FALL_BOX(0.8, 0.8, 0.8, new THREE.MeshLambertMaterial({ color: 0x2a2e3c }))); const c = FALL_BOX(0.2, 0.3, 0.2, new THREE.MeshBasicMaterial({ color: 0xff4a30 })); c.position.y = 0.55; g.add(c); return g; },
+  shell: () => { const g = new THREE.Group(); g.add(FALL_BOX(0.4, 1.0, 0.4, new THREE.MeshLambertMaterial({ color: 0x8a929e }))); const n = FALL_BOX(0.28, 0.36, 0.28, new THREE.MeshLambertMaterial({ color: 0xff7a30 })); n.position.y = -0.68; g.add(n); return g; },
+  acid: () => FALL_BOX(0.8, 0.8, 0.8, new THREE.MeshBasicMaterial({ color: 0x9cff3a })),
+  blood: () => FALL_BOX(0.72, 0.72, 0.72, new THREE.MeshBasicMaterial({ color: 0xd8203a })),
+  nade: () => FALL_BOX(0.62, 0.62, 0.62, new THREE.MeshLambertMaterial({ color: 0x6a8a3a })),
 };
 const FALL_H = 22;
 const FALL_SIDE = 7; // a falling shell starts this far to the side and arcs in, so the throw reads from above
@@ -136,7 +141,7 @@ export function createMarks(H) {
       const a = Math.max(0, along * (1 - u * u) * (0.6 + 0.4 * rnd()) * (rnd() < 0.08 ? 0.3 : 1)); const o = (y * 32 + x) * 4;
       img.data[o] = img.data[o + 1] = img.data[o + 2] = 255; img.data[o + 3] = Math.round(255 * Math.min(1, a * 1.6));
     }
-    c.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+    c.putImageData(img, 0, 0); return pixTex(cv, 8, 16);
   })();
   // a ground flare: a spray of uneven rays from a small hot core
   const raysTex = (() => {
@@ -148,17 +153,23 @@ export function createMarks(H) {
       const g = c.createLinearGradient(Math.cos(a) * r0, Math.sin(a) * r0, Math.cos(a) * L, Math.sin(a) * L); g.addColorStop(0, 'rgba(255,255,255,0.7)'); g.addColorStop(1, 'rgba(255,255,255,0)');
       c.fillStyle = g; c.beginPath(); c.moveTo(Math.cos(a - w * 3) * r0, Math.sin(a - w * 3) * r0); c.lineTo(Math.cos(a) * L, Math.sin(a) * L); c.lineTo(Math.cos(a + w * 3) * r0, Math.sin(a + w * 3) * r0); c.closePath(); c.fill();
     }
-    const g = c.createRadialGradient(0, 0, 0, 0, 0, 9); g.addColorStop(0, 'rgba(255,255,255,0.7)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(-9, -9, 18, 18);
-    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+    c.fillStyle = 'rgba(255,255,255,0.7)'; c.fillRect(-5, -5, 10, 10); c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(-9, -9, 18, 18);
+    return pixTex(cv, 32, 32);
   })();
-  // the arena-edge wash: a band just inside the rim with a ragged inner edge, alpha 0 at the rim and at the inner edge
+  // the arena-edge wash: a band of square cells just inside the rim, snapped to a grid like pixels; the outer row is
+  // whole, the inner rows thin out at random, so the inner edge is ragged (unit circle, scaled to the arena)
   const washGeo = (() => {
-    const N = 120; const pos = []; const col = []; const idx = []; let sd = 31; const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
-    const jag = []; for (let i = 0; i < N; i++) jag.push(rnd()); const sm = (i) => (jag[(i + N - 1) % N] + jag[i] * 2 + jag[(i + 1) % N]) / 4;
-    for (let i = 0; i < N; i++) {
-      const t = (i / N) * Math.PI * 2; const c = Math.cos(t); const s2 = Math.sin(t); const rin = 0.72 + sm(i) * 0.16;
-      for (const [r, a] of [[1.0, 0], [0.955, 1], [rin, 0]]) { pos.push(c * r, s2 * r, 0); col.push(1, 1, 1, a); }
-      const k = i * 3; const k2 = ((i + 1) % N) * 3; idx.push(k, k2, k + 1, k2, k2 + 1, k + 1, k + 1, k2 + 1, k + 2, k2 + 1, k2 + 2, k + 2);
+    const pos = []; const col = []; const idx = []; let sd = 31; const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    const C = 0.035; const seen = new Set();
+    const cell = (x, y, a) => {
+      const gx = Math.round(x / C); const gy = Math.round(y / C); const k = gx + ',' + gy; if (seen.has(k)) return; seen.add(k);
+      const cx = gx * C; const cy = gy * C; const h = C * 0.5; const b = pos.length / 3;
+      for (const [dx, dy] of [[-h, -h], [h, -h], [h, h], [-h, h]]) { pos.push(cx + dx, cy + dy, 0); col.push(1, 1, 1, a); }
+      idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+    };
+    for (let i = 0; i < 220; i++) {
+      const t = (i / 220) * Math.PI * 2; const c = Math.cos(t); const s2 = Math.sin(t);
+      for (let row = 0; row < 7; row++) { const r = 0.98 - row * C; const keep = row < 2 ? 1 : 1 - row / 7.5; if (rnd() < keep) cell(c * r, s2 * r, row === 0 ? 0.55 : 1 - row * 0.12); }
     }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); g.setIndex(idx); return g;
   })();
@@ -230,7 +241,7 @@ export function createMarks(H) {
     const mesh = new THREE.Mesh(planeGeo, mat); flat(mesh, e.x, e.z, 0.06); mesh.renderOrder = 4;
     const z = { id: e.id, mesh, uni, age: 0, r: e.r, x: e.x, z: e.z, ang: e.ang || 0, cone: !!e.cone, dur: e.dur, delay: e.delay || 0, team: e.team, look, key: e.key, emit: 0, rate: rate || 0, end: -1, extra: null };
     if (look[4] === 'beam') {
-      const beam = new THREE.Mesh(new THREE.CylinderGeometry(e.r * 0.9, e.r * 0.35, 16, 20, 1, true), new THREE.MeshBasicMaterial({ color: c2, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(e.r * 0.9, e.r * 0.35, 16, 4, 1, true), new THREE.MeshBasicMaterial({ color: c2, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
       beam.position.set(e.x, 8, e.z); scene.add(beam); z.extra = beam;
     } else if (look[4] === 'ball') {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BZtex('glow'), color: 0xbfe8ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
@@ -332,9 +343,9 @@ export function createMarks(H) {
       const v = 1 - y / 63; const [k, h] = col[x]; const top = Math.max(0, 1 - Math.max(0, v - h) / 0.25); const o = (y * W + x) * 4;
       img.data[o] = img.data[o + 1] = img.data[o + 2] = 255; img.data[o + 3] = Math.round(255 * Math.min(1, (0.25 + 0.75 * (1 - v)) * k * top * 1.1));
     }
-    c.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; return t;
+    c.putImageData(img, 0, 0); return pixTex(cv, 16, 16, true);
   })();
-  const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 20, 1, true).translate(0, 0.5, 0);
+  const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true).translate(0, 0.5, 0);
   const VCAP = { pillar: 10, wall: 8, flash: 10 };
   const vpool = { pillar: [], wall: [], flash: [], whirl: [] };
   const reduceFlash = () => !!(window.__G && window.__G.settings && window.__G.settings.reduceFlash);
@@ -351,7 +362,7 @@ export function createMarks(H) {
   // Pillars, walls and flashes are drawn by two instanced batches; each record's mesh is a stand-in outside the scene that
   // holds its position, scale, colour and opacity (the tools read those), copied into the batch every frame.
   const colB = batch(cylGeo, { map: gradTex, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }, VCAP.pillar + VCAP.wall, 6);
-  const flashB = batch(planeGeo, { map: BZtex('glow'), blending: THREE.AdditiveBlending }, VCAP.flash, 6);
+  const flashB = batch(planeGeo, { map: BZtex('glow'), blending: THREE.AdditiveBlending }, VCAP.flash, 6); flashB.mesh.name = 'fx-flash';
   // in the ultimate's close-up (ultcam.js) columns, walls and flashes stand several times bigger and stack to white: halved there
   const closeK = () => { const J = window.__G && window.__G.juice; return J && J.ult && J.ult.active ? 0.5 : 1; };
   const writeCol = (r, M, C) => { if (!r.on || !r.mesh.visible) return 0; const m = r.mesh; M.makeScale(m.scale.x, m.scale.y, m.scale.z); M.setPosition(m.position); C.copy(m.material.color); return m.material.opacity * closeK(); };
@@ -483,15 +494,15 @@ export function createMarks(H) {
   const GH = { cap: 8 };
   const ghostTex = (() => {
     const cv = document.createElement('canvas'); cv.width = 128; cv.height = 256; const c = cv.getContext('2d');
-    c.fillStyle = '#fff'; c.strokeStyle = '#fff'; c.lineCap = 'round';
-    c.beginPath(); c.arc(64, 44, 24, 0, 6.283); c.fill();
+    c.fillStyle = '#fff'; c.strokeStyle = '#fff'; c.lineCap = 'square';
+    c.fillRect(42, 22, 44, 44);
     c.lineWidth = 36; c.beginPath(); c.moveTo(64, 80); c.lineTo(64, 150); c.stroke();
     c.lineWidth = 20; c.beginPath(); c.moveTo(58, 150); c.lineTo(40, 238); c.moveTo(70, 150); c.lineTo(96, 226); c.stroke();
     c.lineWidth = 16; c.beginPath(); c.moveTo(52, 92); c.lineTo(86, 120); c.stroke();
     c.lineWidth = 7; c.beginPath(); c.moveTo(84, 126); c.lineTo(118, 6); c.stroke();
     const g = c.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0.35)');
     c.globalCompositeOperation = 'source-in'; c.fillStyle = g; c.fillRect(0, 0, 128, 256);
-    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+    return pixTex(cv, 16, 32);
   })();
   const ghosts = [];
   function ghost(x, z, color, o = {}) {
@@ -514,7 +525,7 @@ export function createMarks(H) {
 
   // the whirlwind: a funnel of spiral light with spinning arcs, leaves carried up, and a swirl on the floor
   const WH = { cap: 2, H: 5.2, leaves: 34 };
-  const funnelGeo = new THREE.CylinderGeometry(1, 0.34, 1, 36, 8, true).translate(0, 0.5, 0);
+  const funnelGeo = new THREE.CylinderGeometry(1, 0.34, 1, 8, 8, true).translate(0, 0.5, 0);
   // a spinning stroke: a spiral 4.1 rad long, its radius 0.82 to 1, thickest and opaque at its head, a thin fading tail
   const arcGeo = (() => {
     const N = 36; const pos = []; const col = []; const idx = [];
@@ -526,7 +537,7 @@ export function createMarks(H) {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); g.setIndex(idx); return g;
   })();
   const WH_FRAG = `uniform float uT; uniform float uA; uniform vec3 uC1; uniform vec3 uC2; varying vec2 vUv;
-    void main() { float ang = vUv.x * 6.2832; float y = vUv.y;
+    void main() { vec2 q = (floor(vUv * vec2(32.0, 20.0)) + 0.5) / vec2(32.0, 20.0); float ang = q.x * 6.2832; float y = q.y;
       float b1 = smoothstep(0.55, 0.95, sin(ang * 3.0 + y * 9.0 - uT * 11.0) * 0.5 + 0.5);
       float b2 = smoothstep(0.72, 1.0, sin(ang * 5.0 - y * 15.0 + uT * 8.0) * 0.5 + 0.5);
       float fade = smoothstep(0.0, 0.07, y) * (1.0 - smoothstep(0.62, 1.0, y));
