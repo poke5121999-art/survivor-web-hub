@@ -15,7 +15,9 @@ $mine = "$here\worker.mjs"
 $running = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -like "*$mine*" }
 if ($running) { Write-Host "worker anim already running (PID $($running.ProcessId))"; exit 0 }
 $id = "pc:gpu"
-$env:ANIM_ENGINE_CMD = "$home2\bin\anim-gen.cmd"
+# Gọi thẳng python, không qua anim-gen.cmd: node chạy .cmd bằng shell nên prompt có dấu cách bị cắt thành nhiều tham số.
+$env:ANIM_ENGINE_CMD = "`"$home2\venv\Scripts\python.exe`" `"$home2\bin\anim-gen.py`""
+$env:PYTHONIOENCODING = "utf-8"
 $env:ANIM_HOME = $home2
 $env:ANIM_LABEL = "PC $([char]0xB7) GPU (acc linux)"
 $env:ANIM_COMFY_FLAGS = "--disable-smart-memory"
