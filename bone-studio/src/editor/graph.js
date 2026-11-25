@@ -1,6 +1,6 @@
 // Graph view: value-over-time curves of the selected bone's keyed channels, editable keys and bezier handles.
-import { S, doc, run, setTime, currentAnim, selectedBones, toast } from "./state.js?v=20261125n";
-import { curveAt } from "../../runtime/xuong.js?v=20261125n";
+import { S, doc, run, setTime, currentAnim, selectedBones, toast } from "./state.js?v=20261125o";
+import { curveAt } from "../../runtime/xuong.js?v=20261125o";
 
 const CH = [
   { prop: "rotate", field: "value", label: "xoay", color: "#7fd36b" },

@@ -1,7 +1,7 @@
 // Editor state shared by all panels. The document lives in S.hist (History); everything else is view state.
-import { History } from "../history.js?v=20261125n";
-import { emptyDoc } from "../commands.js?v=20261125n";
-import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey, AnimationState, Physics } from "../../runtime/xuong.js?v=20261125n";
+import { History } from "../history.js?v=20261125o";
+import { emptyDoc } from "../commands.js?v=20261125o";
+import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey, AnimationState, Physics } from "../../runtime/xuong.js?v=20261125o";
 
 export const S = {
   hist: new History(emptyDoc()),
@@ -53,11 +53,19 @@ export function startMixPreview(from, to, mix) {
   S.mixPreview = { st, from, to, mix, t: 0, switched: false, fromDur: animationDuration(doc().animations[from]) };
   emit("mix");
 }
+// Layer preview: the animation being edited on track 0, another on track 1 on top (it wins on the bones it keys)
+export function startLayerPreview(base, top) {
+  const st = new AnimationState(skeleton());
+  st.setAnimation(0, base, true); st.setAnimation(1, top, true);
+  S.mixPreview = { st, layer: true, base, top, t: 0 };
+  emit("mix");
+}
 export function stopMixPreview() { S.mixPreview = null; emit("mix"); }
 export function tickMixPreview(dt) {
   const m = S.mixPreview;
   if (!m) return;
   m.t += dt * S.speed;
+  if (m.layer) { m.st.update(dt * S.speed); return; }
   if (!m.switched && m.t >= Math.max(0.6, m.fromDur)) { m.st.setAnimation(0, m.to, true); m.switched = true; }
   if (m.switched && m.t >= Math.max(0.6, m.fromDur) + Math.max(1.2, animationDuration(doc().animations[m.to]))) { m.st.setAnimation(0, m.from, true); m.switched = false; m.t = 0; }
   m.st.update(dt * S.speed);

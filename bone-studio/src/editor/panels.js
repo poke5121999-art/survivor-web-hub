@@ -1,6 +1,6 @@
 // Tree and properties panels.
-import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125n";
-import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125n";
+import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125o";
+import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125o";
 
 const treeEl = document.getElementById("xx-tree"), propsEl = document.getElementById("xx-props"), findEl = document.getElementById("xx-find");
 const collapsed = new Set();
@@ -327,7 +327,7 @@ export function renderProps() {
       (a.type ?? "region") === "region" ? act("Mesh theo viền", async () => {
         const src = S.images.get(a.path ?? sel.name);
         if (!src) return toast("Chưa có ảnh để dò viền", true);
-        const { traceOutline, simplify } = await import("../mesh-trace.js?v=20261125n");
+        const { traceOutline, simplify } = await import("../mesh-trace.js?v=20261125o");
         const c = new OffscreenCanvas(src.width, src.height), g = c.getContext("2d"); g.drawImage(src, 0, 0);
         const img = g.getImageData(0, 0, c.width, c.height), poly = simplify(traceOutline(img), 1.5);
         if (poly.length < 3) return toast("Ảnh trong suốt hết, không dò được viền", true);

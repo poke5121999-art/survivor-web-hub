@@ -1,7 +1,7 @@
 // Timeline: playback bar and dopesheet.
-import { S, doc, emit, on, h, run, setTime, duration, currentAnim, selectedBones, frame, toast, startMixPreview, stopMixPreview, tickMixPreview } from "./state.js?v=20261125n";
-import { drawGraph, graphDown, graphMove, graphUp, graphLegend } from "./graph.js?v=20261125n";
-import { newAnim } from "./panels.js?v=20261125n";
+import { S, doc, emit, on, h, run, setTime, duration, currentAnim, selectedBones, frame, toast, startMixPreview, startLayerPreview, stopMixPreview, tickMixPreview } from "./state.js?v=20261125o";
+import { drawGraph, graphDown, graphMove, graphUp, graphLegend } from "./graph.js?v=20261125o";
+import { newAnim } from "./panels.js?v=20261125o";
 
 const root = document.getElementById("xx-timeline");
 const COLORS = { rotate: "#7fd36b", translate: "#4fb3ff", scale: "#e8504a", shear: "#c07cff", attachment: "#f0d23a", rgba: "#ff8fd0", drawOrder: "#cfcfcf", events: "#ffffff", ik: "#f0a63a", transform: "#8fd3ff", dark: "#b07040" };
@@ -66,6 +66,7 @@ function renderBar() {
   const speed = h("select", { title: "Tốc độ phát", onchange: () => { S.speed = +speed.value; } }, ...[0.25, 0.5, 1, 1.5, 2].map((v) => h("option", { value: v, text: v * 100 + "%", selected: v === S.speed })));
   const curveBtn = (label, curve, tip) => h("button", { text: label, title: tip, disabled: !S.keySel.length, onclick: () => setCurve(curve) });
   const mixTo = h("select", { title: "Trộn sang animation" }, ...anims.filter((n) => n !== S.anim).map((n) => h("option", { value: n, text: "→ " + n })));
+  const layerTo = h("select", { title: "Animation chồng lên (track 2)" }, ...anims.filter((n) => n !== S.anim).map((n) => h("option", { value: n, text: "+ " + n })));
   const mixDur = h("input", { type: "number", min: 0, max: 2, step: 0.05, value: 0.25, title: "Thời gian trộn (giây)", style: "width:58px" });
   const ob = h("input", { type: "number", min: 0, max: 10, value: S.onion.before, title: "Số khung ma phía trước", style: "width:42px", onchange: () => { S.onion.before = +ob.value; } });
   const oa = h("input", { type: "number", min: 0, max: 10, value: S.onion.after, title: "Số khung ma phía sau", style: "width:42px", onchange: () => { S.onion.after = +oa.value; } });
@@ -91,6 +92,9 @@ function renderBar() {
     mixTo, mixDur,
     h("button", { text: S.mixPreview ? "■ Dừng trộn" : "Xem trộn", class: S.mixPreview ? "is-on" : "", title: "Phát animation đang sửa rồi chuyển mượt sang animation đã chọn, lặp lại", disabled: !S.anim || anims.length < 2,
       onclick: () => { if (S.mixPreview) stopMixPreview(); else startMixPreview(S.anim, mixTo.value, +mixDur.value); renderBar(); } }),
+    layerTo,
+    h("button", { text: S.mixPreview?.layer ? "■ Dừng chồng" : "Chồng", class: S.mixPreview?.layer ? "is-on" : "", title: "Phát animation đang sửa (track 1) và animation đã chọn (track 2) cùng lúc; track 2 đè lên các bone nó có key (ví dụ đi + vẫy tay)", disabled: !S.anim || anims.length < 2,
+      onclick: () => { if (S.mixPreview) stopMixPreview(); else startLayerPreview(S.anim, layerTo.value); renderBar(); } }),
   );
 }
 

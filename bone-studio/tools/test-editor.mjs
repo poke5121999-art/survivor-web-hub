@@ -481,6 +481,32 @@ try {
     return `biên độ ${r.range.toFixed(0)}°, bước lớn nhất ${r.maxJump.toFixed(1)}°/khung`;
   });
 
+  await step("chồng track: walk (track 1) + attack (track 2): tay theo attack, chân vẫn bước theo walk", async () => {
+    const pd = await open("?sample=pharaoh");
+    const r = await pd.evaluate(async () => {
+      __BS.setMode("animate"); __BS.S.anim = "walk"; __BS.emit("anim");
+      await new Promise((res) => setTimeout(res, 100));
+      const sel = [...document.querySelectorAll(".xx-tl-bar select")].find((x) => x.options[0]?.text.startsWith("+"));
+      sel.value = "attack";
+      [...document.querySelectorAll(".xx-tl-bar button")].find((b) => b.textContent === "Chồng").click();
+      const X = await import("./runtime/xuong.js?v=" + document.querySelector("script[type=module]").src.split("v=")[1]);
+      const d = __BS.doc(), sk = X.buildSkeleton(d), arm = sk.boneIndex.get("tay-phai-tren"), leg = sk.boneIndex.get("chan-trai-dui");
+      const legs = [], armErr = [];
+      for (let n = 0; n < 40; n++) {
+        await new Promise((res) => requestAnimationFrame(res));
+        const p = __BS.pose(), t0 = __BS.S.mixPreview.st.tracks[0], t1 = __BS.S.mixPreview.st.tracks[1];
+        const loop = (tr) => (tr.duration > 0 ? tr.time % tr.duration : 0);
+        legs.push(p.bones[leg].rotation);
+        armErr.push(Math.abs(p.bones[arm].rotation - X.poseAt(sk, d.animations.attack, loop(t1)).bones[arm].rotation));
+        void t0;
+      }
+      return { legRange: Math.max(...legs) - Math.min(...legs), armErr: Math.max(...armErr), on: !!__BS.S.mixPreview?.layer };
+    });
+    await pd.close();
+    assert(r.on && r.legRange > 3 && r.armErr < 1, JSON.stringify(r));
+    return `chân dao động ${r.legRange.toFixed(1)}°, tay lệch attack tối đa ${r.armErr.toFixed(2)}°`;
+  });
+
   await step("không có lỗi JS", async () => { const e = [...page.logs, ...(await page.evaluate(() => window.__errors))]; assert(!e.length, e.join(" | ")); });
 } finally {
   await br.close();

@@ -1,11 +1,11 @@
 // "Cắt part": one whole-character image → rig parts. Heuristic proposal offline, joints editable, then accepted live.
-import { S, doc, emit, h, toast } from "./state.js?v=20261125n";
-import { analyze } from "../split/index.js?v=20261125n";
-import { heuristicSkeleton, segment, cutParts, rigCommands } from "../split/rig.js?v=20261125n";
-import { opaqueBounds } from "../split/pixels.js?v=20261125n";
-import { blobToCanvas, canvasToRgba, rgbaToCanvas, canvasToBlob, setImage } from "./io.js?v=20261125n";
-import { send } from "./agent.js?v=20261125n";
-import { signedIn } from "./api.js?v=20261125n";
+import { S, doc, emit, h, toast } from "./state.js?v=20261125o";
+import { analyze } from "../split/index.js?v=20261125o";
+import { heuristicSkeleton, segment, cutParts, rigCommands } from "../split/rig.js?v=20261125o";
+import { opaqueBounds } from "../split/pixels.js?v=20261125o";
+import { blobToCanvas, canvasToRgba, rgbaToCanvas, canvasToBlob, setImage } from "./io.js?v=20261125o";
+import { send } from "./agent.js?v=20261125o";
+import { signedIn } from "./api.js?v=20261125o";
 
 const PAL = ["#e65050", "#50c878", "#5a8cf0", "#f0c83c", "#c85adc", "#3cd2dc", "#fa8c3c", "#9696ff", "#a0e65a", "#ff78b4", "#c8a064", "#dcdcdc", "#5a5ac8", "#28a05a", "#ff5a5a", "#78b4ff", "#ffd278"];
 

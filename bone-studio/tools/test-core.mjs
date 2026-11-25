@@ -471,3 +471,18 @@ test("mesh vertex edit: add inside (same look, weights interpolated), remove (re
   assert.equal(d.animations.x.deform.default.m.m[0].vertices.length, n0 * 2);
   assert.ok(Math.max(...att(d).triangles) < n0);
 });
+
+test("AnimationState layering: track 1 overrides only the bones it keys, track 0 drives the rest", async () => {
+  const { AnimationState } = await import("../runtime/xuong.js");
+  const d = run(emptyDoc(), [...ARM,
+    { type: "anim.add", name: "di" }, { type: "anim.add", name: "vay" },
+    { type: "key.set", anim: "di", track: { bone: "upper", prop: "rotate" }, time: 0, value: 10 },
+    { type: "key.set", anim: "di", track: { bone: "lower", prop: "rotate" }, time: 0, value: 20 },
+    { type: "key.set", anim: "vay", track: { bone: "lower", prop: "rotate" }, time: 0, value: -50 },
+  ]);
+  const sk = buildSkeleton(d), st = new AnimationState(sk);
+  st.setAnimation(0, "di", true); st.setAnimation(1, "vay", true); st.update(0.1);
+  const p = setupPose(sk); st.apply(p); updateWorld(sk, p);
+  near(p.bones[sk.boneIndex.get("upper")].rotation, 90 + 10);
+  near(p.bones[sk.boneIndex.get("lower")].rotation, -50);
+});
