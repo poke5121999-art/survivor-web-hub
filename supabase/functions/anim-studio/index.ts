@@ -156,6 +156,7 @@ function parseParams(p: any) {
     seed,
     steps: steps === null ? null : Math.round(steps),
     remove_bg: p.remove_bg === true,
+    pixel_snap: [2, 3, 4].includes(p.pixel_snap) ? p.pixel_snap : null,
     rewrite: p.rewrite !== false,
     only_worker: str(p.only_worker, 200) || null,
   };

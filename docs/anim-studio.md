@@ -94,5 +94,5 @@ Xuất ở trình duyệt, đúng các khung đang giữ: sprite sheet PNG (ch�
 - Engine thật: `~/anim-studio/bin/anim-gen` (ComfyUI cổng 8190). FramePack ~11 phút cho clip 2 s, cần MemAvailable sàn ~13 GB. Worker `lowmem` khi VRAM trống dưới 6 GB: nếu ComfyUI 8190 còn nằm trong VRAM thì `anim-gen --stop-server` trước.
 - PC không có engine nên không chạy worker PC.
 - Khởi động lại: `ssh linux 'timeout 30 tmux kill-session -t anim-worker'` rồi
-  `ssh linux 'timeout 30 tmux new-session -d -s anim-worker "cd ~/anim-worker/app && ANIM_ENGINE_CMD=\$HOME/anim-studio/bin/anim-gen node worker.mjs --id linux:claude --label \"Linux · claude\" --account claude --priority 0 --delay 0 --engine framepack --work-dir \$HOME/anim-worker 2>&1 | tee -a \$HOME/anim-worker/stdout.log"'`.
+  `ssh linux 'timeout 30 tmux new-session -d -s anim-worker "cd ~/anim-worker/app && ANIM_ENGINE_CMD=\$HOME/anim-studio/bin/anim-gen node worker.mjs --id linux:claude --label \"Linux · claude\" --account claude --priority 0 --delay 0 --engine framepack --min-free-vram 4 --work-dir \$HOME/anim-worker 2>&1 | tee -a \$HOME/anim-worker/stdout.log"'`.
 - Tuỳ chọn trang "Giữ lưới pixel" (tắt/2/3/4) truyền `params.pixel_snap` thành `--pixel-snap K`.

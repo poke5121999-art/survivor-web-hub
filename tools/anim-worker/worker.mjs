@@ -28,7 +28,7 @@ const DEFAULTS = {
   claim_delay_s: +(A.delay ?? env.ANIM_DELAY ?? 0),
   max_minutes: +(A["max-minutes"] ?? env.ANIM_MAX_MINUTES ?? 30),
   engine_default: A.engine ?? env.ANIM_ENGINE ?? "auto",
-  min_free_gb: +(LOCAL_MIN_RAM ?? 20),
+  min_free_gb: +(LOCAL_MIN_RAM ?? (WIN ? 20 : 12)),
 };
 const WORK_DIR = resolve(A["work-dir"] ?? env.ANIM_WORK_DIR ?? join(homedir(), "anim-worker"));
 const CONFIG_DIR = A["config-dir"] ?? env.ANIM_CONFIG_DIR ?? null;
@@ -147,7 +147,7 @@ function vramFreeGb() {
 }
 /** null = đủ chỗ; chuỗi = lý do thiếu. Không đo được (không có nvidia-smi...) thì bỏ qua mục đó. */
 function memoryGate() {
-  const minRam = +(LOCAL_MIN_RAM ?? config.min_free_gb ?? 20);
+  const minRam = +(LOCAL_MIN_RAM ?? config.min_free_gb ?? DEFAULTS.min_free_gb);
   const ram = ramFreeGb(), vram = vramFreeGb();
   const what = WIN ? "commit" : "RAM";
   if (ram !== null && ram < minRam) return `${what} trống ${ram.toFixed(1)} GB < ${minRam} GB`;
@@ -267,6 +267,7 @@ async function runJob(job) {
     const eargs = [...pre, "--engine", engine, "--image", inFile, "--prompt", prompt, "--seconds", String(seconds), "--seed", String(seed)];
     if (Number.isInteger(par.steps)) eargs.push("--steps", String(par.steps));
     if (par.remove_bg) eargs.push("--remove-bg");
+    if ([2, 3, 4].includes(par.pixel_snap)) eargs.push("--pixel-snap", String(par.pixel_snap));
     eargs.push("--out", outDir);
     log(`engine: ${bin} ${eargs.join(" ")}`);
     setStage("load"); say({ stage: "load", msg: `engine ${engine}, ${seconds} s, seed ${seed}` });
@@ -337,6 +338,10 @@ async function runJob(job) {
   } finally {
     clearInterval(ticker);
     if (engineChild) killTree(engineChild);
+    // The engine's model server keeps ~12 GB RAM and VRAM after a job; on a shared machine
+    // that starves other users and trips our own lowmem gate, so free it after every job.
+    const [sbin, ...spre] = splitCmd(ENGINE_CMD);
+    await run(sbin, [...spre, "--stop-server"], { timeout: 60000, shell: WIN && /\.(cmd|bat)$/i.test(sbin) }).catch((e) => log(`stop-server lỗi: ${e.message}`));
   }
 }
 
