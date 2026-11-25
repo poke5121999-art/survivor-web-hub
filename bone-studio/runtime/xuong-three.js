@@ -1,12 +1,12 @@
 // three.js adapter for Xưởng Xương skeletons (three r160+, ESM).
 //   import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-//   import { loadSkeleton } from "./xuong-player.js?v=20261125i";
-//   import { XuongMesh } from "./xuong-three.js?v=20261125i";
+//   import { loadSkeleton } from "./xuong-player.js?v=20261125j";
+//   import { XuongMesh } from "./xuong-three.js?v=20261125j";
 //   const m = new XuongMesh(THREE, await loadSkeleton("pharaoh.xuong.json"), { pixelsPerUnit: 100 });
 //   m.play("walk"); scene.add(m); mỗi khung: m.update(dt);
 // Một BufferGeometry cho mỗi (trang atlas, additive hay không); vị trí/uv/màu dựng lại mỗi khung từ drawList.
 // Thứ tự vẽ giữ nguyên trong từng geometry (thứ tự tam giác); giữa các geometry dùng renderOrder theo slot đầu tiên.
-import { buildSkeleton, setupPose, updateWorld, drawList, AnimationState, bounds as listBounds } from "./xuong.js?v=20261125i";
+import { buildSkeleton, setupPose, updateWorld, Physics, drawList, AnimationState, bounds as listBounds } from "./xuong.js?v=20261125j";
 
 // XuongMesh là Object3D của THREE được truyền vào: `new XuongMesh(THREE, data, opts)` trả về một lớp con của THREE.Object3D
 // (dựng một lần cho mỗi bản THREE). Lớp này chỉ mang các phương thức bên dưới.
@@ -45,6 +45,7 @@ Object.defineProperties(XuongMesh.prototype, Object.fromEntries(Object.entries({
     this.pose = setupPose(this.sk, this.skin);
     this.state.apply(this.pose);
     updateWorld(this.sk, this.pose);
+    if (this.sk.physics.length) { (this.physics ??= new Physics(this.sk)).step(this.pose, dt); this.physics.apply(this.pose); }
     this._rebuild();
     const ev = this._events; this._events = [];
     return ev;

@@ -1,8 +1,8 @@
 // Export bundles shared by the editor and bone-cli. Pixel access goes through an adapter so the same code runs on
 // canvas (browser) and on plain RGBA buffers (Node): io = { size(path), blit(page, path, x, y), newPage(w, h), encode(page) }.
-import { pack } from "./pack.js?v=20261125i";
-import { writeAtlas, sequencePath } from "../runtime/xuong.js?v=20261125i";
-import { toSpine } from "./spine-io.js?v=20261125i";
+import { pack } from "./pack.js?v=20261125j";
+import { writeAtlas, sequencePath } from "../runtime/xuong.js?v=20261125j";
+import { toSpine } from "./spine-io.js?v=20261125j";
 
 export function usedImages(doc) {
   const set = new Set();

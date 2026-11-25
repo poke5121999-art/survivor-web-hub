@@ -293,6 +293,7 @@ try {
     const [ax, ay] = await scr("front-hand");
     const before = JSON.stringify(await p7.evaluate(() => __BS.pose().bones.map((b) => [b.wx, b.wy])));
     await p7.evaluate(() => __BS.select({ kind: "bone", name: "front-lower-arm" }));
+    await p7.waitForTimeout(150); // let the panel and viewport settle (a drag started mid-render once missed the bone on Pages)
     const [lx, ly] = await scr("front-lower-arm");
     await p7.mouse.move(r.x + lx, r.y + ly); await p7.mouse.down();
     const goal = [ax - 25, ay - 30];
@@ -306,6 +307,38 @@ try {
     await p7.close();
     assert(after === before, "undo không đưa tư thế về như trước khi kéo");
     return `đầu ${rot0}° → ${rot}°; clipping còn ${(clipInfo.ratio * 100).toFixed(0)}% đầu; bàn tay theo chuột lệch ${Math.hypot(nx - goal[0], ny - goal[1]).toFixed(1)} px`;
+  });
+
+  await step("physics: nút + Physics trên bone kiếm, khi phát attack kiếm trễ theo tay rồi dừng phát thì về tư thế tĩnh", async () => {
+    const p8 = await open("?sample=robo");
+    await p8.evaluate(() => __BS.select({ kind: "bone", name: "sword" }));
+    await p8.locator("#xx-props button", { hasText: "+ Physics" }).click();
+    const ph = await p8.evaluate(() => __BS.doc().physics);
+    assert(ph?.length === 1 && ph[0].bone === "sword", JSON.stringify(ph));
+    await p8.evaluate(() => { __BS.setMode("animate"); __BS.S.anim = "attack"; __BS.setTime(0); __BS.emit("anim"); });
+    await p8.keyboard.press("Space");
+    let maxDiff = 0;
+    for (let i = 0; i < 12; i++) {
+      await p8.waitForTimeout(60);
+      const diff = await p8.evaluate(async () => {
+        const X = await import("./runtime/xuong.js?v=" + document.querySelector("script[type=module]").src.split("v=")[1]);
+        const d = __BS.doc(), sk = X.buildSkeleton(d), t = __BS.S.time, i = sk.boneIndex.get("sword");
+        const a = __BS.pose(t).bones[i], b = X.poseAt(sk, d.animations.attack, t).bones[i];
+        return Math.abs(((Math.atan2(a.c, a.a) - Math.atan2(b.c, b.a)) * 180 / Math.PI + 540) % 360 - 180);
+      });
+      maxDiff = Math.max(maxDiff, diff);
+    }
+    await p8.keyboard.press("Space");
+    const still = await p8.evaluate(async () => {
+      const X = await import("./runtime/xuong.js?v=" + document.querySelector("script[type=module]").src.split("v=")[1]);
+      const d = __BS.doc(), sk = X.buildSkeleton(d), t = __BS.S.time, i = sk.boneIndex.get("sword");
+      const a = __BS.pose(t).bones[i], b = X.poseAt(sk, d.animations.attack, t).bones[i];
+      return Math.abs(a.a - b.a) + Math.abs(a.c - b.c);
+    });
+    await p8.close();
+    assert(maxDiff > 2, `kiếm không trễ khi phát: lệch tối đa ${maxDiff}°`);
+    assert(still < 1e-6, "dừng phát mà tư thế vẫn có physics");
+    return `kiếm lệch tối đa ${maxDiff.toFixed(1)}° khi phát, 0 khi dừng`;
   });
 
   await step("xem trộn walk → attack: góc tay đổi liên tục, không nhảy cóc", async () => {

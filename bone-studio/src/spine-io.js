@@ -1,6 +1,6 @@
 // Spine-compatible JSON: import (3.8 and 4.0–4.2) and export (4.2), written from the public format docs.
-import { emptyDoc } from "./commands.js?v=20261125i";
-import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds, findKey, transformMixes, TRANSFORM_MIXES as TC_MIX } from "../runtime/xuong.js?v=20261125i";
+import { emptyDoc } from "./commands.js?v=20261125j";
+import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds, findKey, transformMixes, PHYSICS_DEFAULTS, TRANSFORM_MIXES as TC_MIX } from "../runtime/xuong.js?v=20261125j";
 const TC_OFF = ["rotation", "x", "y", "scaleX", "scaleY", "shearY"];
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -57,6 +57,8 @@ export function toSpine(doc, { imagesPath = "./images/" } = {}) {
     if (c.relative) o.relative = true;
     return o;
   });
+  // physics: Spine 4.2 has the same fields; damping/strength feel differs (our spring is our own), see docs
+  if (doc.physics?.length) json.physics = doc.physics.map((c, i) => ({ order: (doc.ik?.length ?? 0) + (doc.transform?.length ?? 0) + i, ...PHYSICS_DEFAULTS, ...c }));
   json.skins = doc.skins.map((k) => {
     const atts = {};
     for (const [slot, m] of Object.entries(k.attachments)) {
@@ -189,7 +191,13 @@ export function fromSpine(json, { name = "Nhập từ JSON" } = {}) {
     const ikOrd = ord((json.ik ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0))), tcOrd = ord(json.transform);
     if ([...ikOrd, ...tcOrd].some((v, i, all) => i && v < all[i - 1])) { doc.ik.forEach((c, i) => (c.order = ikOrd[i])); doc.transform.forEach((c, i) => (c.order = tcOrd[i])); }
   }
-  for (const k of ["path", "physics"]) if (json[k]?.length) warnings.push(`${json[k].length} ${k} constraint chưa hỗ trợ, bị bỏ qua`);
+  if (json.physics?.length) doc.physics = json.physics.map((c) => {
+    const o = { name: c.name, bone: c.bone };
+    for (const k of ["x", "y", "rotate", "inertia", "strength", "damping", "mass", "wind", "gravity", "mix", "limit", "fps"]) if (c[k] !== undefined) o[k] = c[k];
+    if (o.rotate === undefined && o.x === undefined && o.y === undefined) o.rotate = 0; // Spine: nothing driven unless set
+    return o;
+  });
+  if (json.path?.length) warnings.push(`${json.path.length} path constraint chưa hỗ trợ, bị bỏ qua`);
   const skins = Array.isArray(json.skins) ? json.skins : Object.entries(json.skins ?? {}).map(([n, attachments]) => ({ name: n, attachments }));
   doc.skins = skins.map((k) => {
     const attachments = {};

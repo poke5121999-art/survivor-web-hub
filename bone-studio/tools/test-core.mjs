@@ -312,3 +312,32 @@ test("sequence attachment: frame per mode, image path, Spine round trip; deform 
   const vtx = (doc, t) => { const sk = buildSkeleton(doc); return Array.from(drawList(sk, poseAt(sk, doc.animations.chay, t)).find((x) => x.slot === "m").verts); };
   for (const t of [0.25, 0.5, 0.9]) vtx(d, t).forEach((v, i) => near(v, vtx(back, t)[i], 1e-2));
 });
+
+test("physics: a swinging parent makes the child lag, then it settles back; gravity makes it droop; Spine round trip", async () => {
+  const { Physics } = await import("../runtime/xuong.js");
+  const { toSpine, fromSpine } = await import("../src/spine-io.js");
+  const d = run(emptyDoc(), [
+    { type: "bone.add", name: "tay", x: 0, y: 0, rotation: 0, length: 20 },
+    { type: "bone.add", name: "toc", parent: "tay", x: 20, rotation: 0, length: 20 },
+    { type: "physics.add", name: "lac", bone: "toc", strength: 60, damping: 0.25 },
+  ]);
+  const sk = buildSkeleton(d), sim = new Physics(sk);
+  const frame = (rot, dt = 1 / 60) => { const p = setupPose(sk); p.bones[sk.boneIndex.get("tay")].rotation = rot; updateWorld(sk, p); sim.step(p, dt); sim.apply(p); const b = p.bones[sk.boneIndex.get("toc")]; return Math.atan2(b.c, b.a) * 180 / Math.PI; };
+  frame(0);
+  let lagged = 0;
+  for (let i = 1; i <= 20; i++) lagged = Math.max(lagged, i * 3 - frame(i * 3)); // parent sweeps to 60° at 180°/s
+  assert.ok(lagged > 5, `đầu tóc không trễ: ${lagged}`);
+  let a = 0;
+  for (let i = 0; i < 240; i++) a = frame(60); // parent stops: 4 s later the child is back in line
+  near(a, 60, 0.5);
+  const g = buildSkeleton(run(d, [{ type: "physics.set", name: "lac", props: { gravity: 2000 } }])), sg = new Physics(g);
+  let ang = 0;
+  for (let i = 0; i < 240; i++) { const p = setupPose(g); updateWorld(g, p); sg.step(p, 1 / 60); sg.apply(p); const b = p.bones[g.boneIndex.get("toc")]; ang = Math.atan2(b.c, b.a) * 180 / Math.PI; }
+  assert.ok(ang < -10, `trọng lực không kéo xuống: ${ang}`);
+  const { doc: back, warnings } = fromSpine(JSON.parse(JSON.stringify(toSpine(d))));
+  assert.deepEqual(warnings, []);
+  const sb = buildSkeleton(back), simB = new Physics(sb), sim2 = new Physics(sk);
+  for (let i = 0; i < 30; i++) for (const [S2, P2] of [[sk, sim2], [sb, simB]]) { const p = setupPose(S2); p.bones[S2.boneIndex.get("tay")].rotation = i * 3; updateWorld(S2, p); P2.step(p, 1 / 60); P2.apply(p); const tb = p.bones[S2.boneIndex.get("toc")]; P2.last = Math.atan2(tb.c, tb.a); }
+  near(simB.last, sim2.last, 1e-6);
+  assert.equal(back.physics[0].strength, 60);
+});

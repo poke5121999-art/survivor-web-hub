@@ -49,6 +49,7 @@ doc = {
 - Clipping (`type: "clipping"`, `end: <slot>`): cắt mọi slot vẽ sau nó tới hết slot `end`. Cắt tam giác ngay trong `drawList` (CPU), nên canvas2D, bone-cli và three.js đều có.
 - Tint black: `slot.dark` (`rrggbb`), key `{slot, prop: "dark"}`; chỗ đen của ảnh thành màu tối, chỗ trắng thành màu slot. Xuất Spine thành timeline `rgba2`. Runtime three.js chưa vẽ tint black.
 - Sequence: attachment có `sequence: { count, start, digits, setup }`, ảnh là `path + số`; key `{sequence: {skin, slot, attachment}}` với `mode` hold/once/loop/pingpong (+Reverse), `index`, `delay`.
+- Physics giản lược (`physics.add/set/remove`): đầu bone treo trên lò xo tắt dần (độ cứng `strength`, giảm nảy `damping`, 1 = không nảy, quán tính `inertia`, gió, trọng lực), áp lên xoay và/hoặc dời. Chỉ chạy khi phát (XuongPlayer, XuongMesh, editor đang phát); tư thế tĩnh (`poseAt`, bone-cli render) không có physics. Xuất/nhập cùng tên trường với Spine 4.2 nhưng lò xo là cách tính riêng nên cảm giác khác.
 - Bounding box, point: lưu và xuất như Spine; editor vẽ khung xanh (bounding box), đỏ nét đứt (clipping), dấu chữ thập (point).
 
 ## Command

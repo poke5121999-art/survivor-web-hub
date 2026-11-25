@@ -83,7 +83,8 @@ export function buildSkeleton(doc) {
   // constraint order: explicit "order" first, otherwise IK before transform, each in list order
   const constraints = [...ik.map((c, n) => ({ kind: "ik", n, order: c.order ?? n })), ...transform.map((c, n) => ({ kind: "transform", n, order: c.order ?? ik.length + n }))]
     .sort((a, b) => a.order - b.order);
-  return { doc, bones, boneIndex: index, order, slots, slotIndex, ik, transform, constraints };
+  const physics = (doc.physics ?? []).map((c) => ({ ...PHYSICS_DEFAULTS, ...c, boneIdx: index.get(c.bone) })).filter((c) => c.boneIdx !== undefined);
+  return { doc, bones, boneIndex: index, order, slots, slotIndex, ik, transform, constraints, physics };
 }
 
 // ---- pose --------------------------------------------------------------------------------------
@@ -107,6 +108,54 @@ export function updateWorld(sk, pose) {
   for (const c of sk.constraints ?? []) {
     if (c.kind === "ik") applyIk(sk, pose, sk.ik[c.n], pose.ik[c.n]);
     else applyTransform(sk, pose, sk.transform[c.n], pose.transform?.[c.n] ?? transformMixes(sk.transform[c.n]));
+  }
+}
+
+// ---- physics (simplified) ----------------------------------------------------------------------
+// The bone's tip hangs on a damped spring: when the bone moves, the tip lags behind (inertia), then springs back
+// (strength) and settles (damping, 1 = no overshoot). Wind pushes along world x, gravity pulls down. The lag is
+// applied as rotation (rotate) and/or translation (x, y) of the bone, times mix. Needs time, so it runs only in
+// players that step it (XuongPlayer, XuongMesh, editor playback); still poses (poseAt) have no physics.
+export const PHYSICS_DEFAULTS = { x: 0, y: 0, rotate: 1, inertia: 0.5, strength: 100, damping: 0.5, mass: 1, wind: 0, gravity: 0, mix: 1, limit: 5000, fps: 60 };
+export class Physics {
+  constructor(sk) { this.sk = sk; this.reset(); }
+  reset() { this.st = this.sk.physics.map(() => ({ init: false, ox: 0, oy: 0, vx: 0, vy: 0, lx: 0, ly: 0, acc: 0 })); }
+  tip(pose, c) { const b = pose.bones[c.boneIdx], len = this.sk.bones[c.boneIdx].length || 0; return [b.wx + b.a * len, b.wy + b.c * len]; }
+  // pose: world transforms computed, physics not yet applied
+  step(pose, dt) {
+    this.sk.physics.forEach((c, n) => {
+      const s = this.st[n], [tx, ty] = this.tip(pose, c);
+      if (!s.init) { Object.assign(s, { init: true, lx: tx, ly: ty }); return; }
+      s.ox -= (tx - s.lx) * c.inertia; s.oy -= (ty - s.ly) * c.inertia;
+      s.lx = tx; s.ly = ty;
+      const h = 1 / c.fps, k = c.strength / c.mass, damp = 2 * Math.sqrt(k) * c.damping;
+      s.acc = Math.min(s.acc + dt, 0.25);
+      while (s.acc >= h) {
+        s.acc -= h;
+        s.vx += (-k * s.ox - damp * s.vx + c.wind / c.mass) * h;
+        s.vy += (-k * s.oy - damp * s.vy - c.gravity / c.mass) * h;
+        s.ox += s.vx * h; s.oy += s.vy * h;
+        const m = Math.hypot(s.ox, s.oy);
+        if (m > c.limit) { s.ox *= c.limit / m; s.oy *= c.limit / m; }
+      }
+    });
+  }
+  apply(pose) {
+    this.sk.physics.forEach((c, n) => {
+      const s = this.st[n], i = c.boneIdx, p = pose.bones[i], pi = this.sk.bones[i].parentIndex, q = pi < 0 ? null : pose.bones[pi];
+      if (!s.init || !c.mix) return;
+      if (c.x || c.y) {
+        const wx = s.ox * c.x * c.mix, wy = s.oy * c.y * c.mix;
+        if (q) { const det = q.a * q.d - q.b * q.c || 1e-9; p.x += (q.d * wx - q.b * wy) / det; p.y += (q.a * wy - q.c * wx) / det; } else { p.x += wx; p.y += wy; }
+        worldOf(this.sk, pose, i);
+      }
+      const len = this.sk.bones[i].length;
+      if (c.rotate && len > 0) {
+        const vx = p.a * len, vy = p.c * len, d = (Math.atan2(vy + s.oy, vx + s.ox) - Math.atan2(vy, vx)) / DEG;
+        p.rotation += (q && q.a * q.d - q.b * q.c < 0 ? -1 : 1) * wrap180(d) * c.rotate * c.mix;
+      }
+      updateChildren(this.sk, pose, i);
+    });
   }
 }
 

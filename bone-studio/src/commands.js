@@ -1,8 +1,8 @@
 // Command registry. Every change to a document, from the UI, the agent, the CLI or a test, is one of these.
 // apply(doc, cmd) is pure: it returns a new doc and the exact inverse (a $patch command).
-import { transaction, applyPatch } from "./tx.js?v=20261125i";
-import { gridMesh, autoWeights, hangWeights, unweight, movedVertices } from "./mesh.js?v=20261125i";
-import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125i";
+import { transaction, applyPatch } from "./tx.js?v=20261125j";
+import { gridMesh, autoWeights, hangWeights, unweight, movedVertices } from "./mesh.js?v=20261125j";
+import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125j";
 
 export const FORMAT = "xuong";
 export const VERSION = 1;
@@ -37,6 +37,8 @@ const curveArg = (c) => {
 const boneIdx = (doc, n) => { const i = doc.bones.findIndex((b) => b.name === n); return i >= 0 ? i : bad(`không có bone "${n}"`); };
 const slotIdx = (doc, n) => { const i = doc.slots.findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có slot "${n}"`); };
 const skinIdx = (doc, n) => { const i = doc.skins.findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có skin "${n}"`); };
+const phIdx = (doc, n) => { const i = (doc.physics ?? []).findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có physics "${n}"`); };
+const PH_NUM = ["x", "y", "rotate", "inertia", "strength", "damping", "mass", "wind", "gravity", "mix", "limit", "fps"];
 const tcIdx = (doc, n) => { const i = (doc.transform ?? []).findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có transform constraint "${n}"`); };
 const ikIdx = (doc, n) => { const i = (doc.ik ?? []).findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có IK "${n}"`); };
 const animOf = (doc, n) => doc.animations[n] ?? bad(`không có animation "${n}"`);
@@ -241,6 +243,7 @@ export const COMMANDS = {
       t.set(["slots"], doc.slots.map((s) => (s.bone === n ? { ...s, bone: to } : s)));
       t.set(["ik"], (doc.ik ?? []).map((c) => ({ ...c, bones: c.bones.map((b) => (b === n ? to : b)), target: c.target === n ? to : c.target })));
       if (doc.transform) t.set(["transform"], doc.transform.map((c) => ({ ...c, bones: c.bones.map((b) => (b === n ? to : b)), target: c.target === n ? to : c.target })));
+      if (doc.physics) t.set(["physics"], doc.physics.map((c) => (c.bone === n ? { ...c, bone: to } : c)));
       mapAnimations(t, (an, a) => {
         if (a.bones?.[n]) { t.set(["animations", an, "bones", to], a.bones[n]); t.del(["animations", an, "bones", n]); }
       });
@@ -283,6 +286,7 @@ export const COMMANDS = {
       t.set(["slots"], doc.slots.filter((s) => !slotsGone.has(s.name)));
       t.set(["ik"], (doc.ik ?? []).filter((c) => !gone.has(c.target) && !c.bones.some((b) => gone.has(b))));
       if (doc.transform) t.set(["transform"], doc.transform.filter((c) => !gone.has(c.target) && !c.bones.some((b) => gone.has(b))));
+      if (doc.physics) t.set(["physics"], doc.physics.filter((c) => !gone.has(c.bone)));
       doc.skins.forEach((s, k) => { for (const sn of slotsGone) if (s.attachments[sn]) t.del(["skins", k, "attachments", sn]); });
       mapAnimations(t, (an, a) => {
         for (const bn of gone) if (a.bones?.[bn]) dropEmpty(t, ["animations", an, "bones", bn]);
@@ -551,6 +555,36 @@ export const COMMANDS = {
       t.set(["transform"], doc.transform.filter((c) => c.name !== n));
       mapAnimations(t, (an, a) => { if (a.transform?.[n]) dropEmpty(t, ["animations", an, "transform", n]); });
     },
+  },
+
+  "physics.add": {
+    help: "Thêm physics giản lược (đầu bone treo trên lò xo, đung đưa khi bone chuyển động): { name, bone, rotate = 1, x = 0, y = 0 (mức áp lên xoay / dời, 0..1), inertia = 0.5, strength = 100 (độ cứng lò xo), damping = 0.5 (1 = không nảy), mass = 1, wind = 0, gravity = 0, mix = 1 }. Chỉ chạy khi phát (player, editor đang phát).",
+    run(t, a, doc) {
+      const n = name(a.name, "name");
+      if ((doc.physics ?? []).some((c) => c.name === n)) bad(`đã có physics "${n}"`);
+      boneIdx(doc, a.bone);
+      const c = { name: n, bone: a.bone };
+      for (const k of PH_NUM) if (a[k] !== undefined) c[k] = num(a[k], k);
+      if (c.mass !== undefined && c.mass <= 0) bad("mass: phải > 0");
+      t.set(["physics"], [...(doc.physics ?? []), c]);
+    },
+  },
+  "physics.set": {
+    help: "Sửa physics: { name, props: { bone, rotate, x, y, inertia, strength, damping, mass, wind, gravity, mix } }",
+    run(t, { name: n, props }, doc) {
+      const i = phIdx(doc, n), c = { ...doc.physics[i] };
+      for (const [k, v] of Object.entries(props ?? {})) {
+        if (k === "bone") { boneIdx(doc, v); c.bone = v; }
+        else if (PH_NUM.includes(k)) c[k] = num(v, k);
+        else bad(`thuộc tính physics lạ "${k}"`);
+      }
+      if (c.mass !== undefined && c.mass <= 0) bad("mass: phải > 0");
+      t.set(["physics", i], c);
+    },
+  },
+  "physics.remove": {
+    help: "Xoá physics: { name }",
+    run(t, { name: n }, doc) { phIdx(doc, n); t.set(["physics"], doc.physics.filter((c) => c.name !== n)); },
   },
 
   "anim.add": {

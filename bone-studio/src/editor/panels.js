@@ -1,6 +1,6 @@
 // Tree and properties panels.
-import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125i";
-import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125i";
+import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125j";
+import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125j";
 
 const treeEl = document.getElementById("xx-tree"), propsEl = document.getElementById("xx-props"), findEl = document.getElementById("xx-find");
 const collapsed = new Set();
@@ -81,6 +81,7 @@ export function renderTree() {
   Object.keys(d.events).forEach((n) => out.push(row(1, "⚑", n, ["event", n])));
 
   if (d.ik?.length) { out.push(group("IK")); d.ik.forEach((c) => out.push(row(1, "⟳", c.name, ["ik", c.name], { tag: `→ ${c.target}` }))); }
+  if (d.physics?.length) { out.push(group("Physics")); d.physics.forEach((c) => out.push(row(1, "≈", c.name, ["physics", c.name], { tag: c.bone }))); }
   if (d.transform?.length) { out.push(group("Transform")); d.transform.forEach((c) => out.push(row(1, "⇉", c.name, ["transform", c.name], { tag: `← ${c.target}` }))); }
 
   out.push(group("Animation", gbtn("+", "Thêm animation", newAnim)));
@@ -227,6 +228,10 @@ export function renderProps() {
       act("+ Bone con", addChildBone),
       S.mode === "setup" ? act("+ Slot", () => { const n = uniqueName(d.slots.map((s) => s.name), b.name); run({ type: "slot.add", name: n, bone: b.name }, "Thêm slot"); }) : act("Key tất cả (K)", () => window.XX.keyNow()),
       selectedBones().length === 2 ? act("+ IK 2 bone", () => window.XX.addIk()) : null,
+      S.mode === "setup" ? act("+ Physics", () => {
+        const name = uniqueName((d.physics ?? []).map((c) => c.name), `${b.name}-lac`);
+        if (run({ type: "physics.add", name, bone: b.name }, "Thêm physics")) { select({ kind: "physics", name }); toast("Physics chỉ chạy khi phát animation (Space)"); }
+      }) : null,
       selectedBones().length >= 2 && S.mode === "setup" ? act("+ Transform", () => {
         // the bone clicked last is the target; the others copy its transform, keeping where they are now (offsets)
         const target = S.sel.name, bones = selectedBones().filter((n) => n !== target), name = uniqueName((d.transform ?? []).map((c) => c.name), `${bones[0]}-theo-${target}`);
@@ -335,6 +340,16 @@ export function renderProps() {
     out.push(actions(act("Mở để sửa", () => { S.anim = sel.name; S.mode = "animate"; emit("mode"); }),
       act("Nhân bản", () => { const n = prompt("Tên bản sao", sel.name + "-2"); if (n) run({ type: "anim.duplicate", name: sel.name, to: n }); }),
       act("Xoá", () => { if (confirm(`Xoá animation "${sel.name}"?`) && run({ type: "anim.remove", name: sel.name })) { if (S.anim === sel.name) S.anim = null; select(null); } }, true)));
+  } else if (sel.kind === "physics") {
+    const c = d.physics?.find((x) => x.name === sel.name);
+    if (!c) return propsEl.replaceChildren();
+    const set = (props) => run({ type: "physics.set", name: c.name, props });
+    out.push(title("physics", c.name));
+    out.push(h("p", { class: "xx-note", text: `Đầu bone ${c.bone} treo trên lò xo, đung đưa khi bone chuyển động. Chỉ chạy khi phát animation.` }));
+    out.push(selectField("Bone", c.bone, d.bones.map((x) => [x.name, x.name]), (v) => set({ bone: v })));
+    const F = { rotate: ["Áp lên xoay", 0.05, 1], x: ["Áp lên dời X", 0.05, 0], y: ["Áp lên dời Y", 0.05, 0], inertia: ["Quán tính", 0.05, 0.5], strength: ["Độ cứng", 5, 100], damping: ["Giảm nảy (1 = không nảy)", 0.05, 0.5], mass: ["Khối lượng", 0.1, 1], wind: ["Gió (X)", 10, 0], gravity: ["Trọng lực", 10, 0], mix: ["Mix", 0.05, 1] };
+    for (const [k, [label, step, dflt]] of Object.entries(F)) out.push(numField(label, c[k] ?? dflt, (v) => set({ [k]: k === "mass" ? Math.max(0.01, v) : v }), { step }));
+    out.push(actions(act("Xoá", () => { if (run({ type: "physics.remove", name: c.name })) select(null); }, true)));
   } else if (sel.kind === "transform") {
     const c = d.transform?.find((x) => x.name === sel.name);
     if (!c) return propsEl.replaceChildren();

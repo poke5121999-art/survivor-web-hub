@@ -1,7 +1,7 @@
 // Editor state shared by all panels. The document lives in S.hist (History); everything else is view state.
-import { History } from "../history.js?v=20261125i";
-import { emptyDoc } from "../commands.js?v=20261125i";
-import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey, AnimationState } from "../../runtime/xuong.js?v=20261125i";
+import { History } from "../history.js?v=20261125j";
+import { emptyDoc } from "../commands.js?v=20261125j";
+import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey, AnimationState, Physics } from "../../runtime/xuong.js?v=20261125j";
 
 export const S = {
   hist: new History(emptyDoc()),
@@ -62,7 +62,14 @@ export function tickMixPreview(dt) {
   if (m.switched && m.t >= Math.max(0.6, m.fromDur) + Math.max(1.2, animationDuration(doc().animations[m.to]))) { m.st.setAnimation(0, m.from, true); m.switched = false; m.t = 0; }
   m.st.update(dt * S.speed);
 }
-export function poseAtTime(time, { withOverrides = true } = {}) {
+// physics runs only while playing in animate mode: stepped once per frame (stepPhysics), applied to every pose
+export function stepPhysics(dt) {
+  const sk = skeleton();
+  if (!S.playing || S.mode !== "animate" || !sk?.physics?.length) { S.physicsSim = null; return; }
+  if (S.physicsSim?.sk !== sk) S.physicsSim = new Physics(sk);
+  S.physicsSim.step(poseAtTime(S.time, { physics: false }), dt);
+}
+export function poseAtTime(time, { withOverrides = true, physics = true } = {}) {
   const sk = skeleton();
   if (!sk) return null;
   if (S.mixPreview && withOverrides) { const p = setupPose(sk, S.skin); S.mixPreview.st.apply(p); updateWorld(sk, p); return p; }
@@ -75,6 +82,7 @@ export function poseAtTime(time, { withOverrides = true } = {}) {
     }
   }
   updateWorld(sk, pose);
+  if (physics && withOverrides && S.playing && S.physicsSim?.sk === sk) S.physicsSim.apply(pose);
   return pose;
 }
 

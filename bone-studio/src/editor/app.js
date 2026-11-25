@@ -3,14 +3,14 @@ window.__errors = [];
 window.addEventListener("error", (e) => window.__errors.push(String(e.message || e)));
 window.addEventListener("unhandledrejection", (e) => window.__errors.push(String(e.reason?.message || e.reason)));
 
-const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime } = await import("./state.js?v=20261125i");
-const VP = await import("./viewport.js?v=20261125i");
-const { renderTree, renderProps } = await import("./panels.js?v=20261125i");
-const TL = await import("./timeline.js?v=20261125i");
-const IO = await import("./io.js?v=20261125i");
-const AG = await import("./agent.js?v=20261125i");
-const { importWhole } = await import("./splitui.js?v=20261125i");
-const CL = await import("./cloud.js?v=20261125i");
+const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime, stepPhysics } = await import("./state.js?v=20261125j");
+const VP = await import("./viewport.js?v=20261125j");
+const { renderTree, renderProps } = await import("./panels.js?v=20261125j");
+const TL = await import("./timeline.js?v=20261125j");
+const IO = await import("./io.js?v=20261125j");
+const AG = await import("./agent.js?v=20261125j");
+const { importWhole } = await import("./splitui.js?v=20261125j");
+const CL = await import("./cloud.js?v=20261125j");
 
 const $ = (id) => document.getElementById(id);
 const app = $("app"), modal = $("xx-modal");
@@ -122,9 +122,9 @@ async function openDialog() {
 }
 async function openSample(name) {
   const base = name === "pharaoh" ? "samples/pharaoh/project" : "samples/robo";
-  const d = await (await fetch(`${base}/doc.json?v=20261125i`)).json();
+  const d = await (await fetch(`${base}/doc.json?v=20261125j`)).json();
   const images = {};
-  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125i`)).blob(); }));
+  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125j`)).blob(); }));
   await IO.loadProject(d, images);
   toast(`Đã mở mẫu ${d.name}`);
 }
@@ -253,7 +253,7 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   TL.tick(dt);
-  try { VP.draw(); TL.drawTimeline(); } catch (e) { if (!frame.err) { frame.err = true; console.error(e); window.__errors.push("draw: " + e.message); } }
+  try { stepPhysics(dt * S.speed); VP.draw(); TL.drawTimeline(); } catch (e) { if (!frame.err) { frame.err = true; console.error(e); window.__errors.push("draw: " + e.message); } }
   $("xx-metrics").textContent = VP.metrics();
   requestAnimationFrame(frame);
 }
