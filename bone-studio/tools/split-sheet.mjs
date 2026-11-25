@@ -34,7 +34,7 @@ export function sheetFor(src, r) {
   for (let i = 0; i < grid.data.length; i += 4) grid.data.set([32, 34, 40, 255], i);
   r.parts.forEach((p, k) => {
     if (!p) return;
-    const s = Math.min(Math.floor((cell - 8) / Math.max(p.image.width, p.image.height)) || 1, 4);
+    const s = Math.min((cell - 8) / Math.max(p.image.width, p.image.height), 4);
     const up = upscale(p.image, s), ox = (k % cols) * cell + 4, oy = Math.floor(k / cols) * cell + 4, c = PAL[k % PAL.length];
     for (let y = 0; y < up.height; y++) for (let x = 0; x < up.width; x++) {
       const i = (y * up.width + x) * 4, o = ((oy + y) * grid.width + ox + x) * 4;

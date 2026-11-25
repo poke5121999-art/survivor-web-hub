@@ -1,0 +1,21 @@
+robo-mau.png
+size: 256, 128
+filter: Linear, Linear
+sword
+bounds: 1, 1, 8, 64
+torso
+bounds: 11, 1, 40, 60
+head
+bounds: 53, 1, 44, 40
+thigh
+bounds: 99, 1, 16, 38
+shin
+bounds: 117, 1, 14, 36
+upper-arm
+bounds: 133, 1, 14, 34
+lower-arm
+bounds: 149, 1, 12, 30
+hand
+bounds: 163, 1, 16, 16
+foot
+bounds: 181, 1, 28, 12

@@ -1,6 +1,6 @@
 // One-call pipeline: whole character image → rig parts + commands. Same code in the browser and in bone-cli.
-import { removeBackground, detectScale, toNative, opaqueBounds } from "./pixels.js";
-import { heuristicSkeleton, segment, cutParts, rigCommands } from "./rig.js";
+import { removeBackground, detectScale, toNative, opaqueBounds } from "./pixels.js?v=20261125b";
+import { heuristicSkeleton, segment, cutParts, rigCommands } from "./rig.js?v=20261125b";
 
 export function analyze(src) {
   const bg = removeBackground(src);

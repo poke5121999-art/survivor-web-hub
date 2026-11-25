@@ -1,6 +1,6 @@
 // Viewport: draws the skeleton with canvas2D, handles picking, gizmos, bone creation, pan and zoom.
-import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js";
-import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG } from "../../runtime/xuong.js";
+import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125b";
+import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG } from "../../runtime/xuong.js?v=20261125b";
 
 const cv = document.getElementById("xx-canvas");
 const ctx = cv.getContext("2d");
@@ -264,9 +264,12 @@ cv.addEventListener("pointerdown", (e) => {
   }
   const hit = pick(sx, sy, { bonesOnly: S.tool === "pose" });
   const add = e.ctrlKey || e.metaKey || e.shiftKey;
-  if (!hit) { if (!add) select(null); drag = { box: { x0: sx, y0: sy } }; return; }
-  const already = (hit.kind === "bone" && selectedBones().includes(hit.name) && S.sel?.kind === "bone") || (hit.kind === "slot" && S.sel?.kind === "slot" && S.sel.name === hit.name);
-  if (!already || add) select(hit, add);
+  const transformTool = ["rotate", "translate", "scale"].includes(S.tool);
+  if (!hit && (add || !transformTool || !S.sel || !["bone", "slot"].includes(S.sel.kind))) { if (!add) select(null); drag = { box: { x0: sx, y0: sy } }; return; }
+  if (hit) {
+    const already = (hit.kind === "bone" && selectedBones().includes(hit.name) && S.sel?.kind === "bone") || (hit.kind === "slot" && S.sel?.kind === "slot" && S.sel.name === hit.name);
+    if (!already || add) select(hit, add);
+  }
   // start a transform drag on the selected bone (a slot drag moves its attachment in setup, its bone in animate)
   let bone = S.sel?.kind === "bone" ? S.sel.name : null;
   if (S.sel?.kind === "slot") {

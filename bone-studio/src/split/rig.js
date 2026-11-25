@@ -1,7 +1,7 @@
 // From a native-grid image and a skeleton spec to rig parts: labels, hidden-pixel fill, cropped part images, commands.
 // Skeleton spec (coordinates in SOURCE image pixels, y down):
 //   { joints: { name: [x, y] }, parts: [{ name, from, to, parent? }] }   parts listed bottom → top (draw order)
-import { img } from "./pixels.js";
+import { img } from "./pixels.js?v=20261125b";
 
 // ---- masks -------------------------------------------------------------------------------------
 export function alphaMask(im) {
@@ -77,6 +77,54 @@ export function heuristicSkeleton(native, scale = 1, phase = [0, 0]) {
   const rowSpan = (y) => { let a = -1, b = -1; for (let x = 0; x < w; x++) if (main[y * w + x]) { if (a < 0) a = x; b = x; } return [a, b]; };
   const runs = (y) => { const out = []; let s = -1; for (let x = 0; x <= w; x++) { const on = x < w && main[y * w + x]; if (on && s < 0) s = x; if (!on && s >= 0) { out.push([s, x - 1]); s = -1; } } return out; };
   const cx = (a) => (a[0] + a[1]) / 2;
+  const toSrcOut = (J, parts, source) => {
+    const joints = {};
+    for (const [k, v] of Object.entries(J)) joints[k] = [Math.round(((v[0] + 0.5) * scale + phase[0]) * 10) / 10, Math.round(((v[1] + 0.5) * scale + phase[1]) * 10) / 10];
+    return { joints, parts, root: parts[0] ? parts.find((p) => p.parent === "hong")?.from ?? parts[0].from : null, source };
+  };
+  const footRuns = runs(Math.round(y1 - bh * 0.1)).filter((q) => q[1] - q[0] >= 1);
+  if (footRuns.length >= 3) {
+    // quadruped: legs are the runs at the bottom, body above them, head on the heavier end, tail on the other
+    let legTop = y1;
+    while (legTop > y0 && runs(legTop).filter((q) => q[1] - q[0] >= 1).length >= 3) legTop--;
+    const mid = Math.round((y0 + legTop) / 2), [bx0, bx1] = rowSpan(Math.max(y0, legTop - 1));
+    const mass = (xa, xb) => { let n = 0; for (let y = y0; y <= y1; y++) for (let x = xa; x <= xb; x++) n += main[y * w + x]; return n; };
+    const q4 = Math.round(bw / 4), headRight = mass(x1 - q4, x1) >= mass(x0, x0 + q4);
+    const end = (right) => { let best = null; for (let i = 0; i < w * h; i++) if (mask[i]) { const x = i % w, y = (i / w) | 0; if (y > legTop) continue; const sc = (right ? x : -x) * 2 - y; if (!best || sc > best.sc) best = { sc, p: [x, y] }; } return best.p; };
+    const front = headRight ? bx1 - (bx1 - bx0) * 0.15 : bx0 + (bx1 - bx0) * 0.15, back = headRight ? bx0 + (bx1 - bx0) * 0.15 : bx1 - (bx1 - bx0) * 0.15;
+    const J = { hip: [back, mid], shoulder: [front, mid], head_tip: end(headRight), tail_tip: end(!headRight) };
+    const legs = footRuns.slice(0, 4).sort((a, b) => a[0] - b[0]);
+    const P = [];
+    legs.forEach((r, i) => {
+      const x = cx(r), atFront = headRight ? x > (bx0 + bx1) / 2 : x < (bx0 + bx1) / 2;
+      J[`leg${i}_top`] = [x, legTop - 1]; J[`leg${i}_knee`] = [x, (legTop + y1) / 2]; J[`leg${i}_foot`] = [x, y1];
+      P.push({ i, atFront, far: i % 2 === 0 });
+    });
+    const parts = [];
+    for (const l of P.filter((l) => l.far)) parts.push({ name: `chan-${l.i + 1}-tren`, from: `leg${l.i}_top`, to: `leg${l.i}_knee`, parent: l.atFront ? "than" : "hong-sau" }, { name: `chan-${l.i + 1}-duoi`, from: `leg${l.i}_knee`, to: `leg${l.i}_foot`, parent: `chan-${l.i + 1}-tren` });
+    parts.push({ name: "duoi", from: "hip", to: "tail_tip", parent: "hong-sau" });
+    parts.unshift({ name: "hong-sau", from: "hip", to: "shoulder", parent: "hong" });
+    parts.push({ name: "than", from: "hip", to: "shoulder", parent: "hong" }, { name: "dau", from: "shoulder", to: "head_tip", parent: "than" });
+    for (const l of P.filter((l) => !l.far)) parts.push({ name: `chan-${l.i + 1}-tren`, from: `leg${l.i}_top`, to: `leg${l.i}_knee`, parent: l.atFront ? "than" : "hong-sau" }, { name: `chan-${l.i + 1}-duoi`, from: `leg${l.i}_knee`, to: `leg${l.i}_foot`, parent: `chan-${l.i + 1}-tren` });
+    // the back half is only a bone for the hind legs and tail; drop its own part so the body keeps those pixels
+    parts.shift();
+    for (const p of parts) if (p.parent === "hong-sau") p.parent = "than";
+    return toSrcOut(J, parts, "heuristic-4-chan");
+  }
+  let split2 = false;
+  for (let y = y1; y > y0 + bh * 0.5 && !split2; y--) split2 = runs(y).filter((q) => q[1] - q[0] >= 1).length >= 2;
+  if (!split2) {
+    // blob: one squashy body; a narrow cap on top (hat, ears, crest) becomes its own part
+    let maxW = 0;
+    for (let y = y0; y <= y1; y++) { const [a, b] = rowSpan(y); if (a >= 0) maxW = Math.max(maxW, b - a + 1); }
+    let capBase = y0;
+    while (capBase < y1) { const [a, b] = rowSpan(capBase); if (a >= 0 && b - a + 1 > maxW * 0.6) break; capBase++; }
+    const [ca, cb] = rowSpan(Math.max(y0, capBase - 1));
+    const J = { base: [(x0 + x1) / 2, y1], top: [(x0 + x1) / 2, capBase], cap_base: [(ca + cb) / 2, capBase], cap_top: [(ca + cb) / 2, y0] };
+    const parts = [{ name: "than", from: "base", to: "top", parent: "hong" }];
+    if (capBase - y0 > bh * 0.12) parts.push({ name: "dinh", from: "cap_base", to: "cap_top", parent: "than" });
+    return toSrcOut(J, parts, "heuristic-khoi");
+  }
   // head: centre of the top 18 % of the body
   let hx = 0, hn = 0;
   for (let y = y0; y < y0 + bh * 0.18; y++) { const [a, b] = rowSpan(y); if (a >= 0) { hx += (a + b) / 2; hn++; } }

@@ -3,13 +3,13 @@ window.__errors = [];
 window.addEventListener("error", (e) => window.__errors.push(String(e.message || e)));
 window.addEventListener("unhandledrejection", (e) => window.__errors.push(String(e.reason?.message || e.reason)));
 
-const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime } = await import("./state.js");
-const VP = await import("./viewport.js");
-const { renderTree, renderProps } = await import("./panels.js");
-const TL = await import("./timeline.js");
-const IO = await import("./io.js");
-const AG = await import("./agent.js");
-const { importWhole } = await import("./splitui.js");
+const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime } = await import("./state.js?v=20261125b");
+const VP = await import("./viewport.js?v=20261125b");
+const { renderTree, renderProps } = await import("./panels.js?v=20261125b");
+const TL = await import("./timeline.js?v=20261125b");
+const IO = await import("./io.js?v=20261125b");
+const AG = await import("./agent.js?v=20261125b");
+const { importWhole } = await import("./splitui.js?v=20261125b");
 
 const $ = (id) => document.getElementById(id);
 const app = $("app"), modal = $("xx-modal");
@@ -119,9 +119,9 @@ async function openDialog() {
 }
 async function openSample(name) {
   const base = name === "pharaoh" ? "samples/pharaoh/project" : "samples/robo";
-  const d = await (await fetch(`${base}/doc.json?v=20261125a`)).json();
+  const d = await (await fetch(`${base}/doc.json?v=20261125b`)).json();
   const images = {};
-  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125a`)).blob(); }));
+  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125b`)).blob(); }));
   await IO.loadProject(d, images);
   toast(`Đã mở mẫu ${d.name}`);
 }

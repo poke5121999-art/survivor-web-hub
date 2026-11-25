@@ -1,7 +1,7 @@
 // Agent panel: prompt → job → live event stream applied as one undo group.
-import { S, doc, emit, h, toast, selectedBones } from "./state.js";
-import { api, uploadFiles, publicUrl, signedIn, MOCK, mockPut } from "./api.js";
-import { bundle, setImage } from "./io.js";
+import { S, doc, emit, h, toast, selectedBones } from "./state.js?v=20261125b";
+import { api, uploadFiles, publicUrl, signedIn, MOCK, mockPut } from "./api.js?v=20261125b";
+import { bundle, setImage } from "./io.js?v=20261125b";
 
 const pane = document.getElementById("xx-pane-agent");
 const log = h("div", { class: "xx-agent-log" });

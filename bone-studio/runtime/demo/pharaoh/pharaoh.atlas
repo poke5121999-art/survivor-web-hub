@@ -1,0 +1,37 @@
+pharaoh.png
+size: 512, 128
+filter: Linear, Linear
+gay
+bounds: 1, 1, 15, 91
+tay-trai-tren
+bounds: 18, 1, 41, 69
+than
+bounds: 61, 1, 36, 66
+dau
+bounds: 99, 1, 51, 55
+vay
+bounds: 152, 1, 24, 34
+tay-trai-duoi
+bounds: 178, 1, 31, 33
+lua
+bounds: 211, 1, 30, 33
+chan-phai-dui
+bounds: 243, 1, 23, 33
+tay-phai-tren
+bounds: 268, 1, 20, 31
+chan-trai-dui
+bounds: 290, 1, 32, 28
+tay-phai-duoi
+bounds: 324, 1, 30, 23
+tay-trai-ban
+bounds: 356, 1, 14, 18
+chan-trai-ong
+bounds: 372, 1, 16, 14
+chan-phai-ong
+bounds: 390, 1, 8, 14
+tay-phai-ban
+bounds: 400, 1, 11, 13
+chan-trai-ban
+bounds: 413, 1, 10, 9
+chan-phai-ban
+bounds: 425, 1, 7, 6

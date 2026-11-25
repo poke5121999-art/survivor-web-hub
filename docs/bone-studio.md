@@ -137,3 +137,31 @@ Trả `{ ok: true, ... }` hoặc `{ ok: false, error: { code, message } }`.
 
 Như Xưởng VFX: `linux:claude` priority 0, hai tài khoản PC priority 1 và 2, `claim_delay_s` 20 s. Worker priority lớn hơn
 nhường job mới trong `claim_delay_s` giây nếu còn worker priority nhỏ hơn đang bật, online và rảnh. Admin chỉnh trên tab Máy.
+
+## Chạy thử và kiểm
+
+Mọi lệnh chạy từ thư mục repo. Trình duyệt headless cần `export PLAYWRIGHT_PATH=$HOME/.cache/pw-node/node_modules/playwright-core`.
+
+| Lệnh | Kiểm gì |
+|---|---|
+| `node --test bone-studio/tools/test-core.mjs` | reducer, undo chính xác, world transform, IK, curve, đổi cha giữ vị trí, round-trip JSON Spine, atlas |
+| `node bone-studio/tools/test-editor.mjs` | trình duyệt thật: nhập ảnh, tạo bone bằng chuột, Ctrl+click ảnh, xoay + undo, auto key, phát, xuất → nhập lại so từng pixel, lưu → mở lại, agent giả, tự cắt part. `BASE=https://poke5121999-art.github.io/survivor-web-hub` để chạy trên Pages |
+| `node bone-studio/tools/test-agent-mock.mjs` | server giả + worker + fake-claude: event tới dần, job xong, doc cuối đúng, đo độ trễ |
+| `node bone-studio/tools/test-agent-live.mjs [--mode split --sample pharaoh-raw]` | trang editor + server giả + worker + **Claude thật** (tốn token): canvas đổi dần, một undo bỏ cả lượt |
+| `node bone-studio/tools/make-sample.mjs`, `make-pharaoh.mjs` | dựng lại hai dự án mẫu bằng command |
+| `node bone-studio/tools/split-sheet.mjs <ảnh> <out.png> [--skeleton s.json]` | bảng duyệt tự cắt part |
+| `node bone-studio/tools/bump.mjs` | đổi cache key `?v=` cho mọi file trình duyệt tải (chạy trước mỗi lần deploy) |
+
+`?mock=1`: agent giả trong trang. `?api=http://127.0.0.1:<port>`: trỏ trang vào `tools/bone-worker/mock-server.mjs`.
+`?sample=pharaoh|robo|empty`: mở mẫu.
+
+## Deploy
+
+1. Edge Function (cần Supabase access token):
+   ```
+   npx -y supabase@2.120.0 secrets set BONE_WORKER_KEY=<khoá> --project-ref jvdguaecnllejdmgytia
+   timeout 400 npx -y supabase@2.120.0 functions deploy bone-studio --project-ref jvdguaecnllejdmgytia --use-api --no-verify-jwt
+   ```
+   Có thể dùng chung giá trị với `VFX_WORKER_KEY`; worker đọc `~/.bone-worker-key`, nếu không có thì `~/.vfx-worker-key`.
+2. Worker: Linux `sh tools/bone-worker/start-linux.sh` (tmux `claude:bone-worker`), PC `powershell -File tools/bone-worker/start-pc.ps1`.
+3. Trang tĩnh: `node bone-studio/tools/bump.mjs`, chạy các test ở trên, `git push origin HEAD:main`, đợi Pages ~70 s, chạy lại `test-editor.mjs` với `BASE=`.

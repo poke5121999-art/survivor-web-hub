@@ -1,6 +1,6 @@
 // Tree and properties panels.
-import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js";
-import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js";
+import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125b";
+import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125b";
 
 const treeEl = document.getElementById("xx-tree"), propsEl = document.getElementById("xx-props"), findEl = document.getElementById("xx-find");
 const collapsed = new Set();

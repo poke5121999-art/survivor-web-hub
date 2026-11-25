@@ -11,7 +11,8 @@ const HELP = `bone-cli split <lệnh>
   auto <ảnh.png> [--skeleton s.json] [--prefix p] [--no-fill]
                                          cắt part theo khung xương (mặc định: gợi ý tự động), thêm ảnh, bone, slot vào dự án
 Khung xương: { "joints": { "tên": [x, y] }, "parts": [{ "name", "from", "to", "parent" }], "root": "tên khớp" }
-  x, y theo pixel ảnh gốc (gốc trên-trái, y xuống). parts xếp theo thứ tự vẽ dưới → trên.`;
+  x, y theo pixel ảnh gốc (gốc trên-trái, y xuống). parts xếp theo thứ tự vẽ dưới → trên.
+  parent "hong" là bone gốc split auto tự tạo ở khớp root; mỗi part thành một bone + slot + ảnh cùng tên.`;
 
 export async function splitCli({ dir, doc, pos, opt, saveDoc, logEvent, die }) {
   const sub = pos[0];
@@ -45,8 +46,16 @@ export async function splitCli({ dir, doc, pos, opt, saveDoc, logEvent, die }) {
     let next;
     try { next = applyAll(doc, r.commands).doc; } catch (e) { die(e.message); }
     saveDoc(next);
-    for (const p of r.parts) if (p) logEvent({ kind: "image", path: (typeof opt.prefix === "string" ? opt.prefix : "") + p.name });
-    logEvent({ kind: "cmds", cmds: r.commands, note: "tự cắt part" });
+    // the artist watches: bones first, then one part at a time
+    const pre = r.commands.filter((c) => c.type === "doc.set" || c.type === "bone.add");
+    logEvent({ kind: "cmds", cmds: pre, note: `dựng ${pre.length - 1} bone theo khung xương` });
+    const rest = r.commands.filter((c) => !pre.includes(c));
+    for (let i = 0; i < rest.length; i += 3) {
+      const chunk = rest.slice(i, i + 3), img = chunk.find((c) => c.type === "image.add");
+      await new Promise((res) => setTimeout(res, opt.fast ? 0 : 150));
+      if (img) logEvent({ kind: "image", path: img.path });
+      logEvent({ kind: "cmds", cmds: chunk, ...(i === 0 ? { note: "cắt từng part" } : {}) });
+    }
     return console.log(`ok: ${r.parts.filter(Boolean).length} part, hệ số pixel ${r.scale}, lưới gốc ${r.native.width}x${r.native.height}, vẽ bù ${r.parts.reduce((s, p) => s + (p?.added ?? 0), 0)} pixel`);
   }
   die(`lệnh split lạ "${sub}"\n${HELP}`);

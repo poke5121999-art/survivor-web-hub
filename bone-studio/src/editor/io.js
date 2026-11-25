@@ -1,10 +1,10 @@
 // Saving, loading, importing and exporting in the browser.
-import { S, doc, emit, h, toast, run, skeleton } from "./state.js";
-import { emptyDoc } from "../commands.js";
-import { exportBundle, usedImages } from "../export.js";
-import { fromSpine } from "../spine-io.js";
-import { zip, unzip } from "../zip.js";
-import { parseAtlas, poseAt, drawList, draw2d, bounds, animationDuration, buildSkeleton } from "../../runtime/xuong.js";
+import { S, doc, emit, h, toast, run, skeleton } from "./state.js?v=20261125b";
+import { emptyDoc } from "../commands.js?v=20261125b";
+import { exportBundle, usedImages } from "../export.js?v=20261125b";
+import { fromSpine } from "../spine-io.js?v=20261125b";
+import { zip, unzip } from "../zip.js?v=20261125b";
+import { parseAtlas, poseAt, drawList, draw2d, bounds, animationDuration, buildSkeleton } from "../../runtime/xuong.js?v=20261125b";
 
 // ---- images ------------------------------------------------------------------------------------
 export async function blobToCanvas(blob) {

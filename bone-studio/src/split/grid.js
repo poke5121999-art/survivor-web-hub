@@ -1,5 +1,5 @@
 // Coordinate grid overlay with digit labels, so a person or an agent can read exact source-pixel positions.
-import { img, upscale } from "./pixels.js";
+import { img, upscale } from "./pixels.js?v=20261125b";
 const FONT = { 0: "111101101101111", 1: "010110010010111", 2: "111001111100111", 3: "111001111001111", 4: "101101111001001", 5: "111100111001111", 6: "111100111101111", 7: "111001001001001", 8: "111101111101111", 9: "111101111001111" };
 export function text(im, x, y, s, color, k = 2) {
   for (const ch of String(s)) {
