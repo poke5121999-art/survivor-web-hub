@@ -1,7 +1,7 @@
 // Editor state shared by all panels. The document lives in S.hist (History); everything else is view state.
 import { History } from "../history.js?v=20261125d";
 import { emptyDoc } from "../commands.js?v=20261125d";
-import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey } from "../../runtime/xuong.js?v=20261125d";
+import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey, AnimationState } from "../../runtime/xuong.js?v=20261125d";
 
 export const S = {
   hist: new History(emptyDoc()),
@@ -44,9 +44,28 @@ export function skeleton() {
 export const currentAnim = () => (S.anim ? doc().animations[S.anim] : null);
 export const duration = () => animationDuration(currentAnim());
 
+// Crossfade preview: plays `from`, then mixes into `to` over `mix` seconds, looping the pair. Viewport only.
+export function startMixPreview(from, to, mix) {
+  const sk = skeleton();
+  const st = new AnimationState(sk);
+  st.defaultMix = mix;
+  st.setAnimation(0, from, true);
+  S.mixPreview = { st, from, to, mix, t: 0, switched: false, fromDur: animationDuration(doc().animations[from]) };
+  emit("mix");
+}
+export function stopMixPreview() { S.mixPreview = null; emit("mix"); }
+export function tickMixPreview(dt) {
+  const m = S.mixPreview;
+  if (!m) return;
+  m.t += dt * S.speed;
+  if (!m.switched && m.t >= Math.max(0.6, m.fromDur)) { m.st.setAnimation(0, m.to, true); m.switched = true; }
+  if (m.switched && m.t >= Math.max(0.6, m.fromDur) + Math.max(1.2, animationDuration(doc().animations[m.to]))) { m.st.setAnimation(0, m.from, true); m.switched = false; m.t = 0; }
+  m.st.update(dt * S.speed);
+}
 export function poseAtTime(time, { withOverrides = true } = {}) {
   const sk = skeleton();
   if (!sk) return null;
+  if (S.mixPreview && withOverrides) { const p = setupPose(sk, S.skin); S.mixPreview.st.apply(p); updateWorld(sk, p); return p; }
   const pose = setupPose(sk, S.skin);
   if (S.mode === "animate" && currentAnim()) applyAnimation(sk, pose, currentAnim(), time);
   if (withOverrides && S.mode === "animate") {

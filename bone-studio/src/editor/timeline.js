@@ -1,11 +1,12 @@
 // Timeline: playback bar and dopesheet.
-import { S, doc, emit, on, h, run, setTime, duration, currentAnim, selectedBones, frame, toast } from "./state.js?v=20261125d";
+import { S, doc, emit, on, h, run, setTime, duration, currentAnim, selectedBones, frame, toast, startMixPreview, stopMixPreview, tickMixPreview } from "./state.js?v=20261125d";
+import { drawGraph, graphDown, graphMove, graphUp, graphLegend } from "./graph.js?v=20261125d";
 import { newAnim } from "./panels.js?v=20261125d";
 
 const root = document.getElementById("xx-timeline");
 const COLORS = { rotate: "#7fd36b", translate: "#4fb3ff", scale: "#e8504a", shear: "#c07cff", attachment: "#f0d23a", rgba: "#ff8fd0", drawOrder: "#cfcfcf", events: "#ffffff", ik: "#f0a63a" };
 const RULER = 20, ROW = 20;
-let pxPerFrame = 12, scroll = 0, vscroll = 0, rows = [], expanded = new Set(), dragKeys = null, scrubbing = false;
+let tlView = "dope", pxPerFrame = 12, scroll = 0, vscroll = 0, rows = [], expanded = new Set(), dragKeys = null, scrubbing = false;
 
 const bar = h("div", { class: "xx-tl-bar" });
 const names = h("div", { class: "xx-tl-names" });
@@ -62,9 +63,12 @@ function renderBar() {
   const fr = h("input", { type: "number", min: 0, step: 1, value: frame(), title: "Khung hiện tại", onchange: () => setTime(+fr.value / (d.fps || 30)) });
   const speed = h("select", { title: "Tốc độ phát", onchange: () => { S.speed = +speed.value; } }, ...[0.25, 0.5, 1, 1.5, 2].map((v) => h("option", { value: v, text: v * 100 + "%", selected: v === S.speed })));
   const curveBtn = (label, curve, tip) => h("button", { text: label, title: tip, disabled: !S.keySel.length, onclick: () => setCurve(curve) });
+  const mixTo = h("select", { title: "Trộn sang animation" }, ...anims.filter((n) => n !== S.anim).map((n) => h("option", { value: n, text: "→ " + n })));
+  const mixDur = h("input", { type: "number", min: 0, max: 2, step: 0.05, value: 0.25, title: "Thời gian trộn (giây)", style: "width:58px" });
   const ob = h("input", { type: "number", min: 0, max: 10, value: S.onion.before, title: "Số khung ma phía trước", style: "width:42px", onchange: () => { S.onion.before = +ob.value; } });
   const oa = h("input", { type: "number", min: 0, max: 10, value: S.onion.after, title: "Số khung ma phía sau", style: "width:42px", onchange: () => { S.onion.after = +oa.value; } });
   bar.replaceChildren(
+    h("button", { text: tlView === "dope" ? "Dopesheet" : "Graph", title: "Đổi giữa dopesheet và graph (đường cong)", class: "is-on", onclick: () => { tlView = tlView === "dope" ? "graph" : "dope"; refresh(); } }),
     sel, h("button", { text: "+", title: "Animation mới", onclick: newAnim }),
     h("span", { class: "xx-sep" }),
     h("button", { text: "⏮", title: "Về đầu (Home)", onclick: () => setTime(0) }),
@@ -81,10 +85,19 @@ function renderBar() {
     curveBtn("Linear", "linear", "Curve tuyến tính"), curveBtn("Stepped", "stepped", "Giữ nguyên tới key sau"),
     curveBtn("Ease", [0.42, 0, 0.58, 1], "Chậm-nhanh-chậm"), curveBtn("In", [0.42, 0, 1, 1], "Chậm lúc đầu"), curveBtn("Out", [0, 0, 0.58, 1], "Chậm lúc cuối"),
     h("button", { text: "Xoá key", disabled: !S.keySel.length, title: "Delete", onclick: deleteKeys }),
+    h("span", { class: "xx-sep" }),
+    mixTo, mixDur,
+    h("button", { text: S.mixPreview ? "■ Dừng trộn" : "Xem trộn", class: S.mixPreview ? "is-on" : "", title: "Phát animation đang sửa rồi chuyển mượt sang animation đã chọn, lặp lại", disabled: !S.anim || anims.length < 2,
+      onclick: () => { if (S.mixPreview) stopMixPreview(); else startMixPreview(S.anim, mixTo.value, +mixDur.value); renderBar(); } }),
   );
 }
 
 function renderNames() {
+  if (tlView === "graph") {
+    names.replaceChildren(h("div", { style: `height:${RULER}px;border-bottom:1px solid var(--line)`, text: selectedBones()[0] ? "🦴 " + selectedBones()[0] : "" }),
+      ...graphLegend().map((c) => h("div", { style: `cursor:pointer;color:${c.hidden ? "var(--muted)" : c.color}`, title: "Bấm để ẩn/hiện", onclick: () => { c.toggle(); renderNames(); } }, h("span", { text: c.hidden ? "○" : "●" }), h("span", { text: c.label }))));
+    return;
+  }
   names.replaceChildren(h("div", { style: `height:${RULER}px;border-bottom:1px solid var(--line)` }),
     ...rows.map((r) => h("div", { class: (r.sub ? "is-sub " : "") + (r.bone && selectedBones().includes(r.bone) ? "is-sel" : ""), title: r.label,
       onclick: () => { if (r.bone) { expanded.has(r.bone) ? expanded.delete(r.bone) : expanded.add(r.bone); refresh(); } } },
@@ -114,6 +127,14 @@ export function drawTimeline() {
     ctx.strokeStyle = f % (every * 5) === 0 ? "#3a3e48" : "#2a2d34";
     ctx.beginPath(); ctx.moveTo(x, f % (every * 5) === 0 ? 4 : 12); ctx.lineTo(x, H); ctx.stroke();
     if (f % (every * 5) === 0) { ctx.fillStyle = "#8a909e"; ctx.fillText(String(f), x + 3, 9); }
+  }
+  if (tlView === "graph") {
+    ctx.save(); ctx.beginPath(); ctx.rect(0, RULER, W, H - RULER); ctx.clip();
+    drawGraph(ctx, W, H, xOf, RULER);
+    ctx.restore();
+    const gx = xOf(S.time);
+    ctx.strokeStyle = "#4fd0ff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); ctx.lineWidth = 1;
+    return;
   }
   // duration line
   if (dur > 0) { const x = xOf(dur); ctx.strokeStyle = "#f0a63a88"; ctx.beginPath(); ctx.moveTo(x, RULER); ctx.lineTo(x, H); ctx.stroke(); }
@@ -168,6 +189,7 @@ cv.addEventListener("pointerdown", (e) => {
   cv.setPointerCapture(e.pointerId);
   const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
   if (y < RULER || e.button === 1) { scrubbing = true; setTime(Math.max(0, tOf(x))); return; }
+  if (tlView === "graph") { if (!graphDown(x, y, e)) { scrubbing = true; setTime(Math.max(0, tOf(x))); } renderBar(); return; }
   const hit = hitKey(x, y);
   if (!hit) {
     if (!e.ctrlKey) S.keySel = [];
@@ -186,6 +208,7 @@ cv.addEventListener("pointerdown", (e) => {
 cv.addEventListener("pointermove", (e) => {
   const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
   if (scrubbing) { setTime(Math.max(0, tOf(x))); return; }
+  if (tlView === "graph") { graphMove(x, y, e); return; }
   if (!dragKeys) return;
   if (dragKeys.box) { dragKeys.box.x1 = x; dragKeys.box.y1 = y; return; }
   const fps = doc().fps || 30;
@@ -196,6 +219,7 @@ cv.addEventListener("pointermove", (e) => {
 });
 cv.addEventListener("pointerup", () => {
   scrubbing = false;
+  if (graphUp()) return;
   const d = dragKeys;
   dragKeys = null;
   if (!d) return;
@@ -279,6 +303,7 @@ export function togglePlay() {
   renderBar();
 }
 export function tick(dt) {
+  if (S.mixPreview) { tickMixPreview(dt); return; }
   if (!S.playing) return;
   const dur = duration();
   let t = S.time + dt * S.speed;

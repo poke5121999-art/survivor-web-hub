@@ -212,6 +212,44 @@ try {
     return "25 đỉnh, key deform ở 0.6 s";
   });
 
+  await step("graph: kéo key đổi giá trị, kéo tay cầm đổi curve, một undo mỗi lần kéo", async () => {
+    const p6 = await open("?sample=pharaoh");
+    await p6.evaluate(() => { __BS.setMode("animate"); __BS.S.anim = "attack"; __BS.select({ kind: "bone", name: "tay-phai-tren" }); __BS.emit("anim"); });
+    await p6.locator(".xx-tl-bar button", { hasText: "Dopesheet" }).click();
+    await p6.waitForTimeout(200);
+    const c = await p6.locator(".xx-tl-canvas canvas").boundingBox();
+    const key = () => p6.evaluate(() => __BS.doc().animations.attack.bones["tay-phai-tren"].rotate.find((k) => Math.abs(k.time - 0.35) < 1e-3));
+    const k0 = await key();
+    const [kx, ky] = await p6.evaluate(() => { const v = window.__graph, c = v.chs.find((x) => x.prop === "rotate"), k = c.keys.find((q) => Math.abs(q.time - 0.35) < 1e-3); return [v.xOf(k.time), v.yOf(k.value)]; });
+    await p6.mouse.move(c.x + kx, c.y + ky); await p6.mouse.down(); await p6.mouse.move(c.x + kx, c.y + ky + 30, { steps: 5 }); await p6.mouse.up();
+    const k1 = await key();
+    assert(k1.value < k0.value - 5, `giá trị key ${k0.value} → ${k1.value}`);
+    await p6.keyboard.press("Control+z");
+    const k2 = await key();
+    assert(Math.abs(k2.value - k0.value) < 1e-6, "undo không về giá trị cũ");
+    await p6.close();
+    return `${k0.value} → ${k1.value} → undo ${k2.value}`;
+  });
+
+  await step("xem trộn walk → attack: góc tay đổi liên tục, không nhảy cóc", async () => {
+    const p7 = await open("?sample=pharaoh");
+    const r = await p7.evaluate(async () => {
+      __BS.setMode("animate"); __BS.S.anim = "walk"; __BS.emit("anim");
+      await new Promise((res) => setTimeout(res, 100));
+      const to = [...document.querySelectorAll(".xx-tl-bar select")].find((x) => [...x.options].some((o) => o.value === "attack") && x.options[0].text.startsWith("→"));
+      to.value = "attack";
+      [...document.querySelectorAll(".xx-tl-bar button")].find((b) => b.textContent === "Xem trộn").click();
+      const d = __BS.doc(), i = d.bones.findIndex((b) => b.name === "tay-phai-tren"), angles = [];
+      for (let n = 0; n < 90; n++) { await new Promise((res) => requestAnimationFrame(res)); const p = __BS.pose(); angles.push(Math.atan2(p.bones[i].c, p.bones[i].a) * 180 / Math.PI); }
+      let maxJump = 0; for (let n = 1; n < angles.length; n++) maxJump = Math.max(maxJump, Math.abs(((angles[n] - angles[n - 1] + 540) % 360) - 180));
+      return { maxJump, range: Math.max(...angles) - Math.min(...angles), switched: __BS.S.mixPreview?.switched };
+    });
+    await p7.close();
+    assert(r.range > 20, "tay không đổi: " + JSON.stringify(r));
+    assert(r.maxJump < 25, "nhảy cóc: " + JSON.stringify(r));
+    return `biên độ ${r.range.toFixed(0)}°, bước lớn nhất ${r.maxJump.toFixed(1)}°/khung`;
+  });
+
   await step("không có lỗi JS", async () => { const e = [...page.logs, ...(await page.evaluate(() => window.__errors))]; assert(!e.length, e.join(" | ")); });
 } finally {
   await br.close();
