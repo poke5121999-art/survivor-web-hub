@@ -288,6 +288,8 @@
   }
 
   function liveError(r) {
+    // Before a snapshot the events are missing, but the login worked: still show who this browser is, so its playerId can go on the list.
+    if (r && r.error && r.error.code === "UNKNOWN_TYPE" && livePlayer) livePlayer.then(function (p) { if (!S_ME && p.playerId) { S_ME = { playerId: p.playerId, allowed: false, label: "", noEvent: true }; renderEnvInfo(); } }, function () {});
     var er = (r && r.error) || {};
     var e = new Error(er.message || "LIVE lỗi");
     e.code = er.code || "LIVE"; e.status = 0; e.body = r;
@@ -304,7 +306,8 @@
     });
   }
 
-  function liveRemote(t) { return { exists: true, docs: t.docs || [], hash: String(t.rev || 0) }; }
+  // source "md": the table has no cd_live_config doc yet and runs the release numbers (md_); the first save creates the doc from them.
+  function liveRemote(t) { return { exists: true, docs: t.docs || [], hash: String(t.rev || 0), source: t.source || "" }; }
 
   function liveCall(body) {
     if (body.action === "list") {
@@ -320,10 +323,11 @@
       return ev("LIVE_CONFIG_GET", { table: body.table }).then(function (r) { return Object.assign({ ok: true }, liveRemote(JSON.parse(r.tableJson))); });
     }
     if (body.action === "history") {
-      var q = { limit: 100 };
+      var q = { limit: body.limit || 50 };
       if (body.table) q.table = body.table;
       if (body.who) q.playerId = body.who;
-      return ev("LIVE_CONFIG_HISTORY", q).then(function (r) { return { ok: true, rows: JSON.parse(r.rowsJson || "[]") }; });
+      if (body.cursor) q.cursor = body.cursor;
+      return ev("LIVE_CONFIG_HISTORY", q).then(function (r) { return { ok: true, rows: JSON.parse(r.rowsJson || "[]"), next: r.next || null }; });
     }
     // save
     return ev("LIVE_CONFIG_SET", { table: body.table, docsJson: JSON.stringify(body.docs), baseRev: Number(body.baseHash) || 0, dryRun: body.dryRun !== false })
@@ -350,7 +354,8 @@
       } }));
     }
     box.appendChild(h("span", { id: "dz-live-allowed", class: me.allowed ? "dz-chip dz-chip--live" : "dz-chip dz-chip--missing",
-      text: me.allowed ? "Designer: " + (me.label || "có") : "Chưa có trong danh sách designer: gửi playerId cho chủ dự án thêm vào live_config/_editors" }));
+      text: me.allowed ? "Designer: " + (me.label || "có") : me.noEvent ? "LIVE chưa có bản cloudcode hỗ trợ: gửi playerId này cho chủ dự án" :
+        "Chưa có trong danh sách designer: gửi playerId cho chủ dự án thêm vào live_config/_editors" }));
     player().then(function (p) { if (p.testOnDev) box.appendChild(h("span", { class: "dz-chip", text: "đang thử: LIVE trỏ vào DEV" })); }, function () {});
   }
 
@@ -863,6 +868,10 @@
       h("button", { class: "btn btn--sm", id: "btn-reload", type: "button", text: "Tải bản mới", onclick: reloadTable }));
     pane.appendChild(conflict);
 
+    if (ENV === "live" && t.remote.source === "md") {
+      pane.appendChild(h("div", { class: "dz-notice", id: "dz-live-md" },
+        h("span", { text: "Bảng này đang dùng số theo bản phát hành (md_ trong snapshot). Lần lưu đầu sẽ tạo bản chỉnh online từ chính các số này cộng phần bạn sửa; từ đó bảng sống ở bản chỉnh online." })));
+    }
     if (!t.remote.exists) {
       pane.appendChild(h("div", { class: "dz-notice", id: "dz-missing" },
         h("span", { text: "Bảng này chưa được dán lên GameSpark. Các số đang hiện là số gốc đã nằm sẵn trong game. Bấm lưu sẽ tạo bảng trên GameSpark (DEV) với các số này." })));
@@ -1759,12 +1768,16 @@
 
   // ---------- history ----------
 
-  S.history = { rows: null, table: "", who: "", error: null };
+  // pages[i] = cursor of page i (null = newest); next = cursor of the page after the one shown, null at the end.
+  var HIST_PAGE = Number(QS.get("histPage")) || 50;
+  S.history = { rows: null, table: "", who: "", error: null, pages: [null], index: 0, next: null };
 
   function loadHistory() {
-    S.history.error = null;
-    return call({ action: "history", table: S.history.table, who: S.history.who }).then(function (j) {
-      S.history.rows = j.rows || [];
+    var H = S.history;
+    H.error = null;
+    return call({ action: "history", table: H.table, who: H.who, limit: HIST_PAGE, cursor: H.pages[H.index] }).then(function (j) {
+      H.rows = j.rows || [];
+      H.next = j.next || null;
       if (S.current === HISTORY) renderMain();
     }, function (e) {
       S.history.error = errText(e);
@@ -1781,18 +1794,30 @@
     visibleTables().forEach(function (n) { var o = h("option", { value: tableOf(n), text: tableTitle(n) }); if (tableOf(n) === H.table) o.selected = true; sel.appendChild(o); });
     var who = h("input", { class: "dz-input", id: "dz-hist-who", style: "width:auto;max-width:280px", placeholder: ENV === "live" ? "playerId" : "nhãn hoặc playerId" });
     who.value = H.who;
-    var go = function () { H.table = sel.value; H.who = who.value.trim(); H.rows = null; renderMain(); loadHistory(); };
+    var go = function () { H.table = sel.value; H.who = who.value.trim(); H.rows = null; H.pages = [null]; H.index = 0; renderMain(); loadHistory(); };
+    var turn = function (d) {
+      if (d > 0) { if (!H.next) return; H.pages[H.index + 1] = H.next; H.index++; } else { if (!H.index) return; H.index--; }
+      H.rows = null; renderMain(); loadHistory();
+    };
     sel.addEventListener("change", go);
     who.addEventListener("change", go);
     pane.appendChild(h("div", { style: "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 16px" }, sel, who, h("button", { class: "btn btn--sm", type: "button", text: "Tải lại", onclick: go })));
     if (H.error) { pane.appendChild(h("p", { class: "dz-notice dz-notice--warn", id: "dz-hist-err", text: H.error })); return; }
     if (!H.rows) { pane.appendChild(h("p", { class: "dz-loading", text: "Đang tải…" })); return; }
-    if (!H.rows.length) { pane.appendChild(h("p", { class: "dz-help", id: "dz-hist-empty", text: "Chưa có dòng nào." })); return; }
+    if (!H.rows.length && !H.index) { pane.appendChild(h("p", { class: "dz-help", id: "dz-hist-empty", text: "Chưa có dòng nào." })); return; }
+    var first = H.rows[0] || {}, last = H.rows[H.rows.length - 1] || {};
+    var pager = h("div", { class: "dz-hist-pager", style: "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px" },
+      h("button", { class: "btn btn--sm", id: "dz-hist-prev", type: "button", text: "← Trang trước", disabled: !H.index, onclick: function () { turn(-1); } }),
+      h("span", { class: "dz-help", id: "dz-hist-page", text: "Trang " + (H.index + 1) + " · " + H.rows.length + " dòng" +
+        (H.rows.length ? " · từ " + (last.atVn || "") + " tới " + (first.atVn || "") : "") }),
+      h("button", { class: "btn btn--sm", id: "dz-hist-next", type: "button", text: "Trang sau →", disabled: !H.next, onclick: function () { turn(1); } }));
+    pane.appendChild(pager);
     var tb = h("tbody");
     H.rows.forEach(function (r) {
       var cells = h("ul", { class: "dz-changes" });
       (r.changes || []).forEach(function (c) { cells.appendChild(h("li", { text: c.p + ": " + c.from + " → " + c.to })); });
       if (r.more) cells.appendChild(h("li", { text: "… và " + r.more + " ô nữa" }));
+      if (r.initFrom) cells.insertBefore(h("li", { text: "Khởi tạo bản chỉnh online từ số " + r.initFrom + " (bản phát hành)" }), cells.firstChild);
       tb.appendChild(h("tr", { class: "dz-hist-row" },
         h("td", { text: r.atVn || "" }),
         h("td", { text: String(r.env || "").toUpperCase() + (r.via ? " · " + r.via : "") }),

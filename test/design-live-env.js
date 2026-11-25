@@ -108,6 +108,8 @@ const liveDoc = (id) => gs('gs_data_query', { collection: 'cd_live_config', filt
     await p.waitForSelector('#dz-hist .dz-hist-row', { timeout: 30000 });
     const top = await p.$eval('#dz-hist .dz-hist-row', (e) => e.textContent);
     check('tab Lịch sử: dòng trên cùng đúng người và ô cũ → mới', top.indexOf(playerId) >= 0 && top.indexOf('design-live-env') >= 0 && top.indexOf('daily.pick: ' + pickBefore + ' → ' + (pickBefore + 1)) >= 0, top.slice(0, 200));
+    const pageLbl = await p.textContent('#dz-hist-page');
+    check('tab Lịch sử có phân trang: Trang 1, khoảng giờ của trang', /^Trang 1 · \d+ dòng · từ /.test(pageLbl) && await p.$eval('#dz-hist-prev', (e) => e.disabled), pageLbl);
     await p.selectOption('#dz-hist-table', 'modes');
     await p.waitForFunction(() => !document.querySelector('.dz-loading'), null, { timeout: 30000 });
     const modesRows = await p.$$eval('#dz-hist .dz-hist-row', (els) => els.map((e) => e.textContent));

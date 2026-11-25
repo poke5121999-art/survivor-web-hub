@@ -279,13 +279,18 @@ async function logSave(call, env, table, source, before, after) {
   return row;
 }
 
+// One page of history, newest first: _id = (9999999999999 - ms) so ascending _id is newest first. Cursor = the last _id of the
+// page before; the next page is _id > cursor with the same filter, so rows written meanwhile (newer) never shift a later page.
 async function readHistory(call, body) {
   const filter = {};
   if (typeof body.table === "string" && body.table) filter.table = body.table;
   if (typeof body.who === "string" && body.who) filter.$or = [{ label: body.who }, { playerId: body.who }];
-  const r = await call("/data/query", { collection: HISTORY_COLLECTION, filter, sort: { _id: 1 }, limit: QUERY_LIMIT });
+  if (typeof body.cursor === "string" && body.cursor) filter._id = { $gt: body.cursor };
+  const limit = Number.isInteger(body.limit) && body.limit >= 1 ? Math.min(body.limit, 100, QUERY_LIMIT) : QUERY_LIMIT;
+  const r = await call("/data/query", { collection: HISTORY_COLLECTION, filter, sort: { _id: 1 }, limit });
   const rows = normalize(r.docs || []).map(({ _createdAt, _updatedAt, _by, _rev, ...rest }) => rest);
-  return { status: 200, json: { ok: true, rows } };
+  const next = r.hasMore && rows.length ? rows[rows.length - 1]._id : null;
+  return { status: 200, json: { ok: true, rows, next } };
 }
 
 async function saveLive(call, env, table, docs, current, dryRun) {
