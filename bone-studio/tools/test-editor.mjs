@@ -435,6 +435,33 @@ try {
     return `tổng weight torso ${w0.toFixed(2)} → cọ ${w1.toFixed(2)} → Alt ${w2.toFixed(2)} → mượt ${w3.toFixed(2)} → undo ${w4.toFixed(2)}`;
   });
 
+  await step("mesh theo viền, sửa đỉnh (click thêm, Delete xoá), + Linked mesh", async () => {
+    const pc = await open("?sample=robo");
+    const att = await pc.evaluate(() => __BS.doc().slots.find((s) => s.name === "head").attachment);
+    await pc.evaluate((att) => __BS.select({ kind: "attachment", slot: "head", name: att, skin: "default" }), att);
+    await pc.locator("#xx-props button", { hasText: "Mesh theo viền" }).click();
+    await pc.waitForTimeout(200);
+    const m = () => pc.evaluate((att) => { const a = __BS.doc().skins[0].attachments.head[att]; return { type: a.type, n: a.uvs?.length / 2, hull: a.hull, tris: a.triangles?.length / 3 }; }, att);
+    const m1 = await m();
+    assert(m1.type === "mesh" && m1.hull >= 4 && m1.tris > 0, JSON.stringify(m1));
+    await pc.locator("#xx-props label", { hasText: "Sửa đỉnh" }).locator("input").check();
+    const [hx, hy] = await pc.evaluate(() => { const p = __BS.pose(), b = p.bones[__BS.doc().bones.findIndex((x) => x.name === "head")]; return __BS.toScreen(b.wx + b.a * 12 + b.b * 3, b.wy + b.c * 12 + b.d * 3); });
+    const r = await pc.locator("#xx-canvas").boundingBox();
+    await pc.mouse.click(r.x + hx, r.y + hy);
+    const m2 = await m();
+    await pc.evaluate(() => document.activeElement?.blur());
+    await pc.keyboard.press("Delete");
+    const m3 = await m();
+    assert(m2.n === m1.n + 1 && m3.n === m1.n && m3.tris > 0, `đỉnh ${m1.n} → thêm ${m2.n} → xoá ${m3.n}`);
+    await pc.locator("#xx-props label", { hasText: "Sửa đỉnh" }).locator("input").uncheck();
+    pc.nextPrompt = "torso";
+    await pc.locator("#xx-props button", { hasText: "+ Linked mesh" }).click();
+    const linked = await pc.evaluate(() => Object.entries(__BS.doc().skins[0].attachments.head).find(([, a]) => a.type === "linkedmesh"));
+    await pc.close();
+    assert(linked && linked[1].path === "torso", JSON.stringify(linked));
+    return `mesh viền ${m1.n} đỉnh (${m1.hull} trên viền, ${m1.tris} tam giác) → +1 → xoá; linked mesh "${linked[0]}" ảnh torso`;
+  });
+
   await step("xem trộn walk → attack: góc tay đổi liên tục, không nhảy cóc", async () => {
     const p7 = await open("?sample=pharaoh");
     const r = await p7.evaluate(async () => {

@@ -1,8 +1,8 @@
 // Viewport: draws the skeleton with canvas2D, handles picking, gizmos, bone creation, pan and zoom.
-import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125m";
-import { vertexWeights } from "../mesh.js?v=20261125m";
-import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG, findKey } from "../../runtime/xuong.js?v=20261125m";
-import { deformOffsets } from "../mesh.js?v=20261125m";
+import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125n";
+import { vertexWeights } from "../mesh.js?v=20261125n";
+import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG, findKey } from "../../runtime/xuong.js?v=20261125n";
+import { deformOffsets } from "../mesh.js?v=20261125n";
 
 const cv = document.getElementById("xx-canvas");
 const ctx = cv.getContext("2d");
@@ -335,6 +335,21 @@ cv.addEventListener("pointerdown", (e) => {
   // weight brush: paint the chosen bone's weight onto vertices under the brush (setup mode, weighted mesh selected)
   if (S.wb && selectedMesh() && S.mode === "setup") { S.hist.begin("Cọ weight"); drag = { paint: true }; paintAt(sx, sy, e); return; }
   const vi = vertexAt(sx, sy);
+  // mesh edit: a click inside the mesh (not on a vertex) adds a vertex there
+  if (S.meshEdit && vi < 0 && selectedMesh() && S.mode === "setup") {
+    const m = selectedMesh(), sk = skeleton(), pose = poseAtTime(S.time), v = worldVertices(sk, pose, sk.slotIndex.get(m.slot), m.att), t = m.att.triangles;
+    for (let i = 0; i < t.length; i += 3) {
+      const [a, b, c] = [t[i], t[i + 1], t[i + 2]], x0 = v[a * 2], y0 = v[a * 2 + 1], x1 = v[b * 2], y1 = v[b * 2 + 1], x2 = v[c * 2], y2 = v[c * 2 + 1];
+      const den = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
+      if (Math.abs(den) < 1e-12) continue;
+      const l0 = ((y1 - y2) * (wx - x2) + (x2 - x1) * (wy - y2)) / den, l1 = ((y2 - y0) * (wx - x2) + (x0 - x2) * (wy - y2)) / den, l2 = 1 - l0 - l1;
+      if (l0 < 0 || l1 < 0 || l2 < 0) continue;
+      const U = m.att.uvs, u = l0 * U[a * 2] + l1 * U[b * 2] + l2 * U[c * 2], vv = l0 * U[a * 2 + 1] + l1 * U[b * 2 + 1] + l2 * U[c * 2 + 1];
+      if (run({ type: "mesh.addVertex", slot: m.slot, name: m.name, skin: m.skin, u, v: vv }, "Thêm đỉnh")) S.vsel = [m.att.uvs.length / 2];
+      return;
+    }
+    return;
+  }
   if (vi >= 0) {
     if (e.ctrlKey || e.shiftKey) S.vsel = S.vsel.includes(vi) ? S.vsel.filter((x) => x !== vi) : [...S.vsel, vi];
     else if (!S.vsel.includes(vi)) S.vsel = [vi];

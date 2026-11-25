@@ -1,6 +1,6 @@
 // Tree and properties panels.
-import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125m";
-import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125m";
+import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125n";
+import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125n";
 
 const treeEl = document.getElementById("xx-tree"), propsEl = document.getElementById("xx-props"), findEl = document.getElementById("xx-find");
 const collapsed = new Set();
@@ -275,7 +275,8 @@ export function renderProps() {
   } else if (sel.kind === "attachment") {
     const a = getAttachment(d, sel.skin, sel.slot, sel.name);
     if (!a) return propsEl.replaceChildren();
-    out.push(title(a.type ?? "region", sel.name));
+    out.push(title(a.linkedParent ? "linked mesh" : a.type ?? "region", sel.name));
+    if (a.linkedParent) out.push(h("p", { class: "xx-note", text: `Dùng lưới${a.inheritDeform ? " và deform" : ""} của mesh "${a.linkedParent}"; sửa đỉnh ở mesh gốc.` }));
     const set = (props, live) => { const c = { type: "attachment.set", slot: sel.slot, name: sel.name, skin: sel.skin, props }; live ? S.hist.runCoalesced(c, "att") : run(c); };
     out.push(selectField("Ảnh", a.path ?? sel.name, Object.keys(d.images).map((p) => [p, p]), (p) => set({ path: p, width: d.images[p].width, height: d.images[p].height })));
     if ((a.type ?? "region") === "region") {
@@ -305,6 +306,7 @@ export function renderProps() {
     const slotBone = d.slots.find((x) => x.name === sel.slot)?.bone;
     const near = [slotBone, d.bones.find((b) => b.name === slotBone)?.parent, ...d.bones.filter((b) => b.parent === slotBone).map((b) => b.name)].filter((b) => b && b !== d.bones[0].name);
     const weighted = a.type === "mesh" && a.vertices.length > a.uvs.length;
+    if (a.type === "mesh" && !a.linkedParent && S.mode === "setup") out.push(h("label", { class: "xx-chk", title: "Click trong mesh để thêm đỉnh, chọn đỉnh rồi Delete để xoá; lưới tự tam giác hoá lại" }, h("input", { type: "checkbox", checked: !!S.meshEdit, onchange: (e) => { S.meshEdit = e.target.checked; S.vsel = []; } }), " Sửa đỉnh (click thêm, Delete xoá)"));
     if (weighted && S.mode === "setup") {
       // weight tools: brush (drag on the viewport; Alt = remove), smooth, prune
       const infl = [...new Set((() => { const v = a.vertices, out2 = []; for (let j = 0; j < v.length;) { const c = v[j++]; for (let k = 0; k < c; k++, j += 4) out2.push(d.bones[v[j]]?.name); } return out2; })())].filter(Boolean);
@@ -322,8 +324,26 @@ export function renderProps() {
     if (a.type === "mesh") out.push(h("p", { class: "xx-note", text: `${a.uvs.length / 2} đỉnh, ${a.triangles.length / 3} tam giác${weighted ? ", đã gắn weight" : ""}. Kéo các ô vuông trên viewport để dời đỉnh${S.mode === "animate" ? " (thành key deform)" : ""}; Ctrl+click chọn nhiều.` }));
     out.push(actions(
       (a.type ?? "region") === "region" ? act("Chuyển thành mesh 4×4", () => run({ type: "mesh.fromRegion", slot: sel.slot, name: sel.name, skin: sel.skin, cols: 4, rows: 4 }, "Tạo mesh")) : null,
+      (a.type ?? "region") === "region" ? act("Mesh theo viền", async () => {
+        const src = S.images.get(a.path ?? sel.name);
+        if (!src) return toast("Chưa có ảnh để dò viền", true);
+        const { traceOutline, simplify } = await import("../mesh-trace.js?v=20261125n");
+        const c = new OffscreenCanvas(src.width, src.height), g = c.getContext("2d"); g.drawImage(src, 0, 0);
+        const img = g.getImageData(0, 0, c.width, c.height), poly = simplify(traceOutline(img), 1.5);
+        if (poly.length < 3) return toast("Ảnh trong suốt hết, không dò được viền", true);
+        run({ type: "mesh.fromOutline", slot: sel.slot, name: sel.name, skin: sel.skin, outline: poly.map(([x, y]) => [Math.round((x / c.width) * 1e4) / 1e4, Math.round((y / c.height) * 1e4) / 1e4]), spacing: 0.2 }, "Mesh theo viền");
+      }) : null,
       a.type === "mesh" && near.length ? act(`Bind weight: ${near.join(", ")}`, () => run({ type: "mesh.bind", slot: sel.slot, name: sel.name, skin: sel.skin, bones: near }, "Bind weight")) : null,
       weighted ? act("Bỏ weight", () => run({ type: "mesh.unbind", slot: sel.slot, name: sel.name, skin: sel.skin }, "Bỏ weight")) : null,
+      a.type === "mesh" && !a.linkedParent ? act("+ Linked mesh", () => {
+        // same mesh and deform, another image (e.g. a second facial expression drawn on the same shape)
+        const imgs = Object.keys(d.images).filter((p) => p !== (a.path ?? sel.name));
+        const p = prompt(`Ảnh cho linked mesh (cùng lưới và deform với "${sel.name}"):\n${imgs.join(", ")}`, imgs[0] ?? "");
+        if (!p) return;
+        if (!d.images[p]) return toast(`không có ảnh "${p}"`, true);
+        const taken = Object.keys(d.skins.find((k) => k.name === sel.skin)?.attachments?.[sel.slot] ?? {}), n = uniqueName(taken, p);
+        if (run({ type: "attachment.add", slot: sel.slot, name: n, skin: sel.skin, attachment: { type: "linkedmesh", parent: sel.name, path: p, width: d.images[p].width, height: d.images[p].height } }, "Thêm linked mesh")) select({ kind: "attachment", slot: sel.slot, name: n, skin: sel.skin });
+      }) : null,
       seqFamily ? act(`Thành sequence (${seqFamily.count} khung)`, () => set({ path: seqFamily.prefix, sequence: { count: seqFamily.count, start: seqFamily.start, digits: seqFamily.digits } })) : null,
       a.sequence ? act("Bỏ sequence", () => set({ path: (a.path ?? sel.name) + String(a.sequence.start + a.sequence.setup).padStart(a.sequence.digits, "0"), sequence: null })) : null,
       act("Hiện trong slot", () => run({ type: "slot.set", name: sel.slot, props: { attachment: sel.name } })),

@@ -1,7 +1,7 @@
 // Timeline: playback bar and dopesheet.
-import { S, doc, emit, on, h, run, setTime, duration, currentAnim, selectedBones, frame, toast, startMixPreview, stopMixPreview, tickMixPreview } from "./state.js?v=20261125m";
-import { drawGraph, graphDown, graphMove, graphUp, graphLegend } from "./graph.js?v=20261125m";
-import { newAnim } from "./panels.js?v=20261125m";
+import { S, doc, emit, on, h, run, setTime, duration, currentAnim, selectedBones, frame, toast, startMixPreview, stopMixPreview, tickMixPreview } from "./state.js?v=20261125n";
+import { drawGraph, graphDown, graphMove, graphUp, graphLegend } from "./graph.js?v=20261125n";
+import { newAnim } from "./panels.js?v=20261125n";
 
 const root = document.getElementById("xx-timeline");
 const COLORS = { rotate: "#7fd36b", translate: "#4fb3ff", scale: "#e8504a", shear: "#c07cff", attachment: "#f0d23a", rgba: "#ff8fd0", drawOrder: "#cfcfcf", events: "#ffffff", ik: "#f0a63a", transform: "#8fd3ff", dark: "#b07040" };

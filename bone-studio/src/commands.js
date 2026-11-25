@@ -1,8 +1,9 @@
 // Command registry. Every change to a document, from the UI, the agent, the CLI or a test, is one of these.
 // apply(doc, cmd) is pure: it returns a new doc and the exact inverse (a $patch command).
-import { transaction, applyPatch } from "./tx.js?v=20261125m";
-import { gridMesh, autoWeights, hangWeights, unweight, movedVertices, paintWeights, smoothWeights, pruneWeights } from "./mesh.js?v=20261125m";
-import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125m";
+import { transaction, applyPatch } from "./tx.js?v=20261125n";
+import { meshFromOutline } from "./mesh-trace.js?v=20261125n";
+import { gridMesh, meshFromUvs, addVertex, removeVertex, autoWeights, hangWeights, unweight, movedVertices, paintWeights, smoothWeights, pruneWeights } from "./mesh.js?v=20261125n";
+import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125n";
 
 export const FORMAT = "xuong";
 export const VERSION = 1;
@@ -39,6 +40,7 @@ const slotIdx = (doc, n) => { const i = doc.slots.findIndex((s) => s.name === n)
 const skinIdx = (doc, n) => { const i = doc.skins.findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có skin "${n}"`); };
 const phIdx = (doc, n) => { const i = (doc.physics ?? []).findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có physics "${n}"`); };
 const PH_NUM = ["x", "y", "rotate", "inertia", "strength", "damping", "mass", "wind", "gravity", "mix", "limit", "fps"];
+const isWeightedAtt = (a) => a.vertices.length > a.uvs.length;
 const tcIdx = (doc, n) => { const i = (doc.transform ?? []).findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có transform constraint "${n}"`); };
 const ikIdx = (doc, n) => { const i = (doc.ik ?? []).findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có IK "${n}"`); };
 const animOf = (doc, n) => doc.animations[n] ?? bad(`không có animation "${n}"`);
@@ -58,12 +60,14 @@ const SLOT_PROPS = {
   color: hex, dark: (v, w) => (v === null ? null : hex(v, w).slice(0, 6)), blend: (v, w) => oneOf(v, BLENDS, w),
   attachment: (v, w) => (v === null ? null : name(v, w)), hidden: (v) => !!v,
 };
-const ATT_TYPES = ["region", "mesh", "point", "boundingbox", "clipping"];
+const ATT_TYPES = ["region", "mesh", "linkedmesh", "point", "boundingbox", "clipping"];
 const ATT_PROPS = {
   x: num, y: num, rotation: num, scaleX: num, scaleY: num,
   width: (v, w) => (num(v, w) > 0 ? v : bad(`${w}: phải > 0`)), height: (v, w) => (num(v, w) > 0 ? v : bad(`${w}: phải > 0`)),
   color: hex, path: (v, w) => (v === null ? null : name(v, w)),
   uvs: numArray, triangles: numArray, vertices: numArray, hull: num, edges: numArray, vertexCount: num, end: (v, w) => name(v, w),
+  // linkedmesh: uses the mesh "parent" (same slot; skin = the parent's skin if not this one) with its own image
+  parent: (v, w) => name(v, w), skin: (v, w) => name(v, w), timelines: (v) => !!v,
   // sequence: the image is path + number (start + index, zero-padded to digits), e.g. lua1.png … lua8.png
   sequence: (v, w) => {
     if (v === null) return null;
@@ -88,6 +92,7 @@ function cleanAttachment(a, what) {
   const { type: _t, ...rest } = a ?? {};
   const out = { type, ...cleanProps(rest, ATT_PROPS, what) };
   if (out.sequence === null) delete out.sequence;
+  if (type === "linkedmesh" && !out.parent) bad(`${what}: linkedmesh cần parent (tên mesh cùng slot)`);
   if (type === "region" && !(out.width && out.height)) bad(`${what}: region cần width và height`);
   if (type === "mesh") {
     if (!out.uvs || !out.triangles || !out.vertices) bad(`${what}: mesh cần uvs, triangles, vertices`);
@@ -721,6 +726,46 @@ export const COMMANDS = {
       const c = Math.round(num(cols, "cols")), r = Math.round(num(rows, "rows"));
       if (c < 1 || r < 1 || c * r > 400) bad("cols × rows trong 1..400");
       t.set(["skins", k, "attachments", slot, n], gridMesh({ ...a, path: a.path ?? n }, c, r));
+    },
+  },
+  "mesh.fromOutline": {
+    help: "Đổi region thành mesh bám theo viền ảnh: { slot, name, skin = default, outline: [[u, v]] (viền, uv 0..1, v hướng xuống; editor và bone-cli tự dò từ alpha), spacing = 0.2 (khoảng cách điểm bên trong, 0 = chỉ viền) }",
+    run(t, { slot, name: n, skin = "default", outline, spacing = 0.2 }, doc) {
+      const k = skinIdx(doc, skin), a = doc.skins[k].attachments[slot]?.[n] ?? bad(`không có attachment "${n}" trong slot "${slot}"`);
+      if (a.type && a.type !== "region") bad(`"${n}" không phải region`);
+      if (!Array.isArray(outline) || outline.length < 3 || outline.some((p) => !Array.isArray(p) || p.length !== 2 || p.some((x) => typeof x !== "number" || x < -0.01 || x > 1.01))) bad("outline: cần ≥ 3 điểm [u, v] trong 0..1");
+      if (outline.length > 400) bad("outline: tối đa 400 điểm");
+      const m = meshFromOutline(outline, { spacing: Math.max(0, num(spacing, "spacing")), aspect: a.width / a.height });
+      if (!m.triangles.length) bad("outline không tạo được tam giác nào");
+      t.set(["skins", k, "attachments", slot, n], meshFromUvs({ ...a, path: a.path ?? n }, m.uvs, m.triangles, m.hull));
+    },
+  },
+  "mesh.addVertex": {
+    help: "Thêm một đỉnh vào mesh tại toạ độ uv (0..1, v hướng xuống) bên trong mesh; lưới tam giác hoá lại, weight nội suy: { slot, name, skin = default, u, v }",
+    run(t, { slot, name: n, skin = "default", u, v }, doc) {
+      const k = skinIdx(doc, skin), a = doc.skins[k].attachments[slot]?.[n] ?? bad(`không có mesh "${n}"`);
+      if (a.type !== "mesh") bad(`"${n}" không phải mesh`);
+      const next = addVertex(doc, slot, a, num(u, "u"), num(v, "v")) ?? bad("điểm nằm ngoài mesh");
+      t.set(["skins", k, "attachments", slot, n], next);
+    },
+  },
+  "mesh.removeVertex": {
+    help: "Xoá một đỉnh mesh (lưới tam giác hoá lại; key deform của mesh này bỏ đỉnh đó): { slot, name, skin = default, index }",
+    run(t, { slot, name: n, skin = "default", index }, doc) {
+      const k = skinIdx(doc, skin), a = doc.skins[k].attachments[slot]?.[n] ?? bad(`không có mesh "${n}"`);
+      if (a.type !== "mesh") bad(`"${n}" không phải mesh`);
+      const i = Math.round(num(index, "index"));
+      if (!(i >= 0 && i < a.uvs.length / 2)) bad("index ngoài số đỉnh");
+      if (a.uvs.length / 2 <= 3 || (i < (a.hull ?? 0) && a.hull <= 3)) bad("mesh cần ít nhất 3 đỉnh viền");
+      const next = removeVertex(doc, slot, a, i);
+      if (!next.triangles.length) bad("xoá đỉnh này thì mesh không còn tam giác");
+      t.set(["skins", k, "attachments", slot, n], next);
+      // deform keys store offsets per vertex (2 numbers, or 2 per bone influence when weighted): drop this vertex's
+      if (!isWeightedAtt(a)) mapAnimations(t, (an, anim) => {
+        const keys = anim.deform?.[skin]?.[slot]?.[n];
+        if (keys) t.set(["animations", an, "deform", skin, slot, n], keys.map((key) => ({ ...key, vertices: key.vertices.filter((_, j) => (j >> 1) !== i) })));
+      });
+      else mapAnimations(t, (an, anim) => { if (anim.deform?.[skin]?.[slot]?.[n]) dropEmpty(t, ["animations", an, "deform", skin, slot, n]); });
     },
   },
   "mesh.bind": {

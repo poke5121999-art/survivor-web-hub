@@ -50,6 +50,8 @@ doc = {
 - Tint black: `slot.dark` (`rrggbb`), key `{slot, prop: "dark"}`; chỗ đen của ảnh thành màu tối, chỗ trắng thành màu slot. Xuất Spine thành timeline `rgba2`. Runtime three.js chưa vẽ tint black.
 - Sequence: attachment có `sequence: { count, start, digits, setup }`, ảnh là `path + số`; key `{sequence: {skin, slot, attachment}}` với `mode` hold/once/loop/pingpong (+Reverse), `index`, `delay`.
 - Physics giản lược (`physics.add/set/remove`): đầu bone treo trên lò xo tắt dần (độ cứng `strength`, giảm nảy `damping`, 1 = không nảy, quán tính `inertia`, gió, trọng lực), áp lên xoay và/hoặc dời. Chỉ chạy khi phát (XuongPlayer, XuongMesh, editor đang phát); tư thế tĩnh (`poseAt`, bone-cli render) không có physics. Xuất/nhập cùng tên trường với Spine 4.2 nhưng lò xo là cách tính riêng nên cảm giác khác.
+- Mesh: `mesh.fromRegion` (lưới chữ nhật), `mesh.fromOutline` (lưới bám viền ảnh: editor nút "Mesh theo viền", `bone-cli trace --slot s --name a`), `mesh.addVertex` / `mesh.removeVertex` (tam giác hoá lại bằng Delaunay trong viền), linked mesh (`type: "linkedmesh"`, `parent`, `timelines`).
+- Weight: `mesh.bind` (theo khoảng cách hoặc `hang`), `mesh.paintWeights` (cọ trong editor), `mesh.smoothWeights`, `mesh.pruneWeights`.
 - Bounding box, point: lưu và xuất như Spine; editor vẽ khung xanh (bounding box), đỏ nét đứt (clipping), dấu chữ thập (point).
 
 ## Command

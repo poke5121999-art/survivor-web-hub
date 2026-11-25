@@ -1,6 +1,7 @@
 // Mesh commands: region → grid mesh, automatic weights, vertex moves (setup) and deform offsets (animate).
 // Weighted vertices follow the JSON layout: per vertex [count, (boneIndex, bindX, bindY, weight) × count].
-import { buildSkeleton, setupPose, updateWorld, regionLocal, isWeighted, DEG } from "../runtime/xuong.js?v=20261125m";
+import { buildSkeleton, setupPose, updateWorld, regionLocal, isWeighted, DEG } from "../runtime/xuong.js?v=20261125n";
+import { delaunay, inPolygon } from "./mesh-trace.js?v=20261125n";
 
 const tidy = (v) => Math.round(v * 1e4) / 1e4;
 const world = (doc) => { const sk = buildSkeleton(doc), p = setupPose(sk); updateWorld(sk, p); return { sk, pose: p }; };
@@ -51,6 +52,14 @@ export function gridMesh(att, cols, rows) {
   };
 }
 
+// mesh with given uvs/triangles over a region's rectangle (uv v down): vertex = bilinear position in the quad
+export function meshFromUvs(att, uvs, triangles, hull) {
+  const q = regionLocal(att), P = (i) => [q[i * 2], q[i * 2 + 1]];
+  const lerp2 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const vertices = [];
+  for (let i = 0; i < uvs.length; i += 2) { const u = uvs[i], t = 1 - uvs[i + 1], p = lerp2(lerp2(P(0), P(1), u), lerp2(P(3), P(2), u), t); vertices.push(tidy(p[0]), tidy(p[1])); }
+  return { type: "mesh", path: att.path, color: att.color, width: att.width, height: att.height, vertices, uvs: uvs.slice(), triangles: triangles.slice(), hull };
+}
 // distance from a world point to a bone drawn as a segment (zero-length bones are points)
 function segDist([x, y], b, len) {
   const ax = b.wx, ay = b.wy, bx = b.wx + b.a * len, by = b.wy + b.c * len;
@@ -145,6 +154,49 @@ export function smoothWeights(doc, slot, att, { iterations = 1, amount = 0.5, in
 export function pruneWeights(doc, slot, att, { threshold = 0.05, maxPerVertex = 4 } = {}) {
   const { out, pose, ws } = readWeights(doc, slot, att);
   return writeWeights(pose, out, ws.map((m) => new Map([...m].sort((a, b) => b[1] - a[1]).slice(0, maxPerVertex).filter(([, w], k) => k === 0 || w >= threshold))));
+}
+// ---- vertex editing: add / remove a vertex, re-triangulate inside the hull (the first `hull` uvs, in order) ----
+function retriangulate(uvs, hull) {
+  const pts = [];
+  for (let i = 0; i < uvs.length; i += 2) pts.push([uvs[i], uvs[i + 1]]);
+  const poly = pts.slice(0, hull);
+  return delaunay(pts).filter(([a, b, c]) => inPolygon(poly, (pts[a][0] + pts[b][0] + pts[c][0]) / 3, (pts[a][1] + pts[b][1] + pts[c][1]) / 3)).flat();
+}
+// triangle of the mesh containing uv (u, v) and barycentric weights, or null
+export function uvTriangle(att, u, v) {
+  const t = att.triangles, U = att.uvs;
+  for (let i = 0; i < t.length; i += 3) {
+    const [a, b, c] = [t[i], t[i + 1], t[i + 2]], x0 = U[a * 2], y0 = U[a * 2 + 1], x1 = U[b * 2], y1 = U[b * 2 + 1], x2 = U[c * 2], y2 = U[c * 2 + 1];
+    const den = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
+    if (Math.abs(den) < 1e-12) continue;
+    const l0 = ((y1 - y2) * (u - x2) + (x2 - x1) * (v - y2)) / den, l1 = ((y2 - y0) * (u - x2) + (x0 - x2) * (v - y2)) / den, l2 = 1 - l0 - l1;
+    if (l0 >= -1e-6 && l1 >= -1e-6 && l2 >= -1e-6) return { idx: [a, b, c], l: [l0, l1, l2] };
+  }
+  return null;
+}
+export function addVertex(doc, slot, att, u, v) {
+  const hit = uvTriangle(att, u, v);
+  if (!hit) return null;
+  const uvs = [...att.uvs, tidy(u), tidy(v)];
+  let vertices;
+  if (!isWeighted(att)) {
+    const V = att.vertices, x = hit.idx.reduce((s, k, j) => s + V[k * 2] * hit.l[j], 0), y = hit.idx.reduce((s, k, j) => s + V[k * 2 + 1] * hit.l[j], 0);
+    vertices = [...V, tidy(x), tidy(y)];
+  } else {
+    const { out, pose, ws } = readWeights(doc, slot, att);
+    const p = [0, 1].map((c) => hit.idx.reduce((s, k, j) => s + out[k][c] * hit.l[j], 0)), m = new Map();
+    hit.idx.forEach((k, j) => { for (const [b, w] of ws[k]) m.set(b, (m.get(b) ?? 0) + w * hit.l[j]); });
+    vertices = writeWeights(pose, [...out, p], [...ws, m]);
+  }
+  return { ...att, uvs, vertices, triangles: retriangulate(uvs, att.hull ?? 0) };
+}
+export function removeVertex(doc, slot, att, i) {
+  const uvs = att.uvs.filter((_, k) => (k >> 1) !== i), hull = (att.hull ?? 0) - (i < (att.hull ?? 0) ? 1 : 0);
+  let vertices;
+  if (!isWeighted(att)) vertices = att.vertices.filter((_, k) => (k >> 1) !== i);
+  else { const { out, pose, ws } = readWeights(doc, slot, att); vertices = writeWeights(pose, out.filter((_, k) => k !== i), ws.filter((_, k) => k !== i)); }
+  const { edges, ...rest } = att; void edges; // edges index vertices: drop them rather than keep stale ones
+  return { ...rest, uvs, vertices, hull, triangles: retriangulate(uvs, hull) };
 }
 export function vertexWeights(doc, slot, att) { return readWeights(doc, slot, att).ws; }
 export function unweight(doc, slot, att) {

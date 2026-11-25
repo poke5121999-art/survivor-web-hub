@@ -17,6 +17,7 @@ const HELP = `bone-cli <lệnh> [--dir thư-mục-dự-án] ...
   strip  --anim a [--frames n] [--out f.png] [--scale n] [--bones]   dải khung đều nhau trong animation
   import-image <file.png> [--path tên]   chép ảnh vào images/ và khai báo (image.add)
   split <lệnh>                     tự cắt ảnh nguyên con (xem: bone-cli split help)
+  trace --slot s --name a [--spacing 0.2] [--tolerance 1.5]   đổi region thành mesh bám viền ảnh (dò alpha, ghi mesh.fromOutline)
   export --format xuong|spine --out thư-mục`;
 
 const argv = process.argv.slice(2);
@@ -163,6 +164,21 @@ async function main() {
     logEvent({ kind: "image", path });
     logEvent({ kind: "cmds", cmds: [{ type: "image.add", path, width: img.width, height: img.height }] });
     return console.log(`ok: ảnh ${path} ${img.width}x${img.height}`);
+  }
+  if (cmd === "trace") {
+    const slot = opt.slot ?? die("trace cần --slot"), name = opt.name ?? die("trace cần --name");
+    const att = doc.skins.find((k) => k.name === (opt.skin ?? "default"))?.attachments?.[slot]?.[name] ?? die(`không có attachment "${name}" trong slot "${slot}"`);
+    const img = loadImages(DIR, doc).get(att.path ?? name) ?? die(`không có file ảnh images/${att.path ?? name}.png`);
+    const { traceOutline, simplify } = await import("../src/mesh-trace.js");
+    const poly = simplify(traceOutline(img), +(opt.tolerance ?? 1.5));
+    if (poly.length < 3) die("ảnh trong suốt hết, không dò được viền");
+    const c = { type: "mesh.fromOutline", slot, name, ...(opt.skin ? { skin: opt.skin } : {}), outline: poly.map(([x, y]) => [Math.round((x / img.width) * 1e4) / 1e4, Math.round((y / img.height) * 1e4) / 1e4]), spacing: +(opt.spacing ?? 0.2) };
+    let next;
+    try { next = applyAll(doc, [c]).doc; } catch (e) { die(e.message); }
+    saveDoc(next);
+    logEvent({ kind: "cmds", cmds: [c], note: opt.note ?? null });
+    const m = next.skins.find((k) => k.name === (opt.skin ?? "default")).attachments[slot][name];
+    return console.log(`ok: mesh ${m.uvs.length / 2} đỉnh (${m.hull} trên viền), ${m.triangles.length / 3} tam giác`);
   }
   if (cmd === "split") {
     const { splitCli } = await import("./split-cli.mjs");

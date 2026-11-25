@@ -1,6 +1,6 @@
 // Spine-compatible JSON: import (3.8 and 4.0–4.2) and export (4.2), written from the public format docs.
-import { emptyDoc } from "./commands.js?v=20261125m";
-import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds, findKey, transformMixes, PHYSICS_DEFAULTS, TRANSFORM_MIXES as TC_MIX } from "../runtime/xuong.js?v=20261125m";
+import { emptyDoc } from "./commands.js?v=20261125n";
+import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds, findKey, transformMixes, PHYSICS_DEFAULTS, TRANSFORM_MIXES as TC_MIX } from "../runtime/xuong.js?v=20261125n";
 const TC_OFF = ["rotation", "x", "y", "scaleX", "scaleY", "shearY"];
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -68,7 +68,8 @@ export function toSpine(doc, { imagesPath = "./images/" } = {}) {
         if (a.type && a.type !== "region") o.type = a.type;
         if (a.path && a.path !== name) o.path = a.path;
         for (const [f, d] of [["x", 0], ["y", 0], ["rotation", 0], ["scaleX", 1], ["scaleY", 1]]) if (a[f] !== undefined && a[f] !== d) o[f] = r4(a[f]);
-        for (const f of ["width", "height", "uvs", "triangles", "vertices", "hull", "edges", "vertexCount", "end", "sequence"]) if (a[f] !== undefined) o[f] = a[f];
+        for (const f of ["width", "height", "uvs", "triangles", "vertices", "hull", "edges", "vertexCount", "end", "sequence", "parent", "skin"]) if (a[f] !== undefined) o[f] = a[f];
+        if (a.type === "linkedmesh" && a.timelines === false) o.timelines = false;
         if (a.color && a.color !== "ffffffff") o.color = a.color;
         atts[slot][name] = o;
       }
@@ -205,7 +206,12 @@ export function fromSpine(json, { name = "Nhập từ JSON" } = {}) {
       attachments[slot] = {};
       for (const [an, a] of Object.entries(m)) {
         const type = a.type ?? "region";
-        if (type === "linkedmesh" || type === "path") { warnings.push(`attachment ${slot}/${an} kiểu ${type} chưa hỗ trợ, bị bỏ qua`); continue; }
+        if (type === "path") { warnings.push(`attachment ${slot}/${an} kiểu ${type} chưa hỗ trợ, bị bỏ qua`); continue; }
+        if (type === "linkedmesh") {
+          const timelines = a.timelines ?? a.deform ?? true; // 4.x "timelines", 3.8 "deform"
+          attachments[slot][an] = { type, path: a.path ?? a.name ?? an, parent: a.parent, ...(a.skin ? { skin: a.skin } : {}), ...(timelines === false ? { timelines: false } : {}), ...(a.width ? { width: a.width, height: a.height } : {}), ...(a.color ? { color: lowerHex(a.color) } : {}) };
+          continue;
+        }
         const o = { type, ...(a.path ? { path: a.path } : { path: a.name ?? an }) };
         for (const f of ["x", "y", "rotation", "scaleX", "scaleY", "width", "height", "uvs", "triangles", "vertices", "hull", "edges", "vertexCount", "end", "sequence"]) if (a[f] !== undefined) o[f] = a[f];
         if (a.color) o.color = lowerHex(a.color);

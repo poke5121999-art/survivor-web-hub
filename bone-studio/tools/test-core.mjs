@@ -390,3 +390,84 @@ test("weights: paint, smooth and prune keep the setup look and sum to 1; paintin
   for (const m of vertexWeights(d, "m", att())) assert.equal(m.size, 1);
   verts(d).forEach((v, i) => near(v, base[i], 1e-3));
 });
+
+test("trace: outline of a real part image, simplified; mesh from outline covers the opaque pixels and looks the same", async () => {
+  const { traceOutline, simplify, inPolygon } = await import("../src/mesh-trace.js");
+  const { readFileSync } = await import("node:fs");
+  const { decodePNG } = await import("../cli/png.mjs");
+  const img = decodePNG(readFileSync(new URL("../samples/pharaoh/project/images/dau.png", import.meta.url)));
+  const raw = traceOutline(img), poly = simplify(raw, 1.5);
+  assert.ok(raw.length > 20 && poly.length >= 6 && poly.length < raw.length, `${raw.length} → ${poly.length}`);
+  let opaque = 0, inside = 0;
+  for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) if (img.data[(y * img.width + x) * 4 + 3] > 8) { opaque++; if (inPolygon(poly, x + 0.5, y + 0.5)) inside++; }
+  assert.ok(inside / opaque > 0.97, `phủ ${inside}/${opaque}`);
+  const outline = poly.map(([x, y]) => [x / img.width, y / img.height]);
+  const d = run(emptyDoc(), [
+    { type: "slot.add", name: "s", bone: "root", attachment: "dau" },
+    { type: "attachment.add", slot: "s", name: "dau", attachment: { width: img.width * 2, height: img.height * 2, x: 5, y: 3, rotation: 20 } },
+  ]);
+  const m = run(d, [{ type: "mesh.fromOutline", slot: "s", name: "dau", outline, spacing: 0.25 }]);
+  const a = getAttachment(m, "default", "s", "dau");
+  assert.equal(a.type, "mesh"); assert.equal(a.hull, outline.length);
+  assert.ok(a.uvs.length / 2 > outline.length, "không có điểm bên trong");
+  // every vertex sits where the region would draw that uv (same look)
+  const ra = getAttachment(d, "default", "s", "dau"), r = (20 * Math.PI) / 180;
+  for (let i = 0; i < a.uvs.length; i += 2) {
+    const lx = (a.uvs[i] - 0.5) * ra.width, ly = (0.5 - a.uvs[i + 1]) * ra.height;
+    near(a.vertices[i], 5 + lx * Math.cos(r) - ly * Math.sin(r), 1e-2); near(a.vertices[i + 1], 3 + lx * Math.sin(r) + ly * Math.cos(r), 1e-2);
+  }
+});
+
+test("linked mesh: parent's shape and deform keys with its own image; Spine round trip; timelines:false keeps it still", async () => {
+  const { toSpine, fromSpine } = await import("../src/spine-io.js");
+  const { drawList } = await import("../runtime/xuong.js");
+  let d = run(emptyDoc(), [
+    { type: "slot.add", name: "mat", bone: "root", attachment: "vui" },
+    { type: "attachment.add", slot: "mat", name: "vui", attachment: { width: 10, height: 10 } },
+    { type: "mesh.fromRegion", slot: "mat", name: "vui", cols: 1, rows: 1 },
+    { type: "attachment.add", slot: "mat", name: "buon", attachment: { type: "linkedmesh", parent: "vui", path: "mat-buon" } },
+    { type: "anim.add", name: "a" },
+    { type: "key.set", anim: "a", track: { deform: { slot: "mat", attachment: "vui" } }, time: 0, value: [0, 0, 0, 0, 0, 0, 0, 0] },
+    { type: "key.set", anim: "a", track: { deform: { slot: "mat", attachment: "vui" } }, time: 1, value: [3, 0, 3, 0, 3, 0, 3, 0] },
+    { type: "key.set", anim: "a", track: { slot: "mat", prop: "attachment" }, time: 0, value: "buon" },
+  ]);
+  const item = (doc, t) => { const sk = buildSkeleton(doc); return drawList(sk, poseAt(sk, doc.animations.a, t))[0]; };
+  const it = item(d, 1);
+  assert.equal(it.image, "mat-buon"); assert.equal(it.mesh, true);
+  near(it.verts[0], -5 + 3); // the parent's deform moved it
+  const { doc: back, warnings } = fromSpine(JSON.parse(JSON.stringify(toSpine(d))));
+  assert.deepEqual(warnings, []);
+  assert.equal(item(back, 1).image, "mat-buon"); near(item(back, 1).verts[0], -2);
+  d = run(d, [{ type: "attachment.set", slot: "mat", name: "buon", props: { timelines: false } }]);
+  near(item(d, 1).verts[0], -5);
+  assert.throws(() => run(d, [{ type: "attachment.add", slot: "mat", name: "x", attachment: { type: "linkedmesh" } }]), /parent/);
+});
+
+test("mesh vertex edit: add inside (same look, weights interpolated), remove (re-triangulated, deform keys follow)", async () => {
+  const { vertexWeights } = await import("../src/mesh.js");
+  let d = run(emptyDoc(), [
+    { type: "bone.add", name: "a", length: 10 }, { type: "bone.add", name: "b", parent: "a", x: 10, length: 10 },
+    { type: "slot.add", name: "m", bone: "a", attachment: "m" },
+    { type: "attachment.add", slot: "m", name: "m", attachment: { width: 20, height: 4, x: 10 } },
+    { type: "mesh.fromRegion", slot: "m", name: "m", cols: 2, rows: 1 },
+  ]);
+  const att = (doc) => getAttachment(doc, "default", "m", "m");
+  const n0 = att(d).uvs.length / 2;
+  d = run(d, [{ type: "mesh.addVertex", slot: "m", name: "m", u: 0.25, v: 0.5 }]);
+  const a1 = att(d);
+  assert.equal(a1.uvs.length / 2, n0 + 1);
+  near(a1.vertices[n0 * 2], 5); near(a1.vertices[n0 * 2 + 1], 0); // local spot of uv (0.25, 0.5)
+  assert.ok(a1.triangles.includes(n0), "đỉnh mới không nằm trong tam giác nào");
+  assert.throws(() => run(d, [{ type: "mesh.addVertex", slot: "m", name: "m", u: 1.5, v: 0.5 }]), /ngoài mesh/);
+  // weighted: the new vertex blends its triangle's weights
+  let w = run(d, [{ type: "mesh.bind", slot: "m", name: "m", bones: ["a", "b"] }, { type: "mesh.addVertex", slot: "m", name: "m", u: 0.75, v: 0.5 }]);
+  const ws = vertexWeights(w, "m", att(w)), last = ws[ws.length - 1];
+  near([...last.values()].reduce((x, y) => x + y, 0), 1);
+  assert.equal(last.size, 2);
+  // remove the interior vertex again; deform keys lose that vertex
+  d = run(d, [{ type: "anim.add", name: "x" }, { type: "key.set", anim: "x", track: { deform: { slot: "m", attachment: "m" } }, time: 0, value: Array.from({ length: (n0 + 1) * 2 }, (_, i) => i) }]);
+  d = run(d, [{ type: "mesh.removeVertex", slot: "m", name: "m", index: n0 }]);
+  assert.equal(att(d).uvs.length / 2, n0);
+  assert.equal(d.animations.x.deform.default.m.m[0].vertices.length, n0 * 2);
+  assert.ok(Math.max(...att(d).triangles) < n0);
+});

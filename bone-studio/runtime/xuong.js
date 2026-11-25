@@ -46,10 +46,24 @@ export function findKey(keys, time) {
 }
 
 // ---- skeleton index ----------------------------------------------------------------------------
-export function getAttachment(doc, skin, slot, name) {
+export function getAttachment(doc, skin, slot, name, depth = 0) {
   if (name == null) return null;
   const s = doc.skins?.find((k) => k.name === skin);
-  return s?.attachments?.[slot]?.[name] ?? doc.skins?.find((k) => k.name === "default")?.attachments?.[slot]?.[name] ?? null;
+  const a = s?.attachments?.[slot]?.[name] ?? doc.skins?.find((k) => k.name === "default")?.attachments?.[slot]?.[name] ?? null;
+  return a?.type === "linkedmesh" ? linked(doc, skin, slot, name, a, depth) : a;
+}
+// linked mesh: the parent mesh's vertices, uvs, triangles (and, by default, its deform keys) with its own image
+const linkedCache = new WeakMap();
+function linked(doc, skin, slot, name, a, depth) {
+  const parent = depth < 4 ? getAttachment(doc, a.skin ?? skin, slot, a.parent, depth + 1) : null;
+  if (!parent || parent.type !== "mesh") return null;
+  const hit = linkedCache.get(a);
+  if (hit?.parent === parent) return hit.merged;
+  const merged = { ...parent, type: "mesh", path: a.path ?? name, color: a.color ?? parent.color, width: a.width ?? parent.width, height: a.height ?? parent.height, linkedParent: a.parent, inheritDeform: a.timelines !== false };
+  delete merged.sequence;
+  if (a.sequence) merged.sequence = a.sequence;
+  linkedCache.set(a, { parent, merged });
+  return merged;
 }
 
 export function buildSkeleton(doc) {
@@ -403,7 +417,7 @@ export function applyAnimation(sk, pose, anim, time, alpha = 1, events = null, l
       if (i === undefined) continue;
       const p = pose.slots[i];
       for (const [attName, keys] of Object.entries(atts)) {
-        if (p.attachment !== attName) continue;
+        if (p.attachment !== attName) { const cur = getAttachment(sk.doc, pose.skin, slotName, p.attachment); if (!(cur?.linkedParent === attName && cur.inheritDeform)) continue; }
         const [k, f] = findKey(keys, time);
         if (k < 0) continue;
         const a = keys[k].vertices, b = keys[k + 1]?.vertices ?? a, n = Math.max(a.length, b.length);
