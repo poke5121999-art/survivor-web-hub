@@ -5,7 +5,7 @@ Worker của Xưởng Anim (`anim.html`). Hợp đồng API và vòng đời job
 - `worker.mjs`: nhận job, đọc trần bộ nhớ, viết lại prompt bằng `claude -p`, chạy engine, đẩy tiến độ, tải khung hình lên.
 - `fake-engine.mjs`: engine giả bằng ffmpeg, cùng hợp đồng CLI với `anim-gen`, để chạy cả chuỗi khi chưa có GPU.
 - `start-linux.sh`: `linux:claude`, priority 0, nhận ngay (tmux session `anim`).
-- `start-pc.ps1`: `pc:claude`, priority 1, nhường 20 s cho máy linux.
+- `start-pc.ps1`: `pc:gpu`, priority 0, nhận ngay (linux không còn là worker GPU); bước viết lại prompt gọi `claude` trên linux qua `claude-linux.mjs`. Triển khai ở `C:nim-workerpp\` (cùng `worker.mjs`), engine ở `C:nim-studio\`; có `C:nim-worker\PAUSE` thì không bật. Chi tiết: `docs/anim-studio.md` mục "Cài trên PC".
 
 ## Chạy
 

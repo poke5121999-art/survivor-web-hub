@@ -96,6 +96,19 @@ Xuất ở trình duyệt, đúng các khung đang giữ: sprite sheet PNG (ch�
 - Tự bật lại: cron trên linux gọi `~/bin/hub-workers-up.sh` (repo `tools/hub-workers-up.sh`) lúc khởi động máy và 5 phút một lần, bật
   cả worker Xưởng VFX lẫn Xưởng Anim nếu chúng không chạy; log `~/hub-workers-up.log`. Trên PC là Task Scheduler `hub-workers-up`
   gọi `C:\hub-workers\hub-workers-up.ps1` (repo `tools/hub-workers-up.ps1`) lúc đăng nhập và 5 phút một lần.
+- PC `HOB-THOR` (RTX 3050 8 GB): worker `pc:gpu` priority 0 (linux đã tắt worker; Claude gọi qua tài khoản linux bằng `claude-linux.mjs`), engine riêng ở `C:nim-studio\` (mục "Cài trên PC" bên dưới).
 - Mượn GPU để thử engine: `touch ~/anim-worker/PAUSE` rồi `tmux kill-session -t anim-worker`; xong thì `rm ~/anim-worker/PAUSE` và
   chạy lại start script. Thiếu bước PAUSE thì cron bật worker lại trong 5 phút và hai bên giành GPU.
 - Tuỳ chọn trang "Giữ lưới pixel" (tắt/2/3/4) truyền `params.pixel_snap` thành `--pixel-snap K`.
+
+## Cài trên PC (HOB-THOR, ổ C:)
+
+- `C:nim-studio\`: `venv\` (uv, Python 3.12, torch 2.14.1+cu126, diffusers 0.33.1 và accelerate 1.16.0 ghim đúng bản linux), `ComfyUI\` (commit `1f13e29b` như linux, `extra_model_paths.yaml` trỏ `models\`),
+  node `ComfyUI-FramePackWrapper` (`a0eeaa69`), `workflows\*.json` (chép từ linux), `binnim-gen.py` + `binnim-gen.cmd` (bản Windows của `anim-gen`: `ANIM_HOME` đổi thư mục gốc, `FFMPEG` đổi ffmpeg,
+  `ANIM_COMFY_FLAGS` đổi cờ ComfyUI, mặc định `--disable-smart-memory`; `--stop-server` dùng `taskkill`), `bin\sample-run.py` (đo commit/VRAM mỗi 2 s, tự giết ComfyUI của mình khi commit trống < 4 GB).
+  Chỉ engine `framepack`. Trọng số (~27 GB, chép bằng `scp` từ linux): transformer fp8 16 GB, llava_llama3 fp8 9 GB, clip_l, VAE HunyuanVideo, sigclip, BiRefNet.
+- Worker chạy từ `C:nim-workerpp\` (`worker.mjs` + `start-pc.ps1`, chép từ `tools/anim-worker/`). Task `hub-workers-up` gọi `start-pc.ps1` lúc đăng nhập và mỗi 5 phút; script
+  bỏ qua nếu đã có node chạy đúng đường dẫn `C:nim-workerpp\worker.mjs` (id `pc:claude` trùng worker Bone/VFX nên không dò theo id) và thoát khi có file `C:nim-worker\PAUSE`.
+- Khởi động lại: tắt node có `C:nim-workerpp\worker.mjs` trong dòng lệnh, chạy `C:nim-studioinnim-gen.cmd --stop-server`, rồi `powershell -File C:nim-workerpp\start-pc.ps1` (hoặc chờ task 5 phút).
+  Log: `C:nim-studio\worker\worker-console.log`, `worker-claude.log`; ComfyUI: `C:nim-studio\out\comfyui.log`.
+- Trần: `start-pc.ps1 -MinFreeGb N` (commit trống) và `--min-free-vram 6`; số đo và ngưỡng đang dùng ở cuối mục này.
