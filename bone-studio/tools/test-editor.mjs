@@ -341,6 +341,39 @@ try {
     return `kiếm lệch tối đa ${maxDiff.toFixed(1)}° khi phát, 0 khi dừng`;
   });
 
+  await step("tách bone, Giữ con khi xoay bone cha ở setup, chép/dán transform một undo", async () => {
+    const p9 = await open("?sample=robo");
+    const wpos = (n) => p9.evaluate((n) => { const p = __BS.pose(), b = p.bones[__BS.doc().bones.findIndex((x) => x.name === n)]; return [b.wx, b.wy]; }, n);
+    await p9.evaluate(() => __BS.select({ kind: "bone", name: "front-upper-arm" }));
+    await p9.locator("#xx-props button", { hasText: "Tách đôi" }).click();
+    const split = await p9.evaluate(() => __BS.doc().bones.find((b) => b.name === "front-lower-arm").parent);
+    assert(split === "front-upper-arm-2", "cha của cẳng tay: " + split);
+    // Giữ con: rotate the torso with the mouse, the head stays where it was
+    const head0 = await wpos("head");
+    await p9.check("#xx-comp");
+    await p9.keyboard.press("c");
+    await p9.evaluate(() => __BS.select({ kind: "bone", name: "torso" }));
+    const [tx, ty] = await p9.evaluate(() => { const p = __BS.pose(), b = p.bones[__BS.doc().bones.findIndex((x) => x.name === "torso")]; return __BS.toScreen(b.wx, b.wy); });
+    const r = await p9.locator("#xx-canvas").boundingBox();
+    await p9.mouse.move(r.x + tx + 60, r.y + ty); await p9.mouse.down(); await p9.mouse.move(r.x + tx + 50, r.y + ty - 35, { steps: 6 }); await p9.mouse.up();
+    const head1 = await wpos("head"), torsoRot = await p9.evaluate(() => __BS.doc().bones.find((b) => b.name === "torso").rotation);
+    await p9.uncheck("#xx-comp");
+    assert(Math.hypot(head1[0] - head0[0], head1[1] - head0[1]) < 0.05, `đầu dời ${JSON.stringify([head0, head1])}`);
+    // copy the head's transform onto both arms in animate mode → one undo
+    await p9.evaluate(() => { __BS.setMode("animate"); __BS.S.anim = "idle"; __BS.setTime(0); __BS.emit("anim"); __BS.select({ kind: "bone", name: "head" }); });
+    await p9.locator("#xx-props button", { hasText: "Chép transform" }).click();
+    const before = await p9.evaluate(() => JSON.stringify(__BS.doc().animations.idle));
+    await p9.evaluate(() => { __BS.select({ kind: "bone", name: "front-hand" }); __BS.select({ kind: "bone", name: "back-hand" }, true); });
+    await p9.locator("#xx-props button", { hasText: "Dán transform" }).click();
+    const rot = await p9.evaluate(() => { const p = __BS.pose(), d = __BS.doc(), r = (n) => { const b = p.bones[d.bones.findIndex((x) => x.name === n)]; return b.rotation; }; return [r("head"), r("front-hand"), r("back-hand")]; });
+    await p9.keyboard.press("Control+z");
+    const after = await p9.evaluate(() => JSON.stringify(__BS.doc().animations.idle));
+    await p9.close();
+    assert(Math.abs(rot[1] - rot[0]) < 1e-3 && Math.abs(rot[2] - rot[0]) < 1e-3, `xoay sau khi dán ${rot}`);
+    assert(after === before, "một Ctrl+Z không bỏ hết lần dán");
+    return `thân xoay tới ${torsoRot}°, đầu đứng yên; dán xoay ${rot[0].toFixed(1)}° cho 2 bàn tay`;
+  });
+
   await step("xem trộn walk → attack: góc tay đổi liên tục, không nhảy cóc", async () => {
     const p7 = await open("?sample=pharaoh");
     const r = await p7.evaluate(async () => {

@@ -1,12 +1,12 @@
 // three.js adapter for Xưởng Xương skeletons (three r160+, ESM).
 //   import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-//   import { loadSkeleton } from "./xuong-player.js?v=20261125j";
-//   import { XuongMesh } from "./xuong-three.js?v=20261125j";
+//   import { loadSkeleton } from "./xuong-player.js?v=20261125k";
+//   import { XuongMesh } from "./xuong-three.js?v=20261125k";
 //   const m = new XuongMesh(THREE, await loadSkeleton("pharaoh.xuong.json"), { pixelsPerUnit: 100 });
 //   m.play("walk"); scene.add(m); mỗi khung: m.update(dt);
 // Một BufferGeometry cho mỗi (trang atlas, additive hay không); vị trí/uv/màu dựng lại mỗi khung từ drawList.
 // Thứ tự vẽ giữ nguyên trong từng geometry (thứ tự tam giác); giữa các geometry dùng renderOrder theo slot đầu tiên.
-import { buildSkeleton, setupPose, updateWorld, Physics, drawList, AnimationState, bounds as listBounds } from "./xuong.js?v=20261125j";
+import { buildSkeleton, setupPose, updateWorld, Physics, drawList, AnimationState, bounds as listBounds } from "./xuong.js?v=20261125k";
 
 // XuongMesh là Object3D của THREE được truyền vào: `new XuongMesh(THREE, data, opts)` trả về một lớp con của THREE.Object3D
 // (dựng một lần cho mỗi bản THREE). Lớp này chỉ mang các phương thức bên dưới.
@@ -80,12 +80,20 @@ Object.defineProperties(XuongMesh.prototype, Object.fromEntries(Object.entries({
     const T = this.THREE;
     const geo = new T.BufferGeometry();
     const mat = new T.MeshBasicMaterial({ map: this._texture(source), vertexColors: true, transparent: true, depthWrite: false, depthTest: false, side: T.DoubleSide });
+    // tint black: per-vertex dark colour; texture black → dark, white → light (vertex colour)
+    mat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute vec3 xxDark;\nvarying vec3 vXxDark;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvXxDark = xxDark;");
+      // tints mix in sRGB like canvas2D and Spine: texel (decoded to linear by three) → sRGB, tint, → linear
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vXxDark;\nvec3 xxToSrgb(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }\nvec3 xxToLin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }")
+        .replace("#include <map_fragment>", "vec4 xxTex = texture2D( map, vMapUv );")
+        .replace("#include <color_fragment>", "diffuseColor.rgb = xxToLin(vXxDark + ( diffuseColor.rgb * vColor.rgb - vXxDark ) * xxToSrgb(xxTex.rgb));\ndiffuseColor.a *= vColor.a * xxTex.a;");
+    };
     if (blend === "additive") mat.blending = T.AdditiveBlending;
     else if (blend === "multiply") mat.blending = T.MultiplyBlending;
     const mesh = new T.Mesh(geo, mat);
     mesh.frustumCulled = false; mesh.matrixAutoUpdate = true;
     this.add(mesh);
-    g = { mesh, geo, cap: 0, capIdx: 0, pos: null, uv: null, col: null, idx: null, source, nv: 0, ni: 0 };
+    g = { mesh, geo, cap: 0, capIdx: 0, pos: null, uv: null, col: null, dark: null, idx: null, source, nv: 0, ni: 0 };
     this._groups.set(key, g);
     return g;
   },
@@ -93,12 +101,13 @@ Object.defineProperties(XuongMesh.prototype, Object.fromEntries(Object.entries({
     if (nv <= g.cap && ni <= g.capIdx) return;
     const T = this.THREE, cap = Math.max(64, g.cap, nv), capIdx = Math.max(96, g.capIdx, ni);
     const grow = (a, n) => { const b = new Float32Array(n); if (a) b.set(a.subarray(0, Math.min(a.length, n))); return b; };
-    g.pos = grow(g.pos, cap * 3); g.uv = grow(g.uv, cap * 2); g.col = grow(g.col, cap * 4);
+    g.pos = grow(g.pos, cap * 3); g.uv = grow(g.uv, cap * 2); g.col = grow(g.col, cap * 4); g.dark = grow(g.dark, cap * 3);
     const idx = new Uint32Array(capIdx); if (g.idx) idx.set(g.idx.subarray(0, Math.min(g.idx.length, capIdx))); g.idx = idx;
     g.cap = cap; g.capIdx = capIdx;
     g.geo.setAttribute("position", new T.BufferAttribute(g.pos, 3).setUsage(T.DynamicDrawUsage));
     g.geo.setAttribute("uv", new T.BufferAttribute(g.uv, 2).setUsage(T.DynamicDrawUsage));
     g.geo.setAttribute("color", new T.BufferAttribute(g.col, 4).setUsage(T.DynamicDrawUsage));
+    g.geo.setAttribute("xxDark", new T.BufferAttribute(g.dark, 3).setUsage(T.DynamicDrawUsage));
     g.geo.setIndex(new T.BufferAttribute(g.idx, 1).setUsage(T.DynamicDrawUsage));
   },
   _rebuild() {
@@ -121,13 +130,14 @@ Object.defineProperties(XuongMesh.prototype, Object.fromEntries(Object.entries({
       const u = used.get(g);
       const z = n * this.zStep, W = src.naturalWidth || src.width, H = src.naturalHeight || src.height;
       const { x: sx, y: sy, w, h, offX, offY, origW, origH } = im, rot = im.rotate === true || im.rotate === 90;
-      const c = d.color, v = d.verts;
+      const c = d.color, v = d.verts, dk = d.dark ?? [0, 0, 0];
       const put = (x, y, px, py) => { // px,py: pixel trong vùng đóng gói (py hướng xuống) -> uv trang
         const gx = rot ? sx + (h - py) : sx + px, gy = rot ? sy + px : sy + py;
         const i = g.nv++;
         g.pos[i * 3] = x * k; g.pos[i * 3 + 1] = y * k; g.pos[i * 3 + 2] = z;
         g.uv[i * 2] = gx / W; g.uv[i * 2 + 1] = 1 - gy / H;
         g.col[i * 4] = c[0]; g.col[i * 4 + 1] = c[1]; g.col[i * 4 + 2] = c[2]; g.col[i * 4 + 3] = c[3];
+        g.dark[i * 3] = dk[0]; g.dark[i * 3 + 1] = dk[1]; g.dark[i * 3 + 2] = dk[2];
       };
       if (d.mesh ?? d.att.type === "mesh") {
         const base = g.nv, uv = d.uvs, top = origH - offY - h;
@@ -154,7 +164,7 @@ Object.defineProperties(XuongMesh.prototype, Object.fromEntries(Object.entries({
       if (!u) { g.mesh.visible = false; continue; }
       g.mesh.visible = true;
       g.geo.setDrawRange(0, g.ni);
-      g.geo.attributes.position.needsUpdate = g.geo.attributes.uv.needsUpdate = g.geo.attributes.color.needsUpdate = true;
+      g.geo.attributes.position.needsUpdate = g.geo.attributes.uv.needsUpdate = g.geo.attributes.color.needsUpdate = g.geo.attributes.xxDark.needsUpdate = true;
       g.geo.index.needsUpdate = true;
     }
   },

@@ -1,8 +1,8 @@
 // Command registry. Every change to a document, from the UI, the agent, the CLI or a test, is one of these.
 // apply(doc, cmd) is pure: it returns a new doc and the exact inverse (a $patch command).
-import { transaction, applyPatch } from "./tx.js?v=20261125j";
-import { gridMesh, autoWeights, hangWeights, unweight, movedVertices } from "./mesh.js?v=20261125j";
-import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125j";
+import { transaction, applyPatch } from "./tx.js?v=20261125k";
+import { gridMesh, autoWeights, hangWeights, unweight, movedVertices } from "./mesh.js?v=20261125k";
+import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125k";
 
 export const FORMAT = "xuong";
 export const VERSION = 1;
@@ -227,10 +227,45 @@ export const COMMANDS = {
     },
   },
   "bone.set": {
-    help: "Sửa setup pose / thuộc tính của bone: { name, props: { x, y, rotation, scaleX, scaleY, shearX, shearY, length, inherit, color, hidden } }",
-    run(t, { name: n, props }, doc) {
-      const i = boneIdx(doc, n);
-      t.set(["bones", i], { ...doc.bones[i], ...cleanProps(props, BONE_PROPS, `bone ${n}`) });
+    help: "Sửa setup pose / thuộc tính của bone: { name, props: { x, y, rotation, scaleX, scaleY, shearX, shearY, length, inherit, color, hidden }, compensate = false }. compensate: bone con và ảnh (region) của bone giữ nguyên trên màn hình",
+    run(t, { name: n, props, compensate = false }, doc) {
+      const i = boneIdx(doc, n), next = { ...doc.bones[i], ...cleanProps(props, BONE_PROPS, `bone ${n}`) };
+      t.set(["bones", i], next);
+      if (!compensate) return;
+      const before = worldOfBones(doc), after = worldOfBones({ ...doc, bones: doc.bones.map((b, j) => (j === i ? next : b)) });
+      const B0 = before.pose.bones[i], B1 = after.pose.bones[i], I1 = inv(B1);
+      const toNew = (wx, wy) => { const dx = wx - B1.wx, dy = wy - B1.wy; return [tidy(I1.a * dx + I1.b * dy), tidy(I1.c * dx + I1.d * dy)]; };
+      doc.bones.forEach((b, j) => {
+        if (b.parent !== n) return;
+        const w = before.pose.bones[j], [x, y] = toNew(w.wx, w.wy);
+        t.set(["bones", j], { ...b, x, y, ...decompose(...Object.values(mul(I1, w))) });
+      });
+      // region images on this bone's slots: same world place and angle
+      const L = mul(I1, B0), slots = new Set(doc.slots.filter((s) => s.bone === n).map((s) => s.name));
+      doc.skins.forEach((skin, k) => {
+        for (const sn of slots) for (const [an, a] of Object.entries(skin.attachments[sn] ?? {})) {
+          if (a.type && a.type !== "region" && a.type !== "point") continue;
+          const r = (a.rotation ?? 0) * DEG, sx = a.scaleX ?? 1, sy = a.scaleY ?? 1;
+          const [wx, wy] = [B0.a * (a.x ?? 0) + B0.b * (a.y ?? 0) + B0.wx, B0.c * (a.x ?? 0) + B0.d * (a.y ?? 0) + B0.wy];
+          const [x, y] = toNew(wx, wy), m = mul(L, { a: Math.cos(r) * sx, b: -Math.sin(r) * sy, c: Math.sin(r) * sx, d: Math.cos(r) * sy }), dcm = decompose(m.a, m.b, m.c, m.d);
+          t.set(["skins", k, "attachments", sn, an], { ...a, x, y, rotation: dcm.rotation, ...(a.type === "point" ? {} : { scaleX: dcm.scaleX, scaleY: dcm.scaleY }) });
+        }
+      });
+    },
+  },
+  "bone.split": {
+    help: "Tách một bone thành hai tại một điểm dọc chiều dài: { name, at = 0.5 (0..1), newName }. Bone mới là con, nối tiếp; bone con cũ chuyển sang bone mới, giữ nguyên trên màn hình",
+    run(t, { name: n, at = 0.5, newName }, doc) {
+      const i = boneIdx(doc, n), b = doc.bones[i], f = num(at, "at");
+      if (!(f > 0 && f < 1)) bad("at trong khoảng (0, 1)");
+      if (!(b.length > 0)) bad(`bone "${n}" dài 0, không tách được`);
+      const nn = name(newName ?? `${n}-2`, "newName");
+      if (doc.bones.some((x) => x.name === nn)) bad(`đã có bone "${nn}"`);
+      const cut = tidy(b.length * f);
+      const list = doc.bones.map((x) => (x.name === n ? { ...x, length: cut } : x.parent === n ? { ...x, parent: nn, x: tidy((x.x ?? 0) - cut) } : x));
+      list.splice(i + 1, 0, { name: nn, parent: n, x: cut, y: 0, rotation: 0, scaleX: 1, scaleY: 1, shearX: 0, shearY: 0, length: tidy(b.length - cut), inherit: "normal", ...(b.color ? { color: b.color } : {}) });
+      // children were in the old bone's space: a pure shift along x keeps them in place (new bone has no rotation/scale)
+      t.set(["bones"], list);
     },
   },
   "bone.rename": {

@@ -1,6 +1,6 @@
 // Tree and properties panels.
-import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125j";
-import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125j";
+import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125k";
+import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125k";
 
 const treeEl = document.getElementById("xx-tree"), propsEl = document.getElementById("xx-props"), findEl = document.getElementById("xx-find");
 const collapsed = new Set();
@@ -228,6 +228,13 @@ export function renderProps() {
       act("+ Bone con", addChildBone),
       S.mode === "setup" ? act("+ Slot", () => { const n = uniqueName(d.slots.map((s) => s.name), b.name); run({ type: "slot.add", name: n, bone: b.name }, "Thêm slot"); }) : act("Key tất cả (K)", () => window.XX.keyNow()),
       selectedBones().length === 2 ? act("+ IK 2 bone", () => window.XX.addIk()) : null,
+      S.mode === "setup" && b.length > 0 ? act("Tách đôi", () => { const nn = uniqueName(d.bones.map((x) => x.name), `${b.name}-2`); if (run({ type: "bone.split", name: b.name, at: 0.5, newName: nn }, "Tách bone")) select({ kind: "bone", name: nn }); }) : null,
+      act("Chép transform", () => { const c = currentLocal(b.name); S.clipTransform = { rotation: c.rotation, x: c.x, y: c.y, scaleX: c.scaleX, scaleY: c.scaleY, shearX: c.shearX, shearY: c.shearY }; toast(`Đã chép transform của ${b.name}`); }),
+      S.clipTransform ? act("Dán transform", () => {
+        S.hist.begin("Dán transform"); // one undo step for every bone and channel
+        for (const n of selectedBones()) for (const v of [["rotation"], ["x", "y"], ["scaleX", "scaleY"], ["shearX", "shearY"]]) editBone(n, Object.fromEntries(v.map((f) => [f, S.clipTransform[f]])));
+        S.hist.end(); emit("doc");
+      }) : null,
       S.mode === "setup" ? act("+ Physics", () => {
         const name = uniqueName((d.physics ?? []).map((c) => c.name), `${b.name}-lac`);
         if (run({ type: "physics.add", name, bone: b.name }, "Thêm physics")) { select({ kind: "physics", name }); toast("Physics chỉ chạy khi phát animation (Space)"); }

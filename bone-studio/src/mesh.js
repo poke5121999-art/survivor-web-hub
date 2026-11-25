@@ -1,6 +1,6 @@
 // Mesh commands: region → grid mesh, automatic weights, vertex moves (setup) and deform offsets (animate).
 // Weighted vertices follow the JSON layout: per vertex [count, (boneIndex, bindX, bindY, weight) × count].
-import { buildSkeleton, setupPose, updateWorld, regionLocal, isWeighted, DEG } from "../runtime/xuong.js?v=20261125j";
+import { buildSkeleton, setupPose, updateWorld, regionLocal, isWeighted, DEG } from "../runtime/xuong.js?v=20261125k";
 
 const tidy = (v) => Math.round(v * 1e4) / 1e4;
 const world = (doc) => { const sk = buildSkeleton(doc), p = setupPose(sk); updateWorld(sk, p); return { sk, pose: p }; };

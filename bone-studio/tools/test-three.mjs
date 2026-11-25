@@ -23,6 +23,7 @@ try {
     const { XuongPlayer } = await import("./xuong-player.js?v=20261125c");
     const data = await loadSkeleton("demo/pharaoh/pharaoh.xuong.json");
     const S = 2, W = 512, H = 512, OX = 256, OY = 440; // gốc xương ở pixel (OX,OY), tỉ lệ S
+    const compare = () => {
     // canvas2D
     const c2 = new OffscreenCanvas(W, H), g2 = c2.getContext("2d");
     const p = new XuongPlayer(data); p.play("idle"); p.update(0);
@@ -46,9 +47,17 @@ try {
       if (x && y) inter++; if (x || y) uni++;
       if (A[i + 3] >= 250 && B[i + 3] >= 250) { n++; sum += (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2])) / 3; }
     }
+    rd.dispose();
     return { iou: inter / uni, mean: sum / Math.max(1, n), opaque: n, a2, a3, bounds: m.bounds() };
+    };
+    const plain = compare();
+    // tint black: every slot gets a dark red and a light green tint; both renderers must agree
+    for (const sl of (data.doc ?? data).slots) { sl.dark = "a02020"; sl.color = "b0ffb0ff"; }
+    const dark = compare();
+    return { ...plain, dark };
   });
   console.log(JSON.stringify(r));
+  check(r.dark.mean < 6 && r.dark.iou >= 0.97, `tint black: three.js khớp canvas2D, sai khác ${r.dark.mean.toFixed(2)}/255, IoU ${r.dark.iou.toFixed(4)}`);
   check(r.a2 > 500, `canvas2D có vẽ (${r.a2} px)`);
   check(r.iou >= 0.97, `IoU mặt nạ alpha = ${r.iou.toFixed(4)} (>= 0.97)`);
   check(r.mean < 6, `sai khác RGB trung bình ${r.mean.toFixed(2)}/255 trên ${r.opaque} px đục (< 6)`);

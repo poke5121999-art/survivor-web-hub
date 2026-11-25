@@ -1,7 +1,7 @@
 // Editor state shared by all panels. The document lives in S.hist (History); everything else is view state.
-import { History } from "../history.js?v=20261125j";
-import { emptyDoc } from "../commands.js?v=20261125j";
-import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey, AnimationState, Physics } from "../../runtime/xuong.js?v=20261125j";
+import { History } from "../history.js?v=20261125k";
+import { emptyDoc } from "../commands.js?v=20261125k";
+import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey, AnimationState, Physics } from "../../runtime/xuong.js?v=20261125k";
 
 export const S = {
   hist: new History(emptyDoc()),
@@ -104,7 +104,7 @@ export function editBone(name, values, { coalesce } = {}) {
   if (!b) return;
   for (const k of Object.keys(values)) values[k] = round(values[k]);
   if (S.mode === "setup" || !S.anim) {
-    const cmd = { type: "bone.set", name, props: values };
+    const cmd = { type: "bone.set", name, props: values, ...(S.compensate ? { compensate: true } : {}) };
     coalesce ? S.hist.runCoalesced(cmd, `${coalesce}:${name}`) : S.hist.run(cmd);
     return;
   }

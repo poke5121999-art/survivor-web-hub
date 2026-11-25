@@ -341,3 +341,23 @@ test("physics: a swinging parent makes the child lag, then it settles back; grav
   near(simB.last, sim2.last, 1e-6);
   assert.equal(back.physics[0].strength, 60);
 });
+
+test("bone.split keeps children and images in place; bone.set compensate keeps children and region images on screen", () => {
+  let d = run(emptyDoc(), [...ARM, { type: "bone.add", name: "finger", parent: "lower", x: 15, rotation: 30, length: 4 }]);
+  const before = world(d, "finger");
+  const s = run(d, [{ type: "bone.split", name: "upper", at: 0.25, newName: "upper-b" }]);
+  assert.equal(s.bones.find((b) => b.name === "lower").parent, "upper-b");
+  world(s, "finger").forEach((v, i) => near(v, before[i]));
+  near(world(s, "upper-b")[1], 5); // 20 × 0.25 up the arm (arm points up)
+  // compensate: rotate "upper" by 40°, the lower arm and the hand image stay put
+  const sk0 = buildSkeleton(d), v0 = Array.from(worldVertices(sk0, poseAt(sk0, null, 0), 0, getAttachment(d, "default", "hand", "hand")));
+  const lowerBefore = world(d, "lower");
+  d = run(d, [{ type: "slot.rebone", name: "hand", bone: "upper" }]);
+  const c = run(d, [{ type: "bone.set", name: "upper", props: { rotation: 130, x: 13 }, compensate: true }]);
+  world(c, "lower").forEach((v, i) => near(v, lowerBefore[i]));
+  near(world(c, "upper")[2], 130);
+  const sk1 = buildSkeleton(c), v1 = worldVertices(sk1, poseAt(sk1, null, 0), 0, getAttachment(c, "default", "hand", "hand"));
+  v0.forEach((v, i) => near(v1[i], v, 1e-2));
+  // without compensate the child moves
+  assert.ok(Math.abs(world(run(d, [{ type: "bone.set", name: "upper", props: { rotation: 130 } }]), "lower")[0] - lowerBefore[0]) > 1);
+});
