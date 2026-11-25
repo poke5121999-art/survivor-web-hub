@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "860539800640",
+    "project_id": "boohaul-7b1b0",
+    "storage_bucket": "boohaul-7b1b0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:860539800640:android:3b792134acacaf42f223a5",
+        "android_client_info": {
+          "package_name": "com.bf.boohaul"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLha5BNa3Cno_-MRYJTY2cXtACFdXxvvc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
