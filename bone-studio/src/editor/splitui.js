@@ -25,13 +25,14 @@ function open(st) {
   const side = h("div", { class: "xx-split-side" });
   const root = h("div", { class: "xx-split" },
     h("header", {}, h("b", { text: "✂ Cắt part" }), h("span", { class: "xx-muted", text: st.file.name }), h("span", { style: "flex:1" }),
-      h("button", { class: "xx-btn xx-btn--ghost", text: "Huỷ", onclick: () => root.remove() }),
+      h("button", { class: "xx-btn xx-btn--ghost", text: "Huỷ", onclick: () => { root.remove(); delete window.__split; } }),
       signedIn() ? h("button", { class: "xx-btn xx-btn--ghost", text: "🤖 Nhờ agent đặt khớp", title: "Agent nhìn ảnh, đặt khớp và cắt; part hiện dần trên canvas", onclick: () => askAgent(st, root) }) : null,
       h("button", { class: "xx-btn xx-btn--primary", text: "Chấp nhận", onclick: () => accept(st, root) })),
     h("div", { class: "xx-split-body" }, h("div", { style: "position:relative;min-height:0" }, cv), side));
   document.body.append(root);
   const ctx = cv.getContext("2d");
-  let view = null, dragJ = null, showLabels = true;
+  let view = null, dragJ = null, showLabels = true, lasso = null; // lasso: { part, pts: [[x, y]] } in source pixels
+  window.__split = { st, labelAt: (x, y) => { const c = Math.floor((x - st.a.phase[0]) / st.a.scale), q = Math.floor((y - st.a.phase[1]) / st.a.scale); return st.spec.parts[st.seg.labels[q * st.seg.w + c]]?.name; }, toScreen: (x, y) => { const r = cv.getBoundingClientRect(); return [r.left + view.ox + x * view.k, r.top + view.oy + y * view.k]; } };
   const recut = () => {
     try { st.seg = segment(st.a.native, st.spec, st.a.scale, st.a.phase); st.parts = cutParts(st.a.native, st.seg, st.spec, { fill: st.fill }); st.error = null; }
     catch (e) { st.error = e.message; }
@@ -65,18 +66,39 @@ function open(st) {
       ctx.strokeStyle = PAL[i % PAL.length]; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
     });
     ctx.lineWidth = 1;
+    st.spec.parts.forEach((p, i) => {
+      for (const poly of p.claim ?? []) {
+        ctx.setLineDash([5, 4]); ctx.strokeStyle = PAL[i % PAL.length]; ctx.lineWidth = 2; ctx.beginPath();
+        poly.forEach(([x, y], n) => (n ? ctx.lineTo(view.ox + x * k, view.oy + y * k) : ctx.moveTo(view.ox + x * k, view.oy + y * k)));
+        ctx.closePath(); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
+      }
+    });
+    if (lasso?.pts.length) {
+      ctx.strokeStyle = "#ffd84a"; ctx.lineWidth = 2; ctx.beginPath();
+      lasso.pts.forEach(([x, y], n) => (n ? ctx.lineTo(view.ox + x * k, view.oy + y * k) : ctx.moveTo(view.ox + x * k, view.oy + y * k)));
+      if (lasso.hover) ctx.lineTo(lasso.hover[0], lasso.hover[1]);
+      ctx.stroke(); ctx.lineWidth = 1;
+    }
     for (const j of Object.keys(st.spec.joints)) {
       const [x, y] = P(j);
       ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fillStyle = dragJ === j ? "#ffd84a" : "#fff"; ctx.fill(); ctx.strokeStyle = "#000"; ctx.stroke();
     }
   }
+  const toSrc = (x, y) => [Math.round((x - view.ox) / view.k), Math.round((y - view.oy) / view.k)];
+  cv.addEventListener("dblclick", () => {
+    if (!lasso) return;
+    if (lasso.pts.length >= 3) { const p = st.spec.parts[lasso.part]; p.claim = [...(p.claim ?? []), lasso.pts]; }
+    lasso = null; recut();
+  });
   cv.addEventListener("pointerdown", (e) => {
     const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (lasso) { const q = toSrc(x, y), l = lasso.pts.at(-1); if (!l || Math.hypot(q[0] - l[0], q[1] - l[1]) > 2) lasso.pts.push(q); draw(); return; } // a double click lands twice
     let best = null, bd = 10;
     for (const [j, [jx, jy]] of Object.entries(st.spec.joints)) { const d = Math.hypot(view.ox + jx * view.k - x, view.oy + jy * view.k - y); if (d < bd) { bd = d; best = j; } }
     if (best) { dragJ = best; cv.setPointerCapture(e.pointerId); }
   });
   cv.addEventListener("pointermove", (e) => {
+    if (lasso) { const r = cv.getBoundingClientRect(); lasso.hover = [e.clientX - r.left, e.clientY - r.top]; draw(); return; }
     if (!dragJ) return;
     const r = cv.getBoundingClientRect();
     st.spec.joints[dragJ] = [Math.round((e.clientX - r.left - view.ox) / view.k), Math.round((e.clientY - r.top - view.oy) / view.k)];
@@ -93,6 +115,8 @@ function open(st) {
       h("label", { class: "xx-chk" }, h("input", { type: "checkbox", checked: showLabels, onchange: (e) => { showLabels = e.target.checked; draw(); } }), " Tô màu part"),
       h("label", { class: "xx-chk", style: "margin-left:10px" }, h("input", { type: "checkbox", checked: st.fill, onchange: (e) => { st.fill = e.target.checked; recut(); } }), " Vẽ bù phần bị che"),
       st.error ? h("p", { class: "xx-note", style: "color:#ff9b95", text: st.error }) : null,
+      lasso ? h("p", { class: "xx-note", style: "color:#ffd84a", text: `Đang khoanh vùng cho "${st.spec.parts[lasso.part].name}": click từng điểm, bấm đúp để đóng.` }) : null,
+      h("p", { class: "xx-note", text: "Đồ đội đầu (mũ, khăn, tóc, tai, sừng) phải theo đầu: bấm ✎ ở part đầu và khoanh trọn chúng, kể cả phần rủ xuống vai." }),
       h("div", { class: "xx-group", text: `Part (${st.spec.parts.length}, dưới → trên)` }),
       ...st.spec.parts.map((p, i) => {
         const part = st.parts?.[i];
@@ -100,6 +124,8 @@ function open(st) {
           h("span", { class: "xx-ic", style: `color:${PAL[i % PAL.length]}`, text: "■" }),
           h("span", { class: "xx-nm", text: p.name, title: "Bấm đúp để đổi tên", ondblclick: () => { const n = prompt("Tên part", p.name); if (n) { const old = p.name; p.name = n.trim(); st.spec.parts.forEach((q) => { if (q.parent === old) q.parent = p.name; }); renderSide(); } } }),
           h("span", { class: "xx-tag", text: part ? `${part.pixels}+${part.added}` : "trống" }),
+          h("span", { class: "xx-eye", text: "✎", title: "Khoanh vùng cho part này (click từng điểm, bấm đúp để đóng). Mọi pixel trong vùng thuộc part này, ví dụ khoanh cả khăn, mũ, tóc cho đầu.", onclick: () => { lasso = { part: i, pts: [] }; renderSide(); draw(); } }),
+          p.claim?.length ? h("span", { class: "xx-eye", text: "⌫", title: "Bỏ các vùng đã khoanh của part này", onclick: () => { delete p.claim; recut(); } }) : null,
           h("span", { class: "xx-eye", text: "✕", title: "Xoá part (gộp vào part bên cạnh)", onclick: () => {
             const gone = st.spec.parts.splice(i, 1)[0];
             st.spec.parts.forEach((q) => { if (q.parent === gone.name) q.parent = gone.parent; });

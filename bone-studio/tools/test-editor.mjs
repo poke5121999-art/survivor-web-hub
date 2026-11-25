@@ -164,6 +164,16 @@ try {
     await p4.waitForSelector(".xx-split");
     await p4.waitForTimeout(300);
     await p4.screenshot({ path: join(CHK, "split-screen.png") });
+    // offline cut keeps the left nemes lappet off the head; a lasso drawn by mouse on the head part claims it
+    const before = await p4.evaluate(() => __split.labelAt(140, 158));
+    assert(before !== "dau", "offline đã nhận dải khăn trái, không kiểm được lasso");
+    const poly = [[120, 120], [160, 120], [160, 185], [120, 185]];
+    await p4.locator(".xx-split-side .xx-eye[title^='Khoanh']").nth(await p4.evaluate(() => __split.st.spec.parts.findIndex((p) => p.name === "dau"))).click();
+    for (const [n, [x, y]] of poly.entries()) { const [sx, sy] = await p4.evaluate(([x, y]) => __split.toScreen(x, y), [x, y]); await (n < poly.length - 1 ? p4.mouse.click(sx, sy) : p4.mouse.dblclick(sx, sy)); }
+    await p4.waitForTimeout(200);
+    const after1 = await p4.evaluate(() => ({ l: __split.labelAt(140, 158), c: __split.st.spec.parts.find((p) => p.name === "dau").claim?.length }));
+    await p4.screenshot({ path: join(CHK, "split-lasso.png") });
+    assert(after1.l === "dau" && after1.c, `lasso không nhận dải khăn: ${JSON.stringify(after1)} (trước: ${before})`);
     await p4.locator(".xx-split button", { hasText: "Chấp nhận" }).click();
     const counts = [];
     for (let i = 0; i < 40; i++) { await p4.waitForTimeout(100); const c = await p4.evaluate(() => ({ s: __BS.doc().slots.length, l: !!__BS.S.locked })); counts.push(c.s); if (!c.l && i > 2) break; }
@@ -175,7 +185,7 @@ try {
     const after = await p4.evaluate(() => __BS.doc().slots.length);
     await p4.close();
     assert(after === 0, "undo còn " + after + " slot");
-    return `${final} part, các mức ${[...new Set(counts)].join("→")}`;
+    return `lasso: dải khăn ${before}→dau; ${final} part, các mức ${[...new Set(counts)].join("→")}`;
   });
 
   await step("mesh: chuyển region thành mesh, bind weight, kéo đỉnh ở setup, kéo đỉnh ở animate thành key deform", async () => {
