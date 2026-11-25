@@ -19,6 +19,7 @@ export const S = {
   locked: null,         // agent job running: { label, cancel() }
   projectId: null, savedAt: 0, dirty: false,
   keySel: [],           // selected keys in the dopesheet: [{ track, time }]
+  vsel: [],             // selected mesh vertex indices
 };
 export const doc = () => S.hist.doc;
 
@@ -149,7 +150,7 @@ export function select(sel, add = false) {
     const list = [...all];
     S.sel = list.length ? { kind: "bone", name: list[list.length - 1] } : null;
     S.multi = list.slice(0, -1);
-  } else { S.sel = sel; S.multi = []; }
+  } else { if (JSON.stringify(sel) !== JSON.stringify(S.sel)) S.vsel = []; S.sel = sel; S.multi = []; }
   emit("sel");
 }
 export const selectedBones = () => (S.sel?.kind === "bone" ? [S.sel.name, ...S.multi] : S.sel?.kind === "slot" ? [doc().slots.find((s) => s.name === S.sel.name)?.bone].filter(Boolean) : []);

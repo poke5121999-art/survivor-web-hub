@@ -226,11 +226,20 @@ export function renderProps() {
     out.push(title(a.type ?? "region", sel.name));
     const set = (props, live) => { const c = { type: "attachment.set", slot: sel.slot, name: sel.name, skin: sel.skin, props }; live ? S.hist.runCoalesced(c, "att") : run(c); };
     out.push(selectField("Ảnh", a.path ?? sel.name, Object.keys(d.images).map((p) => [p, p]), (p) => set({ path: p, width: d.images[p].width, height: d.images[p].height })));
-    out.push(pairField("Vị trí", a.x ?? 0, a.y ?? 0, (x, y, live) => set({ x, y }, live)));
-    out.push(numField("Xoay", a.rotation ?? 0, (x, live) => set({ rotation: x }, live)));
-    out.push(pairField("Scale", a.scaleX ?? 1, a.scaleY ?? 1, (x, y, live) => set({ scaleX: x, scaleY: y }, live), { step: 0.01, digits: 3 }));
-    out.push(pairField("Kích thước", a.width, a.height, (x, y, live) => set({ width: Math.max(1, x), height: Math.max(1, y) }, live)));
+    if ((a.type ?? "region") === "region") {
+      out.push(pairField("Vị trí", a.x ?? 0, a.y ?? 0, (x, y, live) => set({ x, y }, live)));
+      out.push(numField("Xoay", a.rotation ?? 0, (x, live) => set({ rotation: x }, live)));
+      out.push(pairField("Scale", a.scaleX ?? 1, a.scaleY ?? 1, (x, y, live) => set({ scaleX: x, scaleY: y }, live), { step: 0.01, digits: 3 }));
+      out.push(pairField("Kích thước", a.width, a.height, (x, y, live) => set({ width: Math.max(1, x), height: Math.max(1, y) }, live)));
+    }
+    const slotBone = d.slots.find((x) => x.name === sel.slot)?.bone;
+    const near = [slotBone, d.bones.find((b) => b.name === slotBone)?.parent, ...d.bones.filter((b) => b.parent === slotBone).map((b) => b.name)].filter((b) => b && b !== d.bones[0].name);
+    const weighted = a.type === "mesh" && a.vertices.length > a.uvs.length;
+    if (a.type === "mesh") out.push(h("p", { class: "xx-note", text: `${a.uvs.length / 2} đỉnh, ${a.triangles.length / 3} tam giác${weighted ? ", đã gắn weight" : ""}. Kéo các ô vuông trên viewport để dời đỉnh${S.mode === "animate" ? " (thành key deform)" : ""}; Ctrl+click chọn nhiều.` }));
     out.push(actions(
+      (a.type ?? "region") === "region" ? act("Chuyển thành mesh 4×4", () => run({ type: "mesh.fromRegion", slot: sel.slot, name: sel.name, skin: sel.skin, cols: 4, rows: 4 }, "Tạo mesh")) : null,
+      a.type === "mesh" && near.length ? act(`Bind weight: ${near.join(", ")}`, () => run({ type: "mesh.bind", slot: sel.slot, name: sel.name, skin: sel.skin, bones: near }, "Bind weight")) : null,
+      weighted ? act("Bỏ weight", () => run({ type: "mesh.unbind", slot: sel.slot, name: sel.name, skin: sel.skin }, "Bỏ weight")) : null,
       act("Hiện trong slot", () => run({ type: "slot.set", name: sel.slot, props: { attachment: sel.name } })),
       act("Xoá", () => { if (run({ type: "attachment.remove", slot: sel.slot, name: sel.name, skin: sel.skin })) select({ kind: "slot", name: sel.slot }); }, true),
     ));
@@ -285,6 +294,7 @@ on((what) => {
   if (what === "time" && S.sel?.kind !== "bone") return;
   if (what === "pose" && S.sel?.kind !== "bone") return;
   if (what !== "time" && what !== "pose" && what !== "view") renderTree();
-  if (what !== "view" && !propsEl.contains(document.activeElement)) renderProps();
+  const typing = propsEl.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
+  if (what !== "view" && !typing) renderProps();
 });
 void skeleton;

@@ -1,6 +1,7 @@
 // Command registry. Every change to a document, from the UI, the agent, the CLI or a test, is one of these.
 // apply(doc, cmd) is pure: it returns a new doc and the exact inverse (a $patch command).
 import { transaction, applyPatch } from "./tx.js?v=20261125c";
+import { gridMesh, autoWeights, unweight, movedVertices } from "./mesh.js?v=20261125c";
 import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125c";
 
 export const FORMAT = "xuong";
@@ -93,6 +94,12 @@ function trackPath(doc, anim, tr) {
   if (tr.drawOrder) return ["animations", anim, "drawOrder"];
   if (tr.event) return ["animations", anim, "events"];
   if (tr.ik !== undefined) { ikIdx(doc, tr.ik); return ["animations", anim, "ik", tr.ik]; }
+  if (tr.deform) {
+    const { skin = "default", slot, attachment } = tr.deform, k = skinIdx(doc, skin);
+    const a = doc.skins[k].attachments[slot]?.[attachment] ?? bad(`không có mesh "${attachment}" trong slot "${slot}" (skin "${skin}")`);
+    if (a.type !== "mesh") bad(`"${attachment}" không phải mesh`);
+    return ["animations", anim, "deform", skin, slot, attachment];
+  }
   return bad(`track lạ: ${JSON.stringify(tr)}`);
 }
 function keyFields(doc, tr, v) {
@@ -117,6 +124,7 @@ function keyFields(doc, tr, v) {
     if (v.string !== undefined && v.string !== e.string) out.string = String(v.string);
     return out;
   }
+  if (tr.deform) return { vertices: numArray(v, "value") };
   if (tr.ik !== undefined) {
     const o = {};
     if (v?.mix !== undefined) o.mix = num(v.mix, "mix");
@@ -125,7 +133,7 @@ function keyFields(doc, tr, v) {
     return o;
   }
 }
-const interpolates = (tr) => tr.bone !== undefined || tr.prop === "rgba" || tr.ik !== undefined;
+const interpolates = (tr) => tr.bone !== undefined || tr.prop === "rgba" || tr.ik !== undefined || !!tr.deform;
 
 // ---- helpers that rewrite references -----------------------------------------------------------
 function mapAnimations(t, fn) {
@@ -567,6 +575,45 @@ export const COMMANDS = {
     },
   },
 
+  "mesh.fromRegion": {
+    help: "Đổi region thành mesh lưới (để uốn ảnh): { slot, name, skin = default, cols = 3, rows = 3 }",
+    run(t, { slot, name: n, skin = "default", cols = 3, rows = 3 }, doc) {
+      const k = skinIdx(doc, skin), a = doc.skins[k].attachments[slot]?.[n] ?? bad(`không có attachment "${n}" trong slot "${slot}"`);
+      if (a.type && a.type !== "region") bad(`"${n}" không phải region`);
+      const c = Math.round(num(cols, "cols")), r = Math.round(num(rows, "rows"));
+      if (c < 1 || r < 1 || c * r > 400) bad("cols × rows trong 1..400");
+      t.set(["skins", k, "attachments", slot, n], gridMesh({ ...a, path: a.path ?? n }, c, r));
+    },
+  },
+  "mesh.bind": {
+    help: "Gắn mesh vào nhiều bone, weight tự tính theo khoảng cách tới bone: { slot, name, skin = default, bones: [tên], maxPerVertex = 3 }",
+    run(t, { slot, name: n, skin = "default", bones, maxPerVertex = 3 }, doc) {
+      const k = skinIdx(doc, skin), a = doc.skins[k].attachments[slot]?.[n] ?? bad(`không có mesh "${n}"`);
+      if (a.type !== "mesh") bad(`"${n}" không phải mesh (dùng mesh.fromRegion trước)`);
+      if (!Array.isArray(bones) || !bones.length) bad("bones: cần ít nhất một bone");
+      bones.forEach((b) => boneIdx(doc, b));
+      const base = a.vertices.length > a.uvs.length ? { ...a, vertices: unweight(doc, slot, a) } : a;
+      t.set(["skins", k, "attachments", slot, n], { ...a, vertices: autoWeights(doc, slot, base, bones, { maxPerVertex }) });
+    },
+  },
+  "mesh.unbind": {
+    help: "Bỏ weight, mesh đi theo bone của slot: { slot, name, skin = default }",
+    run(t, { slot, name: n, skin = "default" }, doc) {
+      const k = skinIdx(doc, skin), a = doc.skins[k].attachments[slot]?.[n] ?? bad(`không có mesh "${n}"`);
+      if (a.type !== "mesh" || a.vertices.length === a.uvs.length) bad(`"${n}" chưa gắn weight`);
+      t.set(["skins", k, "attachments", slot, n], { ...a, vertices: unweight(doc, slot, a) });
+    },
+  },
+  "mesh.moveVertices": {
+    help: "Dời các đỉnh mesh ở setup pose theo một khoảng trong toạ độ thế giới: { slot, name, skin = default, indices: [số], dx, dy }",
+    run(t, { slot, name: n, skin = "default", indices, dx, dy }, doc) {
+      const k = skinIdx(doc, skin), a = doc.skins[k].attachments[slot]?.[n] ?? bad(`không có mesh "${n}"`);
+      if (a.type !== "mesh") bad(`"${n}" không phải mesh`);
+      if (!Array.isArray(indices) || indices.some((i) => !(i >= 0 && i < a.uvs.length / 2))) bad("indices ngoài số đỉnh");
+      t.set(["skins", k, "attachments", slot, n], { ...a, vertices: movedVertices(doc, slot, a, indices, num(dx, "dx"), num(dy, "dy")) });
+    },
+  },
+
   // Internal: restore recorded state (undo). Not for agents.
   $patch: { help: "nội bộ", internal: true, run() {} },
   // Internal: replace whole doc (load, final sync).
@@ -593,14 +640,27 @@ export function apply(doc, cmd) {
   const t = transaction(doc);
   const { type: _t, ...args } = cmd;
   def.run(t, args, doc);
-  // weighted mesh vertices reference bones by index: refuse structural edits that would shift them
-  if (t.doc.bones !== doc.bones && hasWeights(doc) && !sameBoneOrder(doc.bones, t.doc.bones)) {
-    bad("đổi thứ tự bone khi có mesh gắn weight chưa hỗ trợ");
-  }
+  // weighted mesh vertices reference bones by index: when the bone list changes, point them at the same bones again
+  if (t.doc.bones !== doc.bones && !sameBoneOrder(doc.bones, t.doc.bones)) remapWeights(t, doc);
   return { doc: t.doc, inverse: { type: "$patch", ops: t.inverse() } };
 }
-const hasWeights = (doc) => doc.skins.some((s) => Object.values(s.attachments).some((m) => Object.values(m).some((a) => a.uvs && a.vertices.length > a.uvs.length)));
-const sameBoneOrder = (a, b) => a.length === b.length && a.every((x, i) => x.name === b[i].name);
+const sameBoneOrder = (a, b) => a.length <= b.length && a.every((x, i) => x.name === b[i].name);
+function remapWeights(t, before) {
+  const next = t.doc, renamed = new Map();
+  // a rename keeps the index: match by position when the length is unchanged and only names differ
+  before.bones.forEach((b, i) => { const j = next.bones.findIndex((x) => x.name === b.name); renamed.set(i, j >= 0 ? j : next.bones.length === before.bones.length ? i : -1); });
+  next.skins.forEach((s, k) => {
+    for (const [slot, m] of Object.entries(s.attachments)) for (const [n, a] of Object.entries(m)) {
+      if (!a.uvs || a.vertices.length <= a.uvs.length) continue;
+      const v = a.vertices.slice();
+      for (let i = 0, j = 0; i < a.uvs.length / 2; i++) {
+        const c = v[j++];
+        for (let q = 0; q < c; q++, j += 4) { const to = renamed.get(v[j]); if (to === undefined || to < 0) bad(`mesh "${n}" (slot ${slot}) có weight trên bone bị xoá; bỏ bind hoặc bind lại trước`); v[j] = to; }
+      }
+      t.set(["skins", k, "attachments", slot, n], { ...a, vertices: v });
+    }
+  });
+}
 
 // Applies a list atomically: all or nothing. Returns { doc, inverses } with inverses in undo order.
 export function applyAll(doc, cmds) {

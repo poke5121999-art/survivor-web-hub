@@ -169,3 +169,36 @@ test("atlas pages hold every image without overlap", async () => {
     for (const b of p.regions) if (a !== b) assert.ok(!(a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h), `${a.name} overlaps ${b.name}`);
   }
 });
+
+test("mesh: grid from region looks the same, auto weights follow two bones, deform keys move vertices", async () => {
+  const { meshWorld } = await import("../src/mesh.js");
+  let d = run(emptyDoc(), [...ARM, { type: "slot.add", name: "skin", bone: "upper", attachment: "skin" },
+    { type: "attachment.add", slot: "skin", name: "skin", attachment: { width: 40, height: 10, x: 17.5, rotation: 0 } }]);
+  const sk0 = buildSkeleton(d), p0 = poseAt(sk0, null, 0), regionVerts = [...worldVertices(sk0, p0, sk0.slotIndex.get("skin"), getAttachment(d, "default", "skin", "skin"))];
+  d = apply(d, { type: "mesh.fromRegion", slot: "skin", name: "skin", cols: 4, rows: 1 }).doc;
+  const m = getAttachment(d, "default", "skin", "skin");
+  assert.equal(m.type, "mesh"); assert.equal(m.uvs.length / 2, 10); assert.equal(m.triangles.length, 24);
+  const { out } = meshWorld(d, "skin", m);
+  const xs = out.map((p) => p[0]), ys = out.map((p) => p[1]);
+  near(Math.min(...xs), Math.min(regionVerts[0], regionVerts[2], regionVerts[4], regionVerts[6]));
+  near(Math.max(...ys), Math.max(regionVerts[1], regionVerts[3], regionVerts[5], regionVerts[7]));
+  d = apply(d, { type: "mesh.bind", slot: "skin", name: "skin", bones: ["upper", "lower"] }).doc;
+  const before = meshWorld(d, "skin", getAttachment(d, "default", "skin", "skin")).out;
+  before.forEach((p, i) => { near(p[0], out[i][0], 1e-2); near(p[1], out[i][1], 1e-2); });
+  // bend the elbow 90°: the top end of the mesh (near lower) moves, the bottom end (near the shoulder) stays
+  const bent = apply(d, { type: "bone.set", name: "lower", props: { rotation: 90 } }).doc;
+  const after = meshWorld(bent, "skin", getAttachment(bent, "default", "skin", "skin")).out;
+  const topMoved = Math.hypot(after[4][0] - before[4][0], after[4][1] - before[4][1]), bottomMoved = Math.hypot(after[0][0] - before[0][0], after[0][1] - before[0][1]);
+  assert.ok(topMoved > 5 && bottomMoved < 1, `đầu mesh dời ${topMoved}, gốc dời ${bottomMoved}`);
+  // adding a bone keeps weights pointing at the same bones
+  const more = apply(apply(d, { type: "bone.add", name: "extra", parent: "root" }).doc, { type: "bone.reparent", name: "extra", parent: "upper" }).doc;
+  meshWorld(more, "skin", getAttachment(more, "default", "skin", "skin")).out.forEach((p, i) => { near(p[0], before[i][0], 1e-2); near(p[1], before[i][1], 1e-2); });
+  assert.throws(() => apply(d, { type: "bone.remove", name: "lower" }), /bị xoá/);
+  // a deform key on the weighted mesh moves vertex 0 by +5 in world x
+  const { deformOffsets } = await import("../src/mesh.js");
+  const sk = buildSkeleton(d), pose = poseAt(sk, null, 0);
+  const offs = deformOffsets(sk, pose, "skin", getAttachment(d, "default", "skin", "skin"), null, [0], 5, 0);
+  const anim = run(d, [{ type: "anim.add", name: "a" }, { type: "key.set", anim: "a", track: { deform: { slot: "skin", attachment: "skin" } }, time: 0, value: offs }]);
+  const sk2 = buildSkeleton(anim), p2 = poseAt(sk2, anim.animations.a, 0), wv = worldVertices(sk2, p2, sk2.slotIndex.get("skin"), getAttachment(anim, "default", "skin", "skin"));
+  near(wv[0], before[0][0] + 5, 1e-2); near(wv[1], before[0][1], 1e-2); near(wv[2], before[1][0], 1e-2);
+});

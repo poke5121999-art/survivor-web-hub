@@ -178,6 +178,40 @@ try {
     return `${final} part, các mức ${[...new Set(counts)].join("→")}`;
   });
 
+  await step("mesh: chuyển region thành mesh, bind weight, kéo đỉnh ở setup, kéo đỉnh ở animate thành key deform", async () => {
+    const p5 = await open("?sample=robo");
+    await p5.evaluate(() => { __BS.select({ kind: "attachment", name: "torso", slot: "torso", skin: "default" }); });
+    await p5.locator("#xx-props button", { hasText: "Chuyển thành mesh" }).click();
+    await p5.locator("#xx-props button", { hasText: "Bind weight" }).click();
+    const vpos = async (i) => p5.evaluate((i) => { const S = __BS.S, sk = null; void sk; const pose = __BS.pose(); void pose; return i; }, i);
+    void vpos;
+    const vert = () => p5.evaluate(() => {
+      const d = __BS.doc(), a = d.skins[0].attachments.torso.torso;
+      return { type: a.type, n: a.uvs.length / 2, weighted: a.vertices.length > a.uvs.length, v: a.vertices.slice(0, 12) };
+    });
+    const m0 = await vert();
+    assert(m0.type === "mesh" && m0.n === 25 && m0.weighted, JSON.stringify(m0));
+    const r = await p5.locator("#xx-canvas").boundingBox();
+    const vScreen = () => p5.evaluate(async () => {
+      const { worldVertices, buildSkeleton, getAttachment } = await import("./runtime/xuong.js?v=" + document.querySelector('script[type=module]').src.split("v=")[1]);
+      const d = __BS.doc(), sk = buildSkeleton(d), pose = __BS.pose(), v = worldVertices(sk, pose, sk.slotIndex.get("torso"), getAttachment(d, "default", "torso", "torso"));
+      return __BS.toScreen(v[0], v[1]);
+    });
+    const [x0, y0] = await vScreen();
+    await p5.mouse.move(r.x + x0, r.y + y0); await p5.mouse.down(); await p5.mouse.move(r.x + x0 - 30, r.y + y0, { steps: 5 }); await p5.mouse.up();
+    const m1 = await vert();
+    assert(JSON.stringify(m1.v) !== JSON.stringify(m0.v), "đỉnh không dời ở setup");
+    await p5.keyboard.press("Tab");
+    await p5.evaluate(() => { __BS.S.anim = "idle"; __BS.setTime(0.6); __BS.select({ kind: "attachment", name: "torso", slot: "torso", skin: "default" }); });
+    await p5.waitForTimeout(100);
+    const [x1, y1] = await vScreen();
+    await p5.mouse.move(r.x + x1, r.y + y1); await p5.mouse.down(); await p5.mouse.move(r.x + x1, r.y + y1 - 25, { steps: 5 }); await p5.mouse.up();
+    const def = await p5.evaluate(() => __BS.doc().animations.idle.deform?.default?.torso?.torso?.map((k) => k.time));
+    await p5.close();
+    assert(def?.length === 1 && Math.abs(def[0] - 0.6) < 1e-3, "key deform: " + JSON.stringify(def));
+    return "25 đỉnh, key deform ở 0.6 s";
+  });
+
   await step("không có lỗi JS", async () => { const e = [...page.logs, ...(await page.evaluate(() => window.__errors))]; assert(!e.length, e.join(" | ")); });
 } finally {
   await br.close();

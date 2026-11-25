@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Xưởng Xương trên three.js</title>
+  <style>
+    :root { color-scheme: dark; --bg: #121317; --panel: #1e2026; --line: #31343d; --text: #d9dce3; --muted: #8a909e; --accent: #f0a63a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+    main { display: grid; grid-template-columns: 1fr 320px; height: 100vh; }
+    #stage { position: relative; min-height: 0; }
+    canvas { display: block; width: 100%; height: 100%; }
+    aside { background: var(--panel); border-left: 1px solid var(--line); padding: 12px; overflow: auto; }
+    h3 { margin: 14px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    h3:first-child { margin-top: 0; }
+    .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+    button { background: #24272e; color: var(--text); border: 1px solid #3c404b; border-radius: 5px; padding: 4px 10px; cursor: pointer; }
+    button.on { border-color: var(--accent); color: #ffd28a; }
+    pre { background: #0d0e11; border: 1px solid var(--line); border-radius: 6px; padding: 8px; font-size: 12px; overflow: auto; }
+    @media (max-width: 800px) { main { grid-template-columns: 1fr; grid-template-rows: 60vh auto; height: auto; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="stage"></div>
+    <aside>
+      <h3>Pharaoh</h3><div class="btns" id="a-pharaoh"></div>
+      <h3>Robo</h3><div class="btns" id="a-robo"></div>
+      <h3>Dùng trong game three.js</h3>
+      <pre>import * as THREE from "three";
+import { loadSkeleton } from "./xuong-player.js";
+import { XuongMesh } from "./xuong-three.js";
+const data = await loadSkeleton("pharaoh.xuong.json");
+const m = new XuongMesh(THREE, data,
+  { pixelsPerUnit: 100 });
+m.play("walk", { mix: 0.2 });
+scene.add(m);      // m là THREE.Object3D
+// mỗi khung:
+for (const e of m.update(dt)) onEvent(e.name);
+// m.bounds() → hộp bao (đơn vị three)</pre>
+    </aside>
+  </main>
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+    import { loadSkeleton } from "./xuong-player.js?v=20261125c";
+    import { XuongMesh } from "./xuong-three.js";
+    window.__errors = [];
+    addEventListener("error", (e) => window.__errors.push(e.message));
+    addEventListener("unhandledrejection", (e) => window.__errors.push(String(e.reason)));
+    const CHARS = { pharaoh: "demo/pharaoh/pharaoh.xuong.json", robo: "demo/robo/robo-mau.xuong.json" };
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x16171b, 1);
+    stage.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    const cam = new THREE.OrthographicCamera(-4, 4, 3, -3, -10, 10);
+    const VIEW_H = 3.6;
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+      renderer.setPixelRatio(devicePixelRatio || 1); renderer.setSize(w, h, false);
+      const asp = w / h; cam.left = -VIEW_H * asp / 2; cam.right = VIEW_H * asp / 2; cam.top = VIEW_H * 0.72; cam.bottom = -VIEW_H * 0.28; cam.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize); resize();
+    // sàn
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 0.02), new THREE.MeshBasicMaterial({ color: 0x3a3f4b }));
+    scene.add(floor);
+    const meshes = {};
+    const labels = { pharaoh: -1.15, robo: 1.15 };
+    window.__meshes = meshes;
+    async function add(name) {
+      const m = new XuongMesh(THREE, await loadSkeleton(CHARS[name]), { pixelsPerUnit: 100 });
+      m.play("idle" in m.doc.animations ? "idle" : Object.keys(m.doc.animations)[0]);
+      m.update(0);
+      const b = m.bounds(); m.scale.setScalar(2.2 / Math.max(0.01, b.height));
+      m.position.x = labels[name];
+      scene.add(m); meshes[name] = m;
+      const box = document.getElementById("a-" + name);
+      for (const a of Object.keys(m.doc.animations)) {
+        const bt = document.createElement("button"); bt.textContent = a;
+        bt.onclick = () => { m.play(a, { mix: 0.2 }); for (const o of box.children) o.classList.toggle("on", o === bt); window["__anim_" + name] = a; };
+        box.appendChild(bt);
+      }
+    }
+    let last = performance.now();
+    function frame(now) {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      for (const m of Object.values(meshes)) m.update(dt);
+      renderer.render(scene, cam);
+      requestAnimationFrame(frame);
+    }
+    Promise.all(Object.keys(CHARS).map(add)).then(() => { window.__xt = { THREE, XuongMesh, loadSkeleton }; window.__ready = true; }).catch((e) => window.__errors.push(String(e)));
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

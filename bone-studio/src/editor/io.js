@@ -4,6 +4,8 @@ import { emptyDoc } from "../commands.js?v=20261125c";
 import { exportBundle, usedImages } from "../export.js?v=20261125c";
 import { fromSpine } from "../spine-io.js?v=20261125c";
 import { zip, unzip } from "../zip.js?v=20261125c";
+import { encodeGIF } from "../gif.js?v=20261125c";
+import { readPSD } from "../psd.js?v=20261125c";
 import { parseAtlas, poseAt, drawList, draw2d, bounds, animationDuration, buildSkeleton } from "../../runtime/xuong.js?v=20261125c";
 
 // ---- images ------------------------------------------------------------------------------------
@@ -264,3 +266,30 @@ export async function exportWebM(anim, opts) {
   download(`${slug()}-${anim}.webm`, new Blob(chunks, { type: "video/webm" }));
 }
 void skeleton;
+
+export async function exportGIF(anim, opts) {
+  const frames = renderFrames({ anim, ...opts }).map(canvasToRgba);
+  const fps = opts?.fps ?? doc().fps ?? 30;
+  download(`${slug()}-${anim}.gif`, encodeGIF(frames, { delayMs: 1000 / fps, loop: true }), "image/gif");
+}
+
+// PSD: every visible pixel layer becomes an image + slot + region on the root bone, placed where it sits on the canvas
+// (canvas centre bottom = world origin), bottom layer drawn first.
+export async function importPSD(file) {
+  const psd = readPSD(new Uint8Array(await file.arrayBuffer()));
+  const layers = psd.layers.filter((l) => l.visible && l.width && l.height);
+  if (!layers.length) return toast("PSD không có lớp ảnh nào đang hiện", true);
+  const cmds = [], bone = doc().bones[0].name;
+  const BL = { normal: "normal", multiply: "multiply", screen: "screen", additive: "additive" };
+  for (const l of layers) {
+    const base = [...l.groupPath, l.name].join("/").replace(/[^\p{L}\p{N}_/.-]+/gu, "-") || "lop";
+    const path = uniquePath(base);
+    await setImage(path, await canvasToBlob(rgbaToCanvas(l.image)));
+    const slot = uniqueSlot(path.split("/").pop(), cmds);
+    const alpha = Math.round((l.opacity ?? 1) * 255).toString(16).padStart(2, "0");
+    cmds.push({ type: "image.add", path, width: l.width, height: l.height },
+      { type: "slot.add", name: slot, bone, attachment: path, color: "ffffff" + alpha, blend: BL[l.blend] ?? "normal" },
+      { type: "attachment.add", slot, name: path, attachment: { width: l.width, height: l.height, x: l.left + l.width / 2 - psd.width / 2, y: psd.height - (l.top + l.height / 2) } });
+  }
+  if (run(cmds, `Nhập PSD ${file.name}`)) toast(`Đã nhập ${layers.length} lớp từ PSD`);
+}

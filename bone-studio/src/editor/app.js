@@ -83,6 +83,7 @@ function importDialog() {
       choice("Nhập ảnh rời", "Nhiều PNG, mỗi ảnh một slot. Kéo thả vào viewport cũng được.", async () => { close(); await IO.importImages(await pickFiles()); }),
       choice("Nhập cả thư mục", "Mọi PNG trong thư mục, giữ thư mục con trong tên ảnh.", async () => { close(); await IO.importImages(await pickFiles({ dir: true })); }),
       choice("✂ Nhập ảnh nguyên con, tự cắt part", "Một ảnh cả nhân vật: bỏ nền, tìm part, cắt, vẽ bù chỗ bị che, dựng bone. Sửa được trước khi nhận.", async () => { close(); const [f] = await pickFiles({ multiple: false }); if (f) importWhole(f); }),
+      choice("Nhập PSD", "Mỗi lớp đang hiện thành một ảnh + slot, giữ đúng vị trí trên canvas PSD.", async () => { close(); const [f] = await pickFiles({ accept: ".psd,.psb", multiple: false }); if (f) await IO.importPSD(f).catch((e) => toast(e.message, true)); }),
       choice("Mở JSON + atlas", "File .json (kiểu Spine 3.8/4.x hoặc Xưởng Xương) kèm .atlas, .png, hoặc một file .zip.", async () => { close(); const fs = await pickFiles({ accept: ".json,.atlas,.txt,.png,.zip" }); if (fs.length) await IO.importSpine(fs).catch((e) => toast(e.message, true)); }),
     ));
 }
@@ -105,6 +106,7 @@ function exportDialog() {
       h("div", { class: "xx-choices" },
         choice("Chuỗi PNG (.zip)", "Mỗi khung một PNG nền trong.", wrap(() => IO.exportSequence(animSel.value, opts()))),
         choice("Sprite sheet + JSON", "Một PNG lưới khung + JSON kiểu Aseprite.", wrap(() => IO.exportSheet(animSel.value, opts()))),
+        choice("GIF động", "Lặp vô hạn, nền trong, giữ đúng màu pixel art.", wrap(() => IO.exportGIF(animSel.value, opts()))),
         choice("Video WebM", "Ghi animation thành video (nền trong nếu trình duyệt hỗ trợ).", wrap(() => IO.exportWebM(animSel.value, opts()))),
       )) : h("p", { class: "xx-note", text: "Chưa có animation: chỉ xuất được dữ liệu." }));
 }
@@ -171,6 +173,8 @@ view.addEventListener("drop", async (e) => {
   e.preventDefault();
   const files = [...e.dataTransfer.files];
   if (files.some((f) => /\.(json|atlas|zip)$/i.test(f.name))) return IO.importSpine(files).catch((err) => toast(err.message, true));
+  const psd = files.find((f) => /\.ps[db]$/i.test(f.name));
+  if (psd) return IO.importPSD(psd).catch((err) => toast(err.message, true));
   await IO.importImages(files);
 });
 window.addEventListener("paste", async (e) => {

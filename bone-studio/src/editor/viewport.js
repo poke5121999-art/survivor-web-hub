@@ -1,6 +1,7 @@
 // Viewport: draws the skeleton with canvas2D, handles picking, gizmos, bone creation, pan and zoom.
 import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125c";
-import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG } from "../../runtime/xuong.js?v=20261125c";
+import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG, findKey } from "../../runtime/xuong.js?v=20261125c";
+import { deformOffsets } from "../mesh.js?v=20261125c";
 
 const cv = document.getElementById("xx-canvas");
 const ctx = cv.getContext("2d");
@@ -67,6 +68,19 @@ export function draw() {
   if (sel && (sel.kind === "slot" || sel.kind === "attachment")) {
     const d = list.find((x) => x.slot === (sel.slot ?? sel.name));
     if (d) outline(d.verts, "#4fb3ff");
+  }
+  const mesh = selectedMesh();
+  if (mesh) {
+    const si = sk.slotIndex.get(mesh.slot), v = worldVertices(sk, pose, si, mesh.att), t = mesh.att.triangles;
+    ctx.strokeStyle = "rgba(79,208,255,.55)"; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = 0; i < t.length; i += 3) for (const [a, b] of [[t[i], t[i + 1]], [t[i + 1], t[i + 2]], [t[i + 2], t[i]]]) { const [x0, y0] = toScreen(v[a * 2], v[a * 2 + 1]), [x1, y1] = toScreen(v[b * 2], v[b * 2 + 1]); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
+    ctx.stroke();
+    const weighted = mesh.att.vertices.length > mesh.att.uvs.length;
+    for (let i = 0; i < v.length / 2; i++) {
+      const [x, y] = toScreen(v[i * 2], v[i * 2 + 1]), on = S.vsel.includes(i);
+      ctx.fillStyle = on ? "#ffd84a" : weighted ? "#c07cff" : "#4fd0ff";
+      ctx.fillRect(x - (on ? 4 : 3), y - (on ? 4 : 3), on ? 8 : 6, on ? 8 : 6);
+    }
   }
   if (hover?.kind === "slot" && hover.name !== sel?.name) { const d = list.find((x) => x.slot === hover.name); if (d) outline(d.verts, "rgba(79,179,255,.45)"); }
   if (S.showBones) drawBones(sk, pose);
@@ -168,6 +182,21 @@ function arrow(x0, y0, x1, y1) {
   ctx.lineTo(x1 - 7 * Math.cos(a - 0.4), y1 - 7 * Math.sin(a - 0.4)); ctx.moveTo(x1, y1); ctx.lineTo(x1 - 7 * Math.cos(a + 0.4), y1 - 7 * Math.sin(a + 0.4)); ctx.stroke();
 }
 
+export function selectedMesh() {
+  const sel = S.sel;
+  if (sel?.kind !== "attachment") return null;
+  const att = getAttachment(doc(), sel.skin, sel.slot, sel.name);
+  return att?.type === "mesh" && doc().slots.find((x) => x.name === sel.slot)?.attachment === sel.name ? { slot: sel.slot, name: sel.name, skin: sel.skin, att } : null;
+}
+function vertexAt(sx, sy) {
+  const m = selectedMesh();
+  if (!m) return -1;
+  const sk = skeleton(), pose = poseAtTime(S.time), v = worldVertices(sk, pose, sk.slotIndex.get(m.slot), m.att);
+  let best = -1, bd = 7;
+  for (let i = 0; i < v.length / 2; i++) { const [x, y] = toScreen(v[i * 2], v[i * 2 + 1]), d = Math.hypot(x - sx, y - sy); if (d < bd) { bd = d; best = i; } }
+  return best;
+}
+
 // ---- picking -----------------------------------------------------------------------------------
 export function pick(sx, sy, { bonesOnly = false } = {}) {
   const sk = skeleton();
@@ -256,6 +285,16 @@ cv.addEventListener("pointerdown", (e) => {
   const [wx, wy] = toWorld(sx, sy);
   if (e.button === 1 || e.button === 2 || space) { drag = { pan: true, sx, sy, vx: S.view.x, vy: S.view.y }; return; }
   if (S.locked) { const hit = pick(sx, sy); select(hit); return; }
+  const vi = vertexAt(sx, sy);
+  if (vi >= 0) {
+    if (e.ctrlKey || e.shiftKey) S.vsel = S.vsel.includes(vi) ? S.vsel.filter((x) => x !== vi) : [...S.vsel, vi];
+    else if (!S.vsel.includes(vi)) S.vsel = [vi];
+    const m = selectedMesh(), sk = skeleton(), pose = poseAtTime(S.time);
+    const keys = S.anim ? doc().animations[S.anim]?.deform?.[m.skin]?.[m.slot]?.[m.name] : null;
+    S.hist.begin("Dời đỉnh mesh");
+    drag = { verts: { m, wx, wy, base: pose.slots[sk.slotIndex.get(m.slot)].deform ? Array.from(pose.slots[sk.slotIndex.get(m.slot)].deform) : null, sk, pose, hadKeys: !!keys } };
+    return;
+  }
   if (S.tool === "create" && S.mode === "setup") {
     const hit = pick(sx, sy);
     if (e.ctrlKey && hit?.kind === "slot") { drag = { pending: hit.name }; return; }
@@ -298,6 +337,14 @@ cv.addEventListener("pointermove", (e) => {
   if (!drag) { const h = pick(mouse.x, mouse.y); if (JSON.stringify(h) !== JSON.stringify(hover)) { hover = h; } return; }
   if (drag.pan) { S.view.x = drag.vx - (mouse.x - drag.sx) / S.view.zoom; S.view.y = drag.vy + (mouse.y - drag.sy) / S.view.zoom; return; }
   if (drag.box || drag.create || drag.pending) return;
+  if (drag.verts) {
+    const v = drag.verts, dx = rnd(mouse.wx - v.wx), dy = rnd(mouse.wy - v.wy);
+    try {
+      if (S.mode === "setup" || !S.anim) S.hist.runCoalesced({ type: "mesh.moveVertices", slot: v.m.slot, name: v.m.name, skin: v.m.skin, indices: S.vsel, dx, dy }, "verts");
+      else S.hist.runCoalesced({ type: "key.set", anim: S.anim, track: { deform: { skin: v.m.skin, slot: v.m.slot, attachment: v.m.name } }, time: S.time, value: deformOffsets(v.sk, v.pose, v.m.slot, v.m.att, v.base, S.vsel, dx, dy) }, "deform");
+    } catch (err) { toast(err.message, true); }
+    return;
+  }
   if (drag.att) {
     const a = drag.att, [lx0, ly0] = worldToLocal(a.bone, drag.wx, drag.wy), [lx1, ly1] = worldToLocal(a.bone, mouse.wx, mouse.wy);
     try { S.hist.runCoalesced({ type: "attachment.set", slot: a.slot, name: a.name, skin: a.skin, props: { x: rnd(a.x + lx1 - lx0), y: rnd(a.y + ly1 - ly0) } }, "att"); } catch (err) { toast(err.message, true); }
@@ -346,7 +393,7 @@ cv.addEventListener("pointerup", (e) => {
   }
   if (d.pending) return createFromSlot(d.pending);
   if (d.create) return createBone(d.create, e.shiftKey);
-  if (d.bone || d.att) { S.hist.end(); emit("doc"); }
+  if (d.bone || d.att || d.verts) { S.hist.end(); emit("doc"); }
 });
 
 function uniqueBoneName(base) {
