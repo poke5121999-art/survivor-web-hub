@@ -95,7 +95,7 @@ export function renderFrames(doc, images, frames, { scale = 1, bones = false, co
       if (!img) continue;
       const v = new Float32Array(d.verts.length);
       for (let i = 0; i < v.length; i += 2) { v[i] = tx(d.verts[i]); v[i + 1] = ty(d.verts[i + 1]); }
-      drawTriangles(surf, img, v, d.uvs, d.tris, d.color, d.blend, doc.pixelArt);
+      drawTriangles(surf, img, v, d.uvs, d.tris, d.color, d.blend, doc.pixelArt, d.dark);
     }
     if (bones) {
       sk.bones.forEach((b, i) => {

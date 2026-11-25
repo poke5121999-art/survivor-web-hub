@@ -1,6 +1,6 @@
 // Spine-compatible JSON: import (3.8 and 4.0–4.2) and export (4.2), written from the public format docs.
-import { emptyDoc } from "./commands.js?v=20261125h";
-import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds, transformMixes, TRANSFORM_MIXES as TC_MIX } from "../runtime/xuong.js?v=20261125h";
+import { emptyDoc } from "./commands.js?v=20261125i";
+import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds, findKey, transformMixes, TRANSFORM_MIXES as TC_MIX } from "../runtime/xuong.js?v=20261125i";
 const TC_OFF = ["rotation", "x", "y", "scaleX", "scaleY", "shearY"];
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -66,7 +66,7 @@ export function toSpine(doc, { imagesPath = "./images/" } = {}) {
         if (a.type && a.type !== "region") o.type = a.type;
         if (a.path && a.path !== name) o.path = a.path;
         for (const [f, d] of [["x", 0], ["y", 0], ["rotation", 0], ["scaleX", 1], ["scaleY", 1]]) if (a[f] !== undefined && a[f] !== d) o[f] = r4(a[f]);
-        for (const f of ["width", "height", "uvs", "triangles", "vertices", "hull", "edges", "vertexCount", "end"]) if (a[f] !== undefined) o[f] = a[f];
+        for (const f of ["width", "height", "uvs", "triangles", "vertices", "hull", "edges", "vertexCount", "end", "sequence"]) if (a[f] !== undefined) o[f] = a[f];
         if (a.color && a.color !== "ffffffff") o.color = a.color;
         atts[slot][name] = o;
       }
@@ -92,12 +92,30 @@ export function toSpine(doc, { imagesPath = "./images/" } = {}) {
       for (const [s, tl] of Object.entries(a.slots)) {
         const t = {};
         if (tl.attachment) t.attachment = tl.attachment.map((k) => ({ ...(k.time ? { time: r4(k.time) } : {}), name: k.name }));
-        if (tl.rgba) t.rgba = keysOut(tl.rgba, (k) => ({ color: k.color }), (k) => rgbaVals(k.color));
+        if (tl.dark) {
+          // Spine keys light + dark together (rgba2): one key at every time either track has, values sampled
+          const times = [...new Set([...(tl.rgba ?? []), ...tl.dark].map((k) => r4(k.time ?? 0)))].sort((x, y) => x - y);
+          const at = (keys, tt, dflt) => { if (!keys?.length) return dflt; const [k, f] = findKey(keys, tt); if (k < 0) return dflt; const a = rgbaVals(keys[k].color), b = keys[k + 1] ? rgbaVals(keys[k + 1].color) : a; return a.map((v, i) => v + (b[i] - v) * f); };
+          const hex2 = (c, n) => c.slice(0, n).map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, "0")).join("");
+          const setupLight = rgbaVals(doc.slots.find((x) => x.name === s)?.color ?? "ffffffff"), setupDark = rgbaVals((doc.slots.find((x) => x.name === s)?.dark ?? "000000") + "ff");
+          const step = (tt) => [...(tl.rgba ?? []), ...tl.dark].some((k) => r4(k.time ?? 0) === tt && k.curve === "stepped");
+          t.rgba2 = times.map((tt) => ({ ...(tt ? { time: tt } : {}), light: hex2(at(tl.rgba, tt, setupLight), 4), dark: hex2(at(tl.dark, tt, setupDark), 3), ...(step(tt) ? { curve: "stepped" } : {}) }));
+        } else if (tl.rgba) t.rgba = keysOut(tl.rgba, (k) => ({ color: k.color }), (k) => rgbaVals(k.color));
         o.slots[s] = t;
       }
     }
     if (a.ik) o.ik = Object.fromEntries(Object.entries(a.ik).map(([n, keys]) => [n, keysOut(keys, (k) => ({ mix: k.mix ?? 1, softness: k.softness ?? 0, bendPositive: k.bendPositive ?? true, ...(k.stretch ? { stretch: true } : {}), ...(k.compress ? { compress: true } : {}) }), (k) => [k.mix ?? 1, k.softness ?? 0])]));
     if (a.transform) o.transform = Object.fromEntries(Object.entries(a.transform).map(([n, keys]) => [n, keysOut(keys, (k) => Object.fromEntries(TC_MIX.map((m) => [m, transformMixes(k)[m]])), (k) => TC_MIX.map((m) => transformMixes(k)[m]))]));
+    // mesh deform and sequence keys live under animations.<name>.attachments.<skin>.<slot>.<attachment> (Spine 4.1+)
+    const attTl = (skin, slot, att) => ((((o.attachments ??= {})[skin] ??= {})[slot] ??= {})[att] ??= {});
+    for (const [sk, slots] of Object.entries(a.deform ?? {})) for (const [sl, atts] of Object.entries(slots)) for (const [att, keys] of Object.entries(atts))
+      attTl(sk, sl, att).deform = keys.map((k, i) => {
+        let off = 0; while (off < k.vertices.length && !k.vertices[off]) off++;
+        const v = k.vertices.slice(off), c = curveOut(k, keys[i + 1], [0], [1]); // deform curves run from 0 to 1
+        return { ...(k.time ? { time: r4(k.time) } : {}), ...(v.length ? { ...(off ? { offset: off } : {}), vertices: v.map(r4) } : {}), ...(c ? { curve: c } : {}) };
+      });
+    for (const [sk, slots] of Object.entries(a.sequence ?? {})) for (const [sl, atts] of Object.entries(slots)) for (const [att, keys] of Object.entries(atts))
+      attTl(sk, sl, att).sequence = keys.map((k) => ({ ...(k.time ? { time: r4(k.time) } : {}), mode: k.mode ?? "loop", ...(k.index ? { index: k.index } : {}), delay: r4(k.delay ?? 1 / 12) }));
     if (a.drawOrder?.length) {
       o.drawOrder = a.drawOrder.map((k) => {
         const offsets = [];
@@ -181,7 +199,7 @@ export function fromSpine(json, { name = "Nhập từ JSON" } = {}) {
         const type = a.type ?? "region";
         if (type === "linkedmesh" || type === "path") { warnings.push(`attachment ${slot}/${an} kiểu ${type} chưa hỗ trợ, bị bỏ qua`); continue; }
         const o = { type, ...(a.path ? { path: a.path } : { path: a.name ?? an }) };
-        for (const f of ["x", "y", "rotation", "scaleX", "scaleY", "width", "height", "uvs", "triangles", "vertices", "hull", "edges", "vertexCount", "end"]) if (a[f] !== undefined) o[f] = a[f];
+        for (const f of ["x", "y", "rotation", "scaleX", "scaleY", "width", "height", "uvs", "triangles", "vertices", "hull", "edges", "vertexCount", "end", "sequence"]) if (a[f] !== undefined) o[f] = a[f];
         if (a.color) o.color = lowerHex(a.color);
         if (type === "region" && !(o.width && o.height)) { warnings.push(`region ${an} thiếu kích thước`); continue; }
         attachments[slot][an] = o;
@@ -215,14 +233,18 @@ export function fromSpine(json, { name = "Nhập từ JSON" } = {}) {
       if (tl.attachment) t.attachment = tl.attachment.map((k) => ({ time: r4(k.time ?? 0), name: k.name ?? null }));
       const col = tl.rgba ?? tl.color ?? tl.rgba2?.map((k) => ({ ...k, color: k.light })) ?? tl.twoColor?.map((k) => ({ ...k, color: k.light }));
       if (col) t.rgba = keysIn(col, (k) => ({ color: lowerHex(k.color) }), (k) => rgbaVals(lowerHex(k.color)), v4);
+      const two = tl.rgba2 ?? tl.twoColor ?? tl.rgb2;
+      if (two) t.dark = keysIn(two, (k) => ({ color: lowerHex(k.dark, 6) }), (k) => rgbaVals(lowerHex(k.dark, 6) + "ff"), v4);
       if (tl.alpha && !col) t.rgba = keysIn(tl.alpha, (k) => ({ color: "ffffff" + Math.round((k.value ?? 1) * 255).toString(16).padStart(2, "0") }), (k) => [1, 1, 1, k.value ?? 1], v4);
       if (Object.keys(t).length) (o.slots ??= {})[s] = t;
     }
     for (const [n, keys] of Object.entries(a.transform ?? {})) (o.transform ??= {})[n] = keysIn(keys, (k) => transformMixes({ mixRotate: k.mixRotate ?? k.rotateMix, mixX: k.mixX ?? k.translateMix, mixY: k.mixY ?? k.translateMix, mixScaleX: k.mixScaleX ?? k.scaleMix, mixScaleY: k.mixScaleY ?? k.scaleMix, mixShearY: k.mixShearY ?? k.shearMix }), (k) => { const m = transformMixes({ mixRotate: k.mixRotate ?? k.rotateMix, mixX: k.mixX ?? k.translateMix, mixY: k.mixY ?? k.translateMix, mixScaleX: k.mixScaleX ?? k.scaleMix, mixScaleY: k.mixScaleY ?? k.scaleMix, mixShearY: k.mixShearY ?? k.shearMix }); return TC_MIX.map((x) => m[x]); }, v4);
     for (const [n, keys] of Object.entries(a.ik ?? {})) (o.ik ??= {})[n] = keysIn(keys, (k) => ({ mix: k.mix ?? 1, softness: k.softness ?? 0, bendPositive: k.bendPositive ?? true, stretch: !!k.stretch, compress: !!k.compress }), (k) => [k.mix ?? 1, k.softness ?? 0], v4);
     const deformSrc = a.deform ?? Object.fromEntries(Object.entries(a.attachments ?? {}).map(([sk, slots]) => [sk, Object.fromEntries(Object.entries(slots).map(([sl, atts]) => [sl, Object.fromEntries(Object.entries(atts).filter(([, t]) => t.deform).map(([an2, t]) => [an2, t.deform]))]))]));
+    for (const [sk, slots] of Object.entries(a.attachments ?? {})) for (const [sl, atts] of Object.entries(slots)) for (const [att, tl] of Object.entries(atts)) if (tl.sequence)
+      ((((o.sequence ??= {})[sk] ??= {})[sl] ??= {})[att]) = tl.sequence.map((k) => ({ time: r4(k.time ?? 0), mode: k.mode ?? "hold", index: k.index ?? 0, delay: k.delay ?? 0 }));
     for (const [sk, slots] of Object.entries(deformSrc ?? {})) for (const [sl, atts] of Object.entries(slots)) for (const [att, keys] of Object.entries(atts)) {
-      ((((o.deform ??= {})[sk] ??= {})[sl] ??= {})[att]) = keys.map((k) => ({ time: r4(k.time ?? 0), vertices: [...new Array(k.offset ?? 0).fill(0), ...(k.vertices ?? [])] }));
+      ((((o.deform ??= {})[sk] ??= {})[sl] ??= {})[att]) = keys.map((k, i) => { const c = curveIn(k, keys[i + 1], [0], [1], v4); return { time: r4(k.time ?? 0), vertices: [...new Array(k.offset ?? 0).fill(0), ...(k.vertices ?? [])], ...(c ? { curve: c } : {}) }; });
     }
     const dOrder = a.drawOrder ?? a.draworder;
     if (dOrder?.length) o.drawOrder = dOrder.map((k) => ({ time: r4(k.time ?? 0), order: k.offsets ? applyOffsets(slotNames, k.offsets) : slotNames.slice() }));

@@ -1,7 +1,7 @@
 // Viewport: draws the skeleton with canvas2D, handles picking, gizmos, bone creation, pan and zoom.
-import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125h";
-import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG, findKey } from "../../runtime/xuong.js?v=20261125h";
-import { deformOffsets } from "../mesh.js?v=20261125h";
+import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125i";
+import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG, findKey } from "../../runtime/xuong.js?v=20261125i";
+import { deformOffsets } from "../mesh.js?v=20261125i";
 
 const cv = document.getElementById("xx-canvas");
 const ctx = cv.getContext("2d");
@@ -67,7 +67,7 @@ export function draw() {
   const sel = S.sel;
   if (sel && (sel.kind === "slot" || sel.kind === "attachment")) {
     const d = list.find((x) => x.slot === (sel.slot ?? sel.name));
-    if (d) outline(d.verts, "#4fb3ff");
+    if (d) outline(d.mesh && d.att.type !== "mesh" ? worldVertices(sk, pose, d.slotIndex, d.att) : d.verts, "#4fb3ff"); // a clipped region: outline the whole image
   }
   const mesh = selectedMesh();
   if (mesh) {
@@ -82,7 +82,26 @@ export function draw() {
       ctx.fillRect(x - (on ? 4 : 3), y - (on ? 4 : 3), on ? 8 : 6, on ? 8 : 6);
     }
   }
-  if (hover?.kind === "slot" && hover.name !== sel?.name) { const d = list.find((x) => x.slot === hover.name); if (d) outline(d.verts, "rgba(79,179,255,.45)"); }
+  // non-image attachments: bounding box (green), clipping (red, dashed), point (crosshair + direction)
+  if (S.showBones) sk.slots.forEach((s, si) => {
+    const an = pose.slots[si].attachment, a = an && getAttachment(doc(), S.skin, s.name, an);
+    if (!a || !["boundingbox", "clipping", "point"].includes(a.type) || s.hidden) return;
+    const v = worldVertices(sk, pose, si, a), on = (sel?.kind === "slot" && sel.name === s.name) || (sel?.kind === "attachment" && sel.slot === s.name && sel.name === an);
+    if (a.type === "point") {
+      const [x, y] = toScreen(v[0], v[1]), b = pose.bones[s.boneIndex], r = ((a.rotation ?? 0) * Math.PI) / 180;
+      const dx = b.a * Math.cos(r) + b.b * Math.sin(r), dy = b.c * Math.cos(r) + b.d * Math.sin(r), l = Math.hypot(dx, dy) || 1;
+      ctx.strokeStyle = on ? "#ffd84a" : "#f0d23a"; ctx.lineWidth = 1.5; ctx.beginPath();
+      ctx.moveTo(x - 6, y); ctx.lineTo(x + 6, y); ctx.moveTo(x, y - 6); ctx.lineTo(x, y + 6); ctx.moveTo(x, y); ctx.lineTo(x + (dx / l) * 16, y - (dy / l) * 16); ctx.stroke();
+      return;
+    }
+    ctx.strokeStyle = a.type === "clipping" ? (on ? "#ff9b95" : "rgba(232,80,74,.8)") : on ? "#a6f08a" : "rgba(80,200,120,.8)";
+    ctx.lineWidth = on ? 2 : 1.2;
+    if (a.type === "clipping") ctx.setLineDash([5, 3]);
+    ctx.beginPath();
+    for (let i = 0; i < v.length; i += 2) { const [x, y] = toScreen(v[i], v[i + 1]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.closePath(); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
+  });
+  if (hover?.kind === "slot" && hover.name !== sel?.name) { const d = list.find((x) => x.slot === hover.name); if (d) outline(d.mesh && d.att.type !== "mesh" ? worldVertices(sk, pose, d.slotIndex, d.att) : d.verts, "rgba(79,179,255,.45)"); }
   if (S.showBones) drawBones(sk, pose);
   if (drag?.box) {
     ctx.strokeStyle = "#4fb3ff"; ctx.setLineDash([4, 3]);

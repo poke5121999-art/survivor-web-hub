@@ -1,7 +1,7 @@
 // Editor state shared by all panels. The document lives in S.hist (History); everything else is view state.
-import { History } from "../history.js?v=20261125h";
-import { emptyDoc } from "../commands.js?v=20261125h";
-import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey, AnimationState } from "../../runtime/xuong.js?v=20261125h";
+import { History } from "../history.js?v=20261125i";
+import { emptyDoc } from "../commands.js?v=20261125i";
+import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey, AnimationState } from "../../runtime/xuong.js?v=20261125i";
 
 export const S = {
   hist: new History(emptyDoc()),

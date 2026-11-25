@@ -241,7 +241,7 @@ try {
     return `${k0.value} → ${k1.value} → undo ${k2.value}`;
   });
 
-  await step("snap xoay 45° (pixel art), nút + Transform, Pose tool kéo target IK: cả chuỗi tay theo chuột, một undo", async () => {
+  await step("snap xoay 45° (pixel art), + Transform, + Clipping / + Bounding box, Pose tool kéo target IK: cả chuỗi tay theo chuột, một undo", async () => {
     const p7 = await open("?sample=robo");
     const r = await p7.locator("#xx-canvas").boundingBox();
     const scr = (name) => p7.evaluate((n) => { const p = __BS.pose(), i = __BS.doc().bones.findIndex((b) => b.name === n); return __BS.toScreen(p.bones[i].wx, p.bones[i].wy); }, name);
@@ -265,6 +265,22 @@ try {
     const back1 = await ang("back-upper-arm"), tc = await p7.evaluate(() => __BS.doc().transform);
     assert(tc?.length === 1 && tc[0].target === "front-upper-arm" && tc[0].bones[0] === "back-upper-arm", JSON.stringify(tc));
     assert(Math.abs(((back1 - back0 + 540) % 360) - 180 - 30) < 0.5, `tay sau ${back0} → ${back1}, mong +30`);
+    // clipping + bounding box from the slot panel: the clip slot sits right under "head" and cuts only it
+    await p7.evaluate(() => __BS.select({ kind: "slot", name: "head" }));
+    await p7.locator("#xx-props button", { hasText: "+ Clipping" }).click();
+    await p7.evaluate(() => __BS.apply({ type: "attachment.set", slot: "head-cat", name: "cat", props: { vertices: __BS.doc().skins[0].attachments["head-cat"].cat.vertices.map((v, i) => (i % 2 ? v : v * 0.5)) } }));
+    await p7.evaluate(() => __BS.select({ kind: "slot", name: "head" }));
+    await p7.locator("#xx-props button", { hasText: "+ Bounding box" }).click();
+    const clipInfo = await p7.evaluate(async () => {
+      const X = await import("./runtime/xuong.js?v=" + document.querySelector("script[type=module]").src.split("v=")[1]);
+      const d = __BS.doc(), sk = X.buildSkeleton(d), list = X.drawList(sk, __BS.pose());
+      const area = (it) => { let a = 0; for (let i = 0; i < it.tris.length; i += 3) { const [p, q, r] = [0, 1, 2].map((j) => [it.verts[it.tris[i + j] * 2], it.verts[it.tris[i + j] * 2 + 1]]); a += Math.abs((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])) / 2; } return a; };
+      const head = list.find((x) => x.slot === "head"), full = Math.abs(d.skins[0].attachments.head[d.slots.find((s) => s.name === "head").attachment].width * d.skins[0].attachments.head[d.slots.find((s) => s.name === "head").attachment].height);
+      const order = d.slots.map((s) => s.name);
+      return { mesh: head.mesh, ratio: area(head) / full, under: order.indexOf("head-cat") === order.indexOf("head") - 1, others: list.filter((x) => x.slot !== "head").every((x) => !x.mesh || x.att.type === "mesh"), bbox: Object.values(d.skins[0].attachments.head).some((a) => a.type === "boundingbox") };
+    });
+    await p7.screenshot({ path: join(CHK, "clipping.png") });
+    assert(clipInfo.mesh && Math.abs(clipInfo.ratio - 0.5) < 0.05 && clipInfo.under && clipInfo.others && clipInfo.bbox, JSON.stringify(clipInfo));
     // IK: a target bone at the hand, 2-bone IK on the front arm
     await p7.evaluate(() => {
       const p = __BS.pose(), d = __BS.doc(), i = d.bones.findIndex((b) => b.name === "front-hand"), root = p.bones[0];
@@ -289,7 +305,7 @@ try {
     const after = JSON.stringify(await p7.evaluate(() => __BS.pose().bones.map((b) => [b.wx, b.wy])));
     await p7.close();
     assert(after === before, "undo không đưa tư thế về như trước khi kéo");
-    return `đầu ${rot0}° → ${rot}°; bàn tay theo chuột lệch ${Math.hypot(nx - goal[0], ny - goal[1]).toFixed(1)} px`;
+    return `đầu ${rot0}° → ${rot}°; clipping còn ${(clipInfo.ratio * 100).toFixed(0)}% đầu; bàn tay theo chuột lệch ${Math.hypot(nx - goal[0], ny - goal[1]).toFixed(1)} px`;
   });
 
   await step("xem trộn walk → attack: góc tay đổi liên tục, không nhảy cóc", async () => {

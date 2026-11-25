@@ -43,6 +43,14 @@ doc = {
 - Key bone tương đối với setup pose: rotate, translate, shear cộng; scale nhân. Thời gian theo giây.
 - `curve`: thiếu = linear, `"stepped"`, hoặc `[x1, y1, x2, y2]` bezier chuẩn hoá 0..1 cho đoạn từ key này tới key sau.
 
+## Constraint và attachment đặc biệt
+
+- Transform constraint (`transform.add/set/remove`, key `{transform}`): bone chép xoay/dời/scale/shearY của target, 4 kiểu (thế giới hoặc cục bộ × trùng hoặc cộng thêm), lệch thêm, 6 mix. Chạy theo thứ tự chung với IK (`order`).
+- Clipping (`type: "clipping"`, `end: <slot>`): cắt mọi slot vẽ sau nó tới hết slot `end`. Cắt tam giác ngay trong `drawList` (CPU), nên canvas2D, bone-cli và three.js đều có.
+- Tint black: `slot.dark` (`rrggbb`), key `{slot, prop: "dark"}`; chỗ đen của ảnh thành màu tối, chỗ trắng thành màu slot. Xuất Spine thành timeline `rgba2`. Runtime three.js chưa vẽ tint black.
+- Sequence: attachment có `sequence: { count, start, digits, setup }`, ảnh là `path + số`; key `{sequence: {skin, slot, attachment}}` với `mode` hold/once/loop/pingpong (+Reverse), `index`, `delay`.
+- Bounding box, point: lưu và xuất như Spine; editor vẽ khung xanh (bounding box), đỏ nét đứt (clipping), dấu chữ thập (point).
+
 ## Command
 
 Mọi thay đổi (UI, agent, test) là một command `{ type, ...args }` trong `COMMANDS` (`src/commands.js`).

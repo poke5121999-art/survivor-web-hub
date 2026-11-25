@@ -1,6 +1,6 @@
 // Tree and properties panels.
-import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125h";
-import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125h";
+import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125i";
+import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125i";
 
 const treeEl = document.getElementById("xx-tree"), propsEl = document.getElementById("xx-props"), findEl = document.getElementById("xx-find");
 const collapsed = new Set();
@@ -94,6 +94,34 @@ export function newAnim() {
   const n = prompt("Tên animation mới", "walk");
   if (!n) return;
   if (run({ type: "anim.add", name: n.trim() }, "Thêm animation")) { S.anim = n.trim(); S.mode = "animate"; S.time = 0; emit("mode"); }
+}
+// bounding box / clipping around the slot's current image (in the slot bone's space); clipping gets its own slot
+// placed just under this one and ends at it, so it clips exactly this slot
+function addShape(s, type) {
+  const d = doc(), cur = s.attachment && getAttachment(d, S.skin, s.name, s.attachment);
+  let verts = [-20, -20, 20, -20, 20, 20, -20, 20];
+  if (cur && (cur.type ?? "region") === "region") {
+    const r = (cur.rotation ?? 0) * Math.PI / 180, hw = (cur.width * (cur.scaleX ?? 1)) / 2, hh = (cur.height * (cur.scaleY ?? 1)) / 2;
+    verts = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].flatMap(([x, y]) => [Math.round(((cur.x ?? 0) + x * Math.cos(r) - y * Math.sin(r)) * 100) / 100, Math.round(((cur.y ?? 0) + x * Math.sin(r) + y * Math.cos(r)) * 100) / 100]);
+  }
+  const taken = Object.keys(d.skins.find((k) => k.name === "default").attachments[s.name] ?? {});
+  if (type === "point") {
+    const n = uniqueName(taken, "diem");
+    const pt = cur && (cur.type ?? "region") === "region" ? { x: cur.x ?? 0, y: cur.y ?? 0 } : { x: 0, y: 0 };
+    if (run([{ type: "attachment.add", slot: s.name, name: n, attachment: { type: "point", ...pt, rotation: 0 } }], "Thêm point")) toast(`Đã thêm point "${n}" vào slot ${s.name} (đổi ảnh đang hiện của slot để thấy)`);
+    return;
+  }
+  if (type === "boundingbox") {
+    const n = uniqueName(taken, "va-cham");
+    if (run([{ type: "attachment.add", slot: s.name, name: n, attachment: { type: "boundingbox", vertexCount: 4, vertices: verts } }], "Thêm bounding box")) toast(`Đã thêm bounding box "${n}" vào slot ${s.name} (đổi ảnh đang hiện của slot để thấy)`);
+    return;
+  }
+  const slot = uniqueName(d.slots.map((x) => x.name), `${s.name}-cat`), idx = d.slots.findIndex((x) => x.name === s.name);
+  if (run([
+    { type: "slot.add", name: slot, bone: s.bone, attachment: "cat" },
+    { type: "slot.move", name: slot, index: idx },
+    { type: "attachment.add", slot, name: "cat", attachment: { type: "clipping", end: s.name, vertexCount: 4, vertices: verts } },
+  ], "Thêm clipping")) select({ kind: "attachment", slot, name: "cat", skin: "default" });
 }
 function uniqueName(list, base) { let n = 1, x = base; while (list.includes(x)) x = `${base}-${++n}`; return x; }
 function addChildBone() {
@@ -218,12 +246,18 @@ export function renderProps() {
       ? run({ type: "key.set", anim: S.anim, track: { slot: s.name, prop: "attachment" }, time: S.time, value: a }, "Key attachment")
       : run({ type: "slot.set", name: s.name, props: { attachment: a } })));
     out.push(colorField("Màu", s.color, (c) => animKeyed ? run({ type: "key.set", anim: S.anim, track: { slot: s.name, prop: "rgba" }, time: S.time, value: c }, "Key màu") : run({ type: "slot.set", name: s.name, props: { color: c } })));
+    // tint black: texture black becomes this colour (two-colour tint); off = plain tint
+    out.push(h("label", { class: "xx-chk", title: "Tint black: chỗ đen của ảnh thành màu tối này (tô hai màu)" }, h("input", { type: "checkbox", checked: !!s.dark, onchange: (e) => run({ type: "slot.set", name: s.name, props: { dark: e.target.checked ? "000000" : null } }) }), " Màu tối (tint black)"));
+    if (s.dark) out.push(colorField("Màu tối", s.dark + "ff", (c) => animKeyed ? run({ type: "key.set", anim: S.anim, track: { slot: s.name, prop: "dark" }, time: S.time, value: c.slice(0, 6) }, "Key màu tối") : run({ type: "slot.set", name: s.name, props: { dark: c.slice(0, 6) } })));
     out.push(selectField("Blend", s.blend, BLENDS.map((m) => [m, { normal: "Thường", additive: "Cộng (sáng)", multiply: "Nhân", screen: "Screen" }[m]]), (m) => run({ type: "slot.set", name: s.name, props: { blend: m } })));
     const i = d.slots.indexOf(s);
     out.push(actions(
       act("▲ Lên", () => run({ type: "slot.move", name: s.name, index: i + 1 })),
       act("▼ Xuống", () => run({ type: "slot.move", name: s.name, index: i - 1 })),
       animKeyed ? act("Key draw order", () => run({ type: "key.set", anim: S.anim, track: { drawOrder: true }, time: S.time, value: d.slots.map((x) => x.name) }, "Key draw order")) : null,
+      S.mode === "setup" ? act("+ Bounding box", () => addShape(s, "boundingbox")) : null,
+      S.mode === "setup" ? act("+ Clipping", () => addShape(s, "clipping")) : null,
+      S.mode === "setup" ? act("+ Point", () => addShape(s, "point")) : null,
       act("Xoá", () => { if (run({ type: "slot.remove", name: s.name })) select(null); }, true),
     ));
   } else if (sel.kind === "attachment") {
@@ -238,6 +272,24 @@ export function renderProps() {
       out.push(pairField("Scale", a.scaleX ?? 1, a.scaleY ?? 1, (x, y, live) => set({ scaleX: x, scaleY: y }, live), { step: 0.01, digits: 3 }));
       out.push(pairField("Kích thước", a.width, a.height, (x, y, live) => set({ width: Math.max(1, x), height: Math.max(1, y) }, live)));
     }
+    // sequence: numbered images (lua1, lua2 … or lua01 …) played as frames of one attachment
+    const seqFamily = (() => {
+      const m = /^(.*?)(\d+)$/.exec(a.path ?? sel.name);
+      if (!m || a.sequence) return null;
+      const nums = Object.keys(d.images).map((p) => (p.startsWith(m[1]) ? /^(\d+)$/.exec(p.slice(m[1].length))?.[1] : null)).filter(Boolean);
+      const vals = nums.map(Number).sort((x, y) => x - y), start = vals[0];
+      let count = 0; while (vals.includes(start + count)) count++;
+      return count >= 2 ? { prefix: m[1], start, count, digits: nums.every((n) => n.length === nums[0].length) && nums[0].length > 1 ? nums[0].length : 0 } : null;
+    })();
+    if (a.sequence) {
+      const q = a.sequence;
+      out.push(h("p", { class: "xx-note", text: `Sequence ${q.count} khung: ${a.path ?? sel.name}${String(q.start).padStart(q.digits, "0")} … ${a.path ?? sel.name}${String(q.start + q.count - 1).padStart(q.digits, "0")}` }));
+      out.push(numField("Khung setup", q.setup, (v) => set({ sequence: { ...q, setup: Math.round(v) } })));
+      if (S.mode === "animate" && S.anim) {
+        const key = (mode) => run({ type: "key.set", anim: S.anim, track: { sequence: { skin: sel.skin, slot: sel.slot, attachment: sel.name } }, time: S.time, value: { mode, index: 0, delay: 1 / d.fps * 2 } }, "Key sequence");
+        out.push(actions(act("Key: chạy lặp", () => key("loop")), act("Key: chạy một lần", () => key("once")), act("Key: qua lại", () => key("pingpong")), act("Key: đứng khung", () => key("hold"))));
+      }
+    }
     const slotBone = d.slots.find((x) => x.name === sel.slot)?.bone;
     const near = [slotBone, d.bones.find((b) => b.name === slotBone)?.parent, ...d.bones.filter((b) => b.parent === slotBone).map((b) => b.name)].filter((b) => b && b !== d.bones[0].name);
     const weighted = a.type === "mesh" && a.vertices.length > a.uvs.length;
@@ -246,6 +298,8 @@ export function renderProps() {
       (a.type ?? "region") === "region" ? act("Chuyển thành mesh 4×4", () => run({ type: "mesh.fromRegion", slot: sel.slot, name: sel.name, skin: sel.skin, cols: 4, rows: 4 }, "Tạo mesh")) : null,
       a.type === "mesh" && near.length ? act(`Bind weight: ${near.join(", ")}`, () => run({ type: "mesh.bind", slot: sel.slot, name: sel.name, skin: sel.skin, bones: near }, "Bind weight")) : null,
       weighted ? act("Bỏ weight", () => run({ type: "mesh.unbind", slot: sel.slot, name: sel.name, skin: sel.skin }, "Bỏ weight")) : null,
+      seqFamily ? act(`Thành sequence (${seqFamily.count} khung)`, () => set({ path: seqFamily.prefix, sequence: { count: seqFamily.count, start: seqFamily.start, digits: seqFamily.digits } })) : null,
+      a.sequence ? act("Bỏ sequence", () => set({ path: (a.path ?? sel.name) + String(a.sequence.start + a.sequence.setup).padStart(a.sequence.digits, "0"), sequence: null })) : null,
       act("Hiện trong slot", () => run({ type: "slot.set", name: sel.slot, props: { attachment: sel.name } })),
       act("Xoá", () => { if (run({ type: "attachment.remove", slot: sel.slot, name: sel.name, skin: sel.skin })) select({ kind: "slot", name: sel.slot }); }, true),
     ));

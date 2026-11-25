@@ -91,7 +91,7 @@ export function setupPose(sk, skin = "default") {
   return {
     skin,
     bones: sk.bones.map((b) => ({ x: b.x, y: b.y, rotation: b.rotation, scaleX: b.scaleX, scaleY: b.scaleY, shearX: b.shearX, shearY: b.shearY, inherit: b.inherit, a: 1, b: 0, c: 0, d: 1, wx: 0, wy: 0 })),
-    slots: sk.slots.map((s) => ({ attachment: s.attachment ?? null, color: s.color.slice(), dark: s.dark?.slice() ?? null, deform: null })),
+    slots: sk.slots.map((s) => ({ attachment: s.attachment ?? null, color: s.color.slice(), dark: s.dark?.slice() ?? null, deform: null, sequence: -1 })),
     drawOrder: sk.slots.map((s) => s.index),
     ik: sk.ik.map((c) => ({ mix: c.mix ?? 1, softness: c.softness ?? 0, bendPositive: c.bendPositive ?? true, compress: !!c.compress, stretch: !!c.stretch })),
     transform: sk.transform.map(transformMixes),
@@ -299,12 +299,19 @@ export function applyAnimation(sk, pose, anim, time, alpha = 1, events = null, l
     const s = sk.slots[i], p = pose.slots[i];
     if (tl.attachment && alpha >= 0.5) {
       const [k] = findKey(tl.attachment, time);
-      p.attachment = k < 0 ? s.attachment ?? null : tl.attachment[k].name ?? null;
+      const next = k < 0 ? s.attachment ?? null : tl.attachment[k].name ?? null;
+      if (next !== p.attachment) p.sequence = -1;
+      p.attachment = next;
     }
     if (tl.rgba) {
       const [k, f] = findKey(tl.rgba, time);
       const c = k < 0 ? s.color : tl.rgba[k + 1] ? mixColor(parseColor(tl.rgba[k].color), parseColor(tl.rgba[k + 1].color), f) : parseColor(tl.rgba[k].color);
       p.color = mixColor(p.color, c, alpha);
+    }
+    if (tl.dark) {
+      const [k, f] = findKey(tl.dark, time);
+      const c = k < 0 ? s.dark ?? [0, 0, 0, 1] : tl.dark[k + 1] ? mixColor(parseColor(tl.dark[k].color), parseColor(tl.dark[k + 1].color), f) : parseColor(tl.dark[k].color);
+      p.dark = mixColor(p.dark ?? [0, 0, 0, 1], c, alpha);
     }
   }
   if (anim.ik) for (const [name, keys] of Object.entries(anim.ik)) {
@@ -324,6 +331,21 @@ export function applyAnimation(sk, pose, anim, time, alpha = 1, events = null, l
     if (k < 0) continue;
     const a = transformMixes(keys[k]), b = keys[k + 1] ? transformMixes(keys[k + 1]) : a;
     for (const m of TRANSFORM_MIXES) st[m] = lerp(st[m], lerp(a[m], b[m], f), alpha);
+  }
+  if (anim.sequence && alpha >= 0.5) for (const [skin, slots] of Object.entries(anim.sequence)) {
+    if (skin !== pose.skin && skin !== "default") continue;
+    for (const [slotName, atts] of Object.entries(slots)) {
+      const i = sk.slotIndex.get(slotName);
+      if (i === undefined) continue;
+      const p = pose.slots[i];
+      for (const [attName, keys] of Object.entries(atts)) {
+        if (p.attachment !== attName) continue;
+        const [k] = findKey(keys, time);
+        if (k < 0) continue;
+        const att = getAttachment(sk.doc, pose.skin, slotName, attName);
+        if (att?.sequence) p.sequence = sequenceIndex(keys[k], time - keys[k].time, att.sequence.count);
+      }
+    }
   }
   if (anim.deform) for (const [skin, slots] of Object.entries(anim.deform)) {
     if (skin !== pose.skin && skin !== "default") continue;
@@ -354,6 +376,23 @@ export function applyAnimation(sk, pose, anim, time, alpha = 1, events = null, l
   if (events && anim.events) {
     for (const e of anim.events) if ((lastTime < 0 ? e.time <= time : e.time > lastTime && e.time <= time)) events.push(e);
   }
+}
+// frame of a sequence key after `elapsed` seconds
+export function sequenceIndex(key, elapsed, count) {
+  const mode = key.mode ?? "loop", start = key.index ?? 0, step = key.delay > 0 ? Math.floor(elapsed / key.delay + 1e-6) : 0;
+  let f = start;
+  if (mode !== "hold") {
+    const n = start + step, base = mode.replace("Reverse", "");
+    if (base === "once") f = Math.min(count - 1, n);
+    else if (base === "loop") f = n % count;
+    else { const period = Math.max(1, count * 2 - 2); f = n % period; if (f >= count) f = period - f; }
+    if (mode.endsWith("Reverse")) f = count - 1 - f;
+  }
+  return Math.max(0, Math.min(count - 1, f));
+}
+export function sequencePath(att, name, index) {
+  const q = att.sequence, i = (index >= 0 ? index : q.setup ?? 0) + (q.start ?? 1);
+  return (att.path ?? name) + String(i).padStart(q.digits ?? 0, "0");
 }
 const mixColor = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t), lerp(a[3], b[3], t)];
 
@@ -416,27 +455,87 @@ export function worldVertices(sk, pose, slotIndex, att) {
 }
 
 // Everything a renderer needs, in draw order: [{ slot, att, image, verts, uvs, tris, color, blend }]
+// A clipping attachment clips every slot drawn after it up to and including its "end" slot; the triangles are cut
+// on the CPU here, so every renderer gets clipping for free (items come out as triangle lists: mesh = true).
 export function drawList(sk, pose) {
   const out = [];
+  let clip = null;
   for (const si of pose.drawOrder) {
     const sp = pose.slots[si], s = sk.slots[si];
-    if (s.hidden) continue;
+    const ended = () => { if (clip && clip.end === si) clip = null; };
     const bone = sk.bones[s.boneIndex];
-    if (bone.hidden) continue;
+    if (s.hidden || bone.hidden) { ended(); continue; }
     const att = getAttachment(sk.doc, pose.skin, s.name, sp.attachment);
-    if (!att || !(att.type === "region" || att.type === "mesh" || !att.type)) continue;
+    if (att?.type === "clipping") {
+      const v = worldVertices(sk, pose, si, att), poly = [];
+      for (let i = 0; i < v.length; i += 2) poly.push([v[i], v[i + 1]]);
+      clip = poly.length >= 3 ? { tris: triangulate(poly), end: sk.slotIndex.get(att.end) ?? -1 } : null;
+      continue;
+    }
+    if (!att || !(att.type === "region" || att.type === "mesh" || !att.type)) { ended(); continue; }
     const ac = parseColor(att.color), sc = sp.color;
     const color = [ac[0] * sc[0], ac[1] * sc[1], ac[2] * sc[2], ac[3] * sc[3]];
-    if (color[3] <= 0) continue;
+    if (color[3] <= 0) { ended(); continue; }
     const mesh = att.type === "mesh";
-    out.push({
-      slot: s.name, slotIndex: si, name: sp.attachment, att, image: att.path ?? sp.attachment,
+    const d = {
+      slot: s.name, slotIndex: si, name: sp.attachment, att, image: att.sequence ? sequencePath(att, sp.attachment, sp.sequence) : att.path ?? sp.attachment,
       verts: worldVertices(sk, pose, si, att),
       uvs: mesh ? att.uvs : REGION_UVS, tris: mesh ? att.triangles : REGION_TRIS,
-      color, blend: s.blend ?? "normal",
-    });
+      color, dark: sp.dark ?? null, blend: s.blend ?? "normal", mesh,
+    };
+    if (clip) { Object.assign(d, clipTriangles(d.verts, d.uvs, d.tris, clip.tris), { mesh: true }); if (d.tris.length) out.push(d); }
+    else out.push(d);
+    ended();
   }
   return out;
+}
+
+// ear clipping; poly: [[x, y]], any winding, simple polygon. Returns triangles as [[x, y] × 3], each counter-clockwise.
+export function triangulate(poly) {
+  let pts = poly.slice();
+  const area = pts.reduce((a, p, i) => { const q = pts[(i + 1) % pts.length]; return a + p[0] * q[1] - q[0] * p[1]; }, 0);
+  if (area < 0) pts.reverse();
+  const cross = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const inside = (p, a, b, c) => cross(a, b, p) >= 0 && cross(b, c, p) >= 0 && cross(c, a, p) >= 0;
+  const tris = [];
+  let guard = 0;
+  while (pts.length > 3 && guard++ < 10000) {
+    let cut = false;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[(i + pts.length - 1) % pts.length], b = pts[i], c = pts[(i + 1) % pts.length];
+      if (cross(a, b, c) <= 1e-9) continue;
+      if (pts.some((p) => p !== a && p !== b && p !== c && inside(p, a, b, c))) continue;
+      tris.push([a, b, c]); pts.splice(i, 1); cut = true; break;
+    }
+    if (!cut) break; // degenerate: drop the rest
+  }
+  if (pts.length === 3 && cross(pts[0], pts[1], pts[2]) > 1e-9) tris.push(pts);
+  return tris;
+}
+// cut triangles (with uvs) by a set of convex clip triangles (Sutherland–Hodgman per clip triangle)
+function clipTriangles(verts, uvs, tris, clipTris) {
+  const ov = [], ou = [], ot = [];
+  for (let i = 0; i < tris.length; i += 3) {
+    const tri = [tris[i], tris[i + 1], tris[i + 2]].map((k) => [verts[k * 2], verts[k * 2 + 1], uvs[k * 2], uvs[k * 2 + 1]]);
+    for (const ct of clipTris) {
+      let poly = tri;
+      for (let e = 0; e < 3 && poly.length; e++) {
+        const a = ct[e], b = ct[(e + 1) % 3], side = (p) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
+        const next = [];
+        for (let j = 0; j < poly.length; j++) {
+          const p = poly[j], q = poly[(j + 1) % poly.length], sp = side(p), sq = side(q);
+          if (sp >= 0) next.push(p);
+          if ((sp >= 0) !== (sq >= 0)) { const t = sp / (sp - sq); next.push(p.map((v, n) => v + (q[n] - v) * t)); }
+        }
+        poly = next;
+      }
+      if (poly.length < 3) continue;
+      const base = ov.length / 2;
+      for (const p of poly) { ov.push(p[0], p[1]); ou.push(p[2], p[3]); }
+      for (let j = 1; j < poly.length - 1; j++) ot.push(base, base + j, base + j + 1);
+    }
+  }
+  return { verts: new Float32Array(ov), uvs: new Float32Array(ou), tris: ot };
 }
 
 export function bounds(list) {
@@ -496,15 +595,16 @@ export function draw2d(ctx, list, images, opts = {}) {
     if (!img) continue;
     const r = img.source ? img : { source: img, x: 0, y: 0, w: img.width, h: img.height, offX: 0, offY: 0, origW: img.width, origH: img.height, rotate: false };
     let src = r.source, sx = r.x, sy = r.y;
-    if (d.color[0] < 0.999 || d.color[1] < 0.999 || d.color[2] < 0.999) {
-      const key = `${d.image}|${d.color.slice(0, 3).map((c) => Math.round(c * 32)).join(",")}`;
+    const dark = d.dark && (d.dark[0] > 0.001 || d.dark[1] > 0.001 || d.dark[2] > 0.001) ? d.dark : null;
+    if (dark || d.color[0] < 0.999 || d.color[1] < 0.999 || d.color[2] < 0.999) {
+      const key = `${d.image}|${d.color.slice(0, 3).map((c) => Math.round(c * 32)).join(",")}${dark ? "|" + dark.slice(0, 3).map((c) => Math.round(c * 32)).join(",") : ""}`;
       let t = tintCache.get(key);
-      if (!t) { t = tinted(r, d.color); tintCache.set(key, t); if (tintCache.size > 300) tintCache.delete(tintCache.keys().next().value); }
+      if (!t) { t = dark ? tintedTwo(r, d.color, dark) : tinted(r, d.color); tintCache.set(key, t); if (tintCache.size > 300) tintCache.delete(tintCache.keys().next().value); }
       src = t; sx = 0; sy = 0;
     }
     ctx.globalAlpha = d.color[3];
     ctx.globalCompositeOperation = BLEND_OP[d.blend] ?? "source-over";
-    if (d.att.type === "mesh") drawMesh(ctx, src, sx, sy, r, d);
+    if (d.mesh ?? d.att.type === "mesh") drawMesh(ctx, src, sx, sy, r, d);
     else drawRegion(ctx, src, sx, sy, r, d.verts);
   }
   ctx.globalAlpha = 1;
@@ -519,6 +619,16 @@ function tinted(r, color) {
   g.fillRect(0, 0, c.width, c.height);
   g.globalCompositeOperation = "destination-in";
   g.drawImage(r.source, r.x, r.y, c.width, c.height, 0, 0, c.width, c.height);
+  return c;
+}
+
+// two-colour tint: texture black → dark, white → light, per channel (alpha untouched)
+function tintedTwo(r, light, dark) {
+  const c = new OffscreenCanvas(r.rotate ? r.h : r.w, r.rotate ? r.w : r.h), g = c.getContext("2d");
+  g.drawImage(r.source, r.x, r.y, c.width, c.height, 0, 0, c.width, c.height);
+  const im = g.getImageData(0, 0, c.width, c.height), p = im.data;
+  for (let i = 0; i < p.length; i += 4) for (let k = 0; k < 3; k++) p[i + k] = (dark[k] + (light[k] - dark[k]) * (p[i + k] / 255)) * 255;
+  g.putImageData(im, 0, 0);
   return c;
 }
 

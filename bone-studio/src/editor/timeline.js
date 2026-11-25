@@ -1,10 +1,10 @@
 // Timeline: playback bar and dopesheet.
-import { S, doc, emit, on, h, run, setTime, duration, currentAnim, selectedBones, frame, toast, startMixPreview, stopMixPreview, tickMixPreview } from "./state.js?v=20261125h";
-import { drawGraph, graphDown, graphMove, graphUp, graphLegend } from "./graph.js?v=20261125h";
-import { newAnim } from "./panels.js?v=20261125h";
+import { S, doc, emit, on, h, run, setTime, duration, currentAnim, selectedBones, frame, toast, startMixPreview, stopMixPreview, tickMixPreview } from "./state.js?v=20261125i";
+import { drawGraph, graphDown, graphMove, graphUp, graphLegend } from "./graph.js?v=20261125i";
+import { newAnim } from "./panels.js?v=20261125i";
 
 const root = document.getElementById("xx-timeline");
-const COLORS = { rotate: "#7fd36b", translate: "#4fb3ff", scale: "#e8504a", shear: "#c07cff", attachment: "#f0d23a", rgba: "#ff8fd0", drawOrder: "#cfcfcf", events: "#ffffff", ik: "#f0a63a" };
+const COLORS = { rotate: "#7fd36b", translate: "#4fb3ff", scale: "#e8504a", shear: "#c07cff", attachment: "#f0d23a", rgba: "#ff8fd0", drawOrder: "#cfcfcf", events: "#ffffff", ik: "#f0a63a", transform: "#8fd3ff", dark: "#b07040" };
 const RULER = 20, ROW = 20;
 let tlView = "dope", pxPerFrame = 12, scroll = 0, vscroll = 0, rows = [], expanded = new Set(), dragKeys = null, scrubbing = false;
 
@@ -23,9 +23,10 @@ function trackKeys(anim, tr) {
   if (tr.drawOrder) return anim.drawOrder ?? [];
   if (tr.event) return anim.events ?? [];
   if (tr.ik) return anim.ik?.[tr.ik] ?? [];
+  if (tr.transform) return anim.transform?.[tr.transform] ?? [];
   return [];
 }
-const propOf = (tr) => tr.prop ?? (tr.drawOrder ? "drawOrder" : tr.event ? "events" : "ik");
+const propOf = (tr) => tr.prop ?? (tr.drawOrder ? "drawOrder" : tr.event ? "events" : tr.transform ? "transform" : "ik");
 
 function buildRows() {
   const d = doc(), a = currentAnim(), out = [], sel = new Set(selectedBones());
@@ -41,14 +42,15 @@ function buildRows() {
     void has;
   }
   for (const s of d.slots) {
-    for (const p of ["attachment", "rgba"]) {
+    for (const p of ["attachment", "rgba", "dark"]) {
       const t = { slot: s.name, prop: p };
       if (!trackKeys(a, t).length && !(S.sel?.kind === "slot" && S.sel.name === s.name)) continue;
       all.push(t);
-      out.push({ id: `s:${s.name}:${p}`, label: `${s.name} · ${p === "attachment" ? "ảnh" : "màu"}`, icon: "▭", tracks: [t] });
+      out.push({ id: `s:${s.name}:${p}`, label: `${s.name} · ${{ attachment: "ảnh", rgba: "màu", dark: "màu tối" }[p]}`, icon: "▭", tracks: [t] });
     }
   }
   for (const c of d.ik ?? []) if (a?.ik?.[c.name]) { const t = { ik: c.name }; all.push(t); out.push({ id: "ik:" + c.name, label: c.name, icon: "⟳", tracks: [t] }); }
+  for (const c of d.transform ?? []) if (a?.transform?.[c.name]) { const t = { transform: c.name }; all.push(t); out.push({ id: "tc:" + c.name, label: c.name, icon: "⇉", tracks: [t] }); }
   const dt = { drawOrder: true }, ev = { event: true };
   all.push(dt, ev);
   out.push({ id: "draworder", label: "Draw order", icon: "≡", tracks: [dt] }, { id: "events", label: "Event", icon: "⚑", tracks: [ev] });
@@ -148,7 +150,7 @@ export function drawTimeline() {
       const keys = trackKeys(a, tr);
       keys.forEach((k, n) => {
         const x = xOf(k.time + (dragKeys?.moving && selKey(tr, k.time) ? dragKeys.dt : 0));
-        if (row.tracks.length === 1 && keys[n + 1] && (tr.bone || tr.prop === "rgba")) {
+        if (row.tracks.length === 1 && keys[n + 1] && (tr.bone || tr.prop === "rgba" || tr.prop === "dark" || tr.transform)) {
           const x2 = xOf(keys[n + 1].time);
           ctx.strokeStyle = COLORS[propOf(tr)] + "66"; ctx.setLineDash(k.curve === "stepped" ? [2, 3] : []);
           ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y); ctx.stroke(); ctx.setLineDash([]);
@@ -261,7 +263,7 @@ export function deleteKeys() {
   if (run(cmds, "Xoá key")) S.keySel = [];
 }
 function setCurve(curve) {
-  const cmds = S.keySel.filter((k) => k.track.bone || k.track.prop === "rgba" || k.track.ik).map((k) => ({ type: "key.curve", anim: S.anim, track: k.track, time: k.time, curve }));
+  const cmds = S.keySel.filter((k) => k.track.bone || k.track.prop === "rgba" || k.track.prop === "dark" || k.track.ik || k.track.transform).map((k) => ({ type: "key.curve", anim: S.anim, track: k.track, time: k.time, curve }));
   if (!cmds.length) return toast("Key đang chọn không có curve (ảnh, draw order, event)", true);
   run(cmds, "Đổi curve");
 }
@@ -277,7 +279,7 @@ export function pasteKeys(clip) {
   const cmds = clip.map(({ track, dt, key }) => {
     const tr = track.bone ? { ...track, bone: remap[track.bone] ?? track.bone } : track;
     const { time, curve, ...fields } = key;
-    const value = tr.bone ? (tr.prop === "rotate" ? fields.value : { x: fields.x, y: fields.y }) : tr.prop === "attachment" ? fields.name : tr.prop === "rgba" ? fields.color : tr.drawOrder ? fields.order : tr.event ? fields : fields;
+    const value = tr.bone ? (tr.prop === "rotate" ? fields.value : { x: fields.x, y: fields.y }) : tr.prop === "attachment" ? fields.name : tr.prop === "rgba" || tr.prop === "dark" ? fields.color : tr.drawOrder ? fields.order : tr.event ? fields : fields;
     return { type: "key.set", anim: S.anim, track: tr, time: Math.round((S.time + dt) * 1e4) / 1e4, value, ...(curve ? { curve } : {}) };
   });
   run(cmds, "Dán key");

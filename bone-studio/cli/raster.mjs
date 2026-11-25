@@ -29,7 +29,8 @@ function sampleNearest(img, u, v, out) {
   out[0] = img.data[o] * a; out[1] = img.data[o + 1] * a; out[2] = img.data[o + 2] * a; out[3] = a;
 }
 
-export function drawTriangles(surf, img, verts, uvs, tris, color = [1, 1, 1, 1], blend = "normal", nearest = false) {
+// dark: two-colour tint ("tint black"): texture black maps to dark, white to color (linear in between)
+export function drawTriangles(surf, img, verts, uvs, tris, color = [1, 1, 1, 1], blend = "normal", nearest = false, dark = null) {
   const sample = nearest ? sampleNearest : sampleBilinear;
   const W = surf.width, H = surf.height, D = surf.data, fn = BLEND[blend] ?? BLEND.normal, s = [0, 0, 0, 0];
   for (let t = 0; t < tris.length; t += 3) {
@@ -52,7 +53,7 @@ export function drawTriangles(surf, img, verts, uvs, tris, color = [1, 1, 1, 1],
       const sa = (s[3] / 255) * color[3];
       if (sa <= 0) continue;
       const o = (py * W + px) * 4, da = D[o + 3] / 255;
-      for (let k = 0; k < 3; k++) D[o + k] = fn((s[k] / s[3]) * color[k], sa, D[o + k], da);
+      for (let k = 0; k < 3; k++) { const tv = s[k] / s[3]; D[o + k] = fn(dark ? (dark[k] + (color[k] - dark[k]) * (tv / 255)) * 255 : tv * color[k], sa, D[o + k], da); } // tv: 0..255
       D[o + 3] = blend === "additive" ? D[o + 3] : (sa + da * (1 - sa)) * 255;
     }
   }

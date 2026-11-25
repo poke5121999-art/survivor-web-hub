@@ -236,3 +236,79 @@ test("transform constraint: world, local and relative modes, keyed mix, Spine ro
   assert.equal(run(d, [{ type: "bone.remove", name: "a" }]).transform.length, 0);
   assert.throws(() => run(base, [{ type: "transform.add", name: "x", bones: ["a"], target: "a" }]), /target/);
 });
+
+test("clipping: slots up to the end slot are cut to the clip polygon (concave too), later slots are not", async () => {
+  const { drawList } = await import("../runtime/xuong.js");
+  const area = (d) => { let a = 0; for (let i = 0; i < d.tris.length; i += 3) { const [p, q, r] = [d.tris[i], d.tris[i + 1], d.tris[i + 2]].map((k) => [d.verts[k * 2], d.verts[k * 2 + 1]]); a += Math.abs((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])) / 2; } return a; };
+  const d = run(emptyDoc(), [
+    { type: "slot.add", name: "mask", bone: "root", attachment: "mask" },
+    // L-shaped (concave) clip: the 10×10 square minus its top-right 5×5 quarter → area 75
+    { type: "attachment.add", slot: "mask", name: "mask", attachment: { type: "clipping", end: "a", vertexCount: 6, vertices: [-5, -5, 5, -5, 5, 0, 0, 0, 0, 5, -5, 5] } },
+    { type: "slot.add", name: "a", bone: "root", attachment: "a" },
+    { type: "attachment.add", slot: "a", name: "a", attachment: { width: 20, height: 20 } },
+    { type: "slot.add", name: "b", bone: "root", attachment: "b" },
+    { type: "attachment.add", slot: "b", name: "b", attachment: { width: 20, height: 20 } },
+  ]);
+  const sk = buildSkeleton(d), list = drawList(sk, poseAt(sk, null, 0));
+  assert.deepEqual(list.map((x) => x.slot), ["a", "b"]);
+  near(area(list[0]), 75, 1e-3);
+  assert.equal(list[0].mesh, true);
+  near(area(list[1]), 400, 1e-3);
+  // uvs follow the cut: the clipped corner (-5,-5) of a 20×20 region centred at 0 sits at u 0.25, v 0.75
+  const k = [...Array(list[0].verts.length / 2).keys()].find((i) => Math.abs(list[0].verts[i * 2] + 5) < 1e-4 && Math.abs(list[0].verts[i * 2 + 1] + 5) < 1e-4);
+  near(list[0].uvs[k * 2], 0.25); near(list[0].uvs[k * 2 + 1], 0.75);
+});
+
+test("tint black: dark colour keys interpolate, survive a Spine rgba2 round trip, and the raster maps texture black to dark", async () => {
+  const { toSpine, fromSpine } = await import("../src/spine-io.js");
+  const { drawTriangles } = await import("../cli/raster.mjs");
+  const d = run(emptyDoc(), [
+    { type: "slot.add", name: "s", bone: "root" },
+    { type: "slot.set", name: "s", props: { dark: "000000" } },
+    { type: "anim.add", name: "a" },
+    { type: "key.set", anim: "a", track: { slot: "s", prop: "dark" }, time: 0, value: "000000" },
+    { type: "key.set", anim: "a", track: { slot: "s", prop: "dark" }, time: 1, value: "ff0000" },
+  ]);
+  const dark = (doc, t) => { const sk = buildSkeleton(doc); return poseAt(sk, doc.animations.a, t).slots[0].dark; };
+  near(dark(d, 0.5)[0], 0.5); near(dark(d, 0.5)[1], 0);
+  const { doc: back, warnings } = fromSpine(JSON.parse(JSON.stringify(toSpine(d))));
+  assert.deepEqual(warnings, []);
+  for (const t of [0, 0.5, 1]) near(dark(back, t)[0], dark(d, t)[0], 1e-2);
+  // a black texel with light white and dark red comes out red; a white texel stays white
+  const surf = { width: 2, height: 1, data: new Uint8ClampedArray(8) };
+  const img = { width: 2, height: 1, data: new Uint8ClampedArray([0, 0, 0, 255, 255, 255, 255, 255]) };
+  drawTriangles(surf, img, [0, 0, 2, 0, 2, 1, 0, 1], [0, 0, 1, 0, 1, 1, 0, 1], [0, 1, 2, 2, 3, 0], [1, 1, 1, 1], "normal", true, [1, 0, 0, 1]);
+  assert.deepEqual([...surf.data], [255, 0, 0, 255, 255, 255, 255, 255]);
+});
+
+test("sequence attachment: frame per mode, image path, Spine round trip; deform keys and curves survive Spine export", async () => {
+  const { toSpine, fromSpine } = await import("../src/spine-io.js");
+  const { sequenceIndex, drawList } = await import("../runtime/xuong.js");
+  const at = (mode, t) => sequenceIndex({ mode, index: 0, delay: 0.1 }, t, 4);
+  assert.deepEqual([0, 0.1, 0.25, 0.35, 0.45, 0.65].map((t) => at("loop", t)), [0, 1, 2, 3, 0, 2]);
+  assert.deepEqual([0, 0.35, 0.65].map((t) => at("once", t)), [0, 3, 3]);
+  assert.deepEqual([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6].map((t) => at("pingpong", t)), [0, 1, 2, 3, 2, 1, 0]);
+  assert.deepEqual([0, 0.1].map((t) => at("loopReverse", t)), [3, 2]);
+  assert.equal(at("hold", 5), 0);
+  let d = run(emptyDoc(), [
+    { type: "slot.add", name: "lua", bone: "root", attachment: "lua" },
+    { type: "attachment.add", slot: "lua", name: "lua", attachment: { width: 4, height: 4, sequence: { count: 4, start: 1, digits: 2 } } },
+    { type: "anim.add", name: "chay" },
+    { type: "key.set", anim: "chay", track: { sequence: { slot: "lua", attachment: "lua" } }, time: 0, value: { mode: "loop", delay: 0.1 } },
+  ]);
+  const img = (doc, t) => { const sk = buildSkeleton(doc); return drawList(sk, poseAt(sk, doc.animations.chay, t))[0].image; };
+  assert.deepEqual([0, 0.15, 0.35].map((t) => img(d, t)), ["lua01", "lua02", "lua04"]);
+  // a deformed mesh with a bezier key
+  d = run(d, [
+    { type: "slot.add", name: "m", bone: "root", attachment: "m" },
+    { type: "attachment.add", slot: "m", name: "m", attachment: { width: 10, height: 10 } },
+    { type: "mesh.fromRegion", slot: "m", name: "m", cols: 1, rows: 1 },
+    { type: "key.set", anim: "chay", track: { deform: { slot: "m", attachment: "m" } }, time: 0, value: [0, 0, 0, 0, 0, 0, 0, 0], curve: [0.5, 0, 0.5, 1] },
+    { type: "key.set", anim: "chay", track: { deform: { slot: "m", attachment: "m" } }, time: 1, value: [0, 0, 0, 0, 4, 4, 0, 0] },
+  ]);
+  const { doc: back, warnings } = fromSpine(JSON.parse(JSON.stringify(toSpine(d))));
+  assert.deepEqual(warnings, []);
+  assert.deepEqual([0, 0.15, 0.35].map((t) => img(back, t)), ["lua01", "lua02", "lua04"]);
+  const vtx = (doc, t) => { const sk = buildSkeleton(doc); return Array.from(drawList(sk, poseAt(sk, doc.animations.chay, t)).find((x) => x.slot === "m").verts); };
+  for (const t of [0.25, 0.5, 0.9]) vtx(d, t).forEach((v, i) => near(v, vtx(back, t)[i], 1e-2));
+});

@@ -1,5 +1,5 @@
 // Undo/redo over the command reducer. A group is one user gesture or one agent turn.
-import { apply } from "./commands.js?v=20261125h";
+import { apply } from "./commands.js?v=20261125i";
 
 export class History {
   constructor(doc, { limit = 300, onChange } = {}) {

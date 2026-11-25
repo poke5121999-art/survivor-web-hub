@@ -1,8 +1,8 @@
 // Command registry. Every change to a document, from the UI, the agent, the CLI or a test, is one of these.
 // apply(doc, cmd) is pure: it returns a new doc and the exact inverse (a $patch command).
-import { transaction, applyPatch } from "./tx.js?v=20261125h";
-import { gridMesh, autoWeights, hangWeights, unweight, movedVertices } from "./mesh.js?v=20261125h";
-import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125h";
+import { transaction, applyPatch } from "./tx.js?v=20261125i";
+import { gridMesh, autoWeights, hangWeights, unweight, movedVertices } from "./mesh.js?v=20261125i";
+import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125i";
 
 export const FORMAT = "xuong";
 export const VERSION = 1;
@@ -62,7 +62,15 @@ const ATT_PROPS = {
   width: (v, w) => (num(v, w) > 0 ? v : bad(`${w}: phải > 0`)), height: (v, w) => (num(v, w) > 0 ? v : bad(`${w}: phải > 0`)),
   color: hex, path: (v, w) => (v === null ? null : name(v, w)),
   uvs: numArray, triangles: numArray, vertices: numArray, hull: num, edges: numArray, vertexCount: num, end: (v, w) => name(v, w),
+  // sequence: the image is path + number (start + index, zero-padded to digits), e.g. lua1.png … lua8.png
+  sequence: (v, w) => {
+    if (v === null) return null;
+    const c = Math.round(num(v?.count, `${w}.count`));
+    if (c < 1) bad(`${w}.count: phải ≥ 1`);
+    return { count: c, start: Math.round(optNum(v.start, `${w}.start`, 1)), digits: Math.round(optNum(v.digits, `${w}.digits`, 0)), setup: Math.max(0, Math.min(c - 1, Math.round(optNum(v.setup, `${w}.setup`, 0)))) };
+  },
 };
+export const SEQ_MODES = ["hold", "once", "loop", "pingpong", "onceReverse", "loopReverse", "pingpongReverse"];
 function numArray(v, w) { return Array.isArray(v) && v.every((x) => typeof x === "number" && isFinite(x)) ? v.slice() : bad(`${w}: cần mảng số`); }
 function cleanProps(props, table, what) {
   if (!props || typeof props !== "object") bad(`${what}: thiếu props`);
@@ -77,6 +85,7 @@ function cleanAttachment(a, what) {
   const type = oneOf(a?.type ?? "region", ATT_TYPES, `${what}.type`);
   const { type: _t, ...rest } = a ?? {};
   const out = { type, ...cleanProps(rest, ATT_PROPS, what) };
+  if (out.sequence === null) delete out.sequence;
   if (type === "region" && !(out.width && out.height)) bad(`${what}: region cần width và height`);
   if (type === "mesh") {
     if (!out.uvs || !out.triangles || !out.vertices) bad(`${what}: mesh cần uvs, triangles, vertices`);
@@ -86,18 +95,24 @@ function cleanAttachment(a, what) {
 }
 
 // ---- tracks ------------------------------------------------------------------------------------
-// track: { bone, prop: rotate|translate|scale|shear } | { slot, prop: attachment|rgba } | { drawOrder: true } | { event: true } | { ik } | { transform }
+// track: { bone, prop: rotate|translate|scale|shear } | { slot, prop: attachment|rgba|dark } | { drawOrder: true } | { event: true } | { ik } | { transform }
 const BONE_TL = ["rotate", "translate", "scale", "shear"];
 const TC_OFF = ["rotation", "x", "y", "scaleX", "scaleY", "shearY"];
 const TC_MIX = ["mixRotate", "mixX", "mixY", "mixScaleX", "mixScaleY", "mixShearY"];
 function trackPath(doc, anim, tr) {
   if (!tr || typeof tr !== "object") bad("thiếu track");
   if (tr.bone !== undefined) { boneIdx(doc, tr.bone); return ["animations", anim, "bones", tr.bone, oneOf(tr.prop, BONE_TL, "track.prop")]; }
-  if (tr.slot !== undefined) { slotIdx(doc, tr.slot); return ["animations", anim, "slots", tr.slot, oneOf(tr.prop, ["attachment", "rgba"], "track.prop")]; }
+  if (tr.slot !== undefined) { slotIdx(doc, tr.slot); return ["animations", anim, "slots", tr.slot, oneOf(tr.prop, ["attachment", "rgba", "dark"], "track.prop")]; }
   if (tr.drawOrder) return ["animations", anim, "drawOrder"];
   if (tr.event) return ["animations", anim, "events"];
   if (tr.ik !== undefined) { ikIdx(doc, tr.ik); return ["animations", anim, "ik", tr.ik]; }
   if (tr.transform !== undefined) { tcIdx(doc, tr.transform); return ["animations", anim, "transform", tr.transform]; }
+  if (tr.sequence) {
+    const { skin = "default", slot, attachment } = tr.sequence, k = skinIdx(doc, skin);
+    const a = doc.skins[k].attachments[slot]?.[attachment] ?? bad(`không có attachment "${attachment}" trong slot "${slot}" (skin "${skin}")`);
+    if (!a.sequence) bad(`"${attachment}" không có sequence`);
+    return ["animations", anim, "sequence", skin, slot, attachment];
+  }
   if (tr.deform) {
     const { skin = "default", slot, attachment } = tr.deform, k = skinIdx(doc, skin);
     const a = doc.skins[k].attachments[slot]?.[attachment] ?? bad(`không có mesh "${attachment}" trong slot "${slot}" (skin "${skin}")`);
@@ -114,6 +129,7 @@ function keyFields(doc, tr, v) {
   }
   if (tr.slot !== undefined) {
     if (tr.prop === "attachment") return { name: v === null ? null : name(v, "value") };
+    if (tr.prop === "dark") return { color: hex(v, "value").slice(0, 6) };
     return { color: hex(v, "value") };
   }
   if (tr.drawOrder) {
@@ -129,6 +145,7 @@ function keyFields(doc, tr, v) {
     return out;
   }
   if (tr.deform) return { vertices: numArray(v, "value") };
+  if (tr.sequence) return { mode: oneOf(v?.mode ?? "loop", SEQ_MODES, "value.mode"), index: Math.round(optNum(v?.index, "value.index", 0)), delay: Math.max(0, optNum(v?.delay, "value.delay", 1 / 12)) };
   if (tr.transform !== undefined) {
     const o = {};
     for (const k of TC_MIX) if (v?.[k] !== undefined) o[k] = num(v[k], k);
@@ -142,7 +159,7 @@ function keyFields(doc, tr, v) {
     return o;
   }
 }
-const interpolates = (tr) => tr.bone !== undefined || tr.prop === "rgba" || tr.ik !== undefined || tr.transform !== undefined || !!tr.deform;
+const interpolates = (tr) => tr.bone !== undefined || tr.prop === "rgba" || tr.prop === "dark" || tr.ik !== undefined || tr.transform !== undefined || !!tr.deform;
 
 // ---- helpers that rewrite references -----------------------------------------------------------
 function mapAnimations(t, fn) {
@@ -570,7 +587,7 @@ export const COMMANDS = {
   },
 
   "key.set": {
-    help: "Đặt (hoặc thay) key: { anim, track, time (giây), value, curve? }. track: {bone, prop: rotate|translate|scale|shear} (value: số độ cho rotate, {x,y} còn lại; giá trị tương đối với setup pose: rotate/translate/shear cộng, scale nhân), {slot, prop: attachment|rgba} (value: tên hoặc null / 'rrggbbaa'), {drawOrder:true} (value: mảng tên slot dưới→trên), {event:true} (value: {name, int?, float?, string?}), {ik} (value: {mix, softness, bendPositive, stretch, compress}), {transform} (value: {mixRotate, mixX, mixY, mixScaleX, mixScaleY, mixShearY})",
+    help: "Đặt (hoặc thay) key: { anim, track, time (giây), value, curve? }. track: {bone, prop: rotate|translate|scale|shear} (value: số độ cho rotate, {x,y} còn lại; giá trị tương đối với setup pose: rotate/translate/shear cộng, scale nhân), {slot, prop: attachment|rgba|dark} (value: tên hoặc null / 'rrggbbaa' / 'rrggbb' màu tối của tint black), {drawOrder:true} (value: mảng tên slot dưới→trên), {event:true} (value: {name, int?, float?, string?}), {ik} (value: {mix, softness, bendPositive, stretch, compress}), {transform} (value: {mixRotate, mixX, mixY, mixScaleX, mixScaleY, mixShearY}), {sequence: {skin, slot, attachment}} (value: {mode: hold|once|loop|pingpong|onceReverse|loopReverse|pingpongReverse, index, delay giây/khung})",
     run(t, { anim, track, time: tm, value, curve }, doc) {
       animOf(doc, anim);
       const path = trackPath(doc, anim, track), at = time(tm);
