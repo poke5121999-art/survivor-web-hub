@@ -1,7 +1,7 @@
 // Viewport: draws the skeleton with canvas2D, handles picking, gizmos, bone creation, pan and zoom.
-import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125k";
-import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG, findKey } from "../../runtime/xuong.js?v=20261125k";
-import { deformOffsets } from "../mesh.js?v=20261125k";
+import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125l";
+import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG, findKey } from "../../runtime/xuong.js?v=20261125l";
+import { deformOffsets } from "../mesh.js?v=20261125l";
 
 const cv = document.getElementById("xx-canvas");
 const ctx = cv.getContext("2d");
@@ -103,6 +103,18 @@ export function draw() {
   });
   if (hover?.kind === "slot" && hover.name !== sel?.name) { const d = list.find((x) => x.slot === hover.name); if (d) outline(d.mesh && d.att.type !== "mesh" ? worldVertices(sk, pose, d.slotIndex, d.att) : d.verts, "rgba(79,179,255,.45)"); }
   if (S.showBones) drawBones(sk, pose);
+  // ruler: distance in world units (= pixels of the source images at scale 1) and angle, until the next measure
+  if (S.ruler && S.tool === "ruler") {
+    const [x0, y0] = toScreen(...S.ruler.a), [x1, y1] = toScreen(...S.ruler.b);
+    const dx = S.ruler.b[0] - S.ruler.a[0], dy = S.ruler.b[1] - S.ruler.a[1];
+    ctx.strokeStyle = "#ffd84a"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    for (const [x, y] of [[x0, y0], [x1, y1]]) { ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fillStyle = "#ffd84a"; ctx.fill(); }
+    const label = `${Math.hypot(dx, dy).toFixed(1)}  ·  ${((Math.atan2(dy, dx) * 180) / Math.PI).toFixed(1)}°  ·  Δ ${dx.toFixed(1)}, ${dy.toFixed(1)}`;
+    ctx.font = "12px ui-monospace, monospace"; const w = ctx.measureText(label).width;
+    ctx.fillStyle = "rgba(20,22,26,.85)"; ctx.fillRect((x0 + x1) / 2 + 8, (y0 + y1) / 2 - 18, w + 10, 18);
+    ctx.fillStyle = "#ffd84a"; ctx.fillText(label, (x0 + x1) / 2 + 13, (y0 + y1) / 2 - 5);
+    S.rulerText = label;
+  }
   if (drag?.box) {
     ctx.strokeStyle = "#4fb3ff"; ctx.setLineDash([4, 3]);
     ctx.strokeRect(drag.box.x0, drag.box.y0, mouse.x - drag.box.x0, mouse.y - drag.box.y0);
@@ -320,6 +332,7 @@ cv.addEventListener("pointerdown", (e) => {
     drag = { create: { wx, wy, parent: S.sel?.kind === "bone" ? S.sel.name : S.sel?.kind === "slot" ? doc().slots.find((s) => s.name === S.sel.name)?.bone : doc().bones[0]?.name } };
     return;
   }
+  if (S.tool === "ruler") { drag = { ruler: true }; S.ruler = { a: [wx, wy], b: [wx, wy] }; return; }
   const hit = pick(sx, sy, { bonesOnly: S.tool === "pose" });
   const add = e.ctrlKey || e.metaKey || e.shiftKey;
   const transformTool = ["rotate", "translate", "scale"].includes(S.tool);
@@ -360,6 +373,7 @@ cv.addEventListener("pointermove", (e) => {
   [mouse.wx, mouse.wy] = toWorld(mouse.x, mouse.y);
   if (!drag) { const h = pick(mouse.x, mouse.y); if (JSON.stringify(h) !== JSON.stringify(hover)) { hover = h; } return; }
   if (drag.pan) { S.view.x = drag.vx - (mouse.x - drag.sx) / S.view.zoom; S.view.y = drag.vy + (mouse.y - drag.sy) / S.view.zoom; return; }
+  if (drag.ruler) { S.ruler.b = [mouse.wx, mouse.wy]; return; }
   if (drag.box || drag.create || drag.pending) return;
   if (drag.verts) {
     const v = drag.verts, dx = rnd(mouse.wx - v.wx), dy = rnd(mouse.wy - v.wy);

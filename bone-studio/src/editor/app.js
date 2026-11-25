@@ -3,28 +3,57 @@ window.__errors = [];
 window.addEventListener("error", (e) => window.__errors.push(String(e.message || e)));
 window.addEventListener("unhandledrejection", (e) => window.__errors.push(String(e.reason?.message || e.reason)));
 
-const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime, stepPhysics } = await import("./state.js?v=20261125k");
-const VP = await import("./viewport.js?v=20261125k");
-const { renderTree, renderProps } = await import("./panels.js?v=20261125k");
-const TL = await import("./timeline.js?v=20261125k");
-const IO = await import("./io.js?v=20261125k");
-const AG = await import("./agent.js?v=20261125k");
-const { importWhole } = await import("./splitui.js?v=20261125k");
-const CL = await import("./cloud.js?v=20261125k");
+const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime, stepPhysics } = await import("./state.js?v=20261125l");
+const VP = await import("./viewport.js?v=20261125l");
+const { renderTree, renderProps } = await import("./panels.js?v=20261125l");
+const TL = await import("./timeline.js?v=20261125l");
+const IO = await import("./io.js?v=20261125l");
+const AG = await import("./agent.js?v=20261125l");
+const { importWhole } = await import("./splitui.js?v=20261125l");
+const CL = await import("./cloud.js?v=20261125l");
 
 const $ = (id) => document.getElementById(id);
 const app = $("app"), modal = $("xx-modal");
 const Q = new URLSearchParams(location.search);
 
 // ---- tools pill --------------------------------------------------------------------------------
-const TOOLS = [["pose", "Pose", "B"], ["create", "Tạo bone", "N"], ["rotate", "Xoay", "C"], ["translate", "Dời", "V"], ["scale", "Scale", "X"]];
+// remappable single keys (saved per browser); Ctrl shortcuts, Space, arrows and Delete stay fixed
+const KEY_DEFAULTS = { pose: "b", create: "n", rotate: "c", translate: "v", scale: "x", ruler: "m", key: "k", mode: "tab" };
+const KEY_LABELS = { pose: "Pose tool", create: "Tạo bone", rotate: "Xoay", translate: "Dời", scale: "Scale", ruler: "Thước đo", key: "Key những gì đã đổi", mode: "Đổi Setup / Animate" };
+const KEYS = (() => { try { return { ...KEY_DEFAULTS, ...JSON.parse(localStorage.getItem("xx-keys") ?? "{}") }; } catch { return { ...KEY_DEFAULTS }; } })();
+const keyName = (k) => (k === "tab" ? "Tab" : k.length === 1 ? k.toUpperCase() : k);
+function keysDialog() {
+  const rows = Object.keys(KEY_DEFAULTS).map((id) => {
+    const btn = h("button", { class: "xx-btn xx-btn--ghost", text: keyName(KEYS[id]), title: "Bấm rồi gõ phím mới", onclick: () => {
+      btn.textContent = "gõ phím…";
+      const grab = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        window.removeEventListener("keydown", grab, true);
+        const k = e.key.toLowerCase();
+        if (k === "escape") { btn.textContent = keyName(KEYS[id]); return; }
+        if (e.ctrlKey || e.metaKey || [" ", "delete", "backspace", "arrowleft", "arrowright", "home", ",", ".", "+", "-", "="].includes(k)) { toast(`Phím "${e.key}" đã dành cho việc khác`, true); btn.textContent = keyName(KEYS[id]); return; }
+        const clash = Object.keys(KEYS).find((o) => o !== id && KEYS[o] === k);
+        if (clash) KEYS[clash] = KEYS[id]; // swap so every action keeps a key
+        KEYS[id] = k;
+        try { localStorage.setItem("xx-keys", JSON.stringify(KEYS)); } catch {}
+        close(); keysDialog(); emit("tools");
+      };
+      window.addEventListener("keydown", grab, true);
+    } });
+    return h("div", { class: "xx-row-flex", style: "justify-content:space-between;padding:3px 0" }, h("span", { text: KEY_LABELS[id] }), btn);
+  });
+  const close = dialog("Phím tắt", h("p", { class: "xx-note", text: "Bấm vào phím của một việc rồi gõ phím mới. Trùng phím thì hai việc đổi chỗ cho nhau." }), ...rows,
+    h("button", { class: "xx-btn xx-btn--ghost", text: "Về mặc định", onclick: () => { Object.assign(KEYS, KEY_DEFAULTS); try { localStorage.removeItem("xx-keys"); } catch {} close(); keysDialog(); emit("tools"); } }));
+}
+const TOOLS = [["pose", "Pose"], ["create", "Tạo bone"], ["rotate", "Xoay"], ["translate", "Dời"], ["scale", "Scale"], ["ruler", "Thước"]];
 function renderTools() {
   const t = $("xx-tools");
   t.replaceChildren(
-    ...TOOLS.filter(([id]) => id !== "create" || S.mode === "setup").map(([id, label, key]) => h("button", { class: "xx-tool" + (S.tool === id ? " is-on" : ""), title: `${label} (${key})`, onclick: () => setTool(id) }, label, h("kbd", { text: key }))),
+    ...TOOLS.filter(([id]) => id !== "create" || S.mode === "setup").map(([id, label]) => h("button", { class: "xx-tool" + (S.tool === id ? " is-on" : ""), title: `${label} (${keyName(KEYS[id])})`, onclick: () => setTool(id) }, label, h("kbd", { text: keyName(KEYS[id]) }))),
+    h("button", { class: "xx-tool", title: "Đổi phím tắt", onclick: keysDialog, id: "xx-keys-btn" }, "⌨"),
     S.mode === "animate" ? h("span", { class: "xx-sep" }) : null,
     S.mode === "animate" ? h("button", { class: "xx-tool is-auto" + (S.autoKey ? " is-on" : ""), title: "Auto key: mọi thay đổi tự thành key", onclick: () => { S.autoKey = !S.autoKey; emit("tools"); } }, "● Auto key") : null,
-    S.mode === "animate" ? h("button", { class: "xx-tool", title: "Key những gì đã đổi (K)", onclick: keyNow }, "Key", h("kbd", { text: "K" })) : null,
+    S.mode === "animate" ? h("button", { class: "xx-tool", title: `Key những gì đã đổi (${keyName(KEYS.key)})`, onclick: keyNow }, "Key", h("kbd", { text: keyName(KEYS.key) })) : null,
   );
 }
 function setTool(id) { if (id === "create" && S.mode !== "setup") return; S.tool = id; emit("tools"); }
@@ -122,9 +151,9 @@ async function openDialog() {
 }
 async function openSample(name) {
   const base = name === "pharaoh" ? "samples/pharaoh/project" : "samples/robo";
-  const d = await (await fetch(`${base}/doc.json?v=20261125k`)).json();
+  const d = await (await fetch(`${base}/doc.json?v=20261125l`)).json();
   const images = {};
-  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125k`)).blob(); }));
+  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125l`)).blob(); }));
   await IO.loadProject(d, images);
   toast(`Đã mở mẫu ${d.name}`);
 }
@@ -201,14 +230,10 @@ window.addEventListener("keydown", (e) => {
   if (ctrl && k === "c" && S.mode === "animate" && S.keySel.length) { clip = TL.copyKeys(); toast(`Đã chép ${clip.length} key`); return; }
   if (ctrl && k === "v" && S.mode === "animate" && clip) { TL.pasteKeys(clip); return; }
   if (ctrl) return;
-  if (k === "tab") { e.preventDefault(); setMode(S.mode === "setup" ? "animate" : "setup"); return; }
-  if (k === "b") return setTool("pose");
-  if (k === "n") return setTool("create");
-  if (k === "c") return setTool("rotate");
-  if (k === "v") return setTool("translate");
-  if (k === "x") return setTool("scale");
+  if (k === KEYS.mode) { e.preventDefault(); setMode(S.mode === "setup" ? "animate" : "setup"); return; }
+  for (const id of ["pose", "create", "rotate", "translate", "scale", "ruler"]) if (k === KEYS[id]) return setTool(id);
   if (k === "escape") { select(null); S.keySel = []; emit("sel"); return; }
-  if (k === "k" && S.mode === "animate") return keyNow();
+  if (k === KEYS.key && S.mode === "animate") return keyNow();
   if (k === "p" && S.sel) return toast("Đổi cha: kéo bone thả lên bone khác trong cây, hoặc chọn ở ô Cha", false);
   if (S.mode === "animate") {
     if (k === " " && !e.repeat) { e.preventDefault(); TL.togglePlay(); return; }

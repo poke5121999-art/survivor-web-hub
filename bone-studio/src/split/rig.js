@@ -1,7 +1,7 @@
 // From a native-grid image and a skeleton spec to rig parts: labels, hidden-pixel fill, cropped part images, commands.
 // Skeleton spec (coordinates in SOURCE image pixels, y down):
 //   { joints: { name: [x, y] }, parts: [{ name, from, to, parent? }] }   parts listed bottom → top (draw order)
-import { img } from "./pixels.js?v=20261125k";
+import { img } from "./pixels.js?v=20261125l";
 
 // ---- masks -------------------------------------------------------------------------------------
 export function alphaMask(im) {

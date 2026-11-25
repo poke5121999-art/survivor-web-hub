@@ -374,6 +374,33 @@ try {
     return `thân xoay tới ${torsoRot}°, đầu đứng yên; dán xoay ${rot[0].toFixed(1)}° cho 2 bàn tay`;
   });
 
+  await step("thước đo (M) và đổi phím tắt: đổi Xoay sang R, mở lại trang vẫn giữ", async () => {
+    const pa = await open("?sample=robo");
+    await pa.locator("#xx-canvas").click({ position: { x: 20, y: 20 } });
+    await pa.keyboard.press("m");
+    const r = await pa.locator("#xx-canvas").boundingBox(), zoom = await pa.evaluate(() => __BS.S.view.zoom);
+    await pa.mouse.move(r.x + 200, r.y + 300); await pa.mouse.down(); await pa.mouse.move(r.x + 320, r.y + 300, { steps: 5 }); await pa.mouse.up();
+    await pa.waitForTimeout(100);
+    const text = await pa.evaluate(() => __BS.S.rulerText), dist = parseFloat(text);
+    assert(Math.abs(dist - 120 / zoom) < 1, `thước đo ${text}, mong ${(120 / zoom).toFixed(1)}`);
+    await pa.locator("#xx-keys-btn").click();
+    await pa.locator(".xx-dialog button", { hasText: /^C$/ }).click();
+    await pa.keyboard.press("r");
+    const shown = await pa.locator(".xx-dialog button", { hasText: /^R$/ }).count();
+    await pa.locator(".xx-dialog .xx-foot button", { hasText: "Đóng" }).click();
+    await pa.locator("#xx-canvas").click({ position: { x: 20, y: 20 } });
+    await pa.keyboard.press("r");
+    const t1 = await pa.evaluate(() => __BS.S.tool);
+    await pa.reload(); await pa.waitForFunction(() => window.__ready === true);
+    await pa.locator("#xx-canvas").click({ position: { x: 20, y: 20 } });
+    await pa.keyboard.press("b"); await pa.keyboard.press("r");
+    const t2 = await pa.evaluate(() => __BS.S.tool);
+    await pa.evaluate(() => localStorage.removeItem("xx-keys"));
+    await pa.close();
+    assert(shown === 1 && t1 === "rotate" && t2 === "rotate", `hộp thoại hiện R: ${shown}; phím R → ${t1}, sau khi mở lại → ${t2}`);
+    return `thước ${text}; R = xoay, giữ sau khi mở lại`;
+  });
+
   await step("xem trộn walk → attack: góc tay đổi liên tục, không nhảy cóc", async () => {
     const p7 = await open("?sample=pharaoh");
     const r = await p7.evaluate(async () => {

@@ -1,5 +1,6 @@
 // Live agent loop on this machine: editor page → mock API (same contract as the Edge Function) → bone worker →
 // real `claude -p` → events → canvas. node tools/test-agent-live.mjs [--sample robo] [--prompt "..."] [--mode agent|split] [--model sonnet]
+//   --sample raw --image samples/split-bench/toc-dai.png : start empty and attach that image (pharaoh-raw = the owner's pharaoh)
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -9,8 +10,9 @@ import { serve, browser } from "./pw.mjs";
 const HERE = dirname(fileURLToPath(import.meta.url)), REPO = join(HERE, "..", "..");
 const A = Object.fromEntries(process.argv.slice(2).reduce((acc, v, i, arr) => (v.startsWith("--") ? [...acc, [v.slice(2), arr[i + 1]]] : acc), []));
 const sample = A.sample ?? "robo", mode = A.mode ?? "agent", model = A.model ?? "sonnet";
+const rawImage = sample === "pharaoh-raw" ? "samples/pharaoh/pharaoh-owner.png" : sample === "raw" ? A.image ?? (console.error("thiếu --image cho --sample raw"), process.exit(2)) : null;
 const prompt = A.prompt ?? (mode === "split" ? "Cắt nhân vật này ra thành part và rig cho tôi." : "Làm animation 'vay-tay': tay trước (front-upper-arm, front-lower-arm) vẫy chào 2 lần trong 1.2 giây, đầu nghiêng nhẹ theo, lặp được.");
-const OUT = join(REPO, ".chk", "agent-live", `${sample}-${mode}`);
+const OUT = join(REPO, ".chk", "agent-live", `${sample === "raw" ? "raw-" + A.image.replace(/^.*\//, "").replace(/\.\w+$/, "") : sample}-${mode}`);
 mkdirSync(OUT, { recursive: true });
 const kids = [];
 const start = (args, env = {}) => { const p = spawn(process.execPath, args, { env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "pipe"], detached: true }); kids.push(p); return p; };
@@ -33,19 +35,19 @@ let ok = false;
 try {
   const page = await br.newPage({ viewport: { width: 1440, height: 900 } });
   page.on("dialog", (d) => d.accept());
-  await page.goto(`${base}/bone-studio/index.html?sample=${sample === "pharaoh-raw" ? "empty" : sample}&api=${encodeURIComponent(api)}`);
+  await page.goto(`${base}/bone-studio/index.html?sample=${rawImage ? "empty" : sample}&api=${encodeURIComponent(api)}`);
   await page.waitForFunction(() => window.__ready === true, null, { timeout: 30000 });
   const before = await page.evaluate(() => JSON.stringify(__BS.doc()));
   await page.locator('[data-tab="agent"]').click();
   const t0 = Date.now();
   await page.evaluate(async ({ prompt, mode, raw }) => {
     if (raw) {
-      const f = new File([await (await fetch("samples/pharaoh/pharaoh-owner.png")).blob()], "pharaoh.png", { type: "image/png" });
+      const f = new File([await (await fetch(raw)).blob()], raw.replace(/^.*\//, ""), { type: "image/png" });
       const input = document.querySelector('#xx-pane-agent input[type="file"]');
       const dt = new DataTransfer(); dt.items.add(f); input.files = dt.files; input.dispatchEvent(new Event("change"));
     }
     await __BS.agent.send(prompt, { mode, only_worker: "linux:livetest" });
-  }, { prompt, mode, raw: sample === "pharaoh-raw" });
+  }, { prompt, mode, raw: rawImage });
   const states = [];
   let shot = 0, last = "";
   for (;;) {
