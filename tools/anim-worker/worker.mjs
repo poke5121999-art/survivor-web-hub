@@ -125,17 +125,23 @@ function run(cmd, args, { cwd, input, timeout = 60000, extraEnv, shell = false, 
 }
 
 // ---- trần bộ nhớ: máy dùng chung, hết commit là tiến trình khác chết ---------------------------
-function ramFreeGb() {
+// Windows: commit trống (FreeVirtualMemory) chặn chuyện hết commit làm chết tiến trình khác; RAM thật trống (AvailableBytes)
+// chặn chuyện page file lớn cho qua cổng commit rồi cả máy swap tới đơ, như linux ngày 2026-11-25.
+const MIN_PHYS = +(A["min-free-phys"] ?? env.ANIM_MIN_FREE_PHYS_GB ?? (WIN ? 12 : 0));
+const GUARD = { commit: 3, phys: 1.5 };   // đang gen mà tụt dưới mức này thì giết engine, trả job về hàng đợi
+function memNow() {
   try {
     if (!WIN) {
       const m = readFileSync("/proc/meminfo", "utf8").match(/MemAvailable:\s+(\d+) kB/);
-      return m ? +m[1] / 1048576 : null;
+      const gb = m ? +m[1] / 1048576 : null;
+      return { commit: gb, phys: gb };
     }
-    // commit còn trống = FreeVirtualMemory (KB), không phải RAM trống
-    const r = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", "(Get-CimInstance Win32_OperatingSystem).FreeVirtualMemory"], { encoding: "utf8", windowsHide: true, timeout: 15000 });
-    const kb = parseInt(r.stdout, 10);
-    return Number.isFinite(kb) ? kb / 1048576 : null;
-  } catch { return null; }
+    const r = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command",
+      "(Get-CimInstance Win32_OperatingSystem).FreeVirtualMemory; (Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory).AvailableBytes"],
+      { encoding: "utf8", windowsHide: true, timeout: 15000 });
+    const [kb, bytes] = r.stdout.split(/\r?\n/).map((s) => parseInt(s, 10));
+    return { commit: Number.isFinite(kb) ? kb / 1048576 : null, phys: Number.isFinite(bytes) ? bytes / 1073741824 : null };
+  } catch { return { commit: null, phys: null }; }
 }
 function vramFreeGb() {
   try {
@@ -148,9 +154,10 @@ function vramFreeGb() {
 /** null = đủ chỗ; chuỗi = lý do thiếu. Không đo được (không có nvidia-smi...) thì bỏ qua mục đó. */
 function memoryGate() {
   const minRam = +(LOCAL_MIN_RAM ?? config.min_free_gb ?? DEFAULTS.min_free_gb);
-  const ram = ramFreeGb(), vram = vramFreeGb();
+  const { commit: ram, phys } = memNow(), vram = vramFreeGb();
   const what = WIN ? "commit" : "RAM";
   if (ram !== null && ram < minRam) return `${what} trống ${ram.toFixed(1)} GB < ${minRam} GB`;
+  if (WIN && phys !== null && phys < MIN_PHYS) return `RAM thật trống ${phys.toFixed(1)} GB < ${MIN_PHYS} GB`;
   if (vram !== null && MIN_VRAM > 0 && vram < MIN_VRAM) return `VRAM trống ${vram.toFixed(1)} GB < ${MIN_VRAM} GB`;
   return null;
 }
@@ -210,7 +217,7 @@ async function rewritePrompt(text) {
 async function runJob(job) {
   const jobDir = join(WORK_DIR, "jobs", job.id), outDir = join(jobDir, "out");
   const T0 = Date.now(), par = job.params ?? {};
-  let stage = "setup", aborted = null, lastSent = 0, pend = null, promptEn = null, engineChild = null;
+  let stage = "setup", aborted = null, memAbort = null, lastSent = 0, pend = null, promptEn = null, engineChild = null;
   const setStage = (s) => { if (STAGES.includes(s) && s !== stage) { stage = s; log(`stage ${s}`); } };
   const noteStatus = (st) => { if ((st === "canceled" || st === "lost") && !aborted) { aborted = st; log(`job ${st}: dừng engine`); killAll(); } };
   const say = (o) => { pend = { ...(pend ?? {}), ...o }; };
@@ -230,6 +237,13 @@ async function runJob(job) {
       ticks++;
       if (Date.now() - lastSent >= 2000) await flush();
       if (ticks % 20 === 0) { try { noteStatus(await heartbeat(job.id)); } catch (e) { log(`heartbeat lỗi: ${e.message}`); } }
+      if (engineChild && !memAbort && ticks % 10 === 0) {
+        const m = memNow();
+        if ((m.commit !== null && m.commit < GUARD.commit) || (m.phys !== null && m.phys < GUARD.phys)) {
+          memAbort = `bộ nhớ máy cạn khi đang gen (commit ${m.commit?.toFixed(1)} GB, RAM ${m.phys?.toFixed(1)} GB): dừng engine, trả job về hàng đợi`;
+          log(memAbort); killTree(engineChild);
+        }
+      }
     } finally { busy = false; }
   }, 1000);
   const fail = async (error, requeue = false) => {
@@ -283,6 +297,7 @@ async function runJob(job) {
     });
     engineChild = null;
     if (aborted) return;
+    if (memAbort) return await fail(memAbort, true);
     if (shutdown) return await fail("máy gen tắt", true);
     if (er.timedOut) return await fail(`engine quá ${config.max_minutes} phút`);
     if (er.code !== 0) {
