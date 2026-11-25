@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Xưởng Anim</title>
+  <meta name="description" content="Tải một ảnh nhân vật, gõ chuyển động; máy gen ra khung hình để bạn chỉnh từng khung và xuất sprite sheet." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/design.css" />
+  <link rel="stylesheet" href="css/anim-studio.css?v=20261125a" />
+
+  <script src="js/session.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script>
+    (function () {
+      if (/[?&]mock=1\b/.test(location.search)) return;
+      var c = window.SUPABASE_CONFIG || {};
+      if (!(c.url && c.anonKey)) return;
+      var s = window.HubSession && window.HubSession.get();
+      if (!s || s.kind !== "member") location.replace("login.html");
+    })();
+  </script>
+</head>
+<body>
+  <header class="hub-header">
+    <div class="hub-header__inner dz-header__inner">
+      <div>
+        <h1 class="hub-title">Xưởng Anim</h1>
+        <p class="hub-subtitle">Tải một ảnh nhân vật, gõ chuyển động. Máy gen ra khung hình, bạn chỉnh từng khung rồi xuất sprite sheet, GIF, ZIP.</p>
+      </div>
+      <a class="btn btn--ghost" href="index.html">← Hub</a>
+    </div>
+  </header>
+
+  <main class="hub-main an-main">
+    <div id="an-banner" class="dz-banner an-banner" role="alert" hidden></div>
+    <nav id="an-tabs" class="an-tabs" aria-label="Mục"></nav>
+    <div id="an-root"></div>
+  </main>
+
+  <div id="an-toasts" class="dz-toasts" role="status"></div>
+
+  <script src="js/supabase-auth.js"></script>
+  <script type="module" src="js/anim-studio.js?v=20261125a"></script>
+</body>
+</html>
