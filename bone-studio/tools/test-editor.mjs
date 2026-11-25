@@ -181,7 +181,7 @@ try {
   await step("không có lỗi JS", async () => { const e = [...page.logs, ...(await page.evaluate(() => window.__errors))]; assert(!e.length, e.join(" | ")); });
 } finally {
   await br.close();
-  local?.srv.close();
+  if (local) local.srv.close();
 }
 console.log(results.join("\n"));
 console.log(failed ? `FAIL ${failed}` : "PASS");

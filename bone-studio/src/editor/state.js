@@ -1,7 +1,7 @@
 // Editor state shared by all panels. The document lives in S.hist (History); everything else is view state.
-import { History } from "../history.js?v=20261125b";
-import { emptyDoc } from "../commands.js?v=20261125b";
-import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey } from "../../runtime/xuong.js?v=20261125b";
+import { History } from "../history.js?v=20261125c";
+import { emptyDoc } from "../commands.js?v=20261125c";
+import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey } from "../../runtime/xuong.js?v=20261125c";
 
 export const S = {
   hist: new History(emptyDoc()),
@@ -24,11 +24,11 @@ export const doc = () => S.hist.doc;
 
 const listeners = new Set();
 export function on(fn) { listeners.add(fn); return () => listeners.delete(fn); }
-let pending = false;
+let pending = null;
 export function emit(what = "all") {
-  if (pending) return;
-  pending = true;
-  queueMicrotask(() => { pending = false; for (const fn of listeners) fn(what); });
+  if (pending) { pending.add(what); return; }
+  pending = new Set([what]);
+  queueMicrotask(() => { const all = pending; pending = null; for (const w of all) for (const fn of listeners) fn(w); });
 }
 
 // ---- skeleton cache + displayed pose -----------------------------------------------------------

@@ -1,6 +1,6 @@
 // Viewport: draws the skeleton with canvas2D, handles picking, gizmos, bone creation, pan and zoom.
-import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125b";
-import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG } from "../../runtime/xuong.js?v=20261125b";
+import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125c";
+import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG } from "../../runtime/xuong.js?v=20261125c";
 
 const cv = document.getElementById("xx-canvas");
 const ctx = cv.getContext("2d");

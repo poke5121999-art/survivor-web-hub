@@ -155,7 +155,7 @@ async function putFile(uploadUrl, body, type) {
 const safeRel = (p) => typeof p === "string" && p && !p.includes("..") && !/^([/\\]|[A-Za-z]:)/.test(p) && !p.includes("\0");
 const pngSize = (buf) => (buf.length >= 24 && buf.readUInt32BE(0) === 0x89504e47 ? { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) } : { width: 0, height: 0 });
 const fill = (tpl, vars) => tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => (k in vars ? vars[k] : ""));
-const UNATTENDED = "You run unattended inside a rigging job queue; nobody reads your chat except as short notes to the artist. Ignore any personal reply format or output style. Do the task in the user message, then end with one plain line.";
+const UNATTENDED = "You run unattended inside a rigging job queue; nobody reads your chat except as short notes to the artist. Ignore any personal reply format or output style. Do the task in the user message, then end with one plain line. Every note and the final line are read by a Vietnamese artist: write them in Vietnamese with full diacritics.";
 
 const SPLIT_BLOCK = `# Mode: split  [mode:split]
 

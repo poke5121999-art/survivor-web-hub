@@ -3,13 +3,14 @@ window.__errors = [];
 window.addEventListener("error", (e) => window.__errors.push(String(e.message || e)));
 window.addEventListener("unhandledrejection", (e) => window.__errors.push(String(e.reason?.message || e.reason)));
 
-const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime } = await import("./state.js?v=20261125b");
-const VP = await import("./viewport.js?v=20261125b");
-const { renderTree, renderProps } = await import("./panels.js?v=20261125b");
-const TL = await import("./timeline.js?v=20261125b");
-const IO = await import("./io.js?v=20261125b");
-const AG = await import("./agent.js?v=20261125b");
-const { importWhole } = await import("./splitui.js?v=20261125b");
+const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime } = await import("./state.js?v=20261125c");
+const VP = await import("./viewport.js?v=20261125c");
+const { renderTree, renderProps } = await import("./panels.js?v=20261125c");
+const TL = await import("./timeline.js?v=20261125c");
+const IO = await import("./io.js?v=20261125c");
+const AG = await import("./agent.js?v=20261125c");
+const { importWhole } = await import("./splitui.js?v=20261125c");
+const CL = await import("./cloud.js?v=20261125c");
 
 const $ = (id) => document.getElementById(id);
 const app = $("app"), modal = $("xx-modal");
@@ -119,9 +120,9 @@ async function openDialog() {
 }
 async function openSample(name) {
   const base = name === "pharaoh" ? "samples/pharaoh/project" : "samples/robo";
-  const d = await (await fetch(`${base}/doc.json?v=20261125b`)).json();
+  const d = await (await fetch(`${base}/doc.json?v=20261125c`)).json();
   const images = {};
-  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125b`)).blob(); }));
+  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125c`)).blob(); }));
   await IO.loadProject(d, images);
   toast(`Đã mở mẫu ${d.name}`);
 }
@@ -129,6 +130,7 @@ const MENU = [
   ["Mới", () => { if (!S.dirty || confirm("Bỏ các thay đổi chưa lưu?")) IO.newProject(); }, "Dự án trống"],
   ["Mở…", openDialog, "Mở dự án trong máy hoặc mẫu (Ctrl+O)"],
   ["Lưu", () => IO.saveLocal().then(() => toast("Đã lưu trong máy")), "Lưu trong trình duyệt, dùng được offline (Ctrl+S)"],
+  ["Cloud", () => CL.cloudDialog(dialog), "Lưu/mở phiên bản trên cloud (thành viên hub)"],
   ["Nhập…", importDialog, "Ảnh rời, thư mục, ảnh nguyên con, JSON + atlas"],
   ["Xuất…", exportDialog, "JSON + atlas, PNG, sprite sheet, WebM"],
   ["↶", () => { S.hist.undo(); }, "Hoàn tác (Ctrl+Z)"],
@@ -141,7 +143,12 @@ $("xx-sidetabs").addEventListener("click", (e) => {
   if (!t) return;
   for (const b of $("xx-sidetabs").children) b.classList.toggle("is-on", b.dataset.tab === t);
   $("xx-pane-tree").hidden = t !== "tree"; $("xx-pane-agent").hidden = t !== "agent";
-  if (t === "agent") AG.renderChips();
+  if (t === "agent") {
+    AG.renderChips();
+    let w = document.getElementById("xx-workers");
+    if (!w) { w = h("div", { id: "xx-workers" }); $("xx-pane-agent").prepend(w); }
+    CL.workersPanel(w);
+  }
 });
 $("xx-fit").onclick = VP.fit;
 $("xx-zoom100").onclick = () => { S.view.zoom = 1; emit("view"); };
