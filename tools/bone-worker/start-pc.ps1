@@ -1,6 +1,7 @@
 # Idempotent: starts the pc:claude and pc:claude2 bone workers in minimized windows.
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$work = "D:\bone-worker"
+# C: is the SSD on the owner's PC (D: is a slow HDD); override with $env:BONE_WORK_DIR
+$work = if ($env:BONE_WORK_DIR) { $env:BONE_WORK_DIR } else { "C:\bone-worker" }
 New-Item -ItemType Directory -Force $work | Out-Null
 
 $workers = @(

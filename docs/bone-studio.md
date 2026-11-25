@@ -177,5 +177,6 @@ Mọi lệnh chạy từ thư mục repo. Trình duyệt headless cần `export 
    timeout 400 npx -y supabase@2.120.0 functions deploy bone-studio --project-ref jvdguaecnllejdmgytia --use-api --no-verify-jwt
    ```
    Có thể dùng chung giá trị với `VFX_WORKER_KEY`; worker đọc `~/.bone-worker-key`, nếu không có thì `~/.vfx-worker-key`.
-2. Worker: Linux `sh tools/bone-worker/start-linux.sh` (tmux `claude:bone-worker`), PC `powershell -File tools/bone-worker/start-pc.ps1`.
+2. Worker: Linux `sh tools/bone-worker/start-linux.sh` (tmux `claude:bone-worker`), PC `powershell -File tools/bone-worker/start-pc.ps1` (bản checkout ở `C:\bone-worker-app`, thư mục làm việc mặc định
+   `C:\bone-worker` trên SSD; ổ D: của máy PC là HDD chậm, đừng dùng; đổi bằng biến `BONE_WORK_DIR`).
 3. Trang tĩnh: `node bone-studio/tools/bump.mjs`, chạy các test ở trên, `git push origin HEAD:main`, đợi Pages ~70 s, chạy lại `test-editor.mjs` với `BASE=`.
