@@ -8,8 +8,9 @@ $workers = @(
   @{ Id = "pc:claude2"; Label = "PC - claude2"; Account = "claude2"; Cfg = "$HOME\.claude-acc2"; Priority = 2; Delay = 40 }
 )
 
+# Dò theo đường dẫn worker.mjs của chính thư mục này: worker Xưởng Bone/Anim cũng mang id pc:claude.
 foreach ($w in $workers) {
-  $running = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -like "*worker.mjs*--id $($w.Id) *" }
+  $running = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -like "*$here\worker.mjs*--id $($w.Id) *" }
   if ($running) { Write-Host "worker $($w.Id) already running (PID $($running.ProcessId))"; continue }
   $cmd = "node `"$here\worker.mjs`" --id $($w.Id) --label `"$($w.Label)`" --account $($w.Account) --config-dir `"$($w.Cfg)`" --priority $($w.Priority) --delay $($w.Delay) --work-dir `"$work`""
   Start-Process -WindowStyle Minimized -FilePath "cmd.exe" -ArgumentList "/c", "title vfx-$($w.Id) && $cmd"

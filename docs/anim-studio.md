@@ -92,7 +92,10 @@ Xuất ở trình duyệt, đúng các khung đang giữ: sprite sheet PNG (ch�
 - Máy `linux` (ssh), tmux session `anim-worker`, thư mục `~/anim-worker/app/` (chép `worker.mjs` + `fake-engine.mjs`, không phải cả repo); log `~/anim-worker/stdout.log`; khoá `~/.anim-worker-key`.
 - Id `linux:claude`, priority 0, engine mặc định `framepack` (đặt qua `--engine framepack`; job chọn "Tự chọn" thì dùng giá trị này). `wan5b` và `ltx` chọn được nhưng ghi "thử nghiệm" trên trang: wan5b chuyển động nhẹ và có khung lỗi, ltx hay zoom và đổi nhân vật.
 - Engine thật: `~/anim-studio/bin/anim-gen` (ComfyUI cổng 8190). FramePack ~11 phút cho clip 2 s, cần MemAvailable sàn ~13 GB. Worker `lowmem` khi VRAM trống dưới 6 GB: nếu ComfyUI 8190 còn nằm trong VRAM thì `anim-gen --stop-server` trước.
-- PC không có engine nên không chạy worker PC.
-- Khởi động lại: `ssh linux 'timeout 30 tmux kill-session -t anim-worker'` rồi
-  `ssh linux 'timeout 30 tmux new-session -d -s anim-worker "cd ~/anim-worker/app && ANIM_ENGINE_CMD=\$HOME/anim-studio/bin/anim-gen node worker.mjs --id linux:claude --label \"Linux · claude\" --account claude --priority 0 --delay 0 --engine framepack --min-free-vram 4 --work-dir \$HOME/anim-worker 2>&1 | tee -a \$HOME/anim-worker/stdout.log"'`.
+- Bật: `sh ~/anim-worker/app/start-linux.sh` (bản trong repo: `tools/anim-worker/start-linux.sh`). Còn session `anim-worker` là coi như đang chạy.
+- Tự bật lại: cron trên linux gọi `~/bin/hub-workers-up.sh` (repo `tools/hub-workers-up.sh`) lúc khởi động máy và 5 phút một lần, bật
+  cả worker Xưởng VFX lẫn Xưởng Anim nếu chúng không chạy; log `~/hub-workers-up.log`. Trên PC là Task Scheduler `hub-workers-up`
+  gọi `C:\hub-workers\hub-workers-up.ps1` (repo `tools/hub-workers-up.ps1`) lúc đăng nhập và 5 phút một lần.
+- Mượn GPU để thử engine: `touch ~/anim-worker/PAUSE` rồi `tmux kill-session -t anim-worker`; xong thì `rm ~/anim-worker/PAUSE` và
+  chạy lại start script. Thiếu bước PAUSE thì cron bật worker lại trong 5 phút và hai bên giành GPU.
 - Tuỳ chọn trang "Giữ lưới pixel" (tắt/2/3/4) truyền `params.pixel_snap` thành `--pixel-snap K`.

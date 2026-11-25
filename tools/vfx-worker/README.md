@@ -21,6 +21,10 @@ Không cần cài gói nào cho chính worker.
 - PC: `powershell -File tools\vfx-worker\start-pc.ps1`. Mở hai cửa sổ thu nhỏ `pc:claude` (`~\.claude`, priority 1, trễ 20 s) và
   `pc:claude2` (`~\.claude-acc2`, priority 2, trễ 40 s), thư mục `D:\vfx-worker`. Cái nào chạy rồi thì bỏ qua. Tắt: đóng cửa sổ
   hoặc Ctrl+C.
+- Tự bật lại sau khi máy khởi động lại hay worker chết: linux có cron `~/bin/hub-workers-up.sh` (repo `tools/hub-workers-up.sh`),
+  PC có Task Scheduler `hub-workers-up` chạy `C:\hub-workers\hub-workers-up.ps1` (repo `tools/hub-workers-up.ps1`); cả hai chạy lúc
+  khởi động/đăng nhập và 5 phút một lần. Start script dò worker theo cửa sổ tmux (linux) và theo đường dẫn `worker.mjs` (PC), không
+  theo id, vì worker Xưởng Anim và Xưởng Bone cũng mang id `linux:claude`, `pc:claude`. Muốn tắt hẳn một máy thì tắt task/cron trước.
 - Tắt khi đang gen: worker trả job về hàng đợi với lý do "máy gen tắt" rồi mới thoát.
 - Gỡ hẳn một máy khỏi trang: gọi action `bye`.
 
