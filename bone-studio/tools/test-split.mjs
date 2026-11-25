@@ -72,3 +72,19 @@ test("pharaoh offline heuristic: no torso-core pixel rides with a limb", () => {
   console.log(`offline: ${m.body} pixel lõi thân, thuộc chi: ${JSON.stringify(m.bad)}`);
   assert.deepEqual(m.bad, {});
 });
+
+test("pharaoh hips and shoulders: cloth panels hold only their own pixels, the right pauldron rim rides with the arm", () => {
+  const r = autoSplit(load("pharaoh/pharaoh-owner.png"), { skeleton: JSON.parse(readFileSync(join(S, "pharaoh/skeleton.json"), "utf8")) });
+  const expect = { "viền trong giáp vai phải": [253, 150, "tay-phai-tren"], "viền giáp vai phải dưới": [255, 172, "tay-phai-tren"], "dải khăn phải": [238, 158, "dau"],
+    "mép trong ống chân phải": [236, 404, "chan-phai-ong"], "mép ngoài ống chân trái": [64, 396, "chan-trai-ong"], "vạt giữa": [195, 360, "vay"],
+    "giáp hông trái": [120, 325, "giap-hong-trai"], "giáp hông phải": [262, 325, "giap-hong-phai"], "đùi trái": [110, 360, "chan-trai-dui"] };
+  for (const [what, [x, y, part]] of Object.entries(expect)) assert.equal(labelAt(r, x, y), part, what);
+  // the panels are weighted meshes: the top row follows the torso only, the bottom row partly follows the thighs
+  const binds = r.commands.filter((c) => c.type === "mesh.bind").map((c) => c.slot);
+  assert.deepEqual(binds.sort(), ["giap-hong-phai", "giap-hong-trai", "vay"]);
+});
+
+test("pharaoh: the whole staff (both edges, top to bottom) belongs to the staff", () => {
+  const r = autoSplit(load("pharaoh/pharaoh-owner.png"), { skeleton: JSON.parse(readFileSync(join(S, "pharaoh/skeleton.json"), "utf8")) });
+  for (const y of [300, 340, 370, 400, 420]) for (const x of [350, 352, 354]) assert.equal(labelAt(r, x, y), "gay", `gậy ${x},${y}`);
+});

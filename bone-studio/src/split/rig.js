@@ -1,7 +1,7 @@
 // From a native-grid image and a skeleton spec to rig parts: labels, hidden-pixel fill, cropped part images, commands.
 // Skeleton spec (coordinates in SOURCE image pixels, y down):
 //   { joints: { name: [x, y] }, parts: [{ name, from, to, parent? }] }   parts listed bottom → top (draw order)
-import { img } from "./pixels.js?v=20261125f";
+import { img } from "./pixels.js?v=20261125g";
 
 // ---- masks -------------------------------------------------------------------------------------
 export function alphaMask(im) {
@@ -238,7 +238,7 @@ export function segment(native, spec, scale = 1, phase = [0, 0]) {
     const p = [i % w, (i / w) | 0];
     let best = 0, bc = Infinity;
     for (let k = 0; k < n; k++) {
-      const dd = segDist(p, segs[k].a, segs[k].b), c = Math.max(0, dd - segs[k].r) + (0.5 * dd) / (segs[k].r + 1);
+      const dd = segDist(p, segs[k].a, segs[k].b), c = spec.parts[k].only && spec.parts[k].claim ? Infinity : Math.max(0, dd - segs[k].r) + (0.5 * dd) / (segs[k].r + 1);
       cost[i * n + k] = c;
       if (c < bc) { bc = c; best = k; }
     }
@@ -257,6 +257,7 @@ export function segment(native, spec, scale = 1, phase = [0, 0]) {
     labels[i] = best;
   }
   // claims: polygons (source pixels) that hand every pixel inside to a part, e.g. the whole headdress to the head.
+  // A part with "only": true gets exactly its claim (a loincloth or tasset must not grow into the legs beside it).
   // Later parts in the list win where claims overlap, so a held item claimed by the hand stays with the hand.
   const forced = new Int16Array(w * h).fill(-1);
   spec.parts.forEach((p, k) => {
@@ -369,11 +370,12 @@ function barLimbs(spec, segs, cost, mask, w, h, n) {
     const nl = Math.hypot(nx, ny);
     if (nl < 1) continue;
     nx /= nl; ny /= nl;
-    const ball = segs[k].r * 0.8, back = behind ? ball * 0.3 : ball;
+    const ball = segs[k].r * 0.8, back = behind ? ball * 0.3 : ball, dJ = segDist(J, T.a, T.b);
     for (let i = 0; i < w * h; i++) {
       if (!mask[i]) continue;
       const x = i % w, y = (i / w) | 0, px = x - J[0], py = y - J[1], side = px * nx + py * ny;
       if (side <= 0 || (side <= back && Math.hypot(px, py) <= ball)) continue; // limb side, or the joint ball
+      if (!behind && segDist([x, y], T.a, T.b) >= dJ) continue; // the body side is nearer the trunk than the joint (a long staff below is not)
       for (const j of chain) if (j === k || segDist([x, y], segs[j].a, segs[j].b) > segs[j].r * 0.7) cost[i * n + j] = Infinity;
     }
   }
@@ -486,6 +488,12 @@ export function rigCommands(spec, parts, { scale, phase = [0, 0], srcHeight, pre
     C.push({ type: "attachment.add", slot: path, name: path, attachment: {
       path, x: r2(dx * Math.cos(br) - dy * Math.sin(br)), y: r2(dx * Math.sin(br) + dy * Math.cos(br)), rotation: r2(-bw.rot),
       width: r2(part.image.width * scale), height: r2(part.image.height * scale) } });
+    // cloth or armour hanging from the hips/shoulders: a mesh weighted from the anchor (first bone) towards the limbs
+    if (p.bind?.length >= 2) {
+      const cols = Math.max(2, Math.min(6, Math.round(part.image.width / 8))), rows = Math.max(3, Math.min(8, Math.round(part.image.height / 6)));
+      C.push({ type: "mesh.fromRegion", slot: path, name: path, cols, rows });
+      C.push({ type: "mesh.bind", slot: path, name: path, bones: p.bind.map((b) => `${prefix}${b}`), hang: { amount: p.hang ?? 0.7 } });
+    }
   });
   return C;
 }

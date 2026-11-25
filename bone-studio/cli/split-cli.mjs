@@ -14,7 +14,7 @@ Khung xương: { "joints": { "tên": [x, y] }, "parts": [{ "name", "from", "to",
   x, y theo pixel ảnh gốc (gốc trên-trái, y xuống). parts xếp theo thứ tự vẽ dưới → trên.
   parent "hong" là bone gốc split auto tự tạo ở khớp root; mỗi part thành một bone + slot + ảnh cùng tên.
   Part có thể kèm "claim": [[[x,y],[x,y],...]] (đa giác, pixel ảnh gốc): mọi pixel trong đa giác thuộc part đó.
-  Part sau trong danh sách thắng khi các claim chồng nhau.
+  Part sau trong danh sách thắng khi các claim chồng nhau. "only": true: part chỉ nhận đúng pixel trong claim.
 Luật chia part (bắt buộc):
   - Thứ đội/mọc trên đầu (mũ, mũ trùm, vương miện, khăn, tóc kể cả tóc dài rủ xuống vai/ngực, tai, sừng) thuộc part đầu:
     vẽ claim bao trọn chúng cho part đầu, kể cả phần rủ xuống dưới cằm.
@@ -22,7 +22,11 @@ Luật chia part (bắt buộc):
   - Áo choàng, khăn quàng treo từ cổ thuộc thân, trừ khi họa sĩ yêu cầu tách.
   - Tay, chân chỉ chứa chính nó: khớp vai đặt đúng khớp (giữa khối vai, dưới giáp vai), không đặt ở mép ngực; khớp hông ở
     đỉnh đùi. Bộ cắt giao mọi pixel phía thân của khớp cho thân (trừ một quả cầu quanh khớp: giáp vai đi theo cánh tay).
-  - Bàn tay/nắm tay chạm chân hay thân: vẽ claim bao trọn nắm tay cho part bàn tay.
+  - Giáp vai to: claim bao trọn giáp vai cho part tay trên. Bàn tay/nắm tay chạm chân hay thân: claim bao trọn nắm tay
+    cho part bàn tay.
+  - Vải/giáp treo từ hông hay vai (khố, giáp hông, váy, áo choàng): part riêng, cha là thân, kèm "only": true (chỉ nhận
+    đúng vùng claim), claim bao nó, và "bind": ["than", "<đùi>"...] (tuỳ chọn "hang": 0..1, mặc định 0.7): thành mesh,
+    hàng đỉnh theo thân, xuống dưới trộn dần sang đùi.
   - Kiểm sau khi cắt: giơ mỗi cánh tay trên 120°, xoay đùi 70° (apply rồi render): không mảng ngực/lưng nào đi theo tay.`;
 
 export async function splitCli({ dir, doc, pos, opt, saveDoc, logEvent, die }) {

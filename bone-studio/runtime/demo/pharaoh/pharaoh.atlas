@@ -4,34 +4,38 @@ filter: Linear, Linear
 gay
 bounds: 1, 1, 17, 91
 than
-bounds: 20, 1, 60, 63
+bounds: 20, 1, 57, 86
 dau
-bounds: 82, 1, 57, 48
+bounds: 79, 1, 50, 47
 tay-trai-tren
-bounds: 141, 1, 21, 39
+bounds: 131, 1, 21, 42
 lua
-bounds: 164, 1, 31, 33
-vay
-bounds: 197, 1, 24, 33
-chan-trai-dui
-bounds: 223, 1, 30, 31
-tay-trai-duoi
-bounds: 255, 1, 24, 30
-chan-phai-dui
-bounds: 281, 1, 18, 30
+bounds: 154, 1, 31, 33
 tay-phai-tren
-bounds: 301, 1, 18, 29
+bounds: 187, 1, 15, 32
+tay-trai-duoi
+bounds: 204, 1, 24, 30
+chan-phai-dui
+bounds: 230, 1, 19, 29
+chan-trai-dui
+bounds: 251, 1, 31, 25
+vay
+bounds: 284, 1, 15, 24
 tay-phai-duoi
-bounds: 321, 1, 26, 23
+bounds: 301, 1, 26, 23
+giap-hong-trai
+bounds: 329, 1, 29, 15
 tay-trai-ban
-bounds: 349, 1, 16, 15
+bounds: 360, 1, 16, 15
 chan-trai-ong
-bounds: 367, 1, 16, 14
-tay-phai-ban
-bounds: 385, 1, 11, 13
+bounds: 378, 1, 16, 14
+giap-hong-phai
+bounds: 396, 1, 18, 13
 chan-phai-ong
-bounds: 398, 1, 10, 13
+bounds: 416, 1, 12, 13
+tay-phai-ban
+bounds: 430, 1, 11, 13
 chan-trai-ban
-bounds: 410, 1, 10, 8
+bounds: 443, 1, 10, 8
 chan-phai-ban
-bounds: 422, 1, 6, 5
+bounds: 455, 1, 9, 5

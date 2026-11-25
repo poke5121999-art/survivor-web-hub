@@ -73,7 +73,10 @@ give the head part a `claim` polygon that encloses all of it. Held items get the
 Capes and scarves hanging from the neck stay with the torso. Limbs hold the limb only: put each shoulder joint at the
 real joint (inside the shoulder mass or under the pauldron, not at the edge of the chest) and each hip at the top of the
 thigh; the splitter then gives everything on the body side of the joint to the torso. A big pauldron rides with the
-upper arm. When a hand or fist touches a leg or the body, give the hand part a `claim` around the whole fist.
+upper arm: give the upper arm a `claim` around the whole pauldron. When a hand or fist touches a leg or the body, give
+the hand part a `claim` around the whole fist. Cloth or armour hanging from the hips or shoulders (loincloth, tassets,
+skirt, cape) is its own part parented to the torso with `"only": true`, a `claim` around it, and
+`"bind": ["than", "<thigh(s)>"]` so it becomes a mesh whose top follows the torso and whose bottom follows the legs.
 After `split auto`, render the setup pose and bent poses (torso and head 20-30 degrees; each upper arm raised 120
 degrees, each thigh 70 degrees) and look: nothing may tear off the head, and no piece of chest or back may ride with
 an arm.

@@ -1,8 +1,8 @@
 // Command registry. Every change to a document, from the UI, the agent, the CLI or a test, is one of these.
 // apply(doc, cmd) is pure: it returns a new doc and the exact inverse (a $patch command).
-import { transaction, applyPatch } from "./tx.js?v=20261125f";
-import { gridMesh, autoWeights, unweight, movedVertices } from "./mesh.js?v=20261125f";
-import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125f";
+import { transaction, applyPatch } from "./tx.js?v=20261125g";
+import { gridMesh, autoWeights, hangWeights, unweight, movedVertices } from "./mesh.js?v=20261125g";
+import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125g";
 
 export const FORMAT = "xuong";
 export const VERSION = 1;
@@ -586,14 +586,17 @@ export const COMMANDS = {
     },
   },
   "mesh.bind": {
-    help: "Gắn mesh vào nhiều bone, weight tự tính theo khoảng cách tới bone: { slot, name, skin = default, bones: [tên], maxPerVertex = 3 }",
-    run(t, { slot, name: n, skin = "default", bones, maxPerVertex = 3 }, doc) {
+    help: "Gắn mesh vào nhiều bone, weight tự tính theo khoảng cách tới bone: { slot, name, skin = default, bones: [tên], maxPerVertex = 3, hang }. hang: { amount = 0.7 } cho vải/giáp treo (khố, giáp hông, váy, áo choàng): bone đầu tiên là chỗ treo, hàng đỉnh theo nó 100%, xuống dưới trộn dần sang các bone sau tới amount",
+    run(t, { slot, name: n, skin = "default", bones, maxPerVertex = 3, hang }, doc) {
       const k = skinIdx(doc, skin), a = doc.skins[k].attachments[slot]?.[n] ?? bad(`không có mesh "${n}"`);
       if (a.type !== "mesh") bad(`"${n}" không phải mesh (dùng mesh.fromRegion trước)`);
       if (!Array.isArray(bones) || !bones.length) bad("bones: cần ít nhất một bone");
       bones.forEach((b) => boneIdx(doc, b));
       const base = a.vertices.length > a.uvs.length ? { ...a, vertices: unweight(doc, slot, a) } : a;
-      t.set(["skins", k, "attachments", slot, n], { ...a, vertices: autoWeights(doc, slot, base, bones, { maxPerVertex }) });
+      if (hang && bones.length < 2) bad("hang: cần bone treo và ít nhất một bone kéo");
+      const amount = hang ? num(hang.amount ?? 0.7, "hang.amount") : 0;
+      if (hang && !(amount >= 0 && amount <= 1)) bad("hang.amount trong 0..1");
+      t.set(["skins", k, "attachments", slot, n], { ...a, vertices: hang ? hangWeights(doc, slot, base, bones, { amount }) : autoWeights(doc, slot, base, bones, { maxPerVertex }) });
     },
   },
   "mesh.unbind": {

@@ -1,6 +1,6 @@
 // Mesh commands: region → grid mesh, automatic weights, vertex moves (setup) and deform offsets (animate).
 // Weighted vertices follow the JSON layout: per vertex [count, (boneIndex, bindX, bindY, weight) × count].
-import { buildSkeleton, setupPose, updateWorld, regionLocal, isWeighted, DEG } from "../runtime/xuong.js?v=20261125f";
+import { buildSkeleton, setupPose, updateWorld, regionLocal, isWeighted, DEG } from "../runtime/xuong.js?v=20261125g";
 
 const tidy = (v) => Math.round(v * 1e4) / 1e4;
 const world = (doc) => { const sk = buildSkeleton(doc), p = setupPose(sk); updateWorld(sk, p); return { sk, pose: p }; };
@@ -69,6 +69,24 @@ export function autoWeights(doc, slot, att, boneNames, { maxPerVertex = 3, fallo
     const sum = ws.reduce((s, x) => s + x.w, 0);
     ws = ws.map((x) => ({ ...x, w: x.w / sum })).filter((x) => x.w > 0.01);
     const s2 = ws.reduce((s, x) => s + x.w, 0);
+    verts.push(ws.length);
+    for (const x of ws) { const [lx, ly] = toLocal(pose.bones[x.i], p[0], p[1]); verts.push(x.i, tidy(lx), tidy(ly), tidy(x.w / s2)); }
+  }
+  return verts;
+}
+// Cloth hanging from an anchor bone (loincloth, tassets, skirt, cape): the top row follows the anchor only, lower
+// rows blend towards the other bones (split between them by distance), up to `amount` at the bottom row.
+export function hangWeights(doc, slot, att, boneNames, { amount = 0.7, falloff = 2 } = {}) {
+  const { out, sk, pose } = meshWorld(doc, slot, att);
+  const [anchor, ...rest] = boneNames.map((n) => ({ i: sk.boneIndex.get(n), len: sk.bones[sk.boneIndex.get(n)].length }));
+  const ys = out.map((p) => p[1]), top = Math.max(...ys), bottom = Math.min(...ys), span = top - bottom || 1;
+  const verts = [];
+  for (const p of out) {
+    const t = Math.max(0, Math.min(1, (top - p[1]) / span)) * amount;
+    let ws = rest.map((b) => ({ i: b.i, w: 1 / Math.pow(segDist(p, pose.bones[b.i], b.len) + 1, falloff) }));
+    const sum = ws.reduce((a, x) => a + x.w, 0) || 1;
+    ws = [{ i: anchor.i, w: 1 - t }, ...ws.map((x) => ({ i: x.i, w: (t * x.w) / sum }))].filter((x) => x.w > 0.01);
+    const s2 = ws.reduce((a, x) => a + x.w, 0);
     verts.push(ws.length);
     for (const x of ws) { const [lx, ly] = toLocal(pose.bones[x.i], p[0], p[1]); verts.push(x.i, tidy(lx), tidy(ly), tidy(x.w / s2)); }
   }
