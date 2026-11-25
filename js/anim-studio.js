@@ -11,7 +11,7 @@ const GIFENC_URL = "https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js
 const STAGES = [["setup", "Chuẩn bị"], ["rewriting", "Viết prompt"], ["load", "Nạp model"], ["sample", "Sinh khung"], ["decode", "Giải mã"], ["frames", "Tách khung"], ["bg", "Xoá nền"], ["uploading", "Tải lên"]];
 const STATUS = { queued: ["Đang chờ", "wait"], running: ["Đang làm", "run"], done: ["Xong", "ok"], failed: ["Lỗi", "bad"], canceled: ["Đã huỷ", "off"] };
 const WSTATUS = { idle: ["Rảnh", "ok"], busy: ["Đang làm", "run"], paused: ["Tạm dừng", "wait"], quota: ["Hết hạn mức", "bad"], lowmem: ["Thiếu bộ nhớ", "wait"], offline: ["Offline", "off"] };
-const ENGINES = [["auto", "Tự chọn"], ["framepack", "FramePack"], ["wan5b", "Wan 2.2 5B"], ["ltx", "LTX"]];
+const ENGINES = [["auto", "Tự chọn (mặc định của máy gen)"], ["framepack", "FramePack (ổn định, chậm)"], ["wan5b", "Wan 2.2 5B (thử nghiệm, chưa ổn định)"], ["ltx", "LTX (thử nghiệm, chưa ổn định)"]];
 const EXAMPLES = [
   "Nhân vật thở nhẹ, đứng yên chờ (lặp)",
   "Vẫy tay chào rồi hạ tay xuống",
@@ -146,7 +146,7 @@ const S = {
   banner: null,
   jobs: [], jobsLoaded: false, jobsFilter: "all", jobsPage: 1, jobsPages: 1, jobsTotal: 0,
   workers: [], workersLoaded: false,
-  form: { prompt: "", file: null, w: 0, h: 0, seconds: 2, seed: "", engine: "auto", steps: "", remove_bg: false, rewrite: true, busy: false },
+  form: { prompt: "", file: null, w: 0, h: 0, seconds: 2, seed: "", engine: "auto", steps: "", remove_bg: false, pixel_snap: 0, rewrite: true, busy: false },
   detail: null,
 };
 const last = { jobs: 0, job: 0, workers: 0 };
@@ -212,7 +212,7 @@ async function uploadImage(file, dims) {
 }
 function paramsFrom(F) {
   const seed = F.seed === "" ? null : Math.round(+F.seed), steps = F.steps === "" ? null : Math.round(+F.steps);
-  return { engine: F.engine, seconds: F.seconds, seed: Number.isFinite(seed) ? seed : null, steps: Number.isFinite(steps) ? steps : null, remove_bg: F.remove_bg, rewrite: F.rewrite };
+  return { engine: F.engine, seconds: F.seconds, seed: Number.isFinite(seed) ? seed : null, steps: Number.isFinite(steps) ? steps : null, remove_bg: F.remove_bg, pixel_snap: F.pixel_snap || null, rewrite: F.rewrite };
 }
 
 /* ---------- tab Tạo mới ---------- */
@@ -237,6 +237,7 @@ function buildNew() {
   const seed = h("input", { type: "number", min: 0, max: 2147483647, step: 1, placeholder: "ngẫu nhiên", "aria-label": "Seed", oninput: (e) => { F.seed = e.target.value; } });
   const steps = h("input", { type: "number", min: 1, max: 200, step: 1, placeholder: "mặc định", "aria-label": "Số bước", oninput: (e) => { F.steps = e.target.value; } });
   const rm = h("input", { type: "checkbox", checked: F.remove_bg, onchange: (e) => { F.remove_bg = e.target.checked; } });
+  const snap = h("select", { "aria-label": "Giữ lưới pixel", onchange: (e) => { F.pixel_snap = +e.target.value; } }, [[0, "Tắt"], [2, "2 px"], [3, "3 px"], [4, "4 px"]].map(([v, l]) => h("option", { value: v, text: l, selected: F.pixel_snap === v })));
   const rw = h("input", { type: "checkbox", checked: F.rewrite, onchange: (e) => { F.rewrite = e.target.checked; } });
   const submit = h("button", { class: "btn btn--primary an-submit", type: "button", text: "Gửi cho máy gen", onclick: send });
   async function send() {
@@ -265,6 +266,7 @@ function buildNew() {
         field("Engine", engine),
         h("div", { class: "an-field" }, h("span", { class: "an-label", text: "Seed" }), seed, h("p", { class: "an-dim", text: "Cùng ảnh, cùng prompt, cùng seed thì ra lại gần như y hệt." })),
         field("Số bước (để trống nếu không rành)", steps),
+        field("Giữ lưới pixel (mỗi ô pixel gốc rộng mấy px)", snap),
         h("label", { class: "an-check" }, rm, "Xoá nền sau khi gen"),
         h("label", { class: "an-check" }, rw, "Viết lại mô tả thành prompt tiếng Anh (khuyên bật)")),
       h("div", { class: "an-send" }, submit, h("p", { class: "an-dim", text: "Một clip mất vài phút. Xong thì bạn chỉnh từng khung ngay trong trang." }))),
