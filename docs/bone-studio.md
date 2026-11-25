@@ -64,6 +64,11 @@ queued ──claim──▶ running ──complete──▶ done
 `params.mode`:
 - `agent` (mặc định): agent làm theo prompt trên bản chụp dự án.
 - `split`: agent nhìn ảnh nguyên con (`refs[0]`), đặt khớp bằng `bone-cli split grid`, rồi `bone-cli split auto --skeleton`.
+  Khung xương: `joints` (pixel ảnh gốc) + `parts` (`name`, `from`, `to`, `parent`), mỗi part tuỳ chọn `claim` (đa giác: mọi
+  pixel trong đó thuộc part), `only: true` (chỉ nhận đúng claim), `bind: [bone treo, bone kéo…]` + `hang` 0..1 (thành mesh
+  weight treo: đỉnh theo bone treo, đáy trộn sang bone kéo). Luật cắt (đồ đội đầu theo đầu, tay chân chỉ chứa chính nó, giáp
+  vai và nắm tay dùng claim, vải/giáp treo dùng only + bind) ở `bone-cli split help`. Kiểm bằng
+  `node bone-studio/tools/pose-sheet.mjs <project> <out.png> --limbs` (tay ±120°, cẳng tay ±130°, đùi ±70°).
 
 ## Luồng event (sửa trực tiếp)
 
