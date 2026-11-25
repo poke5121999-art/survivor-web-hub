@@ -17,6 +17,20 @@ export const KNOWN = [
 export const COLLECTION = { crew: "characters" };
 const logical = (table) => COLLECTION[table] || table;
 
+// Tables tuned online live in the runtime collection cd_live_config, one doc per table (_id = table key), NOT in md_: md_
+// content ships inside the LIVE snapshot, so a quest reward or a mode switch on md_ needs a new snapshot, while a cd_ doc
+// bites at once (the server re-reads it every 10 s). Same lists as cloudcode lib/liveconfig.js WHOLE / GROUPS.
+//   LIVE_WHOLE   doc { rows: [ ...the docs the md_ table used to hold ] }
+//   LIVE_GROUPS  doc { fields: { <key>: ... } } for these top-level keys of the "default" doc; the other keys stay in md_.
+// No doc yet: the table reads from md_ (migration not run), and the first save writes the doc.
+export const LIVE_WHOLE = [
+  "quests", "run_reward", "modes", "coop_rules", "endless_rules", "endless_seasons", "gacha_banners", "rank_rewards",
+  "shop_exchange", "wallet_start", "maps",
+];
+export const LIVE_GROUPS = { stage_rules: ["audio", "voice", "tts", "camera", "bot", "coop", "features"] };
+export const LIVE_COLLECTION = "cd_live_config";
+const isLive = (table) => LIVE_WHOLE.includes(table) || Object.prototype.hasOwnProperty.call(LIVE_GROUPS, table);
+
 const MAX_BODY_BYTES = 400 * 1024;
 const QUERY_LIMIT = 50;
 const MAX_DOCS = 2000;
@@ -105,8 +119,62 @@ function makeClient(env, fetchImpl) {
   };
 }
 
-// A missing table queries as an empty list, so "exists" means "has docs".
-async function readTable(call, table) {
+const stripStamps = ({ _createdAt, _updatedAt, _by, ...rest }) => rest;
+
+// Every cd_live_config doc by _id (a handful of docs, one query).
+async function readLiveAll(call) {
+  const r = await call("/data/query", { collection: LIVE_COLLECTION, limit: QUERY_LIMIT });
+  const out = {};
+  for (const d of normalize(r.docs || [])) if (typeof d._id === "string") out[d._id] = d;
+  return out;
+}
+
+async function readLive(call, table) {
+  const r = await call("/data/query", { collection: LIVE_COLLECTION, filter: { _id: table }, limit: 1 });
+  return normalize(r.docs || [])[0] || null;
+}
+
+// LIVE_GROUPS: the md_ "default" doc with the group keys taken from the live doc only (pure; same as the server's compose).
+export function composeGroups(table, mdDocs, fields) {
+  const keys = LIVE_GROUPS[table];
+  const f = isPlain(fields) ? fields : {};
+  let seen = false;
+  const out = mdDocs.map((d) => {
+    if (d._id !== "default") return d;
+    seen = true;
+    const c = {};
+    for (const k of Object.keys(d)) if (!keys.includes(k)) c[k] = d[k];
+    for (const k of keys) if (k in f) c[k] = f[k];
+    return c;
+  });
+  if (!seen) {
+    const c = { _id: "default" };
+    for (const k of keys) if (k in f) c[k] = f[k];
+    if (Object.keys(c).length > 1) out.push(c);
+  }
+  return out;
+}
+
+// A missing table queries as an empty list, so "exists" means "has docs". source: "md" (md_ table), "live" (cd_live_config
+// doc), "live+md" (stage_rules: md_ with the live groups). liveDocs: readLiveAll result, so list reads cd_live_config once.
+async function readTable(call, table, liveDocs) {
+  if (isLive(table)) {
+    const live = liveDocs ? liveDocs[table] || null : await readLive(call, table);
+    if (live && LIVE_WHOLE.includes(table)) {
+      const docs = (Array.isArray(live.rows) ? live.rows : []).filter((d) => isPlain(d) && typeof d._id === "string").map(stripStamps);
+      return { exists: docs.length > 0, docs, hash: await hashDocs(docs), source: "live" };
+    }
+    if (live) {
+      const md = await readMd(call, table);
+      const docs = composeGroups(table, md, live.fields);
+      return { exists: docs.length > 0, docs, hash: await hashDocs(docs), source: "live+md" };
+    }
+  }
+  const docs = await readMd(call, table);
+  return { exists: docs.length > 0, docs, hash: await hashDocs(docs), source: "md" };
+}
+
+async function readMd(call, table) {
   // The server caps limit at 50 whatever we ask, so page with skip until hasMore is false.
   const raw = [];
   for (;;) {
@@ -116,8 +184,73 @@ async function readTable(call, table) {
     if (raw.length >= MAX_DOCS) throw new UpstreamError(200, "TOO_MANY_DOCS", `bảng ${table} có hơn ${MAX_DOCS} dòng`);
   }
   // Server-stamped bookkeeping fields are not designer data and would break hash round trips.
-  const docs = normalize(raw).map(({ _createdAt, _updatedAt, ...rest }) => rest);
-  return { exists: docs.length > 0, docs, hash: await hashDocs(docs) };
+  return normalize(raw).map(({ _createdAt, _updatedAt, ...rest }) => rest);
+}
+
+// Same shape as /data/sync's answer, for tables saved into cd_live_config.
+export function diffDocs(before, after) {
+  const key = (d) => JSON.stringify(sortKeys(d));
+  const old = new Map(before.map((d) => [d._id, d]));
+  const changes = [];
+  const counts = { insert: 0, update: 0, delete: 0, unchanged: 0 };
+  for (const d of after) {
+    const o = old.get(d._id);
+    const op = !o ? "insert" : key(o) === key(d) ? "unchanged" : "update";
+    counts[op]++;
+    if (op === "update") {
+      const fields = [...new Set([...Object.keys(o), ...Object.keys(d)])].filter((k) => k !== "_id" && key(o[k] ?? null) !== key(d[k] ?? null)).sort();
+      changes.push({ op, _id: d._id, fields });
+    } else if (op === "insert") changes.push({ op, _id: d._id });
+    old.delete(d._id);
+  }
+  for (const id of old.keys()) {
+    counts.delete++;
+    changes.push({ op: "delete", _id: id });
+  }
+  return { changes, counts };
+}
+
+async function writeLive(call, table, set) {
+  try {
+    await call("/data/update", { collection: LIVE_COLLECTION, filter: { _id: table }, set });
+  } catch (e) {
+    if (!(e instanceof UpstreamError) || e.status !== 404) throw e;
+    await call("/data/insert", { collection: LIVE_COLLECTION, doc: { _id: table, ...set } });
+  }
+}
+
+// Who changed what and when: one JSON line in the function's own log (Supabase), not in a GameSpark collection: cd_* must not
+// hold personal data (emails) and operator history does not belong on the production store.
+function logSave(env, table, source, diff) {
+  console.log(JSON.stringify({
+    ev: "gs_design_save", at: new Date().toISOString(), who: env.actor || "", project: env.project, table, source,
+    counts: diff.counts, ids: diff.changes.slice(0, 50).map((c) => c.op + ":" + c._id),
+  }));
+}
+
+async function saveLive(call, env, table, docs, current, dryRun) {
+  const diff = diffDocs(current.docs, docs);
+  if (dryRun) return { status: 200, json: { ok: true, applied: false, dryRun: true, ...diff, hash: current.hash, source: current.source } };
+  if (LIVE_WHOLE.includes(table)) {
+    await writeLive(call, table, { rows: docs });
+  } else {
+    // Group keys go to the live doc; the rest of the table stays in md_ (and loses the group keys it may still carry).
+    const keys = LIVE_GROUPS[table];
+    const def = docs.find((d) => d._id === "default") || {};
+    const fields = {};
+    for (const k of keys) if (k in def) fields[k] = def[k];
+    await writeLive(call, table, { fields });
+    const mdDocs = docs.map((d) => {
+      if (d._id !== "default") return d;
+      const c = {};
+      for (const k of Object.keys(d)) if (!keys.includes(k)) c[k] = d[k];
+      return c;
+    });
+    await call("/data/sync", { collection: "md_" + logical(table), docs: mdDocs, dryRun: false });
+  }
+  logSave(env, table, current.source, diff);
+  const source = LIVE_WHOLE.includes(table) ? "live" : "live+md";
+  return { status: 200, json: { ok: true, applied: true, dryRun: false, ...diff, hash: await hashDocs(docs), source } };
 }
 
 function validateDocs(docs) {
@@ -335,7 +468,7 @@ function localInserts(docs) {
   };
 }
 
-async function doSave(call, body) {
+async function doSave(call, body, env) {
   const { table, docs, baseHash } = body;
   const bad = validateDocs(docs);
   if (bad) return fail(400, "INVALID", bad);
@@ -351,6 +484,7 @@ async function doSave(call, body) {
   if (current.hash !== baseHash) {
     return fail(409, "CONFLICT", "Bảng vừa được sửa ở nơi khác.", { current });
   }
+  if (isLive(table)) return await saveLive(call, env, table, docs, current, dryRun);
   if (dryRun && !current.exists) {
     return { status: 200, json: { ok: true, applied: false, dryRun: true, ...localInserts(docs), hash: current.hash } };
   }
@@ -365,6 +499,7 @@ async function doSave(call, body) {
     }
   }
   const r = await call("/data/sync", { collection: "md_" + logical(table), docs, dryRun });
+  if (!dryRun) logSave(env, table, "md", { changes: r.changes || [], counts: r.counts || {} });
   return {
     status: 200,
     json: {
@@ -578,7 +713,8 @@ export async function handleAction(body, env, fetchImpl = fetch) {
     if (body.action === "gate") return { status: 200, json: { ok: true, ...(await readGate(call)) } };
     if (body.action === "gate_save") return await saveGate(call, body.doc);
     if (body.action === "list") {
-      const rows = await Promise.all(KNOWN.map((t) => readTable(call, t)));
+      const liveDocs = await readLiveAll(call);
+      const rows = await Promise.all(KNOWN.map((t) => readTable(call, t, liveDocs)));
       const tables = {};
       KNOWN.forEach((t, i) => {
         tables[t] = rows[i];
@@ -589,7 +725,7 @@ export async function handleAction(body, env, fetchImpl = fetch) {
       const t = await readTable(call, body.table);
       return { status: 200, json: { ok: true, table: body.table, ...t } };
     }
-    return await doSave(call, body);
+    return await doSave(call, body, env);
   } catch (e) {
     if (e instanceof UpstreamError) {
       return fail(502, "GAMESPARK", `GameSpark lỗi ${e.code}: ${e.message}`,

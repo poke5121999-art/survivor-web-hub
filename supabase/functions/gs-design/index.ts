@@ -55,7 +55,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { status, json } = await handleAction(body, {
       base: Deno.env.get("GS_BASE")!, project: Deno.env.get("GS_PROJECT")!,
-      key: Deno.env.get("GS_KEY")!, secret: Deno.env.get("GS_SECRET")!,
+      key: Deno.env.get("GS_KEY")!, secret: Deno.env.get("GS_SECRET")!, actor: email,
     });
     return reply(status, json, cors);
   } catch (e) {

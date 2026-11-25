@@ -34,6 +34,17 @@ function shuffleKeys(v) {
     `status ${list.status}, ${names.length} tables`);
   check("list quests.exists", list.json.tables.quests.exists === true, `exists=${list.json.tables.quests.exists}`);
 
+  // Online-tuned tables read cd_live_config (cloudcode lib/liveconfig.js), the rest md_; stage_rules is md_ + live groups.
+  const src = (t) => list.json.tables[t].source;
+  check("live tables read cd_live_config", core.LIVE_WHOLE.every((t) => src(t) === "live") && src("stage_rules") === "live+md" && src("foes") === "md",
+    core.LIVE_WHOLE.map((t) => t + ":" + src(t)).join(" ") + " stage_rules:" + src("stage_rules") + " foes:" + src("foes"));
+  const composed = core.composeGroups("stage_rules", [{ _id: "default", fireRange: 4, voice: { refR: 6 }, tts: { on: 1 } }], { voice: { refR: 9 }, features: { cartHoldClose: false }, fireRange: 99 });
+  check("composeGroups: group keys only from live, md_ group keys dropped, other keys kept",
+    JSON.stringify(composed) === JSON.stringify([{ _id: "default", fireRange: 4, voice: { refR: 9 }, features: { cartHoldClose: false } }]), JSON.stringify(composed));
+  const dd = core.diffDocs([{ _id: "a", x: 1, y: 2 }, { _id: "b", x: 1 }], [{ _id: "a", x: 1, y: 3 }, { _id: "c", x: 1 }]);
+  check("diffDocs: update with fields, insert, delete", JSON.stringify(dd) ===
+    JSON.stringify({ changes: [{ op: "update", _id: "a", fields: ["y"] }, { op: "insert", _id: "c" }, { op: "delete", _id: "b" }], counts: { insert: 1, update: 1, delete: 1, unchanged: 0 } }), JSON.stringify(dd));
+
   // crew is stored in md_characters (cd_crew owns the logical name "crew" on DEV): the card must read and dry-save it.
   const crewSeed = JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/crew.json", "utf8"));
   const crew = await act({ action: "get", table: "crew" });
