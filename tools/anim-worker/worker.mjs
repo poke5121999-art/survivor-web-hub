@@ -194,7 +194,7 @@ function splitCmd(s) {
 
 // ---- viết lại prompt --------------------------------------------------------------------------
 const REWRITE_RULES = `You rewrite a game artist's short motion request (Vietnamese or English) into ONE English prompt for an image-to-video model that animates a single character image.
-Rules: describe only the motion of the subject, in present tense, in 1 or 2 short sentences (under 40 words). The subject stays in place; the camera is static; the background stays unchanged; no scene cuts, no zoom, no new objects or characters. Keep the art style implied by the image. If the request asks for a loop (idle, breathing, walk cycle in place), say the motion returns smoothly to its start pose. Output the prompt only: no quotes, no preface, no markdown.`;
+Rules: describe only the motion of the subject, in present tense, in 1 or 2 short sentences (under 40 words), with strong action verbs, so the motion starts at once and continues through the clip. Never use words that suggest stillness (still, static, stays, remains, holds, planted, in place): the model reads them as "do not move" and the clip stands idle. For walking or running say "walks on the spot" style motion with the body bobbing and limbs swinging. No scene cuts, no zoom, no new objects or characters. Keep the art style implied by the image. If the request asks for a loop (idle, breathing, walk cycle), say the motion returns smoothly to its start pose. Output the prompt only: no quotes, no preface, no markdown.`;
 async function rewritePrompt(text) {
   const viaNode = /\.(mjs|js)$/.test(CLAUDE_BIN);
   const args = ["-p", "--model", "haiku", "--setting-sources", "project,local", "--append-system-prompt", REWRITE_RULES];
