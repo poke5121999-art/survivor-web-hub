@@ -1,12 +1,13 @@
 // One-call pipeline: whole character image → rig parts + commands. Same code in the browser and in bone-cli.
-import { removeBackground, detectScale, toNative, opaqueBounds } from "./pixels.js?v=20261125c";
-import { heuristicSkeleton, segment, cutParts, rigCommands } from "./rig.js?v=20261125c";
+import { removeBackground, detectScale, toNative, opaqueBounds, defringe } from "./pixels.js?v=20261125d";
+import { heuristicSkeleton, segment, cutParts, rigCommands } from "./rig.js?v=20261125d";
 
 export function analyze(src) {
   const bg = removeBackground(src);
   const sc = detectScale(src);
   const pixel = sc.pixelArt ? sc : { scale: 1, phaseX: 0, phaseY: 0, pixelArt: false };
   const native = pixel.scale > 1 ? toNative(bg.image, pixel) : bg.image;
+  if (pixel.scale > 1) defringe(native, bg.background);
   return { alpha: bg.image, background: bg.background, scale: pixel.scale, phase: [pixel.phaseX, pixel.phaseY], pixelArt: pixel.pixelArt, native, detected: sc };
 }
 

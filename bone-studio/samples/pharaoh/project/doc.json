@@ -6,8 +6,8 @@
  "pixelArt": true,
  "images": {
   "chan-trai-dui": {
-   "width": 32,
-   "height": 28
+   "width": 31,
+   "height": 29
   },
   "chan-trai-ong": {
    "width": 16,
@@ -15,58 +15,58 @@
   },
   "chan-trai-ban": {
    "width": 10,
-   "height": 9
+   "height": 8
   },
   "chan-phai-dui": {
-   "width": 23,
+   "width": 18,
    "height": 33
   },
   "chan-phai-ong": {
-   "width": 8,
-   "height": 14
+   "width": 10,
+   "height": 13
   },
   "chan-phai-ban": {
-   "width": 7,
-   "height": 6
+   "width": 6,
+   "height": 5
   },
   "than": {
    "width": 36,
-   "height": 66
+   "height": 58
   },
   "vay": {
    "width": 24,
    "height": 34
   },
   "dau": {
-   "width": 51,
-   "height": 55
+   "width": 47,
+   "height": 48
   },
   "tay-trai-tren": {
    "width": 41,
-   "height": 69
+   "height": 63
   },
   "tay-trai-duoi": {
    "width": 31,
-   "height": 33
+   "height": 31
   },
   "tay-trai-ban": {
    "width": 14,
-   "height": 18
+   "height": 17
   },
   "gay": {
-   "width": 15,
+   "width": 17,
    "height": 91
   },
   "lua": {
-   "width": 30,
+   "width": 31,
    "height": 33
   },
   "tay-phai-tren": {
-   "width": 20,
-   "height": 31
+   "width": 18,
+   "height": 29
   },
   "tay-phai-duoi": {
-   "width": 30,
+   "width": 29,
    "height": 23
   },
   "tay-phai-ban": {
@@ -471,11 +471,11 @@
      "chan-trai-dui": {
       "type": "region",
       "path": "chan-trai-dui",
-      "x": 37.48,
-      "y": -3.53,
+      "x": 34.91,
+      "y": -3.58,
       "rotation": 136.17,
-      "width": 116.16,
-      "height": 101.64
+      "width": 112.53,
+      "height": 105.27
      }
     },
     "chan-trai-ong": {
@@ -493,21 +493,21 @@
      "chan-trai-ban": {
       "type": "region",
       "path": "chan-trai-ban",
-      "x": 20.7,
-      "y": -7.22,
+      "x": 21.55,
+      "y": -5.61,
       "rotation": 152.1,
       "width": 36.3,
-      "height": 32.67
+      "height": 29.04
      }
     },
     "chan-phai-dui": {
      "chan-phai-dui": {
       "type": "region",
       "path": "chan-phai-dui",
-      "x": 22.95,
-      "y": -7.33,
+      "x": 25.62,
+      "y": -2.58,
       "rotation": 60.64,
-      "width": 83.49,
+      "width": 65.34,
       "height": 119.79
      }
     },
@@ -515,33 +515,33 @@
      "chan-phai-ong": {
       "type": "region",
       "path": "chan-phai-ong",
-      "x": 28.23,
-      "y": -2.17,
+      "x": 30.05,
+      "y": -9.43,
       "rotation": 90,
-      "width": 29.04,
-      "height": 50.82
+      "width": 36.3,
+      "height": 47.19
      }
     },
     "chan-phai-ban": {
      "chan-phai-ban": {
       "type": "region",
       "path": "chan-phai-ban",
-      "x": 11.46,
-      "y": 1.48,
+      "x": 13.96,
+      "y": 0.88,
       "rotation": 31.61,
-      "width": 25.41,
-      "height": 21.78
+      "width": 21.78,
+      "height": 18.15
      }
     },
     "than": {
      "than": {
       "type": "region",
       "path": "than",
-      "x": 51.86,
+      "x": 48.23,
       "y": -0.12,
       "rotation": -90,
       "width": 130.68,
-      "height": 239.58
+      "height": 210.54
      }
     },
     "vay": {
@@ -559,54 +559,54 @@
      "dau": {
       "type": "region",
       "path": "dau",
-      "x": 75.74,
-      "y": 1.09,
+      "x": 88,
+      "y": 12.48,
       "rotation": -87.71,
-      "width": 185.13,
-      "height": 199.65
+      "width": 170.61,
+      "height": 174.24
      }
     },
     "tay-trai-tren": {
      "tay-trai-tren": {
       "type": "region",
       "path": "tay-trai-tren",
-      "x": 24.32,
-      "y": -14.35,
+      "x": 14.89,
+      "y": -19.8,
       "rotation": 120.03,
       "width": 148.83,
-      "height": 250.47
+      "height": 228.69
      }
     },
     "tay-trai-duoi": {
      "tay-trai-duoi": {
       "type": "region",
       "path": "tay-trai-duoi",
-      "x": 58.96,
-      "y": 2.1,
+      "x": 55.34,
+      "y": 2.29,
       "rotation": 87.04,
       "width": 112.53,
-      "height": 119.79
+      "height": 112.53
      }
     },
     "tay-trai-ban": {
      "tay-trai-ban": {
       "type": "region",
       "path": "tay-trai-ban",
-      "x": 36.03,
-      "y": 1.69,
+      "x": 34.24,
+      "y": 1.99,
       "rotation": 80.54,
       "width": 50.82,
-      "height": 65.34
+      "height": 61.71
      }
     },
     "gay": {
      "gay": {
       "type": "region",
       "path": "gay",
-      "x": 177.65,
-      "y": 7.27,
+      "x": 177.6,
+      "y": 3.64,
       "rotation": -90.84,
-      "width": 54.45,
+      "width": 61.71,
       "height": 330.33
      }
     },
@@ -614,10 +614,10 @@
      "lua": {
       "type": "region",
       "path": "lua",
-      "x": 30.87,
-      "y": 2.32,
+      "x": 30.91,
+      "y": 4.13,
       "rotation": -91.36,
-      "width": 108.9,
+      "width": 112.53,
       "height": 119.79
      }
     },
@@ -625,21 +625,21 @@
      "tay-phai-tren": {
       "type": "region",
       "path": "tay-phai-tren",
-      "x": 22.78,
-      "y": 5.48,
+      "x": 19.62,
+      "y": 7.27,
       "rotation": 60.52,
-      "width": 72.6,
-      "height": 112.53
+      "width": 65.34,
+      "height": 105.27
      }
     },
     "tay-phai-duoi": {
      "tay-phai-duoi": {
       "type": "region",
       "path": "tay-phai-duoi",
-      "x": 28.04,
-      "y": -7.92,
+      "x": 26.37,
+      "y": -8.64,
       "rotation": 23.2,
-      "width": 108.9,
+      "width": 105.27,
       "height": 83.49
      }
     },

@@ -28,6 +28,19 @@ export function removeBackground(src, { tolerance } = {}) {
       if (j >= 0 && !seen[j] && dist2(d, j * 4, bg) <= tol2) { seen[j] = 1; stack.push(j); }
     }
   }
+  // defringe: edge pixels that are still close to the background (blended halo of an upscaled image) go transparent
+  const fringe2 = Math.max(tol2 * 4, 95 * 95);
+  for (let pass = 0; pass < 2; pass++) {
+    const kill = [];
+    for (let i = 0; i < w * h; i++) {
+      if (out.data[i * 4 + 3] === 0) continue;
+      const x = i % w, y = (i / w) | 0;
+      const edge = (x > 0 && out.data[(i - 1) * 4 + 3] === 0) || (x < w - 1 && out.data[(i + 1) * 4 + 3] === 0) || (y > 0 && out.data[(i - w) * 4 + 3] === 0) || (y < h - 1 && out.data[(i + w) * 4 + 3] === 0);
+      if (edge && dist2(d, i * 4, bg) <= fringe2) kill.push(i);
+    }
+    for (const i of kill) out.data[i * 4 + 3] = 0;
+    removed += kill.length;
+  }
   return { image: out, background: bg, removed };
 }
 
@@ -124,4 +137,34 @@ export function opaqueBounds(src) {
     if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
   }
   return x1 < 0 ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+}
+
+// edge pixels of an already-cut image that are close to the removed background colour go transparent
+export function defringe(im, bg, maxDist = 95, passes = 2) {
+  if (!bg) return 0;
+  const { width: w, height: h, data: d } = im;
+  let n = 0;
+  for (let pass = 0; pass < passes; pass++) {
+    const kill = [];
+    for (let i = 0; i < w * h; i++) {
+      if (!d[i * 4 + 3]) continue;
+      const x = i % w, y = (i / w) | 0;
+      const edge = x === 0 || y === 0 || x === w - 1 || y === h - 1 || !d[(i - 1) * 4 + 3] || !d[(i + 1) * 4 + 3] || !d[(i - w) * 4 + 3] || !d[(i + w) * 4 + 3];
+      if (!edge) continue;
+      if (dist2(d, i * 4, bg) <= maxDist * maxDist) { kill.push(i); continue; }
+      // a blend of the background and an inner neighbour: p ≈ bg + t (q - bg) with 0 < t < 0.8
+      for (const j of [i - 1, i + 1, i - w, i + w]) {
+        if (j < 0 || j >= w * h || !d[j * 4 + 3]) continue;
+        const q = [d[j * 4] - bg[0], d[j * 4 + 1] - bg[1], d[j * 4 + 2] - bg[2]], p = [d[i * 4] - bg[0], d[i * 4 + 1] - bg[1], d[i * 4 + 2] - bg[2]];
+        const qq = q[0] * q[0] + q[1] * q[1] + q[2] * q[2];
+        if (qq < 60 * 60) continue;
+        const t = (p[0] * q[0] + p[1] * q[1] + p[2] * q[2]) / qq;
+        const res = Math.hypot(p[0] - t * q[0], p[1] - t * q[1], p[2] - t * q[2]);
+        if (t > 0.05 && t < 0.8 && res < 18) { kill.push(i); break; }
+      }
+    }
+    for (const i of kill) d[i * 4 + 3] = 0;
+    n += kill.length;
+  }
+  return n;
 }

@@ -1,7 +1,7 @@
 // From a native-grid image and a skeleton spec to rig parts: labels, hidden-pixel fill, cropped part images, commands.
 // Skeleton spec (coordinates in SOURCE image pixels, y down):
 //   { joints: { name: [x, y] }, parts: [{ name, from, to, parent? }] }   parts listed bottom → top (draw order)
-import { img } from "./pixels.js?v=20261125c";
+import { img } from "./pixels.js?v=20261125d";
 
 // ---- masks -------------------------------------------------------------------------------------
 export function alphaMask(im) {
@@ -250,6 +250,27 @@ export function segment(native, spec, scale = 1, phase = [0, 0]) {
     }
     labels.set(next);
   }
+  // islands: small stray pieces of a part that sit against another part go to the part they touch most
+  for (let k = 0; k < n; k++) {
+    const m = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) m[i] = labels[i] === k ? 1 : 0;
+    const { comps } = components(m, w, h);
+    if (comps.length < 2) continue;
+    comps.sort((a, b) => b.length - a.length);
+    const total = comps.reduce((t, c) => t + c.length, 0);
+    for (const c of comps.slice(1)) {
+      if (c.length > 40 || c.length > total * 0.12) continue; // a real piece (e.g. a staff split by the hand holding it)
+      const touch = new Map(), inC = new Set(c);
+      for (const i of c) {
+        const x = i % w, y = (i / w) | 0;
+        for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]) if (j >= 0 && !inC.has(j) && labels[j] >= 0 && labels[j] !== k) touch.set(labels[j], (touch.get(labels[j]) ?? 0) + 1);
+      }
+      let to = -1, best = -1;
+      for (const [l, v] of touch) if (v > best) { best = v; to = l; }
+      if (to < 0) continue; // a detached bit of the same thing (a flame wisp): keep it
+      for (const i of c) labels[i] = to;
+    }
+  }
   return { labels, segs, w, h };
 }
 
@@ -257,9 +278,15 @@ export function segment(native, spec, scale = 1, phase = [0, 0]) {
 // A part is extended under the parts drawn in front of it, inside its own capsule, and the new pixels take the
 // most common colour of already-filled neighbours (stays on the pixel grid, no blur). The setup pose is unchanged
 // because every added pixel sits under a part that is drawn on top.
-export function cutParts(native, seg, spec, { fill = true, grow = 1.15 } = {}) {
+export function cutParts(native, seg, spec, { fill = true, grow = 1.15, band = 3 } = {}) {
   const { labels, segs, w, h } = seg, n = segs.length, d = native.data;
   const out = [];
+  // descendants of each part: a parent may extend under its children inside its capsule; other parts only get a thin band
+  const kids = spec.parts.map((p) => {
+    const set = new Set(), stack = [p.name];
+    while (stack.length) { const c = stack.pop(); spec.parts.forEach((q, j) => { if (q.parent === c && !set.has(j)) { set.add(j); stack.push(q.name); } }); }
+    return set;
+  });
   for (let k = 0; k < n; k++) {
     const own = new Uint8Array(w * h);
     for (let i = 0; i < own.length; i++) own[i] = labels[i] === k ? 1 : 0;
@@ -269,10 +296,11 @@ export function cutParts(native, seg, spec, { fill = true, grow = 1.15 } = {}) {
     let added = 0;
     if (fill) {
       const target = new Uint8Array(w * h);
+      const ownDist = distanceTransform(own.map((v) => 1 - v), w, h);
       for (let i = 0; i < w * h; i++) {
         if (own[i] || labels[i] <= k) continue; // only under parts drawn later (on top)
         const p = [i % w, (i / w) | 0];
-        if (segDist(p, segs[k].a, segs[k].b) <= segs[k].r * grow) target[i] = 1;
+        if (kids[k].has(labels[i]) ? segDist(p, segs[k].a, segs[k].b) <= segs[k].r * grow && ownDist[i] <= band * 2 : ownDist[i] <= band) target[i] = 1;
       }
       for (let pass = 0; pass < 200; pass++) {
         const batch = [];

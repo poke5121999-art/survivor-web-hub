@@ -1,6 +1,6 @@
 // Spine-compatible JSON: import (3.8 and 4.0–4.2) and export (4.2), written from the public format docs.
-import { emptyDoc } from "./commands.js?v=20261125c";
-import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds } from "../runtime/xuong.js?v=20261125c";
+import { emptyDoc } from "./commands.js?v=20261125d";
+import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds } from "../runtime/xuong.js?v=20261125d";
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 const lowerHex = (c, n = 8) => (c ? String(c).toLowerCase().padEnd(n, "f").slice(0, n) : undefined);
