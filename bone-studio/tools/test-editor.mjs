@@ -247,6 +247,7 @@ try {
     const scr = (name) => p7.evaluate((n) => { const p = __BS.pose(), i = __BS.doc().bones.findIndex((b) => b.name === n); return __BS.toScreen(p.bones[i].wx, p.bones[i].wy); }, name);
     // snap: choose 45° in the toolbar, rotate the head by an odd angle with the mouse
     await p7.selectOption("#xx-snap", "45");
+    await p7.evaluate(() => document.activeElement?.blur());
     await p7.keyboard.press("c");
     await p7.evaluate(() => __BS.select({ kind: "bone", name: "head" }));
     const [hx, hy] = await scr("head");
@@ -289,18 +290,20 @@ try {
         { type: "ik.add", name: "tay", bones: ["front-upper-arm", "front-lower-arm"], target: "ik-tay" }], "IK");
       __BS.setMode("animate"); __BS.S.anim = "idle"; __BS.setTime(0); __BS.emit("anim");
     });
+    await p7.evaluate(() => document.activeElement?.blur()); // shortcuts are ignored while a <select> has focus
     await p7.keyboard.press("b");
     const [ax, ay] = await scr("front-hand");
     const before = JSON.stringify(await p7.evaluate(() => __BS.pose().bones.map((b) => [b.wx, b.wy])));
     await p7.evaluate(() => __BS.select({ kind: "bone", name: "front-lower-arm" }));
     await p7.waitForTimeout(150); // let the panel and viewport settle (a drag started mid-render once missed the bone on Pages)
     const [lx, ly] = await scr("front-lower-arm");
+    const grabbed = await p7.evaluate(([x, y]) => __BS.pick(x, y, { bonesOnly: true })?.name, [lx, ly]);
     await p7.mouse.move(r.x + lx, r.y + ly); await p7.mouse.down();
     const goal = [ax - 25, ay - 30];
     await p7.mouse.move(r.x + goal[0], r.y + goal[1], { steps: 8 }); await p7.mouse.up();
     const [tx, ty] = await scr("ik-tay"), [nx, ny] = await scr("front-hand");
     await p7.screenshot({ path: join(CHK, "ik-drag.png") });
-    assert(Math.hypot(tx - goal[0], ty - goal[1]) < 2, `target ở ${tx},${ty}, chuột ${goal}`);
+    assert(Math.hypot(tx - goal[0], ty - goal[1]) < 2, `target ở ${tx},${ty}, chuột ${goal}; bấm trúng bone ${grabbed}`);
     assert(Math.hypot(nx - goal[0], ny - goal[1]) < 6, `bàn tay ở ${nx},${ny}, chuột ${goal}`);
     await p7.keyboard.press("Control+z");
     const after = JSON.stringify(await p7.evaluate(() => __BS.pose().bones.map((b) => [b.wx, b.wy])));
@@ -399,6 +402,37 @@ try {
     await pa.close();
     assert(shown === 1 && t1 === "rotate" && t2 === "rotate", `hộp thoại hiện R: ${shown}; phím R → ${t1}, sau khi mở lại → ${t2}`);
     return `thước ${text}; R = xoay, giữ sau khi mở lại`;
+  });
+
+  await step("cọ weight: chọn bone, kéo trên mesh tăng weight, Alt bớt, Làm mượt, mỗi việc một undo", async () => {
+    const pb = await open("?sample=robo");
+    const att = await pb.evaluate(() => __BS.doc().slots.find((s) => s.name === "front-upper-arm").attachment);
+    await pb.evaluate((att) => {
+      __BS.apply([{ type: "mesh.fromRegion", slot: "front-upper-arm", name: att, cols: 2, rows: 4 }, { type: "mesh.bind", slot: "front-upper-arm", name: att, bones: ["front-upper-arm", "torso"] }], "mesh");
+      __BS.select({ kind: "attachment", slot: "front-upper-arm", name: att, skin: "default" });
+    }, att);
+    const wsum = () => pb.evaluate(async (att) => {
+      const M = await import("./src/mesh.js?v=" + document.querySelector("script[type=module]").src.split("v=")[1]);
+      const d = __BS.doc(), a = d.skins[0].attachments["front-upper-arm"][att], bi = d.bones.findIndex((b) => b.name === "torso");
+      return M.vertexWeights(d, "front-upper-arm", a).reduce((s, m) => s + (m.get(bi) ?? 0), 0);
+    }, att);
+    await pb.locator("#xx-props select").filter({ has: pb.locator("option", { hasText: "tắt cọ" }) }).selectOption("torso");
+    await pb.evaluate(() => document.activeElement?.blur());
+    const w0 = await wsum();
+    const r = await pb.locator("#xx-canvas").boundingBox();
+    const [ax, ay] = await pb.evaluate(() => { const p = __BS.pose(), b = p.bones[__BS.doc().bones.findIndex((x) => x.name === "front-upper-arm")]; return __BS.toScreen(b.wx + b.a * 20, b.wy + b.c * 20); });
+    await pb.mouse.move(r.x + ax - 10, r.y + ay); await pb.mouse.down(); await pb.mouse.move(r.x + ax + 10, r.y + ay, { steps: 6 }); await pb.mouse.up();
+    const w1 = await wsum();
+    await pb.keyboard.down("Alt"); await pb.mouse.move(r.x + ax - 10, r.y + ay); await pb.mouse.down(); await pb.mouse.move(r.x + ax + 10, r.y + ay, { steps: 3 }); await pb.mouse.up(); await pb.keyboard.up("Alt");
+    const w2 = await wsum();
+    await pb.screenshot({ path: join(CHK, "weight-brush.png") });
+    await pb.locator("#xx-props button", { hasText: "Làm mượt" }).click();
+    const w3 = await wsum();
+    await pb.keyboard.press("Control+z");
+    const w4 = await wsum();
+    await pb.close();
+    assert(w1 > w0 + 0.2 && w2 < w1 - 0.1 && Math.abs(w4 - w2) < 1e-6 && Math.abs(w3 - w2) > 1e-4, `tổng weight torso ${[w0, w1, w2, w3, w4].map((x) => x.toFixed(3))}`);
+    return `tổng weight torso ${w0.toFixed(2)} → cọ ${w1.toFixed(2)} → Alt ${w2.toFixed(2)} → mượt ${w3.toFixed(2)} → undo ${w4.toFixed(2)}`;
   });
 
   await step("xem trộn walk → attack: góc tay đổi liên tục, không nhảy cóc", async () => {

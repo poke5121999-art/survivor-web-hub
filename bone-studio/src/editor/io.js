@@ -1,12 +1,12 @@
 // Saving, loading, importing and exporting in the browser.
-import { S, doc, emit, h, toast, run, skeleton } from "./state.js?v=20261125l";
-import { emptyDoc } from "../commands.js?v=20261125l";
-import { exportBundle, usedImages } from "../export.js?v=20261125l";
-import { fromSpine } from "../spine-io.js?v=20261125l";
-import { zip, unzip } from "../zip.js?v=20261125l";
-import { encodeGIF } from "../gif.js?v=20261125l";
-import { readPSD } from "../psd.js?v=20261125l";
-import { parseAtlas, poseAt, drawList, draw2d, bounds, animationDuration, buildSkeleton } from "../../runtime/xuong.js?v=20261125l";
+import { S, doc, emit, h, toast, run, skeleton } from "./state.js?v=20261125m";
+import { emptyDoc } from "../commands.js?v=20261125m";
+import { exportBundle, usedImages } from "../export.js?v=20261125m";
+import { fromSpine } from "../spine-io.js?v=20261125m";
+import { zip, unzip } from "../zip.js?v=20261125m";
+import { encodeGIF } from "../gif.js?v=20261125m";
+import { readPSD } from "../psd.js?v=20261125m";
+import { parseAtlas, poseAt, drawList, draw2d, bounds, animationDuration, buildSkeleton } from "../../runtime/xuong.js?v=20261125m";
 
 // ---- images ------------------------------------------------------------------------------------
 export async function blobToCanvas(blob) {

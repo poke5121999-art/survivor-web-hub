@@ -1,6 +1,6 @@
 // Spine-compatible JSON: import (3.8 and 4.0–4.2) and export (4.2), written from the public format docs.
-import { emptyDoc } from "./commands.js?v=20261125l";
-import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds, findKey, transformMixes, PHYSICS_DEFAULTS, TRANSFORM_MIXES as TC_MIX } from "../runtime/xuong.js?v=20261125l";
+import { emptyDoc } from "./commands.js?v=20261125m";
+import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds, findKey, transformMixes, PHYSICS_DEFAULTS, TRANSFORM_MIXES as TC_MIX } from "../runtime/xuong.js?v=20261125m";
 const TC_OFF = ["rotation", "x", "y", "scaleX", "scaleY", "shearY"];
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;

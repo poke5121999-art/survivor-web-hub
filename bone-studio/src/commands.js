@@ -1,8 +1,8 @@
 // Command registry. Every change to a document, from the UI, the agent, the CLI or a test, is one of these.
 // apply(doc, cmd) is pure: it returns a new doc and the exact inverse (a $patch command).
-import { transaction, applyPatch } from "./tx.js?v=20261125l";
-import { gridMesh, autoWeights, hangWeights, unweight, movedVertices } from "./mesh.js?v=20261125l";
-import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125l";
+import { transaction, applyPatch } from "./tx.js?v=20261125m";
+import { gridMesh, autoWeights, hangWeights, unweight, movedVertices, paintWeights, smoothWeights, pruneWeights } from "./mesh.js?v=20261125m";
+import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125m";
 
 export const FORMAT = "xuong";
 export const VERSION = 1;
@@ -735,6 +735,32 @@ export const COMMANDS = {
       const amount = hang ? num(hang.amount ?? 0.7, "hang.amount") : 0;
       if (hang && !(amount >= 0 && amount <= 1)) bad("hang.amount trong 0..1");
       t.set(["skins", k, "attachments", slot, n], { ...a, vertices: hang ? hangWeights(doc, slot, base, bones, { amount }) : autoWeights(doc, slot, base, bones, { maxPerVertex }) });
+    },
+  },
+  "mesh.paintWeights": {
+    help: "Tô weight của một bone lên các đỉnh: { slot, name, skin = default, bone, indices: [số], amount (0..1), mode: add|set = add }. Các bone khác chia phần còn lại theo tỉ lệ cũ",
+    run(t, { slot, name: n, skin = "default", bone, indices, amount, mode = "add" }, doc) {
+      const k = skinIdx(doc, skin), a = doc.skins[k].attachments[slot]?.[n] ?? bad(`không có mesh "${n}"`);
+      if (a.type !== "mesh") bad(`"${n}" không phải mesh`);
+      boneIdx(doc, bone);
+      if (!Array.isArray(indices) || indices.some((i) => !(i >= 0 && i < a.uvs.length / 2))) bad("indices ngoài số đỉnh");
+      t.set(["skins", k, "attachments", slot, n], { ...a, vertices: paintWeights(doc, slot, a, bone, indices, num(amount, "amount"), oneOf(mode, ["add", "set"], "mode")) });
+    },
+  },
+  "mesh.smoothWeights": {
+    help: "Làm mượt weight (mỗi đỉnh tiến về trung bình các đỉnh kề): { slot, name, skin = default, iterations = 1, amount = 0.5, indices? }",
+    run(t, { slot, name: n, skin = "default", iterations = 1, amount = 0.5, indices }, doc) {
+      const k = skinIdx(doc, skin), a = doc.skins[k].attachments[slot]?.[n] ?? bad(`không có mesh "${n}"`);
+      if (a.type !== "mesh") bad(`"${n}" không phải mesh`);
+      t.set(["skins", k, "attachments", slot, n], { ...a, vertices: smoothWeights(doc, slot, a, { iterations: Math.max(1, Math.min(50, Math.round(num(iterations, "iterations")))), amount: num(amount, "amount"), indices }) });
+    },
+  },
+  "mesh.pruneWeights": {
+    help: "Bỏ weight nhỏ: { slot, name, skin = default, threshold = 0.05, maxPerVertex = 4 }",
+    run(t, { slot, name: n, skin = "default", threshold = 0.05, maxPerVertex = 4 }, doc) {
+      const k = skinIdx(doc, skin), a = doc.skins[k].attachments[slot]?.[n] ?? bad(`không có mesh "${n}"`);
+      if (a.type !== "mesh") bad(`"${n}" không phải mesh`);
+      t.set(["skins", k, "attachments", slot, n], { ...a, vertices: pruneWeights(doc, slot, a, { threshold: num(threshold, "threshold"), maxPerVertex: Math.max(1, Math.round(num(maxPerVertex, "maxPerVertex"))) }) });
     },
   },
   "mesh.unbind": {

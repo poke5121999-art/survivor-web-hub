@@ -1,6 +1,6 @@
 // Mesh commands: region → grid mesh, automatic weights, vertex moves (setup) and deform offsets (animate).
 // Weighted vertices follow the JSON layout: per vertex [count, (boneIndex, bindX, bindY, weight) × count].
-import { buildSkeleton, setupPose, updateWorld, regionLocal, isWeighted, DEG } from "../runtime/xuong.js?v=20261125l";
+import { buildSkeleton, setupPose, updateWorld, regionLocal, isWeighted, DEG } from "../runtime/xuong.js?v=20261125m";
 
 const tidy = (v) => Math.round(v * 1e4) / 1e4;
 const world = (doc) => { const sk = buildSkeleton(doc), p = setupPose(sk); updateWorld(sk, p); return { sk, pose: p }; };
@@ -92,6 +92,61 @@ export function hangWeights(doc, slot, att, boneNames, { amount = 0.7, falloff =
   }
   return verts;
 }
+// ---- weight editing: read every vertex as { boneIndex → weight } at its setup world position, edit, write back --
+function readWeights(doc, slot, att) {
+  const { out, sk, pose } = meshWorld(doc, slot, att), v = att.vertices, ws = [];
+  if (!isWeighted(att)) { const bi = sk.slots[sk.slotIndex.get(slot)].boneIndex; for (let i = 0; i < out.length; i++) ws.push(new Map([[bi, 1]])); }
+  else for (let i = 0, j = 0; i < out.length; i++) { const c = v[j++], m = new Map(); for (let k = 0; k < c; k++, j += 4) m.set(v[j], (m.get(v[j]) ?? 0) + v[j + 3]); ws.push(m); }
+  return { out, sk, pose, ws };
+}
+function writeWeights(pose, out, ws) {
+  const verts = [];
+  out.forEach((p, i) => {
+    let list = [...ws[i]].filter(([, w]) => w > 1e-4);
+    if (!list.length) list = [[...ws[i]].sort((a, b) => b[1] - a[1])[0]];
+    const sum = list.reduce((a, [, w]) => a + w, 0) || 1;
+    verts.push(list.length);
+    for (const [bi, w] of list) { const [lx, ly] = toLocal(pose.bones[bi], p[0], p[1]); verts.push(bi, tidy(lx), tidy(ly), tidy(w / sum)); }
+  });
+  return verts;
+}
+// set ("set") or add ("add", may be negative) a bone's weight on some vertices; the others scale to fill the rest
+export function paintWeights(doc, slot, att, boneName, indices, amount, mode = "add") {
+  const { out, sk, pose, ws } = readWeights(doc, slot, att), bi = sk.boneIndex.get(boneName);
+  for (const i of indices) {
+    const m = ws[i], cur = m.get(bi) ?? 0, next = Math.max(0, Math.min(1, mode === "set" ? amount : cur + amount));
+    const rest = [...m].filter(([b]) => b !== bi), restSum = rest.reduce((a, [, w]) => a + w, 0);
+    m.clear();
+    if (next > 0) m.set(bi, next);
+    if (restSum > 0) for (const [b, w] of rest) m.set(b, (w / restSum) * (1 - next));
+    else if (next < 1) m.set(bi, 1); // nothing else to give the rest to
+  }
+  return writeWeights(pose, out, ws);
+}
+// each vertex moves towards the average of its neighbours (triangle edges), `amount` per pass
+export function smoothWeights(doc, slot, att, { iterations = 1, amount = 0.5, indices = null } = {}) {
+  let { out, pose, ws } = readWeights(doc, slot, att);
+  const nb = out.map(() => new Set()), t = att.triangles;
+  for (let i = 0; i < t.length; i += 3) for (const [a, b] of [[t[i], t[i + 1]], [t[i + 1], t[i + 2]], [t[i + 2], t[i]]]) { nb[a].add(b); nb[b].add(a); }
+  const only = indices ? new Set(indices) : null;
+  for (let it = 0; it < iterations; it++) {
+    ws = ws.map((m, i) => {
+      if ((only && !only.has(i)) || !nb[i].size) return m;
+      const avg = new Map();
+      for (const j of nb[i]) for (const [b, w] of ws[j]) avg.set(b, (avg.get(b) ?? 0) + w / nb[i].size);
+      const r = new Map();
+      for (const b of new Set([...m.keys(), ...avg.keys()])) r.set(b, (1 - amount) * (m.get(b) ?? 0) + amount * (avg.get(b) ?? 0));
+      return r;
+    });
+  }
+  return writeWeights(pose, out, ws);
+}
+// drop weights under `threshold` and keep at most `maxPerVertex` bones per vertex
+export function pruneWeights(doc, slot, att, { threshold = 0.05, maxPerVertex = 4 } = {}) {
+  const { out, pose, ws } = readWeights(doc, slot, att);
+  return writeWeights(pose, out, ws.map((m) => new Map([...m].sort((a, b) => b[1] - a[1]).slice(0, maxPerVertex).filter(([, w], k) => k === 0 || w >= threshold))));
+}
+export function vertexWeights(doc, slot, att) { return readWeights(doc, slot, att).ws; }
 export function unweight(doc, slot, att) {
   const { out, sk, pose } = meshWorld(doc, slot, att), bone = pose.bones[sk.slots[sk.slotIndex.get(slot)].boneIndex];
   return out.flatMap(([x, y]) => toLocal(bone, x, y).map(tidy));

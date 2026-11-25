@@ -1,7 +1,8 @@
 // Viewport: draws the skeleton with canvas2D, handles picking, gizmos, bone creation, pan and zoom.
-import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125l";
-import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG, findKey } from "../../runtime/xuong.js?v=20261125l";
-import { deformOffsets } from "../mesh.js?v=20261125l";
+import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125m";
+import { vertexWeights } from "../mesh.js?v=20261125m";
+import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG, findKey } from "../../runtime/xuong.js?v=20261125m";
+import { deformOffsets } from "../mesh.js?v=20261125m";
 
 const cv = document.getElementById("xx-canvas");
 const ctx = cv.getContext("2d");
@@ -76,11 +77,15 @@ export function draw() {
     for (let i = 0; i < t.length; i += 3) for (const [a, b] of [[t[i], t[i + 1]], [t[i + 1], t[i + 2]], [t[i + 2], t[i]]]) { const [x0, y0] = toScreen(v[a * 2], v[a * 2 + 1]), [x1, y1] = toScreen(v[b * 2], v[b * 2 + 1]); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
     ctx.stroke();
     const weighted = mesh.att.vertices.length > mesh.att.uvs.length;
+    // weight brush on: every vertex coloured by the chosen bone's weight (dark blue 0 → red 1), brush circle
+    const heat = S.wb?.bone && S.mode === "setup" ? vertexWeights(doc(), mesh.slot, mesh.att).map((mm) => mm.get(sk.boneIndex.get(S.wb.bone)) ?? 0) : null;
     for (let i = 0; i < v.length / 2; i++) {
       const [x, y] = toScreen(v[i * 2], v[i * 2 + 1]), on = S.vsel.includes(i);
+      if (heat) { const w = heat[i]; ctx.fillStyle = `rgb(${Math.round(40 + 215 * w)},${Math.round(60 + 80 * (1 - Math.abs(w - 0.5) * 2))},${Math.round(200 * (1 - w))})`; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); continue; }
       ctx.fillStyle = on ? "#ffd84a" : weighted ? "#c07cff" : "#4fd0ff";
       ctx.fillRect(x - (on ? 4 : 3), y - (on ? 4 : 3), on ? 8 : 6, on ? 8 : 6);
     }
+    if (heat) { ctx.strokeStyle = "rgba(255,216,74,.8)"; ctx.beginPath(); ctx.arc(mouse.x, mouse.y, S.wb.radius, 0, Math.PI * 2); ctx.stroke(); }
   }
   // non-image attachments: bounding box (green), clipping (red, dashed), point (crosshair + direction)
   if (S.showBones) sk.slots.forEach((s, si) => {
@@ -213,6 +218,16 @@ function arrow(x0, y0, x1, y1) {
   ctx.lineTo(x1 - 7 * Math.cos(a - 0.4), y1 - 7 * Math.sin(a - 0.4)); ctx.moveTo(x1, y1); ctx.lineTo(x1 - 7 * Math.cos(a + 0.4), y1 - 7 * Math.sin(a + 0.4)); ctx.stroke();
 }
 
+// S.wb = { bone, amount (per stroke step, + adds / − removes), radius (screen px) }
+function paintAt(sx, sy, e) {
+  const m = selectedMesh();
+  if (!m || !S.wb?.bone) return;
+  const sk = skeleton(), pose = poseAtTime(S.time), v = worldVertices(sk, pose, sk.slotIndex.get(m.slot), m.att), idx = [];
+  for (let i = 0; i < v.length / 2; i++) { const [x, y] = toScreen(v[i * 2], v[i * 2 + 1]); if (Math.hypot(x - sx, y - sy) <= S.wb.radius) idx.push(i); }
+  if (!idx.length) return;
+  const amount = (e.altKey ? -1 : 1) * S.wb.amount;
+  try { S.hist.run({ type: "mesh.paintWeights", slot: m.slot, name: m.name, skin: m.skin, bone: S.wb.bone, indices: idx, amount, mode: "add" }); } catch (err) { toast(err.message, true); }
+}
 export function selectedMesh() {
   const sel = S.sel;
   if (sel?.kind !== "attachment") return null;
@@ -239,7 +254,8 @@ export function pick(sx, sy, { bonesOnly = false } = {}) {
     const p = pose.bones[i], [x, y] = toScreen(p.wx, p.wy);
     const len = b.length * Math.hypot(p.a, p.c) * S.view.zoom, a = Math.atan2(p.c, p.a);
     const tx = x + Math.cos(a) * len, ty = y - Math.sin(a) * len;
-    const dist = segDist(sx, sy, x, y, tx, ty) - (Math.hypot(sx - x, sy - y) < 6 ? 3 : 0);
+    // ties (a child's origin sits on its parent's tip, overlapping limbs): prefer the bone already selected
+    const dist = segDist(sx, sy, x, y, tx, ty) - (Math.hypot(sx - x, sy - y) < 6 ? 3 : 0) - (selectedBones().includes(b.name) ? 2 : 0);
     if (dist < bd) { bd = dist; best = { kind: "bone", name: b.name }; }
   });
   if (best || bonesOnly || !S.showImages) return best;
@@ -316,6 +332,8 @@ cv.addEventListener("pointerdown", (e) => {
   const [wx, wy] = toWorld(sx, sy);
   if (e.button === 1 || e.button === 2 || space) { drag = { pan: true, sx, sy, vx: S.view.x, vy: S.view.y }; return; }
   if (S.locked) { const hit = pick(sx, sy); select(hit); return; }
+  // weight brush: paint the chosen bone's weight onto vertices under the brush (setup mode, weighted mesh selected)
+  if (S.wb && selectedMesh() && S.mode === "setup") { S.hist.begin("Cọ weight"); drag = { paint: true }; paintAt(sx, sy, e); return; }
   const vi = vertexAt(sx, sy);
   if (vi >= 0) {
     if (e.ctrlKey || e.shiftKey) S.vsel = S.vsel.includes(vi) ? S.vsel.filter((x) => x !== vi) : [...S.vsel, vi];
@@ -374,6 +392,7 @@ cv.addEventListener("pointermove", (e) => {
   if (!drag) { const h = pick(mouse.x, mouse.y); if (JSON.stringify(h) !== JSON.stringify(hover)) { hover = h; } return; }
   if (drag.pan) { S.view.x = drag.vx - (mouse.x - drag.sx) / S.view.zoom; S.view.y = drag.vy + (mouse.y - drag.sy) / S.view.zoom; return; }
   if (drag.ruler) { S.ruler.b = [mouse.wx, mouse.wy]; return; }
+  if (drag.paint) { paintAt(mouse.x, mouse.y, e); return; }
   if (drag.box || drag.create || drag.pending) return;
   if (drag.verts) {
     const v = drag.verts, dx = rnd(mouse.wx - v.wx), dy = rnd(mouse.wy - v.wy);
@@ -440,7 +459,7 @@ cv.addEventListener("pointerup", (e) => {
   }
   if (d.pending) return createFromSlot(d.pending);
   if (d.create) return createBone(d.create, e.shiftKey);
-  if (d.bone || d.att || d.verts) { S.hist.end(); emit("doc"); }
+  if (d.bone || d.att || d.verts || d.paint) { S.hist.end(); emit("doc"); }
 });
 
 function uniqueBoneName(base) {

@@ -3,14 +3,14 @@ window.__errors = [];
 window.addEventListener("error", (e) => window.__errors.push(String(e.message || e)));
 window.addEventListener("unhandledrejection", (e) => window.__errors.push(String(e.reason?.message || e.reason)));
 
-const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime, stepPhysics } = await import("./state.js?v=20261125l");
-const VP = await import("./viewport.js?v=20261125l");
-const { renderTree, renderProps } = await import("./panels.js?v=20261125l");
-const TL = await import("./timeline.js?v=20261125l");
-const IO = await import("./io.js?v=20261125l");
-const AG = await import("./agent.js?v=20261125l");
-const { importWhole } = await import("./splitui.js?v=20261125l");
-const CL = await import("./cloud.js?v=20261125l");
+const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime, stepPhysics } = await import("./state.js?v=20261125m");
+const VP = await import("./viewport.js?v=20261125m");
+const { renderTree, renderProps } = await import("./panels.js?v=20261125m");
+const TL = await import("./timeline.js?v=20261125m");
+const IO = await import("./io.js?v=20261125m");
+const AG = await import("./agent.js?v=20261125m");
+const { importWhole } = await import("./splitui.js?v=20261125m");
+const CL = await import("./cloud.js?v=20261125m");
 
 const $ = (id) => document.getElementById(id);
 const app = $("app"), modal = $("xx-modal");
@@ -151,9 +151,9 @@ async function openDialog() {
 }
 async function openSample(name) {
   const base = name === "pharaoh" ? "samples/pharaoh/project" : "samples/robo";
-  const d = await (await fetch(`${base}/doc.json?v=20261125l`)).json();
+  const d = await (await fetch(`${base}/doc.json?v=20261125m`)).json();
   const images = {};
-  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125l`)).blob(); }));
+  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125m`)).blob(); }));
   await IO.loadProject(d, images);
   toast(`Đã mở mẫu ${d.name}`);
 }

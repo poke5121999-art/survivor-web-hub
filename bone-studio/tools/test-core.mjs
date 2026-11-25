@@ -361,3 +361,32 @@ test("bone.split keeps children and images in place; bone.set compensate keeps c
   // without compensate the child moves
   assert.ok(Math.abs(world(run(d, [{ type: "bone.set", name: "upper", props: { rotation: 130 } }]), "lower")[0] - lowerBefore[0]) > 1);
 });
+
+test("weights: paint, smooth and prune keep the setup look and sum to 1; painting moves the vertex with the bone", async () => {
+  const { vertexWeights } = await import("../src/mesh.js");
+  let d = run(emptyDoc(), [
+    { type: "bone.add", name: "a", x: 0, y: 0, rotation: 0, length: 10 },
+    { type: "bone.add", name: "b", parent: "a", x: 10, rotation: 0, length: 10 },
+    { type: "slot.add", name: "m", bone: "a", attachment: "m" },
+    { type: "attachment.add", slot: "m", name: "m", attachment: { width: 20, height: 4, x: 10 } },
+    { type: "mesh.fromRegion", slot: "m", name: "m", cols: 4, rows: 1 },
+    { type: "mesh.bind", slot: "m", name: "m", bones: ["a", "b"] },
+  ]);
+  const verts = (doc, rot = 0) => { const sk = buildSkeleton(doc), p = setupPose(sk); p.bones[sk.boneIndex.get("b")].rotation = rot; updateWorld(sk, p); return Array.from(worldVertices(sk, p, 0, getAttachment(doc, "default", "m", "m"))); };
+  const base = verts(d), att = () => getAttachment(d, "default", "m", "m");
+  const sums = (doc) => vertexWeights(doc, "m", getAttachment(doc, "default", "m", "m")).map((m) => [...m.values()].reduce((x, y) => x + y, 0));
+  // paint vertex 0 fully onto b: same setup position, but it now follows b when b turns
+  const v0before = verts(d, 90).slice(0, 2);
+  d = run(d, [{ type: "mesh.paintWeights", slot: "m", name: "m", bone: "b", indices: [0], amount: 1, mode: "set" }]);
+  verts(d).forEach((v, i) => near(v, base[i], 1e-3));
+  const sk = buildSkeleton(d), wb = vertexWeights(d, "m", att())[0].get(sk.boneIndex.get("b"));
+  near(wb, 1);
+  assert.ok(Math.hypot(verts(d, 90)[0] - v0before[0], verts(d, 90)[1] - v0before[1]) > 1, "đỉnh 0 không theo bone b");
+  for (const x of sums(d)) near(x, 1, 1e-3);
+  d = run(d, [{ type: "mesh.smoothWeights", slot: "m", name: "m", iterations: 3 }]);
+  verts(d).forEach((v, i) => near(v, base[i], 1e-3));
+  for (const x of sums(d)) near(x, 1, 1e-3);
+  d = run(d, [{ type: "mesh.pruneWeights", slot: "m", name: "m", threshold: 0.3, maxPerVertex: 1 }]);
+  for (const m of vertexWeights(d, "m", att())) assert.equal(m.size, 1);
+  verts(d).forEach((v, i) => near(v, base[i], 1e-3));
+});

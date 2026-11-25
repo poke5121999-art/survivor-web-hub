@@ -1,6 +1,6 @@
 // Tree and properties panels.
-import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125l";
-import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125l";
+import { S, doc, emit, on, h, select, run, toast, currentLocal, editBone, keyState, PROP_FIELDS, selectedBones, skeleton } from "./state.js?v=20261125m";
+import { getAttachment, parseColor, colorHex, INHERIT, BLENDS, animationDuration } from "../../runtime/xuong.js?v=20261125m";
 
 const treeEl = document.getElementById("xx-tree"), propsEl = document.getElementById("xx-props"), findEl = document.getElementById("xx-find");
 const collapsed = new Set();
@@ -305,6 +305,20 @@ export function renderProps() {
     const slotBone = d.slots.find((x) => x.name === sel.slot)?.bone;
     const near = [slotBone, d.bones.find((b) => b.name === slotBone)?.parent, ...d.bones.filter((b) => b.parent === slotBone).map((b) => b.name)].filter((b) => b && b !== d.bones[0].name);
     const weighted = a.type === "mesh" && a.vertices.length > a.uvs.length;
+    if (weighted && S.mode === "setup") {
+      // weight tools: brush (drag on the viewport; Alt = remove), smooth, prune
+      const infl = [...new Set((() => { const v = a.vertices, out2 = []; for (let j = 0; j < v.length;) { const c = v[j++]; for (let k = 0; k < c; k++, j += 4) out2.push(d.bones[v[j]]?.name); } return out2; })())].filter(Boolean);
+      const choices = [...new Set([...infl, ...near])];
+      out.push(h("div", { class: "xx-group", text: "Weight" }));
+      out.push(selectField("Cọ cho bone", S.wb?.bone ?? "", [["", "— tắt cọ —"], ...choices.map((n) => [n, n])], (v) => { S.wb = v ? { bone: v, amount: S.wb?.amount ?? 0.1, radius: S.wb?.radius ?? 30 } : null; emit("sel"); }));
+      if (S.wb) {
+        out.push(numField("Mỗi nét", S.wb.amount, (v) => { S.wb.amount = Math.max(0.01, Math.min(1, v)); }, { step: 0.05 }));
+        out.push(numField("Bán kính (px)", S.wb.radius, (v) => { S.wb.radius = Math.max(4, Math.min(200, v)); }, { step: 2 }));
+        out.push(h("p", { class: "xx-note", text: "Kéo trên viewport để tô weight cho bone đã chọn (đỏ = 1, xanh = 0); giữ Alt để bớt." }));
+      }
+      out.push(actions(act("Làm mượt", () => run({ type: "mesh.smoothWeights", slot: sel.slot, name: sel.name, skin: sel.skin, iterations: 2 }, "Làm mượt weight")),
+        act("Bỏ weight nhỏ", () => run({ type: "mesh.pruneWeights", slot: sel.slot, name: sel.name, skin: sel.skin, threshold: 0.05, maxPerVertex: 4 }, "Bỏ weight nhỏ"))));
+    }
     if (a.type === "mesh") out.push(h("p", { class: "xx-note", text: `${a.uvs.length / 2} đỉnh, ${a.triangles.length / 3} tam giác${weighted ? ", đã gắn weight" : ""}. Kéo các ô vuông trên viewport để dời đỉnh${S.mode === "animate" ? " (thành key deform)" : ""}; Ctrl+click chọn nhiều.` }));
     out.push(actions(
       (a.type ?? "region") === "region" ? act("Chuyển thành mesh 4×4", () => run({ type: "mesh.fromRegion", slot: sel.slot, name: sel.name, skin: sel.skin, cols: 4, rows: 4 }, "Tạo mesh")) : null,
