@@ -1,6 +1,7 @@
 // Spine-compatible JSON: import (3.8 and 4.0–4.2) and export (4.2), written from the public format docs.
 import { emptyDoc } from "./commands.js?v=20261125h";
-import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds } from "../runtime/xuong.js?v=20261125h";
+import { animationDuration, buildSkeleton, setupPose, updateWorld, drawList, bounds, transformMixes, TRANSFORM_MIXES as TC_MIX } from "../runtime/xuong.js?v=20261125h";
+const TC_OFF = ["rotation", "x", "y", "scaleX", "scaleY", "shearY"];
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 const lowerHex = (c, n = 8) => (c ? String(c).toLowerCase().padEnd(n, "f").slice(0, n) : undefined);
@@ -45,7 +46,17 @@ export function toSpine(doc, { imagesPath = "./images/" } = {}) {
     if (s.blend && s.blend !== "normal") o.blend = s.blend;
     return o;
   });
-  if (doc.ik?.length) json.ik = doc.ik.map((c, i) => ({ name: c.name, order: i, bones: c.bones, target: c.target, ...(c.mix !== 1 ? { mix: c.mix } : {}), ...(c.softness ? { softness: c.softness } : {}), ...(c.bendPositive === false ? { bendPositive: false } : {}), ...(c.stretch ? { stretch: true } : {}), ...(c.compress ? { compress: true } : {}) }));
+  if (doc.ik?.length) json.ik = doc.ik.map((c, i) => ({ name: c.name, order: c.order ?? i, bones: c.bones, target: c.target, ...(c.mix !== 1 ? { mix: c.mix } : {}), ...(c.softness ? { softness: c.softness } : {}), ...(c.bendPositive === false ? { bendPositive: false } : {}), ...(c.stretch ? { stretch: true } : {}), ...(c.compress ? { compress: true } : {}) }));
+  if (doc.transform?.length) json.transform = doc.transform.map((c, i) => {
+    const o = { name: c.name, order: c.order ?? (doc.ik?.length ?? 0) + i, bones: c.bones, target: c.target };
+    for (const k of TC_OFF) if (c[k]) o[k] = c[k];
+    for (const k of TC_MIX) if ((c[k] ?? 1) !== 1) o[k] = c[k];
+    if (o.mixY === undefined && (c.mixY ?? 1) !== (c.mixX ?? 1)) o.mixY = c.mixY ?? 1;
+    if (o.mixScaleY === undefined && (c.mixScaleY ?? 1) !== (c.mixScaleX ?? 1)) o.mixScaleY = c.mixScaleY ?? 1;
+    if (c.local) o.local = true;
+    if (c.relative) o.relative = true;
+    return o;
+  });
   json.skins = doc.skins.map((k) => {
     const atts = {};
     for (const [slot, m] of Object.entries(k.attachments)) {
@@ -86,6 +97,7 @@ export function toSpine(doc, { imagesPath = "./images/" } = {}) {
       }
     }
     if (a.ik) o.ik = Object.fromEntries(Object.entries(a.ik).map(([n, keys]) => [n, keysOut(keys, (k) => ({ mix: k.mix ?? 1, softness: k.softness ?? 0, bendPositive: k.bendPositive ?? true, ...(k.stretch ? { stretch: true } : {}), ...(k.compress ? { compress: true } : {}) }), (k) => [k.mix ?? 1, k.softness ?? 0])]));
+    if (a.transform) o.transform = Object.fromEntries(Object.entries(a.transform).map(([n, keys]) => [n, keysOut(keys, (k) => Object.fromEntries(TC_MIX.map((m) => [m, transformMixes(k)[m]])), (k) => TC_MIX.map((m) => transformMixes(k)[m]))]));
     if (a.drawOrder?.length) {
       o.drawOrder = a.drawOrder.map((k) => {
         const offsets = [];
@@ -142,7 +154,24 @@ export function fromSpine(json, { name = "Nhập từ JSON" } = {}) {
   if (!doc.bones.length) doc.bones = emptyDoc().bones;
   doc.slots = (json.slots ?? []).map((s) => ({ name: s.name, bone: s.bone, color: lowerHex(s.color) ?? "ffffffff", ...(s.dark ? { dark: lowerHex(s.dark, 6) } : {}), attachment: s.attachment ?? null, blend: s.blend ?? "normal" }));
   doc.ik = (json.ik ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((c) => ({ name: c.name, bones: c.bones, target: c.target, mix: c.mix ?? 1, softness: c.softness ?? 0, bendPositive: c.bendPositive ?? true, stretch: !!c.stretch, compress: !!c.compress }));
-  for (const k of ["transform", "path", "physics"]) if (json[k]?.length) warnings.push(`${json[k].length} ${k} constraint chưa hỗ trợ, bị bỏ qua`);
+  // Spine 3.8 names: rotateMix, translateMix, scaleMix, shearMix
+  const tcIn = (c) => {
+    const o = { name: c.name, bones: c.bones, target: c.target };
+    for (const k of TC_OFF) if (c[k]) o[k] = c[k];
+    const m = transformMixes({ mixRotate: c.mixRotate ?? c.rotateMix, mixX: c.mixX ?? c.translateMix, mixY: c.mixY ?? c.translateMix, mixScaleX: c.mixScaleX ?? c.scaleMix, mixScaleY: c.mixScaleY ?? c.scaleMix, mixShearY: c.mixShearY ?? c.shearMix });
+    Object.assign(o, m);
+    if (c.local) o.local = true;
+    if (c.relative) o.relative = true;
+    return o;
+  };
+  if (json.transform?.length) {
+    doc.transform = json.transform.map(tcIn);
+    // keep the evaluation order Spine gives across IK and transform constraints
+    const ord = (list) => list.map((c) => c.order ?? 0);
+    const ikOrd = ord((json.ik ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0))), tcOrd = ord(json.transform);
+    if ([...ikOrd, ...tcOrd].some((v, i, all) => i && v < all[i - 1])) { doc.ik.forEach((c, i) => (c.order = ikOrd[i])); doc.transform.forEach((c, i) => (c.order = tcOrd[i])); }
+  }
+  for (const k of ["path", "physics"]) if (json[k]?.length) warnings.push(`${json[k].length} ${k} constraint chưa hỗ trợ, bị bỏ qua`);
   const skins = Array.isArray(json.skins) ? json.skins : Object.entries(json.skins ?? {}).map(([n, attachments]) => ({ name: n, attachments }));
   doc.skins = skins.map((k) => {
     const attachments = {};
@@ -189,6 +218,7 @@ export function fromSpine(json, { name = "Nhập từ JSON" } = {}) {
       if (tl.alpha && !col) t.rgba = keysIn(tl.alpha, (k) => ({ color: "ffffff" + Math.round((k.value ?? 1) * 255).toString(16).padStart(2, "0") }), (k) => [1, 1, 1, k.value ?? 1], v4);
       if (Object.keys(t).length) (o.slots ??= {})[s] = t;
     }
+    for (const [n, keys] of Object.entries(a.transform ?? {})) (o.transform ??= {})[n] = keysIn(keys, (k) => transformMixes({ mixRotate: k.mixRotate ?? k.rotateMix, mixX: k.mixX ?? k.translateMix, mixY: k.mixY ?? k.translateMix, mixScaleX: k.mixScaleX ?? k.scaleMix, mixScaleY: k.mixScaleY ?? k.scaleMix, mixShearY: k.mixShearY ?? k.shearMix }), (k) => { const m = transformMixes({ mixRotate: k.mixRotate ?? k.rotateMix, mixX: k.mixX ?? k.translateMix, mixY: k.mixY ?? k.translateMix, mixScaleX: k.mixScaleX ?? k.scaleMix, mixScaleY: k.mixScaleY ?? k.scaleMix, mixShearY: k.mixShearY ?? k.shearMix }); return TC_MIX.map((x) => m[x]); }, v4);
     for (const [n, keys] of Object.entries(a.ik ?? {})) (o.ik ??= {})[n] = keysIn(keys, (k) => ({ mix: k.mix ?? 1, softness: k.softness ?? 0, bendPositive: k.bendPositive ?? true, stretch: !!k.stretch, compress: !!k.compress }), (k) => [k.mix ?? 1, k.softness ?? 0], v4);
     const deformSrc = a.deform ?? Object.fromEntries(Object.entries(a.attachments ?? {}).map(([sk, slots]) => [sk, Object.fromEntries(Object.entries(slots).map(([sl, atts]) => [sl, Object.fromEntries(Object.entries(atts).filter(([, t]) => t.deform).map(([an2, t]) => [an2, t.deform]))]))]));
     for (const [sk, slots] of Object.entries(deformSrc ?? {})) for (const [sl, atts] of Object.entries(slots)) for (const [att, keys] of Object.entries(atts)) {
@@ -197,7 +227,7 @@ export function fromSpine(json, { name = "Nhập từ JSON" } = {}) {
     const dOrder = a.drawOrder ?? a.draworder;
     if (dOrder?.length) o.drawOrder = dOrder.map((k) => ({ time: r4(k.time ?? 0), order: k.offsets ? applyOffsets(slotNames, k.offsets) : slotNames.slice() }));
     if (a.events?.length) o.events = a.events.map((e) => ({ time: r4(e.time ?? 0), name: e.name, ...(e.int !== undefined ? { int: e.int } : {}), ...(e.float !== undefined ? { float: e.float } : {}), ...(e.string !== undefined ? { string: e.string } : {}) }));
-    for (const k of ["transform", "path", "physics"]) if (a[k]) warnings.push(`${an}: timeline ${k} chưa hỗ trợ`);
+    for (const k of ["path", "physics"]) if (a[k]) warnings.push(`${an}: timeline ${k} chưa hỗ trợ`);
     doc.animations[an] = o;
   }
   return { doc, warnings: [...new Set(warnings)], version: ver };

@@ -78,7 +78,12 @@ export function buildSkeleton(doc) {
   });
   const ik = (doc.ik ?? []).map((c) => ({ ...c, boneIdx: c.bones.map((n) => index.get(n)), targetIdx: index.get(c.target) }))
     .filter((c) => c.boneIdx.every((i) => i !== undefined) && c.targetIdx !== undefined);
-  return { doc, bones, boneIndex: index, order, slots, slotIndex, ik };
+  const transform = (doc.transform ?? []).map((c) => ({ ...c, boneIdx: c.bones.map((n) => index.get(n)), targetIdx: index.get(c.target) }))
+    .filter((c) => c.boneIdx.every((i) => i !== undefined) && c.targetIdx !== undefined);
+  // constraint order: explicit "order" first, otherwise IK before transform, each in list order
+  const constraints = [...ik.map((c, n) => ({ kind: "ik", n, order: c.order ?? n })), ...transform.map((c, n) => ({ kind: "transform", n, order: c.order ?? ik.length + n }))]
+    .sort((a, b) => a.order - b.order);
+  return { doc, bones, boneIndex: index, order, slots, slotIndex, ik, transform, constraints };
 }
 
 // ---- pose --------------------------------------------------------------------------------------
@@ -89,13 +94,57 @@ export function setupPose(sk, skin = "default") {
     slots: sk.slots.map((s) => ({ attachment: s.attachment ?? null, color: s.color.slice(), dark: s.dark?.slice() ?? null, deform: null })),
     drawOrder: sk.slots.map((s) => s.index),
     ik: sk.ik.map((c) => ({ mix: c.mix ?? 1, softness: c.softness ?? 0, bendPositive: c.bendPositive ?? true, compress: !!c.compress, stretch: !!c.stretch })),
+    transform: sk.transform.map(transformMixes),
   };
 }
 
+export const TRANSFORM_MIXES = ["mixRotate", "mixX", "mixY", "mixScaleX", "mixScaleY", "mixShearY"];
+export function transformMixes(c) {
+  return { mixRotate: c.mixRotate ?? 1, mixX: c.mixX ?? 1, mixY: c.mixY ?? c.mixX ?? 1, mixScaleX: c.mixScaleX ?? 1, mixScaleY: c.mixScaleY ?? c.mixScaleX ?? 1, mixShearY: c.mixShearY ?? 1 };
+}
 export function updateWorld(sk, pose) {
   for (const i of sk.order) worldOf(sk, pose, i);
-  if (sk.ik.length) {
-    sk.ik.forEach((c, n) => applyIk(sk, pose, c, pose.ik[n]));
+  for (const c of sk.constraints ?? []) {
+    if (c.kind === "ik") applyIk(sk, pose, sk.ik[c.n], pose.ik[c.n]);
+    else applyTransform(sk, pose, sk.transform[c.n], pose.transform?.[c.n] ?? transformMixes(sk.transform[c.n]));
+  }
+}
+
+// ---- transform constraint ----------------------------------------------------------------------
+// Copies the target's rotation / translation / scale / shearY onto each constrained bone, plus offsets, by mix.
+// world (default): match the target in world space. local: match the target's local values. relative: add them.
+const wrap180 = (d) => ((((d % 360) + 540) % 360) - 180);
+const shearOf = (p) => (Math.atan2(p.d, p.b) - Math.atan2(p.c, p.a)) / DEG - 90;
+function applyTransform(sk, pose, c, st) {
+  const t = pose.bones[c.targetIdx], off = { r: c.rotation ?? 0, x: c.x ?? 0, y: c.y ?? 0, sx: c.scaleX ?? 0, sy: c.scaleY ?? 0, sh: c.shearY ?? 0 };
+  for (const i of c.boneIdx) {
+    const p = pose.bones[i];
+    if (c.local && c.relative) {
+      p.rotation += (t.rotation + off.r) * st.mixRotate;
+      p.x += (t.x + off.x) * st.mixX; p.y += (t.y + off.y) * st.mixY;
+      p.scaleX *= 1 + (t.scaleX - 1 + off.sx) * st.mixScaleX; p.scaleY *= 1 + (t.scaleY - 1 + off.sy) * st.mixScaleY;
+      p.shearY += (t.shearY + off.sh) * st.mixShearY;
+    } else if (c.local) {
+      p.rotation += wrap180(t.rotation + off.r - p.rotation) * st.mixRotate;
+      p.x = lerp(p.x, t.x + off.x, st.mixX); p.y = lerp(p.y, t.y + off.y, st.mixY);
+      p.scaleX = lerp(p.scaleX, t.scaleX + off.sx, st.mixScaleX); p.scaleY = lerp(p.scaleY, t.scaleY + off.sy, st.mixScaleY);
+      p.shearY = lerp(p.shearY, t.shearY + off.sh, st.mixShearY);
+    } else {
+      worldOf(sk, pose, i);
+      const pi = sk.bones[i].parentIndex, q = pi < 0 ? null : pose.bones[pi];
+      const flip = q && q.a * q.d - q.b * q.c < 0 ? -1 : 1;
+      if (c.relative) p.rotation += flip * (worldRotation(t) + off.r) * st.mixRotate;
+      else p.rotation += flip * wrap180(worldRotation(t) + off.r - worldRotation(p)) * st.mixRotate;
+      let wx, wy;
+      if (c.relative) { wx = p.wx + (t.wx + off.x) * st.mixX; wy = p.wy + (t.wy + off.y) * st.mixY; }
+      else { const [tx, ty] = localToWorld(t, off.x, off.y); wx = lerp(p.wx, tx, st.mixX); wy = lerp(p.wy, ty, st.mixY); }
+      if (st.mixX || st.mixY) { const [lx, ly] = q ? worldToLocal(q, wx, wy) : [wx, wy]; p.x = lx; p.y = ly; }
+      const cx = Math.hypot(p.a, p.c), cy = Math.hypot(p.b, p.d), tx = Math.hypot(t.a, t.c) + off.sx, ty = Math.hypot(t.b, t.d) + off.sy;
+      if (cx > 1e-6) p.scaleX *= c.relative ? 1 + (tx - 1) * st.mixScaleX : 1 + (tx / cx - 1) * st.mixScaleX;
+      if (cy > 1e-6) p.scaleY *= c.relative ? 1 + (ty - 1) * st.mixScaleY : 1 + (ty / cy - 1) * st.mixScaleY;
+      if (st.mixShearY) p.shearY += c.relative ? (shearOf(t) + off.sh) * st.mixShearY : wrap180(shearOf(t) + off.sh - shearOf(p)) * st.mixShearY;
+    }
+    updateChildren(sk, pose, i);
   }
 }
 
@@ -267,6 +316,14 @@ export function applyAnimation(sk, pose, anim, time, alpha = 1, events = null, l
     st.mix = lerp(st.mix, lerp(a.mix ?? 1, b.mix ?? 1, f), alpha);
     st.softness = lerp(st.softness, lerp(a.softness ?? 0, b.softness ?? 0, f), alpha);
     if (alpha >= 0.5) { st.bendPositive = a.bendPositive ?? true; st.stretch = !!a.stretch; st.compress = !!a.compress; }
+  }
+  if (anim.transform) for (const [name, keys] of Object.entries(anim.transform)) {
+    const n = sk.transform.findIndex((c) => c.name === name);
+    if (n < 0) continue;
+    const [k, f] = findKey(keys, time), st = pose.transform[n];
+    if (k < 0) continue;
+    const a = transformMixes(keys[k]), b = keys[k + 1] ? transformMixes(keys[k + 1]) : a;
+    for (const m of TRANSFORM_MIXES) st[m] = lerp(st[m], lerp(a[m], b[m], f), alpha);
   }
   if (anim.deform) for (const [skin, slots] of Object.entries(anim.deform)) {
     if (skin !== pose.skin && skin !== "default") continue;

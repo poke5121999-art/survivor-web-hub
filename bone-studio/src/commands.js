@@ -37,6 +37,7 @@ const curveArg = (c) => {
 const boneIdx = (doc, n) => { const i = doc.bones.findIndex((b) => b.name === n); return i >= 0 ? i : bad(`không có bone "${n}"`); };
 const slotIdx = (doc, n) => { const i = doc.slots.findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có slot "${n}"`); };
 const skinIdx = (doc, n) => { const i = doc.skins.findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có skin "${n}"`); };
+const tcIdx = (doc, n) => { const i = (doc.transform ?? []).findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có transform constraint "${n}"`); };
 const ikIdx = (doc, n) => { const i = (doc.ik ?? []).findIndex((s) => s.name === n); return i >= 0 ? i : bad(`không có IK "${n}"`); };
 const animOf = (doc, n) => doc.animations[n] ?? bad(`không có animation "${n}"`);
 const descendants = (doc, n) => {
@@ -85,8 +86,10 @@ function cleanAttachment(a, what) {
 }
 
 // ---- tracks ------------------------------------------------------------------------------------
-// track: { bone, prop: rotate|translate|scale|shear } | { slot, prop: attachment|rgba } | { drawOrder: true } | { event: true } | { ik }
+// track: { bone, prop: rotate|translate|scale|shear } | { slot, prop: attachment|rgba } | { drawOrder: true } | { event: true } | { ik } | { transform }
 const BONE_TL = ["rotate", "translate", "scale", "shear"];
+const TC_OFF = ["rotation", "x", "y", "scaleX", "scaleY", "shearY"];
+const TC_MIX = ["mixRotate", "mixX", "mixY", "mixScaleX", "mixScaleY", "mixShearY"];
 function trackPath(doc, anim, tr) {
   if (!tr || typeof tr !== "object") bad("thiếu track");
   if (tr.bone !== undefined) { boneIdx(doc, tr.bone); return ["animations", anim, "bones", tr.bone, oneOf(tr.prop, BONE_TL, "track.prop")]; }
@@ -94,6 +97,7 @@ function trackPath(doc, anim, tr) {
   if (tr.drawOrder) return ["animations", anim, "drawOrder"];
   if (tr.event) return ["animations", anim, "events"];
   if (tr.ik !== undefined) { ikIdx(doc, tr.ik); return ["animations", anim, "ik", tr.ik]; }
+  if (tr.transform !== undefined) { tcIdx(doc, tr.transform); return ["animations", anim, "transform", tr.transform]; }
   if (tr.deform) {
     const { skin = "default", slot, attachment } = tr.deform, k = skinIdx(doc, skin);
     const a = doc.skins[k].attachments[slot]?.[attachment] ?? bad(`không có mesh "${attachment}" trong slot "${slot}" (skin "${skin}")`);
@@ -125,6 +129,11 @@ function keyFields(doc, tr, v) {
     return out;
   }
   if (tr.deform) return { vertices: numArray(v, "value") };
+  if (tr.transform !== undefined) {
+    const o = {};
+    for (const k of TC_MIX) if (v?.[k] !== undefined) o[k] = num(v[k], k);
+    return o;
+  }
   if (tr.ik !== undefined) {
     const o = {};
     if (v?.mix !== undefined) o.mix = num(v.mix, "mix");
@@ -133,7 +142,7 @@ function keyFields(doc, tr, v) {
     return o;
   }
 }
-const interpolates = (tr) => tr.bone !== undefined || tr.prop === "rgba" || tr.ik !== undefined || !!tr.deform;
+const interpolates = (tr) => tr.bone !== undefined || tr.prop === "rgba" || tr.ik !== undefined || tr.transform !== undefined || !!tr.deform;
 
 // ---- helpers that rewrite references -----------------------------------------------------------
 function mapAnimations(t, fn) {
@@ -214,6 +223,7 @@ export const COMMANDS = {
       t.set(["bones"], doc.bones.map((b, j) => (j === i ? { ...b, name: to } : b.parent === n ? { ...b, parent: to } : b)));
       t.set(["slots"], doc.slots.map((s) => (s.bone === n ? { ...s, bone: to } : s)));
       t.set(["ik"], (doc.ik ?? []).map((c) => ({ ...c, bones: c.bones.map((b) => (b === n ? to : b)), target: c.target === n ? to : c.target })));
+      if (doc.transform) t.set(["transform"], doc.transform.map((c) => ({ ...c, bones: c.bones.map((b) => (b === n ? to : b)), target: c.target === n ? to : c.target })));
       mapAnimations(t, (an, a) => {
         if (a.bones?.[n]) { t.set(["animations", an, "bones", to], a.bones[n]); t.del(["animations", an, "bones", n]); }
       });
@@ -255,6 +265,7 @@ export const COMMANDS = {
       t.set(["bones"], doc.bones.filter((b) => !gone.has(b.name)));
       t.set(["slots"], doc.slots.filter((s) => !slotsGone.has(s.name)));
       t.set(["ik"], (doc.ik ?? []).filter((c) => !gone.has(c.target) && !c.bones.some((b) => gone.has(b))));
+      if (doc.transform) t.set(["transform"], doc.transform.filter((c) => !gone.has(c.target) && !c.bones.some((b) => gone.has(b))));
       doc.skins.forEach((s, k) => { for (const sn of slotsGone) if (s.attachments[sn]) t.del(["skins", k, "attachments", sn]); });
       mapAnimations(t, (an, a) => {
         for (const bn of gone) if (a.bones?.[bn]) dropEmpty(t, ["animations", an, "bones", bn]);
@@ -484,6 +495,47 @@ export const COMMANDS = {
     },
   },
 
+  "transform.add": {
+    help: "Thêm transform constraint (bone chép xoay/dời/scale/shear của target): { name, bones: [tên], target, local = false, relative = false, rotation, x, y, scaleX, scaleY, shearY (độ lệch thêm), mixRotate, mixX, mixY, mixScaleX, mixScaleY, mixShearY (0..1, mặc định 1) }",
+    run(t, a, doc) {
+      const n = name(a.name, "name");
+      if ((doc.transform ?? []).some((c) => c.name === n)) bad(`đã có transform constraint "${n}"`);
+      if (!Array.isArray(a.bones) || !a.bones.length) bad("bones: cần ít nhất một bone");
+      a.bones.forEach((b) => boneIdx(doc, b));
+      boneIdx(doc, a.target);
+      if (a.bones.includes(a.target)) bad("target không được nằm trong bones");
+      const c = { name: n, bones: a.bones.slice(), target: a.target };
+      for (const k of TC_OFF) if (a[k] !== undefined) c[k] = num(a[k], k);
+      for (const k of TC_MIX) c[k] = optNum(a[k], k, 1);
+      if (a.local) c.local = true;
+      if (a.relative) c.relative = true;
+      t.set(["transform"], [...(doc.transform ?? []), c]);
+    },
+  },
+  "transform.set": {
+    help: "Sửa transform constraint: { name, props: { target, bones, local, relative, rotation, x, y, scaleX, scaleY, shearY, mixRotate, mixX, mixY, mixScaleX, mixScaleY, mixShearY } }",
+    run(t, { name: n, props }, doc) {
+      const i = tcIdx(doc, n), c = { ...doc.transform[i] };
+      for (const [k, v] of Object.entries(props ?? {})) {
+        if (k === "target") { boneIdx(doc, v); c.target = v; }
+        else if (k === "bones") { if (!Array.isArray(v) || !v.length) bad("bones: cần ít nhất một bone"); v.forEach((b) => boneIdx(doc, b)); c.bones = v.slice(); }
+        else if (TC_OFF.includes(k) || TC_MIX.includes(k)) c[k] = num(v, k);
+        else if (k === "local" || k === "relative") { if (v) c[k] = true; else delete c[k]; }
+        else bad(`thuộc tính transform constraint lạ "${k}"`);
+      }
+      if (c.bones.includes(c.target)) bad("target không được nằm trong bones");
+      t.set(["transform", i], c);
+    },
+  },
+  "transform.remove": {
+    help: "Xoá transform constraint: { name }",
+    run(t, { name: n }, doc) {
+      tcIdx(doc, n);
+      t.set(["transform"], doc.transform.filter((c) => c.name !== n));
+      mapAnimations(t, (an, a) => { if (a.transform?.[n]) dropEmpty(t, ["animations", an, "transform", n]); });
+    },
+  },
+
   "anim.add": {
     help: "Thêm animation rỗng: { name }",
     run(t, { name: n }, doc) {
@@ -518,7 +570,7 @@ export const COMMANDS = {
   },
 
   "key.set": {
-    help: "Đặt (hoặc thay) key: { anim, track, time (giây), value, curve? }. track: {bone, prop: rotate|translate|scale|shear} (value: số độ cho rotate, {x,y} còn lại; giá trị tương đối với setup pose: rotate/translate/shear cộng, scale nhân), {slot, prop: attachment|rgba} (value: tên hoặc null / 'rrggbbaa'), {drawOrder:true} (value: mảng tên slot dưới→trên), {event:true} (value: {name, int?, float?, string?}), {ik} (value: {mix, softness, bendPositive, stretch, compress})",
+    help: "Đặt (hoặc thay) key: { anim, track, time (giây), value, curve? }. track: {bone, prop: rotate|translate|scale|shear} (value: số độ cho rotate, {x,y} còn lại; giá trị tương đối với setup pose: rotate/translate/shear cộng, scale nhân), {slot, prop: attachment|rgba} (value: tên hoặc null / 'rrggbbaa'), {drawOrder:true} (value: mảng tên slot dưới→trên), {event:true} (value: {name, int?, float?, string?}), {ik} (value: {mix, softness, bendPositive, stretch, compress}), {transform} (value: {mixRotate, mixX, mixY, mixScaleX, mixScaleY, mixShearY})",
     run(t, { anim, track, time: tm, value, curve }, doc) {
       animOf(doc, anim);
       const path = trackPath(doc, anim, track), at = time(tm);

@@ -202,3 +202,37 @@ test("mesh: grid from region looks the same, auto weights follow two bones, defo
   const sk2 = buildSkeleton(anim), p2 = poseAt(sk2, anim.animations.a, 0), wv = worldVertices(sk2, p2, sk2.slotIndex.get("skin"), getAttachment(anim, "default", "skin", "skin"));
   near(wv[0], before[0][0] + 5, 1e-2); near(wv[1], before[0][1], 1e-2); near(wv[2], before[1][0], 1e-2);
 });
+
+test("transform constraint: world, local and relative modes, keyed mix, Spine round trip, bone rename/remove", async () => {
+  const { toSpine, fromSpine } = await import("../src/spine-io.js");
+  const base = run(emptyDoc(), [
+    { type: "bone.add", name: "a", x: 0, y: 0, rotation: 30, length: 10 },
+    { type: "bone.add", name: "b", x: 50, y: 0, rotation: 0, length: 10 },
+    { type: "bone.add", name: "c", parent: "b", x: 10, length: 5 },
+  ]);
+  // world: b takes a's world rotation (+10) and sits at a's local point (5, 0)
+  let d = run(base, [{ type: "transform.add", name: "tc", bones: ["b"], target: "a", rotation: 10, x: 5 }]);
+  let [x, y, r] = world(d, "b");
+  near(r, 40); near(x, 5 * Math.cos(30 * Math.PI / 180)); near(y, 5 * Math.sin(30 * Math.PI / 180));
+  [x, y] = world(d, "c"); near(x, 5 * Math.cos(30 * Math.PI / 180) + 10 * Math.cos(40 * Math.PI / 180)); // child follows
+  // half rotate mix, no translation
+  d = run(d, [{ type: "transform.set", name: "tc", props: { mixRotate: 0.5, mixX: 0, mixY: 0 } }]);
+  [x, y, r] = world(d, "b"); near(r, 20); near(x, 50); near(y, 0);
+  // keyed mix: 0 at t=0, 1 at t=1 → half way at t=0.5
+  d = run(d, [{ type: "anim.add", name: "m" },
+    { type: "key.set", anim: "m", track: { transform: "tc" }, time: 0, value: { mixRotate: 0, mixX: 0, mixY: 0 } },
+    { type: "key.set", anim: "m", track: { transform: "tc" }, time: 1, value: { mixRotate: 1, mixX: 0, mixY: 0 } }]);
+  near(world(d, "b", "m", 0.5)[2], 20); near(world(d, "b", "m", 1)[2], 40);
+  // local + relative: b's local rotation gets a's local rotation added
+  const rel = run(base, [{ type: "transform.add", name: "tr", bones: ["b"], target: "a", local: true, relative: true, mixX: 0, mixY: 0 }]);
+  near(world(rel, "b")[2], 30);
+  // Spine JSON round trip keeps the constraint and its keys
+  const { doc: back, warnings } = fromSpine(JSON.parse(JSON.stringify(toSpine(d))));
+  assert.deepEqual(warnings, []);
+  for (const t of [0, 0.25, 0.5, 1]) near(world(back, "b", "m", t)[2], world(d, "b", "m", t)[2]);
+  // rename follows, removing the target removes the constraint
+  const ren = run(d, [{ type: "bone.rename", name: "a", to: "goc" }]);
+  assert.equal(ren.transform[0].target, "goc");
+  assert.equal(run(d, [{ type: "bone.remove", name: "a" }]).transform.length, 0);
+  assert.throws(() => run(base, [{ type: "transform.add", name: "x", bones: ["a"], target: "a" }]), /target/);
+});

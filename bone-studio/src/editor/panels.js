@@ -81,6 +81,7 @@ export function renderTree() {
   Object.keys(d.events).forEach((n) => out.push(row(1, "⚑", n, ["event", n])));
 
   if (d.ik?.length) { out.push(group("IK")); d.ik.forEach((c) => out.push(row(1, "⟳", c.name, ["ik", c.name], { tag: `→ ${c.target}` }))); }
+  if (d.transform?.length) { out.push(group("Transform")); d.transform.forEach((c) => out.push(row(1, "⇉", c.name, ["transform", c.name], { tag: `← ${c.target}` }))); }
 
   out.push(group("Animation", gbtn("+", "Thêm animation", newAnim)));
   Object.keys(d.animations).filter(match).forEach((n) => out.push(row(1, S.anim === n ? "▶" : "▷", n, ["anim", n], { tag: `${animationDuration(d.animations[n]).toFixed(2)}s` })));
@@ -198,6 +199,11 @@ export function renderProps() {
       act("+ Bone con", addChildBone),
       S.mode === "setup" ? act("+ Slot", () => { const n = uniqueName(d.slots.map((s) => s.name), b.name); run({ type: "slot.add", name: n, bone: b.name }, "Thêm slot"); }) : act("Key tất cả (K)", () => window.XX.keyNow()),
       selectedBones().length === 2 ? act("+ IK 2 bone", () => window.XX.addIk()) : null,
+      selectedBones().length >= 2 && S.mode === "setup" ? act("+ Transform", () => {
+        // the bone clicked last is the target; the others copy its transform, keeping where they are now (offsets)
+        const target = S.sel.name, bones = selectedBones().filter((n) => n !== target), name = uniqueName((d.transform ?? []).map((c) => c.name), `${bones[0]}-theo-${target}`);
+        if (run({ type: "transform.add", name, bones, target, mixRotate: 1, mixX: 0, mixY: 0, mixScaleX: 0, mixScaleY: 0, mixShearY: 0, local: true, relative: true }, "Tạo transform")) select({ kind: "transform", name });
+      }) : null,
       act("Xoá", () => { if (confirm(`Xoá bone "${b.name}" cùng bone con và slot của nó?`) && run({ type: "bone.remove", name: b.name })) select(null); }, true),
     ));
   } else if (sel.kind === "slot") {
@@ -275,6 +281,27 @@ export function renderProps() {
     out.push(actions(act("Mở để sửa", () => { S.anim = sel.name; S.mode = "animate"; emit("mode"); }),
       act("Nhân bản", () => { const n = prompt("Tên bản sao", sel.name + "-2"); if (n) run({ type: "anim.duplicate", name: sel.name, to: n }); }),
       act("Xoá", () => { if (confirm(`Xoá animation "${sel.name}"?`) && run({ type: "anim.remove", name: sel.name })) { if (S.anim === sel.name) S.anim = null; select(null); } }, true)));
+  } else if (sel.kind === "transform") {
+    const c = d.transform?.find((x) => x.name === sel.name);
+    if (!c) return propsEl.replaceChildren();
+    const set = (props) => run({ type: "transform.set", name: c.name, props });
+    out.push(title("transform", c.name));
+    out.push(h("p", { class: "xx-note", text: `Bone ${c.bones.join(", ")} chép transform của ${c.target}.` }));
+    out.push(selectField("Target", c.target, d.bones.map((x) => [x.name, x.name]), (t) => set({ target: t })));
+    const mode = `${c.local ? "local" : "world"}-${c.relative ? "rel" : "abs"}`;
+    out.push(selectField("Kiểu", mode, [["world-abs", "Thế giới, trùng target"], ["world-rel", "Thế giới, cộng thêm"], ["local-abs", "Cục bộ, trùng target"], ["local-rel", "Cục bộ, cộng thêm"]], (m) => set({ local: m.startsWith("local"), relative: m.endsWith("rel") })));
+    out.push(h("div", { class: "xx-group", text: S.mode === "animate" && S.anim ? `Mix (key ở ${S.time.toFixed(2)} s)` : "Mix (0..1)" }));
+    const mixes = { mixRotate: "Xoay", mixX: "Dời X", mixY: "Dời Y", mixScaleX: "Scale X", mixScaleY: "Scale Y", mixShearY: "Shear Y" };
+    for (const [k, label] of Object.entries(mixes)) out.push(numField(label, c[k] ?? 1, (v) => {
+      v = Math.max(0, Math.min(1, v));
+      if (S.mode === "animate" && S.anim) run({ type: "key.set", anim: S.anim, track: { transform: c.name }, time: S.time, value: { ...Object.fromEntries(Object.keys(mixes).map((m) => [m, c[m] ?? 1])), [k]: v } });
+      else set({ [k]: v });
+    }, { step: 0.05 }));
+    if (S.mode === "setup") {
+      out.push(h("div", { class: "xx-group", text: "Lệch thêm" }));
+      for (const [k, label] of Object.entries({ rotation: "Xoay", x: "X", y: "Y", scaleX: "Scale X", scaleY: "Scale Y", shearY: "Shear Y" })) out.push(numField(label, c[k] ?? 0, (v) => set({ [k]: v })));
+    }
+    out.push(actions(act("Xoá", () => { if (run({ type: "transform.remove", name: c.name })) select(null); }, true)));
   } else if (sel.kind === "ik") {
     const c = d.ik.find((x) => x.name === sel.name);
     if (!c) return propsEl.replaceChildren();

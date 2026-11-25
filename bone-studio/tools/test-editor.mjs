@@ -241,7 +241,7 @@ try {
     return `${k0.value} → ${k1.value} → undo ${k2.value}`;
   });
 
-  await step("snap xoay 45° (pixel art) và Pose tool kéo target IK: cả chuỗi tay theo chuột, một undo", async () => {
+  await step("snap xoay 45° (pixel art), nút + Transform, Pose tool kéo target IK: cả chuỗi tay theo chuột, một undo", async () => {
     const p7 = await open("?sample=robo");
     const r = await p7.locator("#xx-canvas").boundingBox();
     const scr = (name) => p7.evaluate((n) => { const p = __BS.pose(), i = __BS.doc().bones.findIndex((b) => b.name === n); return __BS.toScreen(p.bones[i].wx, p.bones[i].wy); }, name);
@@ -256,6 +256,15 @@ try {
     const rot = await p7.evaluate(() => __BS.doc().bones.find((b) => b.name === "head").rotation);
     assert(Math.abs(rot / 45 - Math.round(rot / 45)) < 1e-6 && Math.abs(rot - rot0) > 20, `góc đầu ${rot0} → ${rot}: không snap 45° hoặc không xoay`);
     await p7.selectOption("#xx-snap", "0");
+    // transform constraint from the panel: back arm copies the front arm's rotation
+    await p7.evaluate(() => { __BS.select({ kind: "bone", name: "back-upper-arm" }); __BS.select({ kind: "bone", name: "front-upper-arm" }, true); });
+    await p7.locator("#xx-props button", { hasText: "+ Transform" }).click();
+    const ang = (n) => p7.evaluate((n) => { const p = __BS.pose(), b = p.bones[__BS.doc().bones.findIndex((x) => x.name === n)]; return Math.atan2(b.c, b.a) * 180 / Math.PI; }, n);
+    const back0 = await ang("back-upper-arm");
+    await p7.evaluate(() => { const r = __BS.doc().bones.find((b) => b.name === "front-upper-arm").rotation; __BS.apply({ type: "bone.set", name: "front-upper-arm", props: { rotation: r + 30 } }); });
+    const back1 = await ang("back-upper-arm"), tc = await p7.evaluate(() => __BS.doc().transform);
+    assert(tc?.length === 1 && tc[0].target === "front-upper-arm" && tc[0].bones[0] === "back-upper-arm", JSON.stringify(tc));
+    assert(Math.abs(((back1 - back0 + 540) % 360) - 180 - 30) < 0.5, `tay sau ${back0} → ${back1}, mong +30`);
     // IK: a target bone at the hand, 2-bone IK on the front arm
     await p7.evaluate(() => {
       const p = __BS.pose(), d = __BS.doc(), i = d.bones.findIndex((b) => b.name === "front-hand"), root = p.bones[0];
