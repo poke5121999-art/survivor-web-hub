@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Xưởng Xương</title>
+  <meta name="description" content="Editor animation 2D bằng bone trên trình duyệt: dựng rig, key animation, xuất cho game. Có agent sửa trực tiếp." />
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="editor.css?v=20261125a" />
+  <script src="../js/session.js?v=20261125a"></script>
+  <script src="../js/supabase-config.js?v=20261125a"></script>
+  <script src="../js/supabase-auth.js?v=20261125a"></script>
+</head>
+<body>
+  <div id="app" class="xx">
+    <header class="xx-top">
+      <div class="xx-brand"><span class="xx-logo">🦴</span><b>Xưởng Xương</b></div>
+      <input id="xx-name" class="xx-name" spellcheck="false" title="Tên dự án" />
+      <nav class="xx-menu" id="xx-menu"></nav>
+      <div class="xx-top-right">
+        <span id="xx-save-state" class="xx-muted"></span>
+        <div class="xx-seg" id="xx-mode" role="tablist">
+          <button data-mode="setup" title="Chế độ dựng rig (Tab)">Setup</button>
+          <button data-mode="animate" title="Chế độ animation (Tab)">Animate</button>
+        </div>
+        <a class="xx-btn xx-btn--ghost" href="../index.html" title="Về hub">← Hub</a>
+      </div>
+    </header>
+    <main class="xx-main">
+      <section class="xx-view" id="xx-view">
+        <canvas id="xx-canvas"></canvas>
+        <div class="xx-mode-badge" id="xx-badge">SETUP</div>
+        <div class="xx-viewbar">
+          <button id="xx-fit" title="Vừa khung (Ctrl+Shift+F)">⤢</button>
+          <button id="xx-zoom100" title="100% (Ctrl+F)">1:1</button>
+          <span id="xx-zoom" class="xx-muted"></span>
+          <label class="xx-chk" title="Hiện bone"><input type="checkbox" id="xx-show-bones" checked /> Bone</label>
+          <label class="xx-chk" title="Hiện ảnh"><input type="checkbox" id="xx-show-images" checked /> Ảnh</label>
+          <label class="xx-chk" title="Hiển thị pixel sắc nét (nearest)"><input type="checkbox" id="xx-pixel" /> Pixel</label>
+        </div>
+        <div class="xx-tools" id="xx-tools"></div>
+        <div class="xx-metrics xx-muted" id="xx-metrics"></div>
+        <div class="xx-lock" id="xx-lock" hidden></div>
+        <div class="xx-drop" id="xx-drop" hidden>Thả ảnh PNG vào đây</div>
+      </section>
+      <aside class="xx-side">
+        <div class="xx-tabs" id="xx-sidetabs">
+          <button data-tab="tree" class="is-on">Cây</button>
+          <button data-tab="agent">Agent</button>
+        </div>
+        <div class="xx-pane" id="xx-pane-tree">
+          <div class="xx-search"><input id="xx-find" placeholder="Tìm bone, slot, ảnh…" /></div>
+          <div class="xx-tree" id="xx-tree"></div>
+          <div class="xx-props" id="xx-props"></div>
+        </div>
+        <div class="xx-pane" id="xx-pane-agent" hidden></div>
+      </aside>
+    </main>
+    <footer class="xx-timeline" id="xx-timeline"></footer>
+  </div>
+  <div id="xx-modal" class="xx-modal" hidden></div>
+  <div id="xx-toasts" class="xx-toasts" role="status"></div>
+  <script type="module" src="src/editor/app.js?v=20261125a"></script>
+</body>
+</html>

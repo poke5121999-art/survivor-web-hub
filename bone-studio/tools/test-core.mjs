@@ -131,3 +131,41 @@ test("removing a bone removes its subtree, slots and keys", () => {
   assert.deepEqual(d.animations.a, {});
   assert.deepEqual(d.skins[0].attachments, {});
 });
+
+test("Spine JSON export then import gives the same poses", async () => {
+  const { buildSample } = await import("./make-sample.mjs");
+  const { toSpine, fromSpine } = await import("../src/spine-io.js");
+  const a = buildSample();
+  const { doc: b, warnings } = fromSpine(JSON.parse(JSON.stringify(toSpine(a))));
+  assert.deepEqual(warnings, []);
+  const skA = buildSkeleton(a), skB = buildSkeleton(b);
+  for (const anim of ["idle", "walk", "attack"]) for (const t of [0, 0.13, 0.37, 0.61]) {
+    const pa = poseAt(skA, a.animations[anim], t), pb = poseAt(skB, b.animations[anim], t);
+    pa.bones.forEach((p, i) => { near(p.wx, pb.bones[i].wx, 1e-2); near(p.wy, pb.bones[i].wy, 1e-2); near(p.a, pb.bones[i].a, 1e-3); });
+  }
+  assert.deepEqual(Object.keys(b.animations), ["idle", "walk", "attack"]);
+  assert.equal(b.animations.walk.events.length, 2);
+});
+
+test("Spine draw order offsets round-trip", async () => {
+  const { toSpine, fromSpine } = await import("../src/spine-io.js");
+  const d = run(emptyDoc(), [
+    ...["a", "b", "c", "d"].map((n) => ({ type: "slot.add", name: n, bone: "root" })),
+    { type: "anim.add", name: "x" },
+    { type: "key.set", anim: "x", track: { drawOrder: true }, time: 0.5, value: ["c", "a", "d", "b"] },
+  ]);
+  const back = fromSpine(toSpine(d)).doc;
+  assert.deepEqual(back.animations.x.drawOrder[0].order, ["c", "a", "d", "b"]);
+});
+
+test("atlas pages hold every image without overlap", async () => {
+  const { pack } = await import("../src/pack.js");
+  const items = Array.from({ length: 30 }, (_, i) => ({ name: "i" + i, w: 5 + ((i * 37) % 120), h: 5 + ((i * 53) % 90) }));
+  const pages = pack(items, { maxSize: 256, padding: 2 });
+  const placed = pages.flatMap((p) => p.regions);
+  assert.equal(placed.length, 30);
+  for (const p of pages) for (const a of p.regions) {
+    assert.ok(a.x + a.w <= p.width && a.y + a.h <= p.height);
+    for (const b of p.regions) if (a !== b) assert.ok(!(a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h), `${a.name} overlaps ${b.name}`);
+  }
+});
