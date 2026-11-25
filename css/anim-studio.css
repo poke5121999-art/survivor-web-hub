@@ -103,6 +103,8 @@
 .an-refchip { padding: 6px 10px; font-size: 13px; border: 1px solid var(--border); border-radius: 8px; color: var(--accent); text-decoration: none; }
 .an-err { margin: 0 0 12px; padding: 10px 14px; color: var(--text); background: var(--danger-bg); border: 1px solid var(--danger); border-radius: 10px; font-size: 14px; }
 .an-err[hidden], .an-live[hidden], .an-chain[hidden], .an-revise[hidden], .an-stepper[hidden] { display: none; }
+.an-wait { margin: 0 0 12px; padding: 10px 14px; color: var(--text); background: var(--warn-bg); border: 1px solid var(--warn); border-radius: 10px; font-size: 14px; }
+.an-wait[hidden] { display: none; }
 .an-stepper { display: flex; flex-wrap: wrap; gap: 8px 4px; margin: 0 0 14px; padding: 0; list-style: none; }
 .an-step { display: flex; align-items: center; gap: 6px; padding: 5px 12px 5px 6px; font-size: 13px; font-weight: 600; color: var(--text-dim); background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; }
 .an-step i { display: grid; place-items: center; width: 22px; height: 22px; font-style: normal; font-size: 12px; border-radius: 50%; background: var(--border); }

@@ -280,6 +280,24 @@ function buildNew() {
 
 /* ---------- tab Job ---------- */
 const active = (j) => j.status === "queued" || j.status === "running";
+// Vì sao job còn nằm chờ: đọc trạng thái máy gen, để art thấy "PC đang thiếu RAM" thay vì tưởng trang hỏng.
+function waitReason() {
+  if (!S.workersLoaded) return "";
+  const on = S.workers.filter((w) => w.enabled && w.status !== "offline");
+  if (!on.length) return "Máy gen đang tắt. Job vẫn giữ chỗ trong hàng và tự chạy khi máy bật lại, không cần gửi lại.";
+  if (on.some((w) => w.status === "idle")) return "";
+  if (on.some((w) => w.status === "busy")) return "Máy gen đang làm job khác. Job của bạn chạy ngay sau đó, theo thứ tự gửi.";
+  const low = on.find((w) => w.status === "lowmem");
+  if (low) return `Máy gen (${low.label || low.id}) đang thiếu RAM${low.note ? ": " + low.note : ""}. Máy dùng chung nên phải chờ các việc khác nhả bộ nhớ; job vẫn giữ chỗ trong hàng và tự chạy khi đủ RAM, không cần gửi lại.`;
+  if (on.some((w) => w.status === "quota")) return "Máy gen hết hạn mức Claude, sẽ chạy lại khi hạn mức hồi.";
+  return "Máy gen đang tạm dừng.";
+}
+function paintWait() {
+  const txt = waitReason();
+  const D = S.detail;
+  if (D && D.ref && D.ref.wait) { const show = !!(D.job && D.job.status === "queued" && txt); D.ref.wait.hidden = !show; D.ref.wait.textContent = show ? txt : ""; }
+  if (P.jobsWait) { const show = !!(S.jobs.some((j) => j.status === "queued") && txt); P.jobsWait.hidden = !show; P.jobsWait.textContent = show ? txt : ""; }
+}
 const PAGE_SIZE = 30;
 let jobsReq = 0;
 async function refreshJobs() {
@@ -293,6 +311,7 @@ async function refreshJobs() {
     if (r.page && r.page !== S.jobsPage) { S.jobsPage = r.page; if (S.tab === "jobs" && !S.detail) history.replaceState(null, "", "#" + jobsHash()); }
     if (S.tab === "jobs" && !S.detail) paintJobs();
     if (S.detail && S.detail.kind === "job") paintChain();
+    paintWait();
   } catch { /* banner */ }
 }
 function buildJobs() {
@@ -304,7 +323,7 @@ function buildJobs() {
       h("span", { class: "an-spacer" }),
       h("button", { class: "btn btn--sm", type: "button", text: "Làm mới", onclick: refreshJobs }),
       h("a", { class: "btn btn--primary btn--sm", href: "#new", text: "+ Tạo mới" })),
-    P.jobsGrid, P.pager = h("nav", { class: "an-pager", "aria-label": "Trang job" }));
+    P.jobsWait = h("p", { class: "an-wait", role: "status", hidden: true }), P.jobsGrid, P.pager = h("nav", { class: "an-pager", "aria-label": "Trang job" }));
 }
 const jobsHash = () => (S.jobsPage > 1 ? "jobs=" + S.jobsPage : "jobs");
 function goJobsPage(p) {
@@ -410,10 +429,10 @@ function buildDetailShell(D) {
   D.ref = {
     title: h("h2", { class: "an-h2" }), pill: h("span"), meta: h("div", { class: "an-meta" }), prompt: h("p", { class: "an-prompt-show" }), pe: h("p", { class: "an-pe", hidden: true }),
     src: h("div", { class: "an-refs" }), stepper: h("ol", { class: "an-stepper" }), bar: h("div", { class: "an-bar2", hidden: true }, h("i")), barl: h("p", { class: "an-barl", hidden: true }),
-    log, err: h("p", { class: "an-err", hidden: true }), btns: h("div", { class: "an-bar" }),
+    log, err: h("p", { class: "an-err", hidden: true }), btns: h("div", { class: "an-bar" }), wait: h("p", { class: "an-wait", role: "status", hidden: true }),
   };
   const r = D.ref;
-  D.el.top.append(h("div", { class: "an-head" }, r.title, r.pill), r.meta, r.prompt, r.pe, r.src, r.err, r.stepper, r.bar, r.barl, r.log, r.btns);
+  D.el.top.append(h("div", { class: "an-head" }, r.title, r.pill), r.meta, r.prompt, r.pe, r.src, r.err, r.wait, r.stepper, r.bar, r.barl, r.log, r.btns);
   pane.replaceChildren(h("a", { class: "an-back", href: "#" + jobsHash(), text: "← Danh sách job" }), D.el.top, D.editorBox, D.reviseBox, D.el.chain);
 }
 function paintTop(D) {
@@ -437,6 +456,7 @@ function paintTop(D) {
     r.src.replaceChildren(j.image ? h("img", { src: pubUrl(j.image.path), alt: "Ảnh nhân vật gốc", title: j.image.name || "" }) : null);
   }
   r.err.hidden = !j.error;
+  paintWait();
   r.err.textContent = j.error || "";
   const show = STAGES.filter(([k]) => (k !== "bg" || par.remove_bg) && (k !== "rewriting" || par.rewrite !== false));
   const idx = show.findIndex((s) => s[0] === j.stage);
@@ -815,6 +835,7 @@ async function refreshWorkers(force) {
   try {
     const r = await guard(api("workers"));
     S.workers = r.workers; S.workersLoaded = true;
+    paintWait();
     if (S.tab === "workers" && !S.detail) paintWorkers();
   } catch { /* banner */ }
 }
@@ -887,6 +908,8 @@ function heartbeat() {
   if (D && D.job && active(D.job) && now - last.job >= 1500) refreshJob().catch(() => {});
   else if (!D && S.tab === "jobs" && S.jobs.some(active) && now - last.jobs >= 4000) refreshJobs();
   else if (!D && S.tab === "workers" && now - last.workers >= 8000) refreshWorkers();
+  const queued = (D && D.job && D.job.status === "queued") || (!D && S.tab === "jobs" && S.jobs.some((j) => j.status === "queued"));
+  if (queued && S.tab !== "workers" && now - last.workers >= 8000) refreshWorkers();
 }
 let lastT = performance.now();
 function loop(now) {
