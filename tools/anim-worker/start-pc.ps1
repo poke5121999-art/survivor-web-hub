@@ -2,7 +2,7 @@
 # File C:\anim-worker\PAUSE ton tai thi khong bat worker. Idempotent: bat worker pc:gpu (priority 0, nhan ngay; Claude goi qua tai khoan linux, PC chi cho GPU)
 # trong cua so thu nho, song sau khi dong phien. Engine o C:\anim-studio (docs/anim-studio.md, muc "Cai tren PC").
 # Tran bo nho: commit trong < MinFreeGb thi worker khong nhan job.
-param([int]$MinFreeGb = 24)
+param([int]$MinFreeGb = 25)
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (Test-Path "C:\anim-worker\PAUSE") { Write-Host "PAUSE co mat, khong bat worker"; exit 0 }
 $home2 = "C:\anim-studio"
