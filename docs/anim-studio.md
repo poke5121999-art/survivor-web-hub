@@ -86,3 +86,13 @@ Xuất ở trình duyệt, đúng các khung đang giữ: sprite sheet PNG (ch�
 - Chuỗi trọn trên một máy: `ANIM_ENGINE_CMD="node tools/anim-worker/fake-engine.mjs" node tools/anim-worker/worker.mjs --id test:me --once --min-free-gb 0 --min-free-vram 0` với job có `only_worker: "test:me"`.
 - Deploy: `timeout 400 npx -y supabase@2.120.0 functions deploy anim-studio --project-ref jvdguaecnllejdmgytia --use-api --no-verify-jwt`; secret: `supabase secrets set ANIM_WORKER_KEY=<khoá> --project-ref jvdguaecnllejdmgytia`.
 - Bucket `anim` giới hạn 50 MB mỗi file (trần của dự án; 100 MB bị từ chối).
+
+## Worker đang chạy ở đâu
+
+- Máy `linux` (ssh), tmux session `anim-worker`, thư mục `~/anim-worker/app/` (chép `worker.mjs` + `fake-engine.mjs`, không phải cả repo); log `~/anim-worker/stdout.log`; khoá `~/.anim-worker-key`.
+- Id `linux:claude`, priority 0, engine mặc định `framepack` (đặt qua `--engine framepack`; job chọn "Tự chọn" thì dùng giá trị này). `wan5b` và `ltx` chọn được nhưng ghi "thử nghiệm" trên trang: wan5b chuyển động nhẹ và có khung lỗi, ltx hay zoom và đổi nhân vật.
+- Engine thật: `~/anim-studio/bin/anim-gen` (ComfyUI cổng 8190). FramePack ~11 phút cho clip 2 s, cần MemAvailable sàn ~13 GB. Worker `lowmem` khi VRAM trống dưới 6 GB: nếu ComfyUI 8190 còn nằm trong VRAM thì `anim-gen --stop-server` trước.
+- PC không có engine nên không chạy worker PC.
+- Khởi động lại: `ssh linux 'timeout 30 tmux kill-session -t anim-worker'` rồi
+  `ssh linux 'timeout 30 tmux new-session -d -s anim-worker "cd ~/anim-worker/app && ANIM_ENGINE_CMD=\$HOME/anim-studio/bin/anim-gen node worker.mjs --id linux:claude --label \"Linux · claude\" --account claude --priority 0 --delay 0 --engine framepack --work-dir \$HOME/anim-worker 2>&1 | tee -a \$HOME/anim-worker/stdout.log"'`.
+- Tuỳ chọn trang "Giữ lưới pixel" (tắt/2/3/4) truyền `params.pixel_snap` thành `--pixel-snap K`.
