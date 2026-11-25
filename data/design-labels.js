@@ -1142,6 +1142,7 @@
       }
     },
     // Not an md_ table: runtime collection cd_cost_guard, one doc per paid service, saved through gs-design "guard_save".
+    history: { title: "Lịch sử chỉnh sửa" },
     cost_guard: {
       title: "Chi phí dịch vụ",
       blurb: "Đặt mức chi tối đa mỗi tháng (USD) cho dịch vụ trả tiền theo lượng dùng. Ước tính vượt mức thì người chơi mới không vào được tính năng dùng dịch vụ đó.",

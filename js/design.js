@@ -35,7 +35,14 @@
   var STALE_MS = 5 * 60 * 1000;
   // Not an md_ table either: runtime collection cd_client_gate (maintenance + minimum build), saved through gate_save.
   var GATE = "client_gate";
-  var OPS = [GUARD, GATE];
+  // Edit history (cd_live_config_log): every save from this page or LIVE_CONFIG_SET, newest first.
+  var HISTORY = "history";
+  var OPS = [GUARD, GATE, HISTORY];
+  // Tables tuned online (cd_live_config): same list as cloudcode lib/liveconfig.js and gs-design core.js LIVE_WHOLE / LIVE_GROUPS.
+  // On LIVE the page edits only these, through LIVE_CONFIG_* events as a logged-in player; the rest change with a release snapshot.
+  var LIVE_TABLES = ["quests", "run_reward", "modes", "coop_rules", "endless_rules", "endless_seasons", "gacha_banners", "rank_rewards",
+    "shop_exchange", "wallet_start", "maps", "stage_rules"];
+  var ENV_KEY = "hub.design.env";
   var GATE_PLATFORMS = ["webgl", "android", "ios"];
   var GATE_STORES = ["android", "ios"];
   var GATE_MSG_MAX = 300;
@@ -47,7 +54,12 @@
   var LABELS = window.DESIGN_LABELS || {};
   var DEFAULTS = (window.DESIGN_DEFAULTS && window.DESIGN_DEFAULTS.tables) || {};
   var QS = new URLSearchParams(location.search);
-  var POLL_MS = Number(QS.get("poll")) || 15000;
+  var ENV = (function () {
+    var q = QS.get("env");
+    if (q === "live" || q === "dev") return q;
+    try { return localStorage.getItem(ENV_KEY) === "live" ? "live" : "dev"; } catch (e) { return "dev"; }
+  })();
+  var POLL_MS = Number(QS.get("poll")) || (ENV === "live" ? 60000 : 15000);
   var MAX_INLINE_COLS = 6;
   var SEP = "|";
 
@@ -193,6 +205,7 @@
     // hubBuild: undefined = not read yet, null = no version.json (check skipped), else the hub WebGL build.
     gate: { loaded: false, doc: null, exists: false, dirty: { maint: false, build: false, net: false }, hubBuild: undefined } };
   var session = window.HubSession ? window.HubSession.get() : null;
+  var S_ME = null;
 
   function tableTitle(n) { return (LABELS[n] || {}).title || n; }
   function tableOf(n) { var v = (LABELS[n] || {}).view; return v ? v.table : n; }
@@ -248,7 +261,100 @@
     });
   }
 
-  function call(body, retried) {
+  function call(body) {
+    if (ENV === "live" && ["list", "get", "save", "history"].indexOf(body.action) >= 0) return liveCall(body);
+    return callHub(body);
+  }
+
+  // ---------- LIVE: as a player, through LIVE_CONFIG_* ----------
+
+  var livePlayer = null;
+  function player() {
+    if (livePlayer) return livePlayer;
+    livePlayer = callHub({ action: "event_targets" }).then(function (j) {
+      var t = j.targets && j.targets.live;
+      if (!t) {
+        var e = new Error("gs-design chưa có khoá client của LIVE (GS_LIVE_CLIENT_KEY / GS_LIVE_CLIENT_SECRET).");
+        e.code = "NO_LIVE_TARGET"; e.status = 0; throw e;
+      }
+      var store;
+      try { store = window.localStorage; } catch (er) { store = { getItem: function () { return null; }, setItem: function () {} }; }
+      var p = window.GsPlayer.create({ base: t.base, project: t.project, apiKey: t.apiKey, apiSecret: t.apiSecret, scope: t.testOnDev ? "live-on-dev" : "live" }, store);
+      p.testOnDev = !!t.testOnDev;
+      return p;
+    });
+    livePlayer.catch(function () { livePlayer = null; });
+    return livePlayer;
+  }
+
+  function liveError(r) {
+    var er = (r && r.error) || {};
+    var e = new Error(er.message || "LIVE lỗi");
+    e.code = er.code || "LIVE"; e.status = 0; e.body = r;
+    if (e.code === "UNKNOWN_TYPE") { e.code = "LIVE_NOT_READY"; e.message = "LIVE chưa có bản cloudcode hỗ trợ, cần snapshot."; }
+    return e;
+  }
+
+  function ev(type, body) {
+    return player().then(function (p) {
+      return p.ev(type, body).then(function (r) {
+        if (!r || r.ok === false) throw liveError(r);
+        return r;
+      });
+    });
+  }
+
+  function liveRemote(t) { return { exists: true, docs: t.docs || [], hash: String(t.rev || 0) }; }
+
+  function liveCall(body) {
+    if (body.action === "list") {
+      return ev("LIVE_CONFIG_GET", { table: "*" }).then(function (r) {
+        S_ME = JSON.parse(r.meJson || "{}");
+        renderEnvInfo();
+        var all = JSON.parse(r.tableJson || "{}").tables || {}, out = {};
+        Object.keys(all).forEach(function (n) { out[n] = liveRemote(all[n]); });
+        return { ok: true, tables: out };
+      });
+    }
+    if (body.action === "get") {
+      return ev("LIVE_CONFIG_GET", { table: body.table }).then(function (r) { return Object.assign({ ok: true }, liveRemote(JSON.parse(r.tableJson))); });
+    }
+    if (body.action === "history") {
+      var q = { limit: 100 };
+      if (body.table) q.table = body.table;
+      if (body.who) q.playerId = body.who;
+      return ev("LIVE_CONFIG_HISTORY", q).then(function (r) { return { ok: true, rows: JSON.parse(r.rowsJson || "[]") }; });
+    }
+    // save
+    return ev("LIVE_CONFIG_SET", { table: body.table, docsJson: JSON.stringify(body.docs), baseRev: Number(body.baseHash) || 0, dryRun: body.dryRun !== false })
+      .then(function (r) {
+        var cells = JSON.parse(r.changesJson || "[]");
+        return { ok: true, applied: !!r.applied, cells: cells, counts: { insert: 0, update: cells.length, delete: 0, unchanged: 0 } };
+      }, function (e) {
+        if (e.code !== "LIVE_EDIT_CONFLICT") throw e;
+        return liveCall({ action: "get", table: body.table }).then(function (cur) { e.code = "CONFLICT"; e.body = { current: cur }; throw e; });
+      });
+  }
+
+  function renderEnvInfo() {
+    var box = $("dz-envinfo");
+    if (!box) return;
+    box.textContent = "";
+    if (ENV !== "live") { box.appendChild(h("span", { text: "Đang sửa DEV qua hub (khoá quản trị DEV)." })); return; }
+    var me = S_ME || {};
+    box.appendChild(h("span", { text: "LIVE · đăng nhập người chơi " }));
+    box.appendChild(h("code", { id: "dz-live-player", text: me.playerId || "…" }));
+    if (me.playerId) {
+      box.appendChild(h("button", { class: "btn btn--sm btn--ghost", type: "button", text: "Chép", onclick: function () {
+        try { navigator.clipboard.writeText(me.playerId); toast("Đã chép playerId"); } catch (e) { /* clipboard blocked */ }
+      } }));
+    }
+    box.appendChild(h("span", { id: "dz-live-allowed", class: me.allowed ? "dz-chip dz-chip--live" : "dz-chip dz-chip--missing",
+      text: me.allowed ? "Designer: " + (me.label || "có") : "Chưa có trong danh sách designer: gửi playerId cho chủ dự án thêm vào live_config/_editors" }));
+    player().then(function (p) { if (p.testOnDev) box.appendChild(h("span", { class: "dz-chip", text: "đang thử: LIVE trỏ vào DEV" })); }, function () {});
+  }
+
+  function callHub(body, retried) {
     var pre = (window.HubSession && window.HubSession.isExpired() && !retried) ? refreshSession() : Promise.resolve();
     return pre.then(function () {
       var s = window.HubSession && window.HubSession.get();
@@ -259,7 +365,7 @@
       return fetch(API, { method: "POST", headers: h, body: JSON.stringify(body) }).then(function (res) {
         return res.json().catch(function () { return null; }).then(function (j) {
           if (res.status === 401 && !retried) {
-            return refreshSession().then(function (ok) { return ok ? call(body, true) : fail(res, j); });
+            return refreshSession().then(function (ok) { return ok ? callHub(body, true) : fail(res, j); });
           }
           if (!res.ok || !j || j.ok === false) return fail(res, j);
           return j;
@@ -283,6 +389,11 @@
 
   function errText(e) {
     var code = e.code || "LỖI";
+    if (code === "LIVE_NOT_READY") return e.message;
+    if (code === "NO_LIVE_TARGET") return e.message;
+    if (code === "LIVE_EDIT_DENIED") return "Chưa có quyền ghi LIVE (LIVE_EDIT_DENIED): " + e.message;
+    if (code === "LIVE_DOCS_INVALID") return "LIVE chặn dữ liệu sai hình (LIVE_DOCS_INVALID): " + e.message;
+    if (code === "LIVE_EDIT_RATE") return "Lưu quá nhanh (LIVE_EDIT_RATE): " + e.message;
     if (code === "NETWORK") return "Không kết nối được tới máy chủ (NETWORK). Kiểm tra mạng rồi thử lại.";
     if (e.status === 401) return "Phiên đăng nhập hết hạn hoặc không hợp lệ (" + code + "). Hãy đăng nhập lại.";
     if (code === "NOT_DESIGNER") {
@@ -341,9 +452,11 @@
     var nav = $("dz-nav"), sel = $("dz-select");
     nav.textContent = ""; sel.textContent = ""; navRefs = {};
     GROUPS.forEach(function (g) {
+      var names = ENV === "live" ? g[1].filter(function (n) { return LIVE_TABLES.indexOf(tableOf(n)) >= 0; }) : g[1];
+      if (!names.length) return;
       nav.appendChild(h("h2", { class: "dz-nav__group", text: g[0] }));
       var og = h("optgroup", { label: g[0] });
-      g[1].forEach(function (n) {
+      names.forEach(function (n) {
         var chip = h("span", { class: "dz-chip" });
         var dot = h("span", { class: "dz-dot", title: "Có thay đổi chưa lưu", hidden: true });
         var btn = h("button", { class: "dz-nav__item", type: "button", "data-table": n, onclick: function () { openTable(n); } },
@@ -357,7 +470,7 @@
     });
     nav.appendChild(h("h2", { class: "dz-nav__group", text: "Vận hành" }));
     var go = h("optgroup", { label: "Vận hành" });
-    OPS.forEach(function (n) {
+    visibleOps().forEach(function (n) {
       var b = h("button", { class: "dz-nav__item", type: "button", "data-table": n, onclick: function () { openTable(n); } },
         h("span", { class: "dz-nav__title", text: tableTitle(n) }));
       nav.appendChild(b);
@@ -369,8 +482,12 @@
     sel.onchange = function () { openTable(sel.value); };
   }
 
+  // Cost guard and client gate live on DEV's admin API only; LIVE shows the history pane.
+  function visibleOps() { return ENV === "live" ? [HISTORY] : OPS; }
+  function visibleTables() { return ENV === "live" ? ALL.filter(function (n) { return LIVE_TABLES.indexOf(tableOf(n)) >= 0; }) : ALL; }
+
   function updateNav() {
-    OPS.forEach(function (n) { navRefs[n].btn.classList.toggle("is-active", S.current === n); });
+    visibleOps().forEach(function (n) { navRefs[n].btn.classList.toggle("is-active", S.current === n); });
     ALL.forEach(function (n) {
       var r = navRefs[n], t = S.tables[tableOf(n)];
       if (!r) return;
@@ -725,6 +842,7 @@
     if (!n) return;
     if (n === GUARD) { renderGuard(pane); return; }
     if (n === GATE) { renderGate(pane); return; }
+    if (n === HISTORY) { renderHistory(pane); return; }
     var tab = n;
     n = tableOf(tab);
     var t = S.tables[n];
@@ -1003,7 +1121,8 @@
     try { history.replaceState(null, "", location.search + "#" + n); } catch (e) { /* file:// */ }
     if (n === GUARD) { S.guard.edited = false; loadGuard(); }
     else if (n === GATE) { S.gate.dirty = { maint: false, build: false, net: false }; loadGate(); loadHubBuild(); }
-    else if (n === MODES) loadGuard();
+    else if (n === MODES && ENV !== "live") loadGuard();
+    else if (n === HISTORY) loadHistory();
     renderMain();
     updateBar();
     updateNav();
@@ -1062,7 +1181,8 @@
       S.loaded = true;
       if (!S.current) {
         var want = (location.hash || "").slice(1);
-        S.current = ALL.indexOf(want) >= 0 || OPS.indexOf(want) >= 0 ? want : ALL[0];
+        S.current = visibleTables().indexOf(want) >= 0 || visibleOps().indexOf(want) >= 0 ? want : visibleTables()[0];
+        if (S.current === HISTORY) loadHistory();
         if (S.current === GUARD) loadGuard();
         if (S.current === GATE) { loadGate(); loadHubBuild(); }
       }
@@ -1076,7 +1196,8 @@
     if (document.visibilityState !== "visible" || !n || !S.loaded) return;
     if (n === GUARD) { if (!S.guard.edited) loadGuard(); return; }
     if (n === GATE) { if (!S.gate.dirty.maint && !S.gate.dirty.build && !S.gate.dirty.net) loadGate(); return; }
-    if (n === MODES) loadGuard();
+    if (n === HISTORY) return;
+    if (n === MODES && ENV !== "live") loadGuard();
     n = tableOf(n);
     call({ action: "get", table: n }).then(function (j) {
       onRemote(n, { exists: j.exists, docs: j.docs, hash: j.hash });
@@ -1579,7 +1700,7 @@
     var n = tableOf(S.current), t = S.tables[n], dlg = $("dz-dialog");
     var diff = changes(n), missing = isMissing(n);
     var primary = h("button", { class: "btn btn--primary", id: "btn-save", type: "button", disabled: true,
-      text: !diff.length && missing ? "Tạo bảng trên GameSpark" : "Lưu lên GameSpark (DEV)" });
+      text: ENV === "live" ? "Lưu lên LIVE" : !diff.length && missing ? "Tạo bảng trên GameSpark" : "Lưu lên GameSpark (DEV)" });
     var status = h("p", { class: "dz-dialog__status", id: "dz-dry", text: "Đang kiểm tra với GameSpark…" });
     var list = h("ul", { class: "dz-changes", id: "dz-changes" });
     diff.forEach(function (d) { list.appendChild(h("li", { text: plainChange(n, d) })); });
@@ -1595,6 +1716,17 @@
     var payload = function (dry) { return { action: "save", table: n, docs: t.draft, baseHash: t.remote.hash, dryRun: dry }; };
     call(payload(true)).then(function (j) {
       var c = j.counts || {};
+      if (ENV === "live") {
+        // LIVE: the server's own cell-by-cell diff, and an explicit tick before the save button wakes up.
+        status.textContent = "GameSpark báo: LIVE sẽ đổi " + (j.cells || []).length + " ô.";
+        var cells = h("ul", { class: "dz-changes", id: "dz-live-cells" });
+        (j.cells || []).forEach(function (x) { cells.appendChild(h("li", { text: x.p + ": " + x.from + " → " + x.to })); });
+        var tick = h("input", { type: "checkbox", id: "dz-live-confirm" });
+        status.after(cells, h("label", { class: "dz-help", for: "dz-live-confirm" }, tick,
+          " Tôi đã xem các ô trên, lưu lên LIVE (người chơi thật thấy sau tối đa 10 giây)"));
+        tick.addEventListener("change", function () { primary.disabled = !tick.checked || !(j.cells || []).length; });
+        return;
+      }
       status.textContent = "GameSpark báo: thêm " + (c.insert || 0) + " · sửa " + (c.update || 0) +
         " · xoá " + (c.delete || 0) + " · giữ nguyên " + (c.unchanged || 0) + " dòng.";
       primary.disabled = false;
@@ -1605,7 +1737,7 @@
       status.textContent = "Đang lưu…";
       call(payload(false)).then(function () {
         dlg.close();
-        toast("Đã lưu lên GameSpark (DEV)");
+        toast(ENV === "live" ? "Đã lưu lên LIVE" : "Đã lưu lên GameSpark (DEV)");
         return call({ action: "get", table: n }).then(function (j) {
           setRemote(n, { exists: j.exists, docs: j.docs, hash: j.hash });
           renderMain(); updateBar(); updateNav();
@@ -1625,9 +1757,83 @@
     status.classList.add("is-error");
   }
 
+  // ---------- history ----------
+
+  S.history = { rows: null, table: "", who: "", error: null };
+
+  function loadHistory() {
+    S.history.error = null;
+    return call({ action: "history", table: S.history.table, who: S.history.who }).then(function (j) {
+      S.history.rows = j.rows || [];
+      if (S.current === HISTORY) renderMain();
+    }, function (e) {
+      S.history.error = errText(e);
+      if (S.current === HISTORY) renderMain();
+    });
+  }
+
+  function renderHistory(pane) {
+    var H = S.history;
+    pane.appendChild(h("header", { class: "dz-pane__head" },
+      h("h2", { class: "dz-pane__title", text: "Lịch sử chỉnh sửa (" + (ENV === "live" ? "LIVE" : "DEV") + ")" }),
+      h("p", { class: "dz-pane__blurb", text: "Mỗi lần lưu (trang này hoặc LIVE_CONFIG_SET) một dòng: ai, môi trường, bảng, từng ô cũ → mới, giờ Việt Nam. Mới nhất ở trên. Chỉ thêm, không sửa hay xoá được." })));
+    var sel = h("select", { class: "dz-input", id: "dz-hist-table", style: "width:auto;max-width:280px" }, h("option", { value: "", text: "Mọi bảng" }));
+    visibleTables().forEach(function (n) { var o = h("option", { value: tableOf(n), text: tableTitle(n) }); if (tableOf(n) === H.table) o.selected = true; sel.appendChild(o); });
+    var who = h("input", { class: "dz-input", id: "dz-hist-who", style: "width:auto;max-width:280px", placeholder: ENV === "live" ? "playerId" : "nhãn hoặc playerId" });
+    who.value = H.who;
+    var go = function () { H.table = sel.value; H.who = who.value.trim(); H.rows = null; renderMain(); loadHistory(); };
+    sel.addEventListener("change", go);
+    who.addEventListener("change", go);
+    pane.appendChild(h("div", { style: "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 16px" }, sel, who, h("button", { class: "btn btn--sm", type: "button", text: "Tải lại", onclick: go })));
+    if (H.error) { pane.appendChild(h("p", { class: "dz-notice dz-notice--warn", id: "dz-hist-err", text: H.error })); return; }
+    if (!H.rows) { pane.appendChild(h("p", { class: "dz-loading", text: "Đang tải…" })); return; }
+    if (!H.rows.length) { pane.appendChild(h("p", { class: "dz-help", id: "dz-hist-empty", text: "Chưa có dòng nào." })); return; }
+    var tb = h("tbody");
+    H.rows.forEach(function (r) {
+      var cells = h("ul", { class: "dz-changes" });
+      (r.changes || []).forEach(function (c) { cells.appendChild(h("li", { text: c.p + ": " + c.from + " → " + c.to })); });
+      if (r.more) cells.appendChild(h("li", { text: "… và " + r.more + " ô nữa" }));
+      tb.appendChild(h("tr", { class: "dz-hist-row" },
+        h("td", { text: r.atVn || "" }),
+        h("td", { text: String(r.env || "").toUpperCase() + (r.via ? " · " + r.via : "") }),
+        h("td", { text: (r.label || "") + (r.playerId ? " (" + r.playerId + ")" : "") }),
+        h("td", { text: tableTitle(r.table) }),
+        h("td", null, cells)));
+    });
+    pane.appendChild(h("table", { class: "dz-table", id: "dz-hist" },
+      h("thead", null, h("tr", null, h("th", { text: "Lúc (giờ VN)" }), h("th", { text: "Môi trường" }), h("th", { text: "Người sửa" }), h("th", { text: "Bảng" }), h("th", { text: "Ô đổi" }))),
+      tb));
+  }
+
+  // ---------- environment switch ----------
+
+  function buildEnvSwitch() {
+    var links = document.querySelector(".dz-header__links");
+    if (!links) return;
+    var sel = h("select", { class: "dz-input", id: "dz-env", "aria-label": "Môi trường", style: "width:auto" },
+      h("option", { value: "dev", text: "DEV (hub)" }), h("option", { value: "live", text: "LIVE (chỉ bảng chỉnh online)" }));
+    sel.value = ENV;
+    sel.addEventListener("change", function () {
+      if (anyDirty() && !confirm("Còn thay đổi chưa lưu. Đổi môi trường sẽ bỏ chúng?")) { sel.value = ENV; return; }
+      try { localStorage.setItem(ENV_KEY, sel.value); } catch (e) { /* query string still works */ }
+      var q = new URLSearchParams(location.search); q.set("env", sel.value);
+      location.search = q.toString();
+    });
+    links.insertBefore(sel, links.firstChild);
+    var info = h("p", { class: "dz-help", id: "dz-envinfo" });
+    var sub = document.querySelector(".hub-subtitle");
+    if (sub) {
+      if (ENV === "live") sub.textContent = "Sửa các bảng chỉnh online trên GameSpark LIVE, có hiệu lực sau tối đa 10 giây. Bảng khác đổi theo snapshot phát hành.";
+      sub.after(info);
+    }
+    document.body.classList.toggle("dz-env-live", ENV === "live");
+    renderEnvInfo();
+  }
+
   // ---------- boot ----------
 
   function boot() {
+    buildEnvSwitch();
     buildNav();
     updateNav();
     $("btn-discard").addEventListener("click", discard);

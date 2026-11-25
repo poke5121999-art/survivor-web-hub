@@ -30,7 +30,7 @@ const realLabels = { window: {} };
 vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'data/design-labels.js'), 'utf8'), realLabels);
 
 const LABELS_JS = 'window.DESIGN_LABELS = ' + JSON.stringify({
-  feedback_link: realLabels.window.DESIGN_LABELS.feedback_link,
+  feedback_link: realLabels.window.DESIGN_LABELS.feedback_link, history: realLabels.window.DESIGN_LABELS.history,
   shop_rules: realLabels.window.DESIGN_LABELS.shop_rules,
   quests: { title: 'Nhiệm vụ', blurb: 'Nhiệm vụ ngày.', effect: 'Từ lần gọi API kế tiếp.', expand: true,
     fields: { pick: { label: 'Số nhiệm vụ mỗi ngày', int: true, min: 1, unit: 'nhiệm vụ' },
@@ -213,8 +213,9 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const items = await p.$$eval('#dz-nav .dz-nav__item', els => els.length);
   const chipQ = await txt('#dz-nav [data-table="quests"] .dz-chip');
   const chipF = await txt('#dz-nav [data-table="foes"] .dz-chip');
-  check('sidebar liệt kê 38 bảng + tab Link trang góp ý + mục Chi phí dịch vụ + mục Phát hành & bảo trì', items === 41 &&
+  check('sidebar liệt kê 38 bảng + tab Link trang góp ý + mục Chi phí dịch vụ + mục Phát hành & bảo trì + Lịch sử', items === 42 &&
     (await txt('#dz-nav [data-table="cost_guard"]')) === 'Chi phí dịch vụ' &&
+    (await txt('#dz-nav [data-table="history"]')) === 'Lịch sử chỉnh sửa' &&
     (await txt('#dz-nav [data-table="client_gate"]')) === 'Phát hành & bảo trì', String(items));
   check('quests là "Trên GameSpark"', chipQ === 'Trên GameSpark', chipQ);
   check('foes là "Chưa dán · số gốc"', chipF === 'Chưa dán · số gốc', chipF);

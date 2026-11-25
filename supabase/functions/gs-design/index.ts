@@ -22,6 +22,25 @@ function reply(status: number, json: unknown, cors: Record<string, string>): Res
 
 const err = (code: string, message: string) => ({ ok: false, error: { code, message } });
 
+// History label of a designer: DESIGNER_LABELS "email=Nhãn;email2=Nhãn 2", else the part of the email before @ (no email stored).
+function labelOf(email: string): string {
+  for (const pair of (Deno.env.get("DESIGNER_LABELS") ?? "").split(";")) {
+    const i = pair.indexOf("=");
+    if (i > 0 && pair.slice(0, i).trim().toLowerCase() === email) return pair.slice(i + 1).trim().slice(0, 40);
+  }
+  return email.split("@")[0].slice(0, 40);
+}
+
+// Player-level (client) keys per environment for the page's LIVE_CONFIG_* path; a target whose secrets are unset is left out.
+function eventTargets(): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [name, prefix, base] of [["live", "GS_LIVE", "https://gamespark.hlo.vn"], ["dev", "GS_DEV", "https://gamespark-dev.hlo.vn"]]) {
+    const apiKey = Deno.env.get(prefix + "_CLIENT_KEY"), apiSecret = Deno.env.get(prefix + "_CLIENT_SECRET");
+    if (apiKey && apiSecret) out[name] = { base: Deno.env.get(prefix + "_CLIENT_BASE") || base, project: Deno.env.get("GS_PROJECT")!, apiKey, apiSecret };
+  }
+  return out;
+}
+
 Deno.serve(async (req: Request) => {
   const cors = corsHeaders(req.headers.get("Origin"));
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
@@ -55,7 +74,8 @@ Deno.serve(async (req: Request) => {
   try {
     const { status, json } = await handleAction(body, {
       base: Deno.env.get("GS_BASE")!, project: Deno.env.get("GS_PROJECT")!,
-      key: Deno.env.get("GS_KEY")!, secret: Deno.env.get("GS_SECRET")!, actor: email,
+      key: Deno.env.get("GS_KEY")!, secret: Deno.env.get("GS_SECRET")!, actor: email, actorLabel: labelOf(email), envName: "dev",
+      eventTargets: eventTargets(),
     });
     return reply(status, json, cors);
   } catch (e) {

@@ -219,13 +219,73 @@ async function writeLive(call, table, set) {
   }
 }
 
-// Who changed what and when: one JSON line in the function's own log (Supabase), not in a GameSpark collection: cd_* must not
-// hold personal data (emails) and operator history does not belong on the production store.
-function logSave(env, table, source, diff) {
-  console.log(JSON.stringify({
-    ev: "gs_design_save", at: new Date().toISOString(), who: env.actor || "", project: env.project, table, source,
-    counts: diff.counts, ids: diff.changes.slice(0, 50).map((c) => c.op + ":" + c._id),
-  }));
+// Edit history: every save (this proxy, and LIVE_CONFIG_SET in cloudcode lib/liveedit.js) appends one doc to the runtime collection
+// cd_live_config_log, the owner's call (2026-11-25: history must be visible on the page, one place for DEV and LIVE). No email: the
+// row carries the designer's label (DESIGNER_LABELS, else the part of the email before @). Append only: nothing here updates or
+// deletes a row. Same row shape as lib/liveedit.js record(); a JSON line also goes to the function log.
+export const HISTORY_COLLECTION = "cd_live_config_log";
+const VALUE_CHARS = 120;
+const MAX_CHANGES = 100;
+
+function leaves(v, path, out) {
+  if (Array.isArray(v)) {
+    if (!v.length) out[path] = "[]";
+    v.forEach((x, i) => leaves(x, path + "[" + i + "]", out));
+    return out;
+  }
+  if (isPlain(v)) {
+    const ks = Object.keys(v);
+    if (!ks.length && path) out[path] = "{}";
+    for (const k of ks) leaves(v[k], path ? path + "." + k : k, out);
+    return out;
+  }
+  out[path] = JSON.stringify(v === undefined ? null : v);
+  return out;
+}
+
+const short = (x) => (x === undefined ? null : x.length > VALUE_CHARS ? x.slice(0, VALUE_CHARS - 1) + "…" : x);
+
+// [{ p, from, to }] per leaf cell, rows keyed by _id: "daily.list[1].reward.gold".
+export function cellChanges(before, after) {
+  const a = {}, b = {};
+  for (const d of before) { const { _id, ...rest } = d; leaves(rest, _id, a); }
+  for (const d of after) { const { _id, ...rest } = d; leaves(rest, _id, b); }
+  const out = [];
+  for (const k of [...Object.keys(a), ...Object.keys(b).filter((k) => !(k in a))]) if (a[k] !== b[k]) out.push({ p: k, from: short(a[k]), to: short(b[k]) });
+  return out;
+}
+
+const two = (n) => String(n).padStart(2, "0");
+export function vnTime(ms) {
+  const d = new Date(ms + 7 * 3600000);
+  return `${two(d.getUTCHours())}:${two(d.getUTCMinutes())}:${two(d.getUTCSeconds())} ${two(d.getUTCDate())}/${two(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+}
+
+async function logSave(call, env, table, source, before, after) {
+  const changes = cellChanges(before, after);
+  const at = Date.now();
+  const row = {
+    _id: String(9999999999999 - at).padStart(13, "0") + "-" + String(100000 + Math.floor(Math.random() * 900000)),
+    at, atVn: vnTime(at), env: env.envName || "dev", via: "hub", playerId: "", label: env.actorLabel || "hub", table,
+    changes: changes.slice(0, MAX_CHANGES), more: Math.max(0, changes.length - MAX_CHANGES),
+  };
+  console.log(JSON.stringify({ ev: "gs_design_save", at: new Date(at).toISOString(), who: env.actor || "", project: env.project, table, source, changes: changes.length }));
+  try {
+    await call("/data/insert", { collection: HISTORY_COLLECTION, doc: row });
+  } catch (e) {
+    // The save itself went through; a lost history row is reported in the function log, not as a failed save.
+    console.log(JSON.stringify({ ev: "gs_design_history_failed", table, error: String(e && e.message) }));
+  }
+  return row;
+}
+
+async function readHistory(call, body) {
+  const filter = {};
+  if (typeof body.table === "string" && body.table) filter.table = body.table;
+  if (typeof body.who === "string" && body.who) filter.$or = [{ label: body.who }, { playerId: body.who }];
+  const r = await call("/data/query", { collection: HISTORY_COLLECTION, filter, sort: { _id: 1 }, limit: QUERY_LIMIT });
+  const rows = normalize(r.docs || []).map(({ _createdAt, _updatedAt, _by, _rev, ...rest }) => rest);
+  return { status: 200, json: { ok: true, rows } };
 }
 
 async function saveLive(call, env, table, docs, current, dryRun) {
@@ -248,7 +308,7 @@ async function saveLive(call, env, table, docs, current, dryRun) {
     });
     await call("/data/sync", { collection: "md_" + logical(table), docs: mdDocs, dryRun: false });
   }
-  logSave(env, table, current.source, diff);
+  await logSave(call, env, table, current.source, current.docs, docs);
   const source = LIVE_WHOLE.includes(table) ? "live" : "live+md";
   return { status: 200, json: { ok: true, applied: true, dryRun: false, ...diff, hash: await hashDocs(docs), source } };
 }
@@ -499,7 +559,7 @@ async function doSave(call, body, env) {
     }
   }
   const r = await call("/data/sync", { collection: "md_" + logical(table), docs, dryRun });
-  if (!dryRun) logSave(env, table, "md", { changes: r.changes || [], counts: r.counts || {} });
+  if (!dryRun) await logSave(call, env, table, "md", current.docs, docs);
   return {
     status: 200,
     json: {
@@ -696,7 +756,7 @@ async function saveGate(call, doc) {
 }
 
 // Runtime (cd_*) actions carry no table name.
-const RUNTIME_ACTIONS = ["guard", "guard_save", "gate", "gate_save"];
+const RUNTIME_ACTIONS = ["guard", "guard_save", "gate", "gate_save", "history", "event_targets"];
 
 export async function handleAction(body, env, fetchImpl = fetch) {
   if (!isPlain(body)) return fail(400, "INVALID", "body không phải object JSON");
@@ -708,6 +768,10 @@ export async function handleAction(body, env, fetchImpl = fetch) {
   }
   const call = makeClient(env, fetchImpl);
   try {
+    if (body.action === "history") return await readHistory(call, body);
+    // Client keys (the apiKey/apiSecret every game build carries, never a server key) for the page to log in as a player on an
+    // environment this proxy holds no admin key for (LIVE), and call LIVE_CONFIG_* there.
+    if (body.action === "event_targets") return { status: 200, json: { ok: true, targets: env.eventTargets || {} } };
     if (body.action === "guard") return { status: 200, json: { ok: true, ...(await readGuard(call)) } };
     if (body.action === "guard_save") return await saveGuard(call, body.doc);
     if (body.action === "gate") return { status: 200, json: { ok: true, ...(await readGate(call)) } };
