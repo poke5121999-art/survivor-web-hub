@@ -12,7 +12,14 @@ const HELP = `bone-cli split <lệnh>
                                          cắt part theo khung xương (mặc định: gợi ý tự động), thêm ảnh, bone, slot vào dự án
 Khung xương: { "joints": { "tên": [x, y] }, "parts": [{ "name", "from", "to", "parent" }], "root": "tên khớp" }
   x, y theo pixel ảnh gốc (gốc trên-trái, y xuống). parts xếp theo thứ tự vẽ dưới → trên.
-  parent "hong" là bone gốc split auto tự tạo ở khớp root; mỗi part thành một bone + slot + ảnh cùng tên.`;
+  parent "hong" là bone gốc split auto tự tạo ở khớp root; mỗi part thành một bone + slot + ảnh cùng tên.
+  Part có thể kèm "claim": [[[x,y],[x,y],...]] (đa giác, pixel ảnh gốc): mọi pixel trong đa giác thuộc part đó.
+  Part sau trong danh sách thắng khi các claim chồng nhau.
+Luật chia part (bắt buộc):
+  - Thứ đội/mọc trên đầu (mũ, mũ trùm, vương miện, khăn, tóc kể cả tóc dài rủ xuống vai/ngực, tai, sừng) thuộc part đầu:
+    vẽ claim bao trọn chúng cho part đầu, kể cả phần rủ xuống dưới cằm.
+  - Vật cầm tay (gậy, kiếm, khiên) là part riêng làm con của bàn tay; claim của bàn tay đặt sau part vật cầm.
+  - Áo choàng, khăn quàng treo từ cổ thuộc thân, trừ khi họa sĩ yêu cầu tách.`;
 
 export async function splitCli({ dir, doc, pos, opt, saveDoc, logEvent, die }) {
   const sub = pos[0];

@@ -67,6 +67,12 @@ For looping animations make the last key equal the first.
 6. Stop when the request is done and `info` shows a valid project. End with ONE plain line summarizing what you did
    (Vietnamese is fine).
 
+Cutting a whole character into parts (split): read `split help` first. Headwear and anything on the head (hat, hood,
+crown, headdress, hair including long hair hanging over the shoulders or chest, ears, horns) must stay with the head:
+give the head part a `claim` polygon that encloses all of it. Held items get their own part parented to the hand.
+Capes and scarves hanging from the neck stay with the torso. After `split auto`, render the setup pose and one bent
+pose (rotate the torso and the head 20-30 degrees with apply) and look: nothing may tear off the head.
+
 Rules: do not run anything except this CLI, `ls`/`cat` for reading, and the Read tool for pictures. Do not touch files
 outside {{dir}}. Do not ask questions; nobody answers. If the request is ambiguous, pick the sensible reading and say so
 in your note.

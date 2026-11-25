@@ -3,35 +3,35 @@ size: 512, 128
 filter: Linear, Linear
 gay
 bounds: 1, 1, 17, 91
-tay-trai-tren
-bounds: 20, 1, 41, 63
 than
-bounds: 63, 1, 36, 58
+bounds: 20, 1, 36, 55
+tay-trai-tren
+bounds: 58, 1, 40, 51
 dau
-bounds: 101, 1, 47, 48
+bounds: 100, 1, 54, 48
 vay
-bounds: 150, 1, 24, 34
+bounds: 156, 1, 24, 34
 lua
-bounds: 176, 1, 31, 33
+bounds: 182, 1, 31, 33
 chan-phai-dui
-bounds: 209, 1, 18, 33
+bounds: 215, 1, 18, 33
 tay-trai-duoi
-bounds: 229, 1, 31, 31
+bounds: 235, 1, 31, 31
 chan-trai-dui
-bounds: 262, 1, 31, 29
+bounds: 268, 1, 31, 29
 tay-phai-tren
-bounds: 295, 1, 18, 29
+bounds: 301, 1, 18, 29
 tay-phai-duoi
-bounds: 315, 1, 29, 23
+bounds: 321, 1, 29, 23
 tay-trai-ban
-bounds: 346, 1, 14, 17
+bounds: 352, 1, 14, 17
 chan-trai-ong
-bounds: 362, 1, 16, 14
+bounds: 368, 1, 16, 14
 tay-phai-ban
-bounds: 380, 1, 11, 13
+bounds: 386, 1, 11, 13
 chan-phai-ong
-bounds: 393, 1, 10, 13
+bounds: 399, 1, 10, 13
 chan-trai-ban
-bounds: 405, 1, 10, 8
+bounds: 411, 1, 10, 8
 chan-phai-ban
-bounds: 417, 1, 6, 5
+bounds: 423, 1, 6, 5

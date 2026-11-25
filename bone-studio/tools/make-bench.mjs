@@ -33,6 +33,17 @@ const b = canvas(40, 36);
 ellipse(b, 20, 24, 17, 11, [90, 200, 120]); ellipse(b, 14, 21, 2, 3, [20, 30, 30]); ellipse(b, 25, 21, 2, 3, [20, 30, 30]);
 ellipse(b, 20, 11, 9, 4, [120, 70, 160]); ellipse(b, 20, 6, 5, 6, [120, 70, 160]);
 writeFileSync(join(OUT, "slime.png"), encodePNG(upscale(b, 5)));
+// long-haired character: purple hair (a colour nothing else uses) behind the head and hanging over both shoulders
+const t = canvas(60, 80);
+const rect = (im, x0, y0, x1, y1, col) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const edge = x === x0 || x === x1 || y === y0 || y === y1; im.data.set([...(edge ? [30, 28, 34] : col), 255], (y * im.width + x) * 4); } };
+export const HAIR = [150, 70, 200];
+ellipse(t, 30, 19, 13, 12, HAIR);
+rect(t, 22, 54, 29, 77, [70, 70, 110]); rect(t, 31, 54, 38, 77, [80, 80, 120]);
+rect(t, 13, 29, 19, 54, [236, 196, 150]); rect(t, 41, 29, 47, 54, [236, 196, 150]);
+rect(t, 19, 26, 41, 56, [60, 150, 140]);
+ellipse(t, 30, 17, 9, 9, [236, 196, 150]); ellipse(t, 27, 17, 1.2, 1.6, [20, 20, 30]); ellipse(t, 33, 17, 1.2, 1.6, [20, 20, 30]);
+rect(t, 18, 20, 22, 47, HAIR); rect(t, 38, 20, 42, 47, HAIR);
+writeFileSync(join(OUT, "toc-dai.png"), encodePNG(upscale(t, 4)));
 // robo with sword, flattened render of the rig, 2x
 const dir = join(HERE, "..", "samples", "robo"), doc = JSON.parse(readFileSync(join(dir, "doc.json"), "utf8"));
 const r = renderFrames(doc, loadImages(dir, doc), [{ time: 0 }], { scale: 2, pad: 20, bg: BG });

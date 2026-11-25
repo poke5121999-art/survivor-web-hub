@@ -3,14 +3,14 @@ window.__errors = [];
 window.addEventListener("error", (e) => window.__errors.push(String(e.message || e)));
 window.addEventListener("unhandledrejection", (e) => window.__errors.push(String(e.reason?.message || e.reason)));
 
-const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime } = await import("./state.js?v=20261125d");
-const VP = await import("./viewport.js?v=20261125d");
-const { renderTree, renderProps } = await import("./panels.js?v=20261125d");
-const TL = await import("./timeline.js?v=20261125d");
-const IO = await import("./io.js?v=20261125d");
-const AG = await import("./agent.js?v=20261125d");
-const { importWhole } = await import("./splitui.js?v=20261125d");
-const CL = await import("./cloud.js?v=20261125d");
+const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime } = await import("./state.js?v=20261125e");
+const VP = await import("./viewport.js?v=20261125e");
+const { renderTree, renderProps } = await import("./panels.js?v=20261125e");
+const TL = await import("./timeline.js?v=20261125e");
+const IO = await import("./io.js?v=20261125e");
+const AG = await import("./agent.js?v=20261125e");
+const { importWhole } = await import("./splitui.js?v=20261125e");
+const CL = await import("./cloud.js?v=20261125e");
 
 const $ = (id) => document.getElementById(id);
 const app = $("app"), modal = $("xx-modal");
@@ -122,9 +122,9 @@ async function openDialog() {
 }
 async function openSample(name) {
   const base = name === "pharaoh" ? "samples/pharaoh/project" : "samples/robo";
-  const d = await (await fetch(`${base}/doc.json?v=20261125d`)).json();
+  const d = await (await fetch(`${base}/doc.json?v=20261125e`)).json();
   const images = {};
-  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125d`)).blob(); }));
+  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125e`)).blob(); }));
   await IO.loadProject(d, images);
   toast(`Đã mở mẫu ${d.name}`);
 }

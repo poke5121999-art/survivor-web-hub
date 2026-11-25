@@ -31,19 +31,19 @@
   },
   "than": {
    "width": 36,
-   "height": 58
+   "height": 55
   },
   "vay": {
    "width": 24,
    "height": 34
   },
   "dau": {
-   "width": 47,
+   "width": 54,
    "height": 48
   },
   "tay-trai-tren": {
-   "width": 41,
-   "height": 63
+   "width": 40,
+   "height": 51
   },
   "tay-trai-duoi": {
    "width": 31,
@@ -537,11 +537,11 @@
      "than": {
       "type": "region",
       "path": "than",
-      "x": 48.23,
+      "x": 42.79,
       "y": -0.12,
       "rotation": -90,
       "width": 130.68,
-      "height": 210.54
+      "height": 199.65
      }
     },
     "vay": {
@@ -559,10 +559,10 @@
      "dau": {
       "type": "region",
       "path": "dau",
-      "x": 88,
-      "y": 12.48,
+      "x": 87.49,
+      "y": 25.18,
       "rotation": -87.71,
-      "width": 170.61,
+      "width": 196.02,
       "height": 174.24
      }
     },
@@ -570,11 +570,11 @@
      "tay-trai-tren": {
       "type": "region",
       "path": "tay-trai-tren",
-      "x": 14.89,
-      "y": -19.8,
+      "x": 34.66,
+      "y": -10.47,
       "rotation": 120.03,
-      "width": 148.83,
-      "height": 228.69
+      "width": 145.2,
+      "height": 185.13
      }
     },
     "tay-trai-duoi": {

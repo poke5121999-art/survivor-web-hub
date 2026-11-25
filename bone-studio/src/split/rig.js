@@ -1,7 +1,7 @@
 // From a native-grid image and a skeleton spec to rig parts: labels, hidden-pixel fill, cropped part images, commands.
 // Skeleton spec (coordinates in SOURCE image pixels, y down):
 //   { joints: { name: [x, y] }, parts: [{ name, from, to, parent? }] }   parts listed bottom → top (draw order)
-import { img } from "./pixels.js?v=20261125d";
+import { img } from "./pixels.js?v=20261125e";
 
 // ---- masks -------------------------------------------------------------------------------------
 export function alphaMask(im) {
@@ -162,6 +162,15 @@ export function heuristicSkeleton(native, scale = 1, phase = [0, 0]) {
     { name: "tay-trai-tren", from: "l_shoulder", to: "l_elbow", parent: "than" }, { name: "tay-trai-duoi", from: "l_elbow", to: "l_wrist", parent: "tay-trai-tren" },
     { name: "tay-phai-tren", from: "r_shoulder", to: "r_elbow", parent: "than" }, { name: "tay-phai-duoi", from: "r_elbow", to: "r_wrist", parent: "tay-phai-tren" },
   ];
+  // headwear rule: whatever sits on the head (hat, hood, crown, headdress, hair, ears, horns) moves with the head.
+  // Offline we cannot see what is cloth or hair, so the head claims every pixel above the shoulder line within the
+  // head's width (+15 %); hanging strands below the shoulders need the vision skeleton or a claim drawn by hand.
+  let headHalf = 0;
+  for (let y = y0; y < y0 + bh * 0.18; y++) { const [a, b] = rowSpan(y); if (a >= 0) headHalf = Math.max(headHalf, (b - a) / 2); }
+  headHalf = Math.max(headHalf * 1.15, bw * 0.12);
+  const chin = y0 + bh * 0.26;
+  const headClaim = [[hx - headHalf, y0 - 1], [hx + headHalf, y0 - 1], [hx + headHalf, chin], [hx - headHalf, chin]];
+  Object.assign(parts.find((p) => p.name === "dau"), { claimNative: [headClaim], growHead: true });
   // props: thin components left over (staffs, swords, tails), attached to the nearest wrist
   for (const comp of comps.slice(1).concat(leftovers(mask, main, w, h))) {
     if (comp.length < Math.max(12, bw * bh * 0.01)) continue;
@@ -177,7 +186,8 @@ export function heuristicSkeleton(native, scale = 1, phase = [0, 0]) {
   // the prop goes just under the hand that holds it
   const props = parts.filter((p) => p.prop), rest = parts.filter((p) => !p.prop);
   for (const p of props) { const i = rest.findIndex((q) => q.name === p.parent); rest.splice(i, 0, p); }
-  return { joints, parts: rest.map(({ prop, ...p }) => p), root: "pelvis", source: "heuristic" };
+  const out = rest.map(({ prop, claimNative, ...p }) => (claimNative ? { ...p, claim: claimNative.map((poly) => poly.map(toSrc)) } : p));
+  return { joints, parts: out, root: "pelvis", source: "heuristic" };
 }
 function leftovers(mask, main, w, h) {
   const rest = new Uint8Array(w * h);
@@ -229,12 +239,46 @@ export function segment(native, spec, scale = 1, phase = [0, 0]) {
     }
     labels[i] = best;
   }
+  // claims: polygons (source pixels) that hand every pixel inside to a part, e.g. the whole headdress to the head.
+  // Later parts in the list win where claims overlap, so a held item claimed by the hand stays with the hand.
+  const forced = new Int16Array(w * h).fill(-1);
+  spec.parts.forEach((p, k) => {
+    for (const poly of p.claim ?? []) {
+      const pts = poly.map(([x, y]) => [(x - phase[0]) / scale - 0.5, (y - phase[1]) / scale - 0.5]);
+      for (let i = 0; i < w * h; i++) if (mask[i] && inPolygon(pts, i % w, (i / w) | 0)) forced[i] = k;
+    }
+  });
+  for (let i = 0; i < w * h; i++) if (forced[i] >= 0) labels[i] = forced[i];
+  // offline headwear growth: from the head, spread into touching pixels whose colour is common on the head and
+  // (almost) absent on every other part, e.g. long hair hanging over the chest
+  const hk = spec.parts.findIndex((p) => p.growHead), tk = spec.parts.findIndex((p) => p.name === "than");
+  if (hk >= 0 && tk >= 0) {
+    const d = native.data, key = (i) => ((d[i * 4] >> 4) << 8) | ((d[i * 4 + 1] >> 4) << 4) | (d[i * 4 + 2] >> 4);
+    const hc = new Map(), tc = new Map();
+    // torso core: pixels near the torso bone; a colour found there is body colour, not headwear
+    let core = 0;
+    for (let i = 0; i < w * h; i++) {
+      if (labels[i] < 0) continue;
+      if (labels[i] === hk) hc.set(key(i), (hc.get(key(i)) ?? 0) + 1);
+      else if (segDist([i % w, (i / w) | 0], segs[tk].a, segs[tk].b) <= segs[tk].r * 0.6) { tc.set(key(i), (tc.get(key(i)) ?? 0) + 1); core++; }
+    }
+    const ok = new Set([...hc].filter(([k, n]) => n >= 2 && (tc.get(k) ?? 0) <= core * 0.02).map(([k]) => k));
+    const queue = [];
+    for (let i = 0; i < w * h; i++) if (labels[i] === hk) queue.push(i);
+    while (queue.length) {
+      const i = queue.pop(), x = i % w, y = (i / w) | 0;
+      for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]) {
+        if (j < 0 || labels[j] < 0 || labels[j] === hk || forced[j] >= 0 || key(j) !== key(i) || !ok.has(key(j))) continue;
+        labels[j] = hk; forced[j] = hk; queue.push(j);
+      }
+    }
+  }
   // smoothing: a pixel switches to a neighbour's label when that is nearly as cheap and the colours match
   const d = native.data, col = (i, j) => Math.abs(d[i * 4] - d[j * 4]) + Math.abs(d[i * 4 + 1] - d[j * 4 + 1]) + Math.abs(d[i * 4 + 2] - d[j * 4 + 2]);
   for (let it = 0; it < 4; it++) {
     const next = labels.slice();
     for (let i = 0; i < w * h; i++) {
-      if (labels[i] < 0) continue;
+      if (labels[i] < 0 || forced[i] >= 0) continue;
       const x = i % w, y = (i / w) | 0, votes = new Map();
       for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]) {
         if (j < 0 || labels[j] < 0) continue;
@@ -267,11 +311,11 @@ export function segment(native, spec, scale = 1, phase = [0, 0]) {
       }
       let to = -1, best = -1;
       for (const [l, v] of touch) if (v > best) { best = v; to = l; }
-      if (to < 0) continue; // a detached bit of the same thing (a flame wisp): keep it
+      if (to < 0 || c.some((i) => forced[i] >= 0)) continue; // a detached bit of the same thing (a flame wisp), or claimed: keep it
       for (const i of c) labels[i] = to;
     }
   }
-  return { labels, segs, w, h };
+  return { labels, segs, w, h, forced };
 }
 
 // ---- hidden-pixel fill + part images -----------------------------------------------------------
@@ -382,4 +426,13 @@ export function rigCommands(spec, parts, { scale, phase = [0, 0], srcHeight, pre
       width: r2(part.image.width * scale), height: r2(part.image.height * scale) } });
   });
   return C;
+}
+
+export function inPolygon(pts, x, y) {
+  let c = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+  }
+  return c;
 }

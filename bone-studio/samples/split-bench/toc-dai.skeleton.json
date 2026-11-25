@@ -1,0 +1,24 @@
+{
+ "source": "claude-vision (mẫu kiểm luật tóc thuộc đầu)",
+ "root": "pelvis",
+ "joints": {
+  "pelvis": [120, 218], "neck": [120, 104], "head_top": [120, 26],
+  "l_shoulder": [64, 120], "l_elbow": [64, 168], "l_wrist": [64, 214],
+  "r_shoulder": [176, 120], "r_elbow": [176, 168], "r_wrist": [176, 214],
+  "l_hip": [102, 222], "l_knee": [102, 264], "l_ankle": [102, 306],
+  "r_hip": [138, 222], "r_knee": [138, 264], "r_ankle": [138, 306]
+ },
+ "parts": [
+  {"name": "chan-trai", "from": "l_hip", "to": "l_knee", "parent": "hong"},
+  {"name": "chan-trai-duoi", "from": "l_knee", "to": "l_ankle", "parent": "chan-trai"},
+  {"name": "chan-phai", "from": "r_hip", "to": "r_knee", "parent": "hong"},
+  {"name": "chan-phai-duoi", "from": "r_knee", "to": "r_ankle", "parent": "chan-phai"},
+  {"name": "tay-trai", "from": "l_shoulder", "to": "l_elbow", "parent": "than"},
+  {"name": "tay-trai-duoi", "from": "l_elbow", "to": "l_wrist", "parent": "tay-trai"},
+  {"name": "tay-phai", "from": "r_shoulder", "to": "r_elbow", "parent": "than"},
+  {"name": "tay-phai-duoi", "from": "r_elbow", "to": "r_wrist", "parent": "tay-phai"},
+  {"name": "than", "from": "pelvis", "to": "neck", "parent": "hong"},
+  {"name": "dau", "from": "neck", "to": "head_top", "parent": "than",
+   "claim": [[[66, 26], [174, 26], [174, 196], [150, 196], [150, 126], [90, 126], [90, 196], [66, 196]]]}
+ ]
+}

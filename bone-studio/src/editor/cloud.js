@@ -1,7 +1,7 @@
 // Cloud save for signed-in members (bone_projects + Storage, one file per version) and the admin "Máy" panel.
-import { S, doc, h, toast } from "./state.js?v=20261125d";
-import { api, signedIn, MOCK } from "./api.js?v=20261125d";
-import { bundle, loadProject } from "./io.js?v=20261125d";
+import { S, doc, h, toast } from "./state.js?v=20261125e";
+import { api, signedIn, MOCK } from "./api.js?v=20261125e";
+import { bundle, loadProject } from "./io.js?v=20261125e";
 
 const KEY = "xx-cloud-ids";
 const ids = () => { try { return JSON.parse(localStorage.getItem(KEY) ?? "{}"); } catch { return {}; } };

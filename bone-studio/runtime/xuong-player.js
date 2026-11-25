@@ -2,7 +2,7 @@
 //   const data = await loadSkeleton("assets/pharaoh.xuong.json");
 //   const p = new XuongPlayer(data); p.play("walk");
 //   each frame: p.update(dt); p.draw(ctx, x, y, { scale: 2, flipX: false });
-import { buildSkeleton, setupPose, updateWorld, drawList, draw2d, parseAtlas, AnimationState, bounds } from "./xuong.js?v=20261125d";
+import { buildSkeleton, setupPose, updateWorld, drawList, draw2d, parseAtlas, AnimationState, bounds } from "./xuong.js?v=20261125e";
 
 export async function loadSkeleton(jsonUrl, { atlasUrl } = {}) {
   const doc = await (await fetch(jsonUrl)).json();
