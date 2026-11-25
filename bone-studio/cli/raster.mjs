@@ -23,7 +23,14 @@ const BLEND = {
   screen: (s, sa, d) => s * sa + d - s * sa * d / 255,
 };
 
-export function drawTriangles(surf, img, verts, uvs, tris, color = [1, 1, 1, 1], blend = "normal") {
+function sampleNearest(img, u, v, out) {
+  const x = Math.min(img.width - 1, Math.max(0, Math.floor(u * img.width))), y = Math.min(img.height - 1, Math.max(0, Math.floor(v * img.height)));
+  const o = (y * img.width + x) * 4, a = img.data[o + 3];
+  out[0] = img.data[o] * a; out[1] = img.data[o + 1] * a; out[2] = img.data[o + 2] * a; out[3] = a;
+}
+
+export function drawTriangles(surf, img, verts, uvs, tris, color = [1, 1, 1, 1], blend = "normal", nearest = false) {
+  const sample = nearest ? sampleNearest : sampleBilinear;
   const W = surf.width, H = surf.height, D = surf.data, fn = BLEND[blend] ?? BLEND.normal, s = [0, 0, 0, 0];
   for (let t = 0; t < tris.length; t += 3) {
     const a = tris[t], b = tris[t + 1], c = tris[t + 2];
@@ -40,7 +47,7 @@ export function drawTriangles(surf, img, verts, uvs, tris, color = [1, 1, 1, 1],
       if (w0 < -1e-6 || w1 < -1e-6 || w2 < -1e-6) continue;
       const u = w0 * uvs[a * 2] + w1 * uvs[b * 2] + w2 * uvs[c * 2];
       const v = w0 * uvs[a * 2 + 1] + w1 * uvs[b * 2 + 1] + w2 * uvs[c * 2 + 1];
-      sampleBilinear(img, u, v, s);
+      sample(img, u, v, s);
       if (s[3] <= 0) continue;
       const sa = (s[3] / 255) * color[3];
       if (sa <= 0) continue;

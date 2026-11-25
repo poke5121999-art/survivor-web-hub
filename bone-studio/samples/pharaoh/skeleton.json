@@ -1,0 +1,32 @@
+{
+ "source": "claude-vision: khớp đọc từ bone-cli split grid",
+ "root": "pelvis",
+ "joints": {
+  "pelvis": [198, 300], "neck": [198, 195], "head_top": [205, 20],
+  "apron_top": [208, 318], "apron_bottom": [210, 392],
+  "l_shoulder": [112, 178], "l_elbow": [75, 242], "l_wrist": [78, 300], "l_hand": [85, 342],
+  "r_shoulder": [262, 182], "r_elbow": [288, 228], "r_wrist": [330, 246], "r_hand": [372, 250],
+  "l_hip": [155, 330], "l_knee": [105, 378], "l_ankle": [100, 410], "l_toe": [66, 428],
+  "r_hip": [235, 328], "r_knee": [262, 376], "r_ankle": [262, 414], "r_toe": [288, 430],
+  "staff_bottom": [355, 442], "staff_top": [350, 100], "flame_bottom": [350, 92], "flame_top": [348, 8]
+ },
+ "parts": [
+  {"name": "chan-trai-dui", "from": "l_hip", "to": "l_knee", "parent": "hong"},
+  {"name": "chan-trai-ong", "from": "l_knee", "to": "l_ankle", "parent": "chan-trai-dui"},
+  {"name": "chan-trai-ban", "from": "l_ankle", "to": "l_toe", "parent": "chan-trai-ong"},
+  {"name": "chan-phai-dui", "from": "r_hip", "to": "r_knee", "parent": "hong"},
+  {"name": "chan-phai-ong", "from": "r_knee", "to": "r_ankle", "parent": "chan-phai-dui"},
+  {"name": "chan-phai-ban", "from": "r_ankle", "to": "r_toe", "parent": "chan-phai-ong"},
+  {"name": "than", "from": "pelvis", "to": "neck", "parent": "hong"},
+  {"name": "vay", "from": "apron_top", "to": "apron_bottom", "parent": "than"},
+  {"name": "dau", "from": "neck", "to": "head_top", "parent": "than"},
+  {"name": "tay-trai-tren", "from": "l_shoulder", "to": "l_elbow", "parent": "than"},
+  {"name": "tay-trai-duoi", "from": "l_elbow", "to": "l_wrist", "parent": "tay-trai-tren"},
+  {"name": "tay-trai-ban", "from": "l_wrist", "to": "l_hand", "parent": "tay-trai-duoi"},
+  {"name": "gay", "from": "staff_bottom", "to": "staff_top", "parent": "tay-phai-ban"},
+  {"name": "lua", "from": "flame_bottom", "to": "flame_top", "parent": "gay"},
+  {"name": "tay-phai-tren", "from": "r_shoulder", "to": "r_elbow", "parent": "than"},
+  {"name": "tay-phai-duoi", "from": "r_elbow", "to": "r_wrist", "parent": "tay-phai-tren"},
+  {"name": "tay-phai-ban", "from": "r_wrist", "to": "r_hand", "parent": "tay-phai-duoi"}
+ ]
+}
