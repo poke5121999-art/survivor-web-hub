@@ -70,8 +70,13 @@ For looping animations make the last key equal the first.
 Cutting a whole character into parts (split): read `split help` first. Headwear and anything on the head (hat, hood,
 crown, headdress, hair including long hair hanging over the shoulders or chest, ears, horns) must stay with the head:
 give the head part a `claim` polygon that encloses all of it. Held items get their own part parented to the hand.
-Capes and scarves hanging from the neck stay with the torso. After `split auto`, render the setup pose and one bent
-pose (rotate the torso and the head 20-30 degrees with apply) and look: nothing may tear off the head.
+Capes and scarves hanging from the neck stay with the torso. Limbs hold the limb only: put each shoulder joint at the
+real joint (inside the shoulder mass or under the pauldron, not at the edge of the chest) and each hip at the top of the
+thigh; the splitter then gives everything on the body side of the joint to the torso. A big pauldron rides with the
+upper arm. When a hand or fist touches a leg or the body, give the hand part a `claim` around the whole fist.
+After `split auto`, render the setup pose and bent poses (torso and head 20-30 degrees; each upper arm raised 120
+degrees, each thigh 70 degrees) and look: nothing may tear off the head, and no piece of chest or back may ride with
+an arm.
 
 Rules: do not run anything except this CLI, `ls`/`cat` for reading, and the Read tool for pictures. Do not touch files
 outside {{dir}}. Do not ask questions; nobody answers. If the request is ambiguous, pick the sensible reading and say so

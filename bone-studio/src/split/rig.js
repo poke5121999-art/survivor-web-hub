@@ -1,7 +1,7 @@
 // From a native-grid image and a skeleton spec to rig parts: labels, hidden-pixel fill, cropped part images, commands.
 // Skeleton spec (coordinates in SOURCE image pixels, y down):
 //   { joints: { name: [x, y] }, parts: [{ name, from, to, parent? }] }   parts listed bottom → top (draw order)
-import { img } from "./pixels.js?v=20261125e";
+import { img } from "./pixels.js?v=20261125f";
 
 // ---- masks -------------------------------------------------------------------------------------
 export function alphaMask(im) {
@@ -82,10 +82,11 @@ export function heuristicSkeleton(native, scale = 1, phase = [0, 0]) {
     for (const [k, v] of Object.entries(J)) joints[k] = [Math.round(((v[0] + 0.5) * scale + phase[0]) * 10) / 10, Math.round(((v[1] + 0.5) * scale + phase[1]) * 10) / 10];
     return { joints, parts, root: parts[0] ? parts.find((p) => p.parent === "hong")?.from ?? parts[0].from : null, source };
   };
-  const footRuns = runs(Math.round(y1 - bh * 0.1)).filter((q) => q[1] - q[0] >= 1);
+  const footY = Math.round(y1 - bh * 0.1), footRuns = runs(footY).filter((q) => q[1] - q[0] >= 1);
   if (footRuns.length >= 3) {
-    // quadruped: legs are the runs at the bottom, body above them, head on the heavier end, tail on the other
-    let legTop = y1;
+    // quadruped: legs are the runs at the bottom, body above them, head on the heavier end, tail on the other.
+    // Climb from the row where the legs were counted (not the bottom row: feet end at different heights).
+    let legTop = footY;
     while (legTop > y0 && runs(legTop).filter((q) => q[1] - q[0] >= 1).length >= 3) legTop--;
     const mid = Math.round((y0 + legTop) / 2), [bx0, bx1] = rowSpan(Math.max(y0, legTop - 1));
     const mass = (xa, xb) => { let n = 0; for (let y = y0; y <= y1; y++) for (let x = xa; x <= xb; x++) n += main[y * w + x]; return n; };
@@ -147,10 +148,14 @@ export function heuristicSkeleton(native, scale = 1, phase = [0, 0]) {
     if (a >= 0 && a < left[0] + 0.5) left = [a, y];
     if (b >= 0 && b > right[0] - 0.5) right = [b, y];
   }
+  // the shoulder joint sits inside the shoulder mass (under a pauldron), halfway from the torso edge to the outline
+  const [sa, sb] = rowSpan(Math.round(shoulderY));
+  const lsx = sa >= 0 ? Math.min(torsoX - torsoHalf, (torsoX - torsoHalf + sa) / 2) : torsoX - torsoHalf;
+  const rsx = sb >= 0 ? Math.max(torsoX + torsoHalf, (torsoX + torsoHalf + sb) / 2) : torsoX + torsoHalf;
   const J = {
     head_top: [hx, y0], neck: [hx, neckY], pelvis: [torsoX, pelvisY],
-    l_shoulder: [torsoX - torsoHalf, shoulderY], l_elbow: [(torsoX - torsoHalf + left[0]) / 2, (shoulderY + left[1]) / 2], l_wrist: [left[0] + 2, left[1]],
-    r_shoulder: [torsoX + torsoHalf, shoulderY], r_elbow: [(torsoX + torsoHalf + right[0]) / 2, (shoulderY + right[1]) / 2], r_wrist: [right[0] - 2, right[1]],
+    l_shoulder: [lsx, shoulderY], l_elbow: [(lsx + left[0]) / 2, (shoulderY + left[1]) / 2], l_wrist: [left[0] + 2, left[1]],
+    r_shoulder: [rsx, shoulderY], r_elbow: [(rsx + right[0]) / 2, (shoulderY + right[1]) / 2], r_wrist: [right[0] - 2, right[1]],
     l_hip: [legL, pelvisY], l_knee: [legL, (pelvisY + y1) / 2], l_ankle: [legL, y1 - bh * 0.05],
     r_hip: [legR, pelvisY], r_knee: [legR, (pelvisY + y1) / 2], r_ankle: [legR, y1 - bh * 0.05],
   };
@@ -239,6 +244,18 @@ export function segment(native, spec, scale = 1, phase = [0, 0]) {
     }
     labels[i] = best;
   }
+  // limb rule: an arm or leg starts at its joint. Pixels on the body side of the joint line belong to the body
+  // (or whatever non-limb part is next cheapest), except a ball of the limb's own thickness around the joint, which
+  // keeps the shoulder cap / pauldron / hip ball with the limb. Lower segments of the chain are barred there too
+  // unless the pixel lies inside their own capsule (a forearm really crossing the chest stays a forearm).
+  const trunkK = barLimbs(spec, segs, cost, mask, w, h, n);
+  for (let i = 0; i < w * h; i++) {
+    if (!mask[i]) continue;
+    if (cost[i * n + labels[i]] === Infinity) { labels[i] = trunkK; continue; } // body side of a limb joint: the body
+    let best = 0, bc = Infinity;
+    for (let k = 0; k < n; k++) if (cost[i * n + k] < bc) { bc = cost[i * n + k]; best = k; }
+    labels[i] = best;
+  }
   // claims: polygons (source pixels) that hand every pixel inside to a part, e.g. the whole headdress to the head.
   // Later parts in the list win where claims overlap, so a held item claimed by the hand stays with the hand.
   const forced = new Int16Array(w * h).fill(-1);
@@ -287,6 +304,7 @@ export function segment(native, spec, scale = 1, phase = [0, 0]) {
       }
       let best = labels[i], bs = -Infinity;
       for (const [k, v] of votes) {
+        if (cost[i * n + k] === Infinity) continue;
         const s = v * 0.35 - cost[i * n + k];
         if (s > bs) { bs = s; best = k; }
       }
@@ -311,11 +329,55 @@ export function segment(native, spec, scale = 1, phase = [0, 0]) {
       }
       let to = -1, best = -1;
       for (const [l, v] of touch) if (v > best) { best = v; to = l; }
-      if (to < 0 || c.some((i) => forced[i] >= 0)) continue; // a detached bit of the same thing (a flame wisp), or claimed: keep it
+      if (to < 0 || c.some((i) => forced[i] >= 0 || cost[i * n + to] === Infinity)) continue; // a detached bit of the same thing (a flame wisp), or claimed: keep it
       for (const i of c) labels[i] = to;
     }
   }
   return { labels, segs, w, h, forced };
+}
+
+export function limbRoots(spec) {
+  const trunk = spec.parts.findIndex((p) => p.name === "than");
+  if (trunk < 0) return { trunk, roots: [] };
+  const bodyNames = new Set(["than", spec.parts[trunk].parent ?? "hong", "hong"]);
+  const kidsOf = (name) => spec.parts.map((q, j) => (q.parent === name ? j : -1)).filter((j) => j >= 0);
+  const roots = [];
+  spec.parts.forEach((p, k) => {
+    if (k === trunk || !bodyNames.has(p.parent ?? "hong")) return;
+    const chain = [], stack = [k];
+    while (stack.length) { const j = stack.pop(); chain.push(j); stack.push(...kidsOf(spec.parts[j].name)); }
+    roots.push({ k, chain });
+  });
+  return { trunk, roots };
+}
+function barLimbs(spec, segs, cost, mask, w, h, n) {
+  const { trunk, roots } = limbRoots(spec);
+  if (trunk < 0) return trunk;
+  const T = segs[trunk];
+  for (const { k, chain } of roots) {
+    const J = segs[k].a, dx = T.b[0] - T.a[0], dy = T.b[1] - T.a[1], L = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((J[0] - T.a[0]) * dx + (J[1] - T.a[1]) * dy) / L));
+    let nx = T.a[0] + t * dx - J[0], ny = T.a[1] + t * dy - J[1];
+    const ux = segs[k].b[0] - J[0], uy = segs[k].b[1] - J[1], ul = Math.hypot(ux, uy) || 1;
+    // a leg hangs from the root end of the trunk and runs along it: the body is behind the joint (above a hip),
+    // and the joint ball may only reach a little way back. Arms and side legs: the body is towards the trunk axis.
+    // a part hung on an end of the trunk axis (head on the neck, tail on the hip): the body is towards the middle
+    const onAxis = Math.hypot(nx, ny) < 1.5;
+    if (onAxis) { nx = (T.a[0] + T.b[0]) / 2 - J[0]; ny = (T.a[1] + T.b[1]) / 2 - J[1]; }
+    const behind = onAxis || (t < 0.35 && (-ux * dx - uy * dy) / ul / Math.sqrt(L) > 0.5);
+    if (behind && !onAxis) { nx = -ux; ny = -uy; }
+    const nl = Math.hypot(nx, ny);
+    if (nl < 1) continue;
+    nx /= nl; ny /= nl;
+    const ball = segs[k].r * 0.8, back = behind ? ball * 0.3 : ball;
+    for (let i = 0; i < w * h; i++) {
+      if (!mask[i]) continue;
+      const x = i % w, y = (i / w) | 0, px = x - J[0], py = y - J[1], side = px * nx + py * ny;
+      if (side <= 0 || (side <= back && Math.hypot(px, py) <= ball)) continue; // limb side, or the joint ball
+      for (const j of chain) if (j === k || segDist([x, y], segs[j].a, segs[j].b) > segs[j].r * 0.7) cost[i * n + j] = Infinity;
+    }
+  }
+  return trunk;
 }
 
 // ---- hidden-pixel fill + part images -----------------------------------------------------------

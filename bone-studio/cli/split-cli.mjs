@@ -19,7 +19,11 @@ Luật chia part (bắt buộc):
   - Thứ đội/mọc trên đầu (mũ, mũ trùm, vương miện, khăn, tóc kể cả tóc dài rủ xuống vai/ngực, tai, sừng) thuộc part đầu:
     vẽ claim bao trọn chúng cho part đầu, kể cả phần rủ xuống dưới cằm.
   - Vật cầm tay (gậy, kiếm, khiên) là part riêng làm con của bàn tay; claim của bàn tay đặt sau part vật cầm.
-  - Áo choàng, khăn quàng treo từ cổ thuộc thân, trừ khi họa sĩ yêu cầu tách.`;
+  - Áo choàng, khăn quàng treo từ cổ thuộc thân, trừ khi họa sĩ yêu cầu tách.
+  - Tay, chân chỉ chứa chính nó: khớp vai đặt đúng khớp (giữa khối vai, dưới giáp vai), không đặt ở mép ngực; khớp hông ở
+    đỉnh đùi. Bộ cắt giao mọi pixel phía thân của khớp cho thân (trừ một quả cầu quanh khớp: giáp vai đi theo cánh tay).
+  - Bàn tay/nắm tay chạm chân hay thân: vẽ claim bao trọn nắm tay cho part bàn tay.
+  - Kiểm sau khi cắt: giơ mỗi cánh tay trên 120°, xoay đùi 70° (apply rồi render): không mảng ngực/lưng nào đi theo tay.`;
 
 export async function splitCli({ dir, doc, pos, opt, saveDoc, logEvent, die }) {
   const sub = pos[0];

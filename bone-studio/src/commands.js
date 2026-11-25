@@ -1,8 +1,8 @@
 // Command registry. Every change to a document, from the UI, the agent, the CLI or a test, is one of these.
 // apply(doc, cmd) is pure: it returns a new doc and the exact inverse (a $patch command).
-import { transaction, applyPatch } from "./tx.js?v=20261125e";
-import { gridMesh, autoWeights, unweight, movedVertices } from "./mesh.js?v=20261125e";
-import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125e";
+import { transaction, applyPatch } from "./tx.js?v=20261125f";
+import { gridMesh, autoWeights, unweight, movedVertices } from "./mesh.js?v=20261125f";
+import { BONE_DEFAULTS, INHERIT, BLENDS, buildSkeleton, setupPose, updateWorld, DEG } from "../runtime/xuong.js?v=20261125f";
 
 export const FORMAT = "xuong";
 export const VERSION = 1;

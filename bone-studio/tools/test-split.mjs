@@ -36,3 +36,39 @@ test("long hair hanging over the shoulders stays with the head (vision skeleton 
   assert.ok(offline.share >= 0.9, `offline ${offline.share}`);
   assert.ok(vision.share >= 0.98, `vision ${vision.share}`);
 });
+
+// Addendum 4: a limb part holds the limb only. Ground truth is drawn by hand on the owner's pharaoh (torso core
+// medial of both pauldrons, collar to belt), not derived from the splitter's own joint rule.
+const inPoly = (poly, x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c; } return c; };
+const LIMB = /^(tay|chan)-/;
+function limbInBody(r, poly) {
+  const n = r.native, bad = new Map();
+  let body = 0;
+  for (let q = 0; q < n.height; q++) for (let c = 0; c < n.width; c++) {
+    const i = q * n.width + c;
+    if (!n.data[i * 4 + 3]) continue;
+    const x = (c + 0.5) * r.scale + r.phase[0], y = (q + 0.5) * r.scale + r.phase[1];
+    if (!inPoly(poly, x, y)) continue;
+    body++;
+    const name = r.spec.parts[r.seg.labels[i]]?.name ?? "";
+    if (LIMB.test(name)) bad.set(name, (bad.get(name) ?? 0) + 1);
+  }
+  return { body, bad: Object.fromEntries(bad) };
+}
+const PHARAOH_BODY = [[118, 150], [245, 150], [242, 200], [238, 300], [160, 305], [104, 265], [102, 215], [112, 200]];
+
+test("pharaoh: no torso pixel rides with an arm or leg (vision skeleton), shoulder cap and sleeve stay with the arm", () => {
+  const r = autoSplit(load("pharaoh/pharaoh-owner.png"), { skeleton: JSON.parse(readFileSync(join(S, "pharaoh/skeleton.json"), "utf8")) });
+  const m = limbInBody(r, PHARAOH_BODY);
+  console.log(`vision: ${m.body} pixel lõi thân, thuộc chi: ${JSON.stringify(m.bad)}`);
+  assert.deepEqual(m.bad, {});
+  const expect = { "ngực tối sau giáp vai": [125, 215, "than"], "sườn trái": [145, 240, "than"], "giáp vai": [60, 160, "tay-trai-tren"], "ống tay": [45, 210, "tay-trai-tren"], "giáp cẳng tay": [50, 275, "tay-trai-duoi"] };
+  for (const [what, [x, y, part]] of Object.entries(expect)) assert.equal(labelAt(r, x, y), part, what);
+});
+
+test("pharaoh offline heuristic: no torso-core pixel rides with a limb", () => {
+  const r = autoSplit(load("pharaoh/pharaoh-owner.png"));
+  const m = limbInBody(r, [[130, 165], [235, 165], [232, 290], [140, 290]]);
+  console.log(`offline: ${m.body} pixel lõi thân, thuộc chi: ${JSON.stringify(m.bad)}`);
+  assert.deepEqual(m.bad, {});
+});
