@@ -3,14 +3,14 @@ window.__errors = [];
 window.addEventListener("error", (e) => window.__errors.push(String(e.message || e)));
 window.addEventListener("unhandledrejection", (e) => window.__errors.push(String(e.reason?.message || e.reason)));
 
-const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime } = await import("./state.js?v=20261125g");
-const VP = await import("./viewport.js?v=20261125g");
-const { renderTree, renderProps } = await import("./panels.js?v=20261125g");
-const TL = await import("./timeline.js?v=20261125g");
-const IO = await import("./io.js?v=20261125g");
-const AG = await import("./agent.js?v=20261125g");
-const { importWhole } = await import("./splitui.js?v=20261125g");
-const CL = await import("./cloud.js?v=20261125g");
+const { S, doc, emit, on, h, toast, run, select, selectedBones, keyOverrides, keyAll, setTime, skeleton, poseAtTime } = await import("./state.js?v=20261125h");
+const VP = await import("./viewport.js?v=20261125h");
+const { renderTree, renderProps } = await import("./panels.js?v=20261125h");
+const TL = await import("./timeline.js?v=20261125h");
+const IO = await import("./io.js?v=20261125h");
+const AG = await import("./agent.js?v=20261125h");
+const { importWhole } = await import("./splitui.js?v=20261125h");
+const CL = await import("./cloud.js?v=20261125h");
 
 const $ = (id) => document.getElementById(id);
 const app = $("app"), modal = $("xx-modal");
@@ -122,9 +122,9 @@ async function openDialog() {
 }
 async function openSample(name) {
   const base = name === "pharaoh" ? "samples/pharaoh/project" : "samples/robo";
-  const d = await (await fetch(`${base}/doc.json?v=20261125g`)).json();
+  const d = await (await fetch(`${base}/doc.json?v=20261125h`)).json();
   const images = {};
-  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125g`)).blob(); }));
+  await Promise.all(Object.keys(d.images).map(async (p) => { images[p] = await (await fetch(`${base}/images/${p}.png?v=20261125h`)).blob(); }));
   await IO.loadProject(d, images);
   toast(`Đã mở mẫu ${d.name}`);
 }
@@ -157,6 +157,8 @@ $("xx-zoom100").onclick = () => { S.view.zoom = 1; emit("view"); };
 $("xx-show-bones").onchange = (e) => { S.showBones = e.target.checked; };
 $("xx-show-images").onchange = (e) => { S.showImages = e.target.checked; };
 $("xx-pixel").onchange = (e) => { S.pixelView = e.target.checked; };
+$("xx-snap").value = String(S.rotSnap);
+$("xx-snap").onchange = (e) => { S.rotSnap = +e.target.value; try { localStorage.setItem("xx-rot-snap", e.target.value); } catch {} };
 
 window.XX = {
   importDialog, keyNow, addIk, fitView: VP.fit,

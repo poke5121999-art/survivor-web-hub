@@ -1,7 +1,7 @@
 // Viewport: draws the skeleton with canvas2D, handles picking, gizmos, bone creation, pan and zoom.
-import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125g";
-import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG, findKey } from "../../runtime/xuong.js?v=20261125g";
-import { deformOffsets } from "../mesh.js?v=20261125g";
+import { S, doc, emit, skeleton, poseAtTime, editBone, currentLocal, select, selectedBones, toast, run, duration } from "./state.js?v=20261125h";
+import { drawList, draw2d, worldToLocal, worldToParent, worldVertices, getAttachment, bounds, DEG, findKey } from "../../runtime/xuong.js?v=20261125h";
+import { deformOffsets } from "../mesh.js?v=20261125h";
 
 const cv = document.getElementById("xx-canvas");
 const ctx = cv.getContext("2d");
@@ -316,6 +316,11 @@ cv.addEventListener("pointerdown", (e) => {
     bone = doc().slots.find((s) => s.name === S.sel.name)?.bone;
   }
   if (!bone) return;
+  // Pose tool on an IK chain (or its target): drag the target, the chain follows
+  if (S.tool === "pose") {
+    const c = (doc().ik ?? []).find((k) => k.target === bone || k.bones.includes(bone));
+    if (c) { S.hist.begin(`IK ${c.name}`); drag = { bone: c.target, ikTarget: c.target }; return; }
+  }
   const { sk, pose, i, p } = boneWorld(bone);
   S.hist.begin(`${S.tool} ${bone}`);
   drag = { bone, tool: S.tool, wx, wy, start: currentLocal(bone), p0: { ...p }, parentRot: parentRot(sk, pose, i), others: S.multi.map((n) => ({ name: n, start: currentLocal(n) })) };
@@ -350,13 +355,22 @@ cv.addEventListener("pointermove", (e) => {
     try { S.hist.runCoalesced({ type: "attachment.set", slot: a.slot, name: a.name, skin: a.skin, props: { x: rnd(a.x + lx1 - lx0), y: rnd(a.y + ly1 - ly0) } }, "att"); } catch (err) { toast(err.message, true); }
     return;
   }
+  if (drag.ikTarget) {
+    try {
+      const sk = skeleton(), i = sk.boneIndex.get(drag.ikTarget), [x, y] = worldToParent(sk, poseAtTime(S.time), i, mouse.wx, mouse.wy);
+      editBone(drag.ikTarget, { x: rnd(x), y: rnd(y) }, { coalesce: "ik" });
+    } catch (err) { toast(err.message, true); drag = null; S.hist.cancel(); }
+    return;
+  }
   const { bone, tool, start, p0 } = drag;
   try {
     if (tool === "rotate" || tool === "pose") {
       const a0 = Math.atan2(drag.wy - p0.wy, drag.wx - p0.wx), a1 = Math.atan2(mouse.wy - p0.wy, mouse.wx - p0.wx);
       let delta = (a1 - a0) / DEG;
       if (tool === "pose") delta = a1 / DEG - drag.parentRot - start.rotation;
-      if (e.shiftKey) delta = Math.round((start.rotation + delta) / 15) * 15 - start.rotation;
+      // Shift: 15°. "Snap xoay" (pixel art looks cleanest on a few angles): the chosen step without Shift
+      const step = e.shiftKey ? 15 : S.rotSnap || 0;
+      if (step) delta = Math.round((start.rotation + delta) / step) * step - start.rotation;
       const det = drag.p0.a * drag.p0.d - drag.p0.b * drag.p0.c;
       let rot = start.rotation + (det < 0 ? -delta : delta);
       if (S.mode === "setup") rot = ((rot % 360) + 360) % 360;

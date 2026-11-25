@@ -7,10 +7,10 @@
   <title>Xưởng Xương</title>
   <meta name="description" content="Editor animation 2D bằng bone trên trình duyệt: dựng rig, key animation, xuất cho game. Có agent sửa trực tiếp." />
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="editor.css?v=20261125g" />
-  <script src="../js/session.js?v=20261125g"></script>
-  <script src="../js/supabase-config.js?v=20261125g"></script>
-  <script src="../js/supabase-auth.js?v=20261125g"></script>
+  <link rel="stylesheet" href="editor.css?v=20261125h" />
+  <script src="../js/session.js?v=20261125h"></script>
+  <script src="../js/supabase-config.js?v=20261125h"></script>
+  <script src="../js/supabase-auth.js?v=20261125h"></script>
 </head>
 <body>
   <div id="app" class="xx">
@@ -38,6 +38,7 @@
           <label class="xx-chk" title="Hiện bone"><input type="checkbox" id="xx-show-bones" checked /> Bone</label>
           <label class="xx-chk" title="Hiện ảnh"><input type="checkbox" id="xx-show-images" checked /> Ảnh</label>
           <label class="xx-chk" title="Hiển thị pixel sắc nét (nearest)"><input type="checkbox" id="xx-pixel" /> Pixel</label>
+          <select id="xx-snap" class="xx-input" title="Snap góc khi xoay bằng chuột (Shift luôn là 15°). Pixel art xoay ở góc chẵn trông sạch hơn." style="width:auto"><option value="0">Xoay tự do</option><option value="5">Snap 5°</option><option value="15">Snap 15°</option><option value="22.5">Snap 22,5°</option><option value="45">Snap 45°</option><option value="90">Snap 90°</option></select>
         </div>
         <div class="xx-tools" id="xx-tools"></div>
         <div class="xx-metrics xx-muted" id="xx-metrics"></div>
@@ -61,6 +62,6 @@
   </div>
   <div id="xx-modal" class="xx-modal" hidden></div>
   <div id="xx-toasts" class="xx-toasts" role="status"></div>
-  <script type="module" src="src/editor/app.js?v=20261125g"></script>
+  <script type="module" src="src/editor/app.js?v=20261125h"></script>
 </body>
 </html>

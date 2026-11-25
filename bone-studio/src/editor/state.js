@@ -1,7 +1,7 @@
 // Editor state shared by all panels. The document lives in S.hist (History); everything else is view state.
-import { History } from "../history.js?v=20261125g";
-import { emptyDoc } from "../commands.js?v=20261125g";
-import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey, AnimationState } from "../../runtime/xuong.js?v=20261125g";
+import { History } from "../history.js?v=20261125h";
+import { emptyDoc } from "../commands.js?v=20261125h";
+import { buildSkeleton, setupPose, applyAnimation, updateWorld, animationDuration, findKey, AnimationState } from "../../runtime/xuong.js?v=20261125h";
 
 export const S = {
   hist: new History(emptyDoc()),
@@ -15,7 +15,7 @@ export const S = {
   images: new Map(),    // path -> HTMLCanvasElement | ImageBitmap (what the renderer draws)
   blobs: new Map(),     // path -> Blob (PNG, what gets saved)
   overrides: {},        // animate mode, unkeyed edits: { bone: { rotation?, x?, y?, scaleX?, scaleY? } }
-  showBones: true, showImages: true, pixelView: null,
+  showBones: true, showImages: true, pixelView: null, rotSnap: (() => { try { return +localStorage.getItem("xx-rot-snap") || 0; } catch { return 0; } })(),
   locked: null,         // agent job running: { label, cancel() }
   projectId: null, savedAt: 0, dirty: false,
   keySel: [],           // selected keys in the dopesheet: [{ track, time }]

@@ -241,6 +241,48 @@ try {
     return `${k0.value} → ${k1.value} → undo ${k2.value}`;
   });
 
+  await step("snap xoay 45° (pixel art) và Pose tool kéo target IK: cả chuỗi tay theo chuột, một undo", async () => {
+    const p7 = await open("?sample=robo");
+    const r = await p7.locator("#xx-canvas").boundingBox();
+    const scr = (name) => p7.evaluate((n) => { const p = __BS.pose(), i = __BS.doc().bones.findIndex((b) => b.name === n); return __BS.toScreen(p.bones[i].wx, p.bones[i].wy); }, name);
+    // snap: choose 45° in the toolbar, rotate the head by an odd angle with the mouse
+    await p7.selectOption("#xx-snap", "45");
+    await p7.keyboard.press("c");
+    await p7.evaluate(() => __BS.select({ kind: "bone", name: "head" }));
+    const [hx, hy] = await scr("head");
+    const rot0 = await p7.evaluate(() => __BS.doc().bones.find((b) => b.name === "head").rotation);
+    // drag ≈ 70° counter-clockwise around the head origin: free rotation would land near rot0 + 70
+    await p7.mouse.move(r.x + hx + 80, r.y + hy); await p7.mouse.down(); await p7.mouse.move(r.x + hx + 27, r.y + hy - 75, { steps: 8 }); await p7.mouse.up();
+    const rot = await p7.evaluate(() => __BS.doc().bones.find((b) => b.name === "head").rotation);
+    assert(Math.abs(rot / 45 - Math.round(rot / 45)) < 1e-6 && Math.abs(rot - rot0) > 20, `góc đầu ${rot0} → ${rot}: không snap 45° hoặc không xoay`);
+    await p7.selectOption("#xx-snap", "0");
+    // IK: a target bone at the hand, 2-bone IK on the front arm
+    await p7.evaluate(() => {
+      const p = __BS.pose(), d = __BS.doc(), i = d.bones.findIndex((b) => b.name === "front-hand"), root = p.bones[0];
+      const det = root.a * root.d - root.b * root.c, dx = p.bones[i].wx - root.wx, dy = p.bones[i].wy - root.wy;
+      __BS.apply([{ type: "bone.add", name: "ik-tay", parent: "root", x: (root.d * dx - root.b * dy) / det, y: (-root.c * dx + root.a * dy) / det },
+        { type: "ik.add", name: "tay", bones: ["front-upper-arm", "front-lower-arm"], target: "ik-tay" }], "IK");
+      __BS.setMode("animate"); __BS.S.anim = "idle"; __BS.setTime(0); __BS.emit("anim");
+    });
+    await p7.keyboard.press("b");
+    const [ax, ay] = await scr("front-hand");
+    const before = JSON.stringify(await p7.evaluate(() => __BS.pose().bones.map((b) => [b.wx, b.wy])));
+    await p7.evaluate(() => __BS.select({ kind: "bone", name: "front-lower-arm" }));
+    const [lx, ly] = await scr("front-lower-arm");
+    await p7.mouse.move(r.x + lx, r.y + ly); await p7.mouse.down();
+    const goal = [ax - 25, ay - 30];
+    await p7.mouse.move(r.x + goal[0], r.y + goal[1], { steps: 8 }); await p7.mouse.up();
+    const [tx, ty] = await scr("ik-tay"), [nx, ny] = await scr("front-hand");
+    await p7.screenshot({ path: join(CHK, "ik-drag.png") });
+    assert(Math.hypot(tx - goal[0], ty - goal[1]) < 2, `target ở ${tx},${ty}, chuột ${goal}`);
+    assert(Math.hypot(nx - goal[0], ny - goal[1]) < 6, `bàn tay ở ${nx},${ny}, chuột ${goal}`);
+    await p7.keyboard.press("Control+z");
+    const after = JSON.stringify(await p7.evaluate(() => __BS.pose().bones.map((b) => [b.wx, b.wy])));
+    await p7.close();
+    assert(after === before, "undo không đưa tư thế về như trước khi kéo");
+    return `đầu ${rot0}° → ${rot}°; bàn tay theo chuột lệch ${Math.hypot(nx - goal[0], ny - goal[1]).toFixed(1)} px`;
+  });
+
   await step("xem trộn walk → attack: góc tay đổi liên tục, không nhảy cóc", async () => {
     const p7 = await open("?sample=pharaoh");
     const r = await p7.evaluate(async () => {
