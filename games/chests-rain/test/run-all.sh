@@ -9,6 +9,7 @@ run() { echo "== $*"; "$@" || fail=1; }
 run node test/node/sim.mjs
 run node test/node/oracle-diff.mjs
 run node test/node/bot.mjs 10
+run node test/node/stages.mjs 1 4
 run node test/browser/save-reload.mjs
 run node test/browser/cards-panel.mjs
 run node test/browser/overlap.mjs "$OUT"

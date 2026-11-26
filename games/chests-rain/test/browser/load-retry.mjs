@@ -1,4 +1,4 @@
-// Asset loading under a flaky host: every pack and the manifest answer 503 on the first request, one pack
+// Asset loading under a flaky, gzip-encoding host (see util.mjs serve): every pack and the manifest answer 503 on the first request, one pack
 // answers 429 twice. The game must still start, with every sound decoded, in a small number of requests.
 import { open, ready } from "./util.mjs";
 import path from "node:path";
@@ -35,6 +35,8 @@ try {
 	await page.waitForTimeout(15000);
 	const lateOk = await page.evaluate(() => [...Unity.resources.keys()].filter((k) => k.endsWith("_src")).length);
 	check("card paintings arrive in the background", lateOk > 0, `(${lateOk})`);
+	const pmax = await page.evaluate(() => window.__progressMax);
+	check("progress bar never passes 100%", pmax <= 1.0001, `(max ${(pmax * 100).toFixed(1)}%)`);
 	check("no runtime errors", (await page.evaluate(() => Host.errors.length)) === 0);
 } finally {
 	await close();

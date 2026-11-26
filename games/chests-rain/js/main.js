@@ -14,30 +14,38 @@
 	};
 
 	function setProgress(done, total, what) {
-		bar.style.width = Math.round(100 * done / Math.max(1, total)) + "%";
+		bar.style.width = Math.min(100, Math.round(100 * done / Math.max(1, total))) + "%";
+		window.__progressMax = Math.max(window.__progressMax || 0, done / Math.max(1, total));
 		status.textContent = what;
 	}
 
 	// Static hosts (GitHub Pages behind Fastly) answer bursts with 503/429 now and then: retry with backoff.
-	async function fetchBytes(url, onProgress) {
+	// `size` is the decoded size from the manifest. Hosts that gzip (GitHub Pages) send the compressed size in
+	// Content-Length, so that header is only trusted when the response is not content-encoded.
+	// `onProgress(n)` gets the bytes received so far in the current attempt.
+	async function fetchBytes(url, size, onProgress) {
 		let wait = 400;
 		for (let attempt = 1; ; attempt++) {
 			try {
 				const r = await fetch(url, { cache: attempt > 1 ? "reload" : "default" });
 				if (r.ok) {
-					if (!onProgress || !r.body) return new Uint8Array(await r.arrayBuffer());
-					const total = r.headers.get("content-encoding") ? 0 : Number(r.headers.get("content-length")) || 0;
-					const reader = r.body.getReader(), parts = [];
-					let got = 0;
-					for (;;) {
-						const { done, value } = await reader.read();
-						if (done) break;
-						parts.push(value); got += value.length; onProgress(value.length);
+					const expect = size || (r.headers.get("content-encoding") ? 0 : Number(r.headers.get("content-length")) || 0);
+					let out;
+					if (!onProgress || !r.body) out = new Uint8Array(await r.arrayBuffer());
+					else {
+						const reader = r.body.getReader(), parts = [];
+						let got = 0;
+						onProgress(0);
+						for (;;) {
+							const { done, value } = await reader.read();
+							if (done) break;
+							parts.push(value); got += value.length; onProgress(got);
+						}
+						out = new Uint8Array(got);
+						let o = 0;
+						for (const p of parts) { out.set(p, o); o += p.length; }
 					}
-					if (total && got !== total) throw new Error(url + ": short read " + got + "/" + total);
-					const out = new Uint8Array(got);
-					let o = 0;
-					for (const p of parts) { out.set(p, o); o += p.length; }
+					if (expect && out.length !== expect) throw new Error(url + ": got " + out.length + " bytes, expected " + expect);
 					return out;
 				}
 				if (r.status < 500 && r.status !== 429 && r.status !== 408) throw Object.assign(new Error(url + ": http " + r.status), { fatal: true });
@@ -61,8 +69,13 @@
 		}
 		const bootPacks = [...new Set([...Object.values(man.res), ...Object.values(man.sfx)].map((e) => e[0]))];
 		const totalBytes = bootPacks.reduce((n, p) => n + man.packs[p], 0);
-		let bytes = 0;
-		const tick = (n) => { bytes += n; setProgress(bytes * 0.85, totalBytes, "Loading"); };
+		const got = new Map();
+		const progress = (p) => (n) => {
+			got.set(p, Math.min(n, man.packs[p]));
+			let bytes = 0;
+			for (const v of got.values()) bytes += v;
+			setProgress(bytes * 0.85, totalBytes, "Loading");
+		};
 		const packs = new Map();
 		const decoder = new OfflineAudioContext(2, 1, 48000);
 		const sfx = new Map();
@@ -75,7 +88,7 @@
 		const work = async () => {
 			while (queue.length) {
 				const p = queue.shift();
-				packs.set(p, await fetchBytes("assets/" + p + "?v=" + REV, tick));
+				packs.set(p, await fetchBytes("assets/" + p + "?v=" + REV, man.packs[p], progress(p)));
 				for (const [name, e] of byPack.get(p) || []) {
 					decodes.push(decoder.decodeAudioData(slice(packs, e).slice().buffer)
 						.then((buf) => { sfx.set(name, AudioBuffer.wrap(buf)); })
@@ -97,7 +110,7 @@
 		const names = [...new Set(Object.values(late.late).map((e) => e[0]))];
 		const packs = new Map();
 		for (const p of names) {
-			try { packs.set(p, await fetchBytes("assets/" + p + "?v=" + REV)); } catch (e) { console.warn(e); continue; }
+			try { packs.set(p, await fetchBytes("assets/" + p + "?v=" + REV, late.packs[p])); } catch (e) { console.warn(e); continue; }
 			for (const [path, e] of Object.entries(late.late)) {
 				if (e[0] !== p) continue;
 				Unity.resources.set(path, slice(packs, e));
