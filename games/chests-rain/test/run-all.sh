@@ -13,5 +13,6 @@ run node test/browser/save-reload.mjs
 run node test/browser/cards-panel.mjs
 run node test/browser/overlap.mjs "$OUT"
 run node test/browser/touch.mjs "$OUT"
+run node test/browser/load-retry.mjs
 [ $fail -eq 0 ] && echo "ALL PASS" || echo "SOME FAILED"
 exit $fail

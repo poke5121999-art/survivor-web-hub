@@ -1,4 +1,0 @@
-# Sprites imported from Design/SpriteArt (Design/SpriteArt/README.md; the ids, sizes and frames: Design/ART_REQUESTS.md).
-# Written by Arrowstorm > Import Sprite Art and Design/SpriteArt/import.cmd; read by Game/SpriteArt.cs. Do not edit by hand:
-# the next import rewrites it from the pictures in Design/SpriteArt. One block per picture: "@ id w h frames", then h rows of
-# w x frames letters (the frames side by side, facing right; '.' transparent; the letters of Game/Spr.cs: o ink, W white ...).

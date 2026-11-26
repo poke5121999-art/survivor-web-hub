@@ -19,7 +19,7 @@ export function serve(root) {
 	return new Promise((r) => server.listen(0, "127.0.0.1", () => r({ server, url: `http://127.0.0.1:${server.address().port}/` })));
 }
 
-export async function open(root, { width = 1280, height = 720, dpr = 1, mobile = false, query = "" } = {}) {
+export async function open(root, { width = 1280, height = 720, dpr = 1, mobile = false, query = "", beforeGoto = null } = {}) {
 	const { server, url } = await serve(root);
 	const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"] });
 	const close = async () => { try { await browser.close(); } catch (e) { } server.close(); };
@@ -30,6 +30,7 @@ export async function open(root, { width = 1280, height = 720, dpr = 1, mobile =
 		const logs = [];
 		page.on("console", (m) => logs.push(m.type() + ": " + m.text()));
 		page.on("pageerror", (e) => logs.push("pageerror: " + e.message));
+		if (beforeGoto) await beforeGoto(page);
 		await page.goto(url + "index.html" + query);
 		return { browser, page, logs, close, url };
 	} catch (e) { await close(); throw e; }

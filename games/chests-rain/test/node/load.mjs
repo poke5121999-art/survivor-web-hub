@@ -24,6 +24,11 @@ export function loadGame({ storage } = {}) {
 	run("js/host/boot.js");
 	const man = JSON.parse(fs.readFileSync(path.join(root, "assets/manifest.json"), "utf8"));
 	const res = vm.runInThisContext("Unity.resources");
-	for (const [k, v] of Object.entries(man.res)) res.set(k, new Uint8Array(fs.readFileSync(path.join(root, "assets", v.file))));
+	const packs = new Map();
+	const get = ([name, off, len]) => {
+		if (!packs.has(name)) packs.set(name, new Uint8Array(fs.readFileSync(path.join(root, "assets", name))));
+		return packs.get(name).subarray(off, off + len);
+	};
+	for (const [k, e] of Object.entries({ ...man.res, ...man.late })) res.set(k, get(e));
 	return { store, eval: (code) => vm.runInThisContext(code) };
 }

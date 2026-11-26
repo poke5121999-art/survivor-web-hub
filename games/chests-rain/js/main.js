@@ -18,37 +18,96 @@
 		status.textContent = what;
 	}
 
-	async function fetchBytes(url) {
-		const r = await fetch(url);
-		if (!r.ok) throw new Error(url + ": http " + r.status);
-		return new Uint8Array(await r.arrayBuffer());
+	// Static hosts (GitHub Pages behind Fastly) answer bursts with 503/429 now and then: retry with backoff.
+	async function fetchBytes(url, onProgress) {
+		let wait = 400;
+		for (let attempt = 1; ; attempt++) {
+			try {
+				const r = await fetch(url, { cache: attempt > 1 ? "reload" : "default" });
+				if (r.ok) {
+					if (!onProgress || !r.body) return new Uint8Array(await r.arrayBuffer());
+					const total = Number(r.headers.get("content-length")) || 0;
+					const reader = r.body.getReader(), parts = [];
+					let got = 0;
+					for (;;) {
+						const { done, value } = await reader.read();
+						if (done) break;
+						parts.push(value); got += value.length; onProgress(value.length);
+					}
+					if (total && got !== total) throw new Error(url + ": short read " + got + "/" + total);
+					const out = new Uint8Array(got);
+					let o = 0;
+					for (const p of parts) { out.set(p, o); o += p.length; }
+					return out;
+				}
+				if (r.status < 500 && r.status !== 429 && r.status !== 408) throw Object.assign(new Error(url + ": http " + r.status), { fatal: true });
+				throw new Error(url + ": http " + r.status);
+			} catch (e) {
+				if (e.fatal || attempt >= 7) throw e;
+				console.warn("retry", attempt, e.message);
+				await new Promise((res) => setTimeout(res, wait + Math.random() * wait));
+				wait = Math.min(wait * 2, 8000);
+			}
+		}
 	}
 
+	const slice = (packs, [name, off, len]) => packs.get(name).subarray(off, off + len);
+
 	async function loadAssets() {
-		const man = await (await fetch("assets/manifest.json?v=" + REV)).json();
-		const res = Object.entries(man.res);
-		const total = res.length + man.sfx.length;
-		let done = 0;
-		const queue = res.slice();
+		let man;
+		for (let i = 0; ; i++) {
+			try { man = JSON.parse(new TextDecoder().decode(await fetchBytes("assets/manifest.json?v=" + REV))); break; }
+			catch (e) { if (i > 3) throw e; }
+		}
+		const bootPacks = [...new Set([...Object.values(man.res), ...Object.values(man.sfx)].map((e) => e[0]))];
+		const totalBytes = bootPacks.reduce((n, p) => n + man.packs[p], 0);
+		let bytes = 0;
+		const tick = (n) => { bytes += n; setProgress(bytes * 0.85, totalBytes, "Loading"); };
+		const packs = new Map();
+		const decoder = new OfflineAudioContext(2, 1, 48000);
+		const sfx = new Map();
+		const byPack = new Map();
+		for (const [name, e] of Object.entries(man.sfx)) { if (!byPack.has(e[0])) byPack.set(e[0], []); byPack.get(e[0]).push([name, e]); }
+		const decodes = [];
+		let decoded = 0;
+		const total = Object.keys(man.sfx).length;
+		const queue = bootPacks.slice();
 		const work = async () => {
 			while (queue.length) {
-				const [path, v] = queue.shift();
-				Unity.resources.set(path, await fetchBytes("assets/" + v.file + "?v=" + REV));
-				setProgress(++done, total, "Loading");
+				const p = queue.shift();
+				packs.set(p, await fetchBytes("assets/" + p + "?v=" + REV, tick));
+				for (const [name, e] of byPack.get(p) || []) {
+					decodes.push(decoder.decodeAudioData(slice(packs, e).slice().buffer)
+						.then((buf) => { sfx.set(name, AudioBuffer.wrap(buf)); })
+						.catch((err) => console.warn("sfx decode failed", name, err))
+						.finally(() => { decoded++; setProgress(totalBytes * 0.85 + totalBytes * 0.15 * decoded / total, totalBytes, "Loading sounds"); }));
+				}
 			}
 		};
-		await Promise.all([work(), work(), work(), work()]);
-		const decoder = { native: new OfflineAudioContext(2, 1, 48000) };
-		const names = man.sfx.slice();
-		const map = new Map();
-		const chunk = 40;
-		for (let i = 0; i < names.length; i += chunk) {
-			const part = await WebAudioHost.preloadSfx(decoder, names.slice(i, i + chunk), (n) => "assets/res/sfx/" + n + ".ogg?v=" + REV);
-			for (const [k, v] of part) map.set(k, v);
-			done += Math.min(chunk, names.length - i);
-			setProgress(done, total, "Loading sounds");
+		await Promise.all([work(), work(), work()]);
+		for (const [path, e] of Object.entries(man.res)) Unity.resources.set(path, slice(packs, e));
+		await Promise.all(decodes);
+		late = man;
+		return sfx;
+	}
+
+	// Full-size card paintings load after boot; the Cards tab opens late in progression.
+	let late = null;
+	async function loadDeferred() {
+		const names = [...new Set(Object.values(late.late).map((e) => e[0]))];
+		const packs = new Map();
+		for (const p of names) {
+			try { packs.set(p, await fetchBytes("assets/" + p + "?v=" + REV)); } catch (e) { console.warn(e); continue; }
+			for (const [path, e] of Object.entries(late.late)) {
+				if (e[0] !== p) continue;
+				Unity.resources.set(path, slice(packs, e));
+				// An entry asked for before its bytes arrived failed with "missing asset"; let it start again.
+				const id = path.slice("cardpaint/".length, -"_src".length);
+				try {
+					for (const [, en] of G$CARDPAINT$cc().entries) if (en.state === 3 && !en.thumb && String(en.id).toLowerCase() === id) { en.state = 0; en.error = null; }
+				} catch (err) { }
+			}
 		}
-		return map;
 	}
 
 	function layout() {
@@ -138,6 +197,7 @@
 			Gfx.Init();
 			stage.appendChild(Gfx.canvas);
 			Gfx.canvas.id = "game";
+			window.__sfxLoaded = sfx.size;
 			G$SFX.SetSampleSource(WebAudioHost.sfxSource(sfx));
 			G$SFX.DecodeWav = WebAudioHost.sfxDecodeWav;
 			layout();
@@ -147,6 +207,7 @@
 			if (Touch.init()) Touch.layout(...lastRect);
 			loader.remove();
 			window.__ready = true;
+			loadDeferred();
 			requestAnimationFrame(loop);
 		} catch (e) {
 			status.textContent = "Failed to start: " + (e && e.message || e);
