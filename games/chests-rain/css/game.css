@@ -1,0 +1,9 @@
+html, body { margin: 0; height: 100%; background: #181425; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+#stage { position: fixed; inset: 0; }
+#game { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; }
+#loader { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: #e4d8b4; font: 600 16px/1.3 system-ui, sans-serif; }
+#title { font-size: 22px; letter-spacing: 0.04em; text-align: center; padding: 0 16px; }
+#track { width: min(320px, 70vw); height: 8px; background: #2c2537; border-radius: 4px; overflow: hidden; }
+#bar { width: 0; height: 100%; background: #feae34; transition: width 0.15s; }
+#back { position: fixed; left: 4px; bottom: 2px; width: 24px; height: 24px; line-height: 24px; text-align: center; color: #e4d8b4; opacity: 0.35; text-decoration: none; font: 18px system-ui, sans-serif; z-index: 5; }
+#back:hover { opacity: 0.9; }

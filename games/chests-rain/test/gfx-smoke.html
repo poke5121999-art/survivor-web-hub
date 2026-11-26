@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Gfx smoke</title>
+<style>body { background: #222; margin: 0 } canvas { image-rendering: pixelated; width: 1280px; height: 720px }</style>
+</head>
+<body>
+<script>
+class Col {
+  constructor(r, g, b, a) { this.r = r; this.g = g; this.b = b; this.a = a; }
+  get A8() { return Math.round(this.a * 255); }
+}
+class Gradient {
+  constructor(radial, x0, y0, r0, x1, y1, r1) {
+    Object.assign(this, { radial, x0, y0, r0, x1, y1, r1 });
+    this.st = [];
+    this.sc = [];
+  }
+  get StopCount() { return this.st.length; }
+  StopOffset(i) { return this.st[i]; }
+  StopColor(i) { return this.sc[i]; }
+  AddColorStop(o, c) { this.st.push(o); this.sc.push(c); }
+  static StopAlpha(c) { return c.A8 / 255; }
+}
+const G$JUICE = { on: true, postOn: true, worldSnapshot: null, bloomSnapshot: null };
+const G$JUICE$Post = {
+  offX: 0, offY: 0, zoom: 1, zoomX: 320, zoomY: 180, chroma: 0, bloom: 0, vignette: 0,
+  flashR: 0, flashG: 0, flashB: 0, flashA: 0, tintR: 1, tintG: 1, tintB: 1, tintA: 0,
+  saturation: 0, exposure: 0, waves: 0,
+  waveX: new Float32Array(8), waveY: new Float32Array(8), waveR: new Float32Array(8), waveW: new Float32Array(8), waveA: new Float32Array(8),
+};
+const G$E = { rdt: 1 / 60, frame: 0 };
+const G$FULL = { On: false };
+const G$WORLD = { GetNight() { return 0; } };
+const G$BUILD = { heavyFlashes: false };
+const G$GAME = { state: "run" };
+</script>
+<script src="../js/host/gfx.js"></script>
+<script src="../js/host/postfx.js"></script>
+<script>
+function fakeImg(w, h, pixels, opts) {
+  return Object.assign({ width: w, height: h, px: new Uint32Array(pixels), version: 1, smooth: false, dynamic: false,
+    repeat: false, releaseCpuAfterUpload: false, gpu: null, gpuSmooth: null, yuvId: null }, opts || {});
+}
+const box = () => ({ v: 0 });
+const out = { px: {}, canvas: {}, stats: {} };
+function grab(name, buf, x, y) {
+  const i = (y * 640 + x) * 4;
+  out.px[name] = Array.from(buf.subarray ? buf.subarray(i, i + 4) : buf.slice(i, i + 4));
+}
+function run() {
+  Gfx.Init();
+  PostFx.Init();
+  document.body.appendChild(Gfx.canvas);
+  const k = 1 / 255;
+  const wu = box(), wv = box();
+
+  // Frame A: canvas passes.
+  Gfx.BeginFrame();
+  Gfx.Clear(0, { r: 0, g: 0, b: 0, a: 0 });
+  Gfx.Clear(1, { r: 0, g: 0, b: 0, a: 0 });
+  let white = Gfx.WhiteTex(wu, wv);
+  const W = (t, x0, y0, x1, y1, r, g, b, a, pass) => Gfx.Quad(t, white, pass || 0, x0, y0, x1, y1, wu.v, wv.v, wu.v, wv.v, r, g, b, a);
+  W(0, 10, 10, 20, 20, 1, 0, 0, 1);
+  W(0, 10, 10, 20, 20, 0, 102 * k, 0, 102 * k);
+
+  const img = fakeImg(2, 2, [0xFF0000FF, 0xFF00FF00, 0xFFFF0000, 0x80808080]);
+  let uo = box(), vo = box(), us = box(), vs = box();
+  let t = Gfx.Ensure(img, uo, vo, us, vs);
+  Gfx.Quad(0, t, 0, 40, 10, 60, 30, uo.v, vo.v, uo.v + 2 * us.v, vo.v + 2 * vs.v, 1, 1, 1, 1);
+
+  const img2 = fakeImg(1, 1, [0xFF00FFFF]);
+  t = Gfx.Ensure(img2, uo, vo, us, vs);
+  Gfx.Quad(0, t, 0, 70, 10, 80, 20, uo.v, vo.v, uo.v + us.v, vo.v + vs.v, 1, 1, 1, 1);
+  img2.px[0] = 0xFFFF00FF;
+  img2.version++;
+  t = Gfx.Ensure(img2, uo, vo, us, vs);
+  Gfx.Quad(0, t, 0, 80, 10, 90, 20, uo.v, vo.v, uo.v + us.v, vo.v + vs.v, 1, 1, 1, 1);
+
+  const img3 = fakeImg(2, 1, [0xFF000000, 0xFFFFFFFF]);
+  t = Gfx.EnsureSmooth(img3, uo, vo, us, vs);
+  Gfx.Quad(0, t, 0, 100, 10, 140, 20, 0, 0, 1, 1, 1, 1, 1, 1);
+  out.stats.smoothIsStandalone = t !== white;
+
+  white = Gfx.WhiteTex(wu, wv);
+  W(0, 150, 10, 160, 20, 50 * k, 50 * k, 50 * k, 1);
+  W(0, 150, 10, 160, 20, 100 * k, 20 * k, 0, 0, 1);
+
+  W(0, 170, 10, 180, 20, 200 * k, 100 * k, 50 * k, 1);
+  W(0, 170, 10, 180, 20, 128 * k, 64 * k, 1, 1, 2);
+
+  for (const x of [190, 210, 230, 250]) W(0, x, 10, x + 10, 20, 200 * k, 100 * k, 50 * k, 1);
+  Gfx.BackdropQuad(5, 190, 10, 200, 20, 64 * k, 32 * k, 0, 128 * k, 1);
+  Gfx.BackdropQuad(3, 210, 10, 220, 20, 64 * k, 128 * k, 32 * k, 128 * k, 1);
+  Gfx.BackdropQuad(4, 230, 10, 240, 20, 100 * k, 20 * k, 60 * k, 200 * k, 1);
+  Gfx.BackdropQuad(3, 250, 10, 260, 20, 64 * k, 128 * k, 32 * k, 128 * k, 0.5);
+
+  const lin = new Gradient(false, 100, 0, 0, 200, 0, 0);
+  lin.AddColorStop(0, new Col(0, 0, 0, 1));
+  lin.AddColorStop(1, new Col(255, 255, 255, 1));
+  Gfx.GradientQuad(0, 0, 100, 40, 200, 50, 1, 1, lin, 1, 1, 0, 0);
+  Gfx.GradientQuad(0, 0, 100, 50, 200, 60, 1, 1, lin, 1, 1, 0, 0);
+  const rad = new Gradient(true, 400, 45, 0, 400, 45, 20);
+  rad.AddColorStop(0, new Col(255, 0, 0, 1));
+  rad.AddColorStop(1, new Col(0, 0, 255, 0));
+  Gfx.GradientQuad(0, 0, 380, 25, 420, 65, 1, 1, rad, 1, 1, 0, 0);
+
+  W(0, 290, 90, 320, 120, 1, 1, 1, 1);
+  W(1, 300, 100, 310, 110, 0, 0, 0, 1);
+  Gfx.CompositeShadow(0.4, 0);
+  Gfx.EndFrame();
+  out.stats.A = { quads: Gfx.quadsLastFrame, draws: Gfx.drawsLastFrame };
+  let m = Gfx.ReadPixels(Gfx.mainRT);
+  const pts = { solid: [15, 15], imgR: [45, 15], imgG: [55, 15], imgB: [45, 25], imgHalf: [55, 25], reup1: [75, 15], reup2: [85, 15],
+    smooth: [120, 15], add: [155, 15], mulImg: [175, 15], mulBd: [195, 15], soft: [215, 15], color: [235, 15], softHalf: [255, 15],
+    grad150: [150, 45], grad120: [120, 55], grad199: [199, 45], radial: [405, 45], radialOut: [419, 45],
+    shadowIn: [305, 105], shadowOut: [295, 95] };
+  for (const [n, [x, y]] of Object.entries(pts)) grab(n, m, x, y);
+  let c = Gfx.ReadPixels(null);
+  for (const n of ["solid", "imgHalf", "imgB"]) { const [x, y] = pts[n]; const i = (y * 640 + x) * 4; out.canvas[n] = Array.from(c.subarray(i, i + 4)); }
+
+  // Frame B: blurred shadow.
+  Gfx.BeginFrame();
+  Gfx.Clear(0, { r: 1, g: 1, b: 1, a: 1 });
+  Gfx.Clear(1, { r: 0, g: 0, b: 0, a: 0 });
+  white = Gfx.WhiteTex(wu, wv);
+  W(1, 100, 100, 110, 110, 0, 0, 0, 1);
+  Gfx.CompositeShadow(1, 1);
+  Gfx.EndFrame();
+  out.stats.B = { quads: Gfx.quadsLastFrame, draws: Gfx.drawsLastFrame };
+  m = Gfx.ReadPixels(Gfx.mainRT);
+  for (const x of [97, 98, 99, 100, 101, 105]) grab("blur" + x, m, x, 105);
+
+  // Frame C: post-processing (world snapshot, HUD quad, bloom, grade, vignette).
+  const s = { enabled: true, bloomIntensity: 1.6, bloomThreshold: 0.78, bloomThresholdNight: 0.5, bloomKnee: 0.5, bloomNight: 0.3,
+    bloomRadius: 1, bloomPulse: 1.6, bloomProtect: 0.75, exposure: 0, contrast: 0.14, nightContrastFade: 0.65, nightExposure: 0.08,
+    saturation: 0.08, uiGrade: 0.4, vignette: 0.2, uiVignette: 0.35, edgeChroma: 0.35, maxChromaPx: 1.5, grain: 0, flash: 0.7,
+    uiFlash: 0.35, shockLight: 0.35, maxShakePx: 6, maxPunch: 0.05, maxOverscan: 0.02, dither: false };
+  PostFx.Render(s);
+  Gfx.BeginFrame();
+  Gfx.Clear(0, { r: 220 * k, g: 200 * k, b: 180 * k, a: 1 });
+  G$JUICE.worldSnapshot();
+  white = Gfx.WhiteTex(wu, wv);
+  W(0, 20, 300, 30, 310, 200 * k, 100 * k, 50 * k, 1);
+  Gfx.EndFrame();
+  out.stats.post = PostFx.Render(s);
+  c = Gfx.ReadPixels(null);
+  for (const [n, [x, y]] of Object.entries({ postCenter: [320, 180], postCorner: [10, 10], postHud: [25, 305] })) {
+    const i = (y * 640 + x) * 4;
+    out.canvas[n] = Array.from(c.subarray(i, i + 4));
+  }
+  const b0 = Gfx.ReadPixels(PostFx._bloom[0]);
+  out.stats.bloom0 = Array.from(b0.subarray ? b0.subarray((90 * 320 + 160) * 4, (90 * 320 + 160) * 4 + 4) : []);
+  out.stats.glError = Gfx._gl.getError();
+  return out;
+}
+window.__result = (() => { try { return run(); } catch (e) { return { error: String(e && e.stack || e) }; } })();
+</script>
+</body>
+</html>

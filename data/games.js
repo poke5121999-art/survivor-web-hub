@@ -1167,5 +1167,20 @@ window.HUB_GAMES = [
     rev: "20261120e",
     status: "available",
     tags: ["Dựng thử", "Kinh dị", "Góc nhìn thứ nhất"]
+  },
+  {
+    id: "chests-rain",
+    title: "Mưa Rương",
+    tagline: "Thả anh hùng xuống đồng cỏ cho họ tự diệt slime, vàng rơi đầy rương rồi nổ ra cả cơn mưa loot.",
+    desc: "Làm lại When Chests Rain Tons of Loot (bản Steam) chạy thẳng trên web: code gốc của game được dịch máy sang JS, nên map, slime, hiệu ứng, giao diện và tiếng đều lấy từ bản PC. Mỗi run có giờ đếm ngược: bấm chuột trái để thả anh hùng, họ tự đánh slime, vàng rơi lấp đầy rương; hết giờ rương nổ, rê chuột hốt loot. Về trại mua kỹ năng trên cây kỹ năng rồi đánh tiếp, có cả album thẻ. Bản đầu mới kiểm kỹ vòng chơi level 1; boss, level 2 trở đi, cửa hàng, trang bị, Endless đã có trong code nhưng chưa kiểm, và chưa có điều khiển cảm ứng cho điện thoại. Tải lần đầu khoảng 44 MB. Màn ngang, chuột và WASD, lưu trong trình duyệt.",
+    genre: "hanh-dong",
+    accent: "#e8b23a",
+    en: { title: "When Chests Rain", tagline: "Drop heroes onto the meadow to clear the slimes, fill the chest with gold, then watch it burst into a rain of loot.", desc: "When Chests Rain Tons of Loot (Steam) running in the browser: the game's own code is machine-translated to JS, so the maps, slimes, effects, UI and sounds come from the PC game. Each run is on a timer: left click places heroes, they fight the slimes on their own and the gold fills your chest; when time runs out it bursts and you sweep the loot with the cursor. Back at camp, buy skills on the skill tree and go again; the card album is there too. This first drop is only fully tested through level 1: bosses, level 2 onwards, shop, gear and Endless are in the code but untested, and there are no touch controls for phones yet. First load is about 44 MB. Landscape, mouse and WASD, saved in the browser." },
+    thumbnail: "assets/thumbnails/chests-rain.png",
+    // Dựng bên linux (~/chestrain-work, ref ~/chestrain-ref): C# Mono của bản Steam 5057800 dịch máy sang JS (tools/xlate), Canvas 2D + Web Audio thật.
+    path: "games/chests-rain/index.html",
+    rev: "20261126a",
+    status: "available",
+    tags: ["Hành động","Roguelite","Màn ngang"]
   }
 ];

@@ -1,0 +1,414 @@
+class AudioBuffer  (Class, base -)
+  numberOfChannels   <- int AudioBuffer.numberOfChannels
+  length   <- int AudioBuffer.length
+  sampleRate   <- double AudioBuffer.sampleRate
+  duration   <- double AudioBuffer.duration
+  $ctor   <- AudioBuffer.AudioBuffer(int numberOfChannels, int length, double sampleRate)
+  GetChannelData   <- float[] AudioBuffer.GetChannelData(int channel)
+class AudioNode  (Class, base -)
+  static Q   <- int AudioNode.Q
+  static NoParams   <- AudioParam[] AudioNode.NoParams
+  context   <- AudioContext AudioNode.context
+  persistent   <- bool AudioNode.persistent
+  inputs   <- List<AudioNode> AudioNode.inputs
+  output   <- AudioBus AudioNode.output
+  ownParams   <- AudioParam[] AudioNode.ownParams
+  $ctor   <- AudioNode.AudioNode(AudioContext context)
+  Connect$AudioNode   <- AudioNode AudioNode.Connect(AudioNode destination)
+  Connect$AudioParam   <- void AudioNode.Connect(AudioParam destination)
+  Disconnect   <- void AudioNode.Disconnect()
+  ReleaseOutputs   <- void AudioNode.ReleaseOutputs()
+  QueueRelease   <- void AudioNode.QueueRelease()
+  ReleaseIfIdle   <- void AudioNode.ReleaseIfIdle()
+  Pull   <- AudioBus AudioNode.Pull()
+  Process   <- void AudioNode.Process()
+  SetOutput   <- void AudioNode.SetOutput(int channels)
+  MixInputs   <- AudioBus AudioNode.MixInputs(int maxChannels)
+class AudioScheduledSourceNode  (Class, base AudioNode)
+  static UNSCHEDULED   <- int AudioScheduledSourceNode.UNSCHEDULED
+  static SCHEDULED   <- int AudioScheduledSourceNode.SCHEDULED
+  static PLAYING   <- int AudioScheduledSourceNode.PLAYING
+  static FINISHED   <- int AudioScheduledSourceNode.FINISHED
+  static UnknownTime   <- double AudioScheduledSourceNode.UnknownTime
+  playbackState   <- int AudioScheduledSourceNode.playbackState
+  startTime   <- double AudioScheduledSourceNode.startTime
+  endTime   <- double AudioScheduledSourceNode.endTime
+  isFinished   <- bool AudioScheduledSourceNode.isFinished
+  $ctor   <- AudioScheduledSourceNode.AudioScheduledSourceNode(AudioContext context)
+  Start$d   <- void AudioScheduledSourceNode.Start(double when = 0)
+  Stop   <- void AudioScheduledSourceNode.Stop(double when = 0)
+  Finish   <- void AudioScheduledSourceNode.Finish()
+  static TimeToSampleFrame   <- long AudioScheduledSourceNode.TimeToSampleFrame(double time, double sampleRate, bool roundUp)
+  UpdateSchedulingInfo   <- int AudioScheduledSourceNode.UpdateSchedulingInfo(out int quantumFrameOffset, out double startFrameOffset)
+  static ZeroOutside   <- void AudioScheduledSourceNode.ZeroOutside(float[] d, int from, int to)
+class AudioBufferSourceNode  (Class, base AudioScheduledSourceNode)
+  playbackRate   <- AudioParam AudioBufferSourceNode.playbackRate
+  detune   <- AudioParam AudioBufferSourceNode.detune
+  buffer   <- AudioBuffer AudioBufferSourceNode.buffer
+  loop   <- bool AudioBufferSourceNode.loop
+  loopStart   <- double AudioBufferSourceNode.loopStart
+  loopEnd   <- double AudioBufferSourceNode.loopEnd
+  $ctor   <- AudioBufferSourceNode.AudioBufferSourceNode(AudioContext context)
+  Start$d$d   <- void AudioBufferSourceNode.Start(double when, double offset)
+  Start$d$d$d   <- void AudioBufferSourceNode.Start(double when, double offset, double duration)
+  Process   <- void AudioBufferSourceNode.Process()
+class AudioBus  (Class, base -)
+  channels   <- int AudioBus.channels
+  L   <- float[] AudioBus.L
+  R   <- float[] AudioBus.R
+  silent   <- bool AudioBus.silent
+  SetSilent   <- void AudioBus.SetSilent(int ch)
+class AudioContext  (Class, base -)
+  static RenderQuantumFrames   <- int AudioContext.RenderQuantumFrames
+  static Zero   <- float[] AudioContext.Zero
+  sync   <- object AudioContext.sync
+  sampleRate   <- double AudioContext.sampleRate
+  destination   <- AudioDestinationNode AudioContext.destination
+  quantum   <- long AudioContext.quantum
+  pool   <- BufferPool AudioContext.pool
+  silentBus   <- AudioBus AudioContext.silentBus
+  kValue   <- float[] AudioContext.kValue
+  releaseList   <- List<AudioNode> AudioContext.releaseList
+  deferredList   <- List<ConvolverNode> AudioContext.deferredList
+  persistentNodes   <- bool AudioContext.persistentNodes
+  currentTime   <- double AudioContext.currentTime
+  CurrentFrame   <- long AudioContext.CurrentFrame
+  state   <- AudioContextState AudioContext.state
+  $ctor   <- AudioContext.AudioContext(double sampleRate)
+  Resume   <- void AudioContext.Resume()
+  Suspend   <- void AudioContext.Suspend()
+  Close   <- void AudioContext.Close()
+  TakeRenderError   <- Exception AudioContext.TakeRenderError()
+  CreateGain   <- GainNode AudioContext.CreateGain()
+  CreateOscillator   <- OscillatorNode AudioContext.CreateOscillator()
+  CreateBiquadFilter   <- BiquadFilterNode AudioContext.CreateBiquadFilter()
+  CreateBufferSource   <- AudioBufferSourceNode AudioContext.CreateBufferSource()
+  CreateStereoPanner   <- StereoPannerNode AudioContext.CreateStereoPanner()
+  CreateConvolver   <- ConvolverNode AudioContext.CreateConvolver()
+  CreateDynamicsCompressor   <- DynamicsCompressorNode AudioContext.CreateDynamicsCompressor()
+  CreateWaveShaper   <- WaveShaperNode AudioContext.CreateWaveShaper()
+  CreateBuffer   <- AudioBuffer AudioContext.CreateBuffer(int numberOfChannels, int length, double bufferSampleRate)
+  CreatePeriodicWave   <- PeriodicWave AudioContext.CreatePeriodicWave(float[] real, float[] imag, bool disableNormalization = false)
+  BasicWave   <- PeriodicWave AudioContext.BasicWave(string type)
+  RenderQuantum   <- void AudioContext.RenderQuantum(float[] l, float[] r)
+class AudioContextState  (Enum, base -)
+  static Suspended   <- AudioContextState.Suspended
+  static Running   <- AudioContextState.Running
+  static Closed   <- AudioContextState.Closed
+class AudioDestinationNode  (Class, base AudioNode)
+  $ctor   <- AudioDestinationNode.AudioDestinationNode(AudioContext context)
+  Process   <- void AudioDestinationNode.Process()
+  Render   <- void AudioDestinationNode.Render(float[] l, float[] r)
+class AudioParam  (Class, base -)
+  context   <- AudioContext AudioParam.context
+  defaultValue   <- float AudioParam.defaultValue
+  minValue   <- float AudioParam.minValue
+  maxValue   <- float AudioParam.maxValue
+  isAudioRate   <- bool AudioParam.isAudioRate
+  inputs   <- List<AudioNode> AudioParam.inputs
+  value   <- double AudioParam.value
+  CanApply   <- bool AudioParam.CanApply
+  $ctor   <- AudioParam.AudioParam(AudioContext context, float defaultValue, float minValue, float maxValue, bool audioRate)
+  SetValueAtTime   <- AudioParam AudioParam.SetValueAtTime(double value, double startTime)
+  LinearRampToValueAtTime   <- AudioParam AudioParam.LinearRampToValueAtTime(double value, double endTime)
+  ExponentialRampToValueAtTime   <- AudioParam AudioParam.ExponentialRampToValueAtTime(double value, double endTime)
+  SetTargetAtTime   <- AudioParam AudioParam.SetTargetAtTime(double target, double startTime, double timeConstant)
+  CancelScheduledValues   <- AudioParam AudioParam.CancelScheduledValues(double cancelTime)
+  HasSampleAccurateValues   <- bool AudioParam.HasSampleAccurateValues()
+  FinalValue   <- float AudioParam.FinalValue()
+  CalculateSampleAccurateValues   <- void AudioParam.CalculateSampleAccurateValues(float[] values)
+  ApplySampleAccurate   <- void AudioParam.ApplySampleAccurate(float[] input, float[] output)
+  ProcessOnly   <- void AudioParam.ProcessOnly()
+class AudioParam$ParamEvent  (Class, base -)
+  type   <- int ParamEvent.type
+  value   <- float ParamEvent.value
+  time   <- double ParamEvent.time
+  timeConstant   <- double ParamEvent.timeConstant
+  initialValue   <- float ParamEvent.initialValue
+  callTime   <- double ParamEvent.callTime
+class BiquadFilterNode  (Class, base AudioNode)
+  frequency   <- AudioParam BiquadFilterNode.frequency
+  detune   <- AudioParam BiquadFilterNode.detune
+  gain   <- AudioParam BiquadFilterNode.gain
+  Q   <- AudioParam BiquadFilterNode.Q
+  type   <- string BiquadFilterNode.type
+  $ctor   <- BiquadFilterNode.BiquadFilterNode(AudioContext context)
+  Process   <- void BiquadFilterNode.Process()
+class BufferPool  (Class, base -)
+  $ctor   <- BufferPool.BufferPool(int prealloc)
+  Get   <- float[] BufferPool.Get()
+  GetBus   <- AudioBus BufferPool.GetBus()
+  Reset   <- void BufferPool.Reset()
+class CompressorKernel  (Class, base -)
+  $ctor   <- CompressorKernel.CompressorKernel(float sampleRate)
+  Process   <- void CompressorKernel.Process(float[] inL, float[] inR, float[] outL, float[] outR, float dbThreshold, float dbKnee, float ratio, float attackTime, float releaseTime)
+class ConvolverEngine  (Class, base -)
+  $ctor   <- ConvolverEngine.ConvolverEngine(float[] ir, float scale, int channel)
+  Render   <- void ConvolverEngine.Render(float[] input, float[] output)
+  Deferred   <- void ConvolverEngine.Deferred()
+class ConvolverEngine$Level  (Class, base -)
+  B   <- int Level.B
+  S   <- int Level.S
+  K   <- int Level.K
+  quanta   <- int Level.quanta
+  phase   <- int Level.phase
+  slice   <- int Level.slice
+  head   <- int Level.head
+  fft   <- RealFFT Level.fft
+  Hre   <- float[][] Level.Hre
+  Him   <- float[][] Level.Him
+  Xre   <- float[][] Level.Xre
+  Xim   <- float[][] Level.Xim
+  Hzero   <- bool[] Level.Hzero
+  Xzero   <- bool[] Level.Xzero
+  accRe   <- float[] Level.accRe
+  accIm   <- float[] Level.accIm
+  time   <- float[] Level.time
+  accUsed   <- bool Level.accUsed
+  selX   <- int[] Level.selX
+  selH   <- int[] Level.selH
+class ConvolverNode  (Class, base AudioNode)
+  normalize   <- bool ConvolverNode.normalize
+  buffer   <- AudioBuffer ConvolverNode.buffer
+  $ctor   <- ConvolverNode.ConvolverNode(AudioContext context)
+  Process   <- void ConvolverNode.Process()
+  ProcessDeferred   <- void ConvolverNode.ProcessDeferred()
+class DynamicsCompressorNode  (Class, base AudioNode)
+  threshold   <- AudioParam DynamicsCompressorNode.threshold
+  knee   <- AudioParam DynamicsCompressorNode.knee
+  ratio   <- AudioParam DynamicsCompressorNode.ratio
+  attack   <- AudioParam DynamicsCompressorNode.attack
+  release   <- AudioParam DynamicsCompressorNode.release
+  $ctor   <- DynamicsCompressorNode.DynamicsCompressorNode(AudioContext context)
+  Process   <- void DynamicsCompressorNode.Process()
+class GainNode  (Class, base AudioNode)
+  gain   <- AudioParam GainNode.gain
+  $ctor   <- GainNode.GainNode(AudioContext context)
+  Process   <- void GainNode.Process()
+class OscillatorNode  (Class, base AudioScheduledSourceNode)
+  frequency   <- AudioParam OscillatorNode.frequency
+  detune   <- AudioParam OscillatorNode.detune
+  type   <- string OscillatorNode.type
+  $ctor   <- OscillatorNode.OscillatorNode(AudioContext context)
+  SetPeriodicWave   <- void OscillatorNode.SetPeriodicWave(PeriodicWave periodicWave)
+  Process   <- void OscillatorNode.Process()
+class PeriodicWave  (Class, base -)
+  static SINE   <- int PeriodicWave.SINE
+  static SQUARE   <- int PeriodicWave.SQUARE
+  static SAWTOOTH   <- int PeriodicWave.SAWTOOTH
+  static TRIANGLE   <- int PeriodicWave.TRIANGLE
+  size   <- int PeriodicWave.size
+  rateScale   <- float PeriodicWave.rateScale
+  lowestFundamental   <- float PeriodicWave.lowestFundamental
+  numberOfRanges   <- int PeriodicWave.numberOfRanges
+  tables   <- float[][] PeriodicWave.tables
+  sameBelow   <- float PeriodicWave.sameBelow
+  shift   <- int PeriodicWave.shift
+  fracMask   <- uint PeriodicWave.fracMask
+  fracScale   <- float PeriodicWave.fracScale
+  phaseScale   <- double PeriodicWave.phaseScale
+  static Basic   <- PeriodicWave PeriodicWave.Basic(double sampleRate, int shape)
+  $ctor   <- PeriodicWave.PeriodicWave(double sampleRate, float[] real, float[] imag, int count, bool disableNormalization)
+  Select   <- void PeriodicWave.Select(float frequency, out float[] lower, out float[] higher, out float factor)
+class RealFFT  (Class, base -)
+  N   <- int RealFFT.N
+  M   <- int RealFFT.M
+  $ctor   <- RealFFT.RealFFT(int n)
+  Forward   <- void RealFFT.Forward(float[] x, int offset, float[] Xre, float[] Xim)
+  Inverse   <- void RealFFT.Inverse(float[] Xre, float[] Xim, float[] x, float scale)
+class StereoPannerNode  (Class, base AudioNode)
+  pan   <- AudioParam StereoPannerNode.pan
+  $ctor   <- StereoPannerNode.StereoPannerNode(AudioContext context)
+  Process   <- void StereoPannerNode.Process()
+class WaveShaperNode  (Class, base AudioNode)
+  curve   <- float[] WaveShaperNode.curve
+  oversample   <- string WaveShaperNode.oversample
+  $ctor   <- WaveShaperNode.WaveShaperNode(AudioContext context)
+  Process   <- void WaveShaperNode.Process()
+class WaveShaperNode$Kernel  (Class, base -)
+  x   <- float[] Kernel.x
+  ve   <- float[] Kernel.ve
+  vo   <- float[] Kernel.vo
+  valid   <- bool Kernel.valid
+class ArrowstormMain  (Class, base -)
+  seed   <- int ArrowstormMain.seed
+  audioAtBoot   <- bool ArrowstormMain.audioAtBoot
+  vSync   <- bool ArrowstormMain.vSync
+  polish   <- bool ArrowstormMain.polish
+  motion   <- float ArrowstormMain.motion
+  post   <- PostFxSettings ArrowstormMain.post
+  wishlistUrl   <- string ArrowstormMain.wishlistUrl
+  demoBuild   <- bool ArrowstormMain.demoBuild
+  fullRelease   <- bool ArrowstormMain.fullRelease
+  static Instance   <- ArrowstormMain ArrowstormMain.Instance
+  static Booted   <- bool ArrowstormMain.Booted
+class AssetDump  (Class, base -)
+  static Active   <- bool AssetDump.Active
+  static Detect   <- void AssetDump.Detect()
+  static Run   <- void AssetDump.Run()
+  static Write   <- void AssetDump.Write(Img img, string path)
+class Atlas  (Class, base -)
+  static Init   <- void Atlas.Init()
+  static Shutdown   <- void Atlas.Shutdown()
+  static White   <- Texture Atlas.White(out float u, out float v)
+  static BeginFrame   <- void Atlas.BeginFrame()
+  static Release   <- void Atlas.Release(Img img)
+  static MarkTransient   <- void Atlas.MarkTransient(Img img)
+  static ReleaseTransient   <- void Atlas.ReleaseTransient()
+  static Flush   <- void Atlas.Flush()
+  static Ensure   <- Texture Atlas.Ensure(Img img, out float uOff, out float vOff, out float uScale, out float vScale)
+  static EnsureSmooth   <- Texture Atlas.EnsureSmooth(Img img, out float uOff, out float vOff, out float uScale, out float vScale)
+class Atlas$Page  (Class, base -)
+  tex   <- Texture2D Page.tex
+  mirror   <- uint[] Page.mirror
+  x   <- int Page.x
+  y   <- int Page.y
+  rowH   <- int Page.rowH
+  dirty   <- bool Page.dirty
+  applied   <- bool Page.applied
+class Atlas$Entry  (Class, base -)
+  page   <- Page Entry.page
+  tex   <- Texture2D Entry.tex
+  x   <- int Entry.x
+  y   <- int Entry.y
+  w   <- int Entry.w
+  h   <- int Entry.h
+  version   <- int Entry.version
+  transient   <- bool Entry.transient
+  epoch   <- int Entry.epoch
+class AudioOutput  (Class, base -)
+  static Stalled   <- bool AudioOutput.Stalled
+  static OutputSampleRate   <- double AudioOutput.OutputSampleRate()
+  static Attach   <- void AudioOutput.Attach(AudioContext context)
+  static Detach   <- void AudioOutput.Detach()
+class CaptureHarness  (Class, base -)
+  static composite   <- Func<int, int, Texture2D> CaptureHarness.composite
+  static SEED   <- uint CaptureHarness.SEED
+  static FrameDt   <- double CaptureHarness.FrameDt
+  static Active   <- bool CaptureHarness.Active
+  static Audio   <- bool CaptureHarness.Audio
+  static Polish   <- bool CaptureHarness.Polish
+  static Pure   <- bool CaptureHarness.Pure
+  static Tutorial   <- bool CaptureHarness.Tutorial
+  static Detect   <- void CaptureHarness.Detect()
+  static Setup   <- void CaptureHarness.Setup()
+  static BeforeTick   <- void CaptureHarness.BeforeTick()
+  static AfterFrame   <- void CaptureHarness.AfterFrame()
+class CaptureHarness$Step  (Class, base -)
+  wait   <- int Step.wait
+  act   <- Action Step.act
+  shot   <- string Step.shot
+  until   <- Func<bool> Step.until
+  max   <- int Step.max
+class DevTools  (Class, base -)
+  static Enabled   <- bool DevTools.Enabled
+class Gfx  (Class, base -)
+  static TW   <- int Gfx.TW
+  static TH   <- int Gfx.TH
+  static MAIN   <- int Gfx.MAIN
+  static SHADOW   <- int Gfx.SHADOW
+  static mainRT   <- RenderTexture Gfx.mainRT
+  static shadowRT   <- RenderTexture Gfx.shadowRT
+  static tmpRT   <- RenderTexture Gfx.tmpRT
+  static tmp2RT   <- RenderTexture Gfx.tmp2RT
+  static worldRT   <- RenderTexture Gfx.worldRT
+  static hudRT   <- RenderTexture Gfx.hudRT
+  static bloomSrcRT   <- RenderTexture Gfx.bloomSrcRT
+  static quadsLastFrame   <- int Gfx.quadsLastFrame
+  static drawsLastFrame   <- int Gfx.drawsLastFrame
+  static bloomSrcValid   <- bool Gfx.bloomSrcValid
+  static worldValid   <- bool Gfx.worldValid
+  static hudValid   <- bool Gfx.hudValid
+  static Init   <- void Gfx.Init()
+  static Shutdown   <- void Gfx.Shutdown()
+  static BeginFrame   <- void Gfx.BeginFrame()
+  static Quad   <- void Gfx.Quad(int target, Texture tex, int pass, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, float r, float g, float b, float a)
+  static QuadYuv   <- void Gfx.QuadYuv(int target, Texture ty, Texture tu, Texture tv, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, float a)
+  static BackdropQuad   <- void Gfx.BackdropQuad(int pass, float x0, float y0, float x1, float y1, float r, float g, float b, float a, float cov)
+  static GradientQuad   <- void Gfx.GradientQuad(int target, int pass, float x0, float y0, float x1, float y1, float pa, float cov, Gradient g, double ta, double td, double te, double tf)
+  static Clear   <- void Gfx.Clear(int target, Color c)
+  static CompositeShadow   <- void Gfx.CompositeShadow(double alpha, double blurSigma)
+  static SnapshotWorld   <- void Gfx.SnapshotWorld()
+  static SnapshotBloomSource   <- void Gfx.SnapshotBloomSource()
+  static EndFrame   <- void Gfx.EndFrame()
+  static Ensure   <- Texture Gfx.Ensure(Img img, out float uOff, out float vOff, out float uScale, out float vScale)
+  static EnsureSmooth   <- Texture Gfx.EnsureSmooth(Img img, out float uOff, out float vOff, out float uScale, out float vScale)
+  static WhiteTex   <- Texture Gfx.WhiteTex(out float u, out float v)
+  static Release   <- void Gfx.Release(Img img)
+  static MarkTransient   <- void Gfx.MarkTransient(Img img)
+  static ReleaseTransient   <- void Gfx.ReleaseTransient()
+class Gfx$Vtx  (Struct, base -)
+  x   <- float Vtx.x
+  y   <- float Vtx.y
+  z   <- float Vtx.z
+  r   <- float Vtx.r
+  g   <- float Vtx.g
+  b   <- float Vtx.b
+  a   <- float Vtx.a
+  u   <- float Vtx.u
+  v   <- float Vtx.v
+class Gfx$OpKind  (Enum, base -)
+  static Batch   <- OpKind.Batch
+  static Clear   <- OpKind.Clear
+  static Blur   <- OpKind.Blur
+  static Backdrop   <- OpKind.Backdrop
+  static Gradient   <- OpKind.Gradient
+  static Snapshot   <- OpKind.Snapshot
+  static Nop   <- OpKind.Nop
+  static BloomSnap   <- OpKind.BloomSnap
+class Gfx$Op  (Struct, base -)
+  kind   <- OpKind Op.kind
+  target   <- int Op.target
+  pass   <- int Op.pass
+  q0   <- int Op.q0
+  qn   <- int Op.qn
+  sub   <- int Op.sub
+  tex   <- Texture Op.tex
+  tex2   <- Texture Op.tex2
+  tex3   <- Texture Op.tex3
+  color   <- Color Op.color
+  src   <- RenderTexture Op.src
+  dst   <- RenderTexture Op.dst
+  dir   <- Vector4 Op.dir
+  grad   <- Gradient Op.grad
+  gradA   <- Vector4 Op.gradA
+  gradB   <- Vector4 Op.gradB
+class J  (Class, base -)
+  static Round   <- double J.Round(double x)
+  static RoundI   <- int J.RoundI(double x)
+  static Sign   <- double J.Sign(double x)
+  static I32   <- int J.I32(double d)
+  static U32   <- uint J.U32(double d)
+  static Imul   <- int J.Imul(int a, int b)
+  static Hypot$d$d   <- double J.Hypot(double a, double b)
+  static Hypot$d$d$d   <- double J.Hypot(double a, double b, double c)
+  static Log2   <- double J.Log2(double x)
+  static Log10   <- double J.Log10(double x)
+  static SeedRandom   <- void J.SeedRandom(uint seed)
+  static Random   <- double J.Random()
+  static Str$d   <- string J.Str(double v)
+  static Str$i   <- string J.Str(int v)
+  static ToFixed   <- string J.ToFixed(double v, int digits)
+  static StableSort$List$Func   <- void J.StableSort<T>(List<T> list, Func<T, T, double> cmp)
+  static StableSort$TA$i$Func   <- void J.StableSort<T>(T[] arr, int count, Func<T, T, double> cmp)
+  static Sin   <- double J.Sin(double x)
+  static Cos   <- double J.Cos(double x)
+  static Atan2   <- double J.Atan2(double y, double x)
+  static Exp   <- double J.Exp(double x)
+  static Pow   <- double J.Pow(double x, double y)
+class J$CR  (Class, base -)
+  static Sin   <- double CR.Sin(double x)
+  static Cos   <- double CR.Cos(double x)
+  static Atan2   <- double CR.Atan2(double y, double x)
+  static Exp   <- double CR.Exp(double x)
+  static Pow   <- double CR.Pow(double x, double y)
+class J$CR$DD  (Struct, base -)
+  h   <- double DD.h
+  l   <- double DD.l
+  $ctor   <- DD.DD(double h, double l)
+class PostFx  (Class, base -)
+  static ScreenMaterial   <- Material PostFx.ScreenMaterial
+  static Active   <- bool PostFx.Active
+  static Init   <- void PostFx.Init()
+  static Shutdown   <- void PostFx.Shutdown()
+  static Render   <- bool PostFx.Render(PostFxSettings s)
