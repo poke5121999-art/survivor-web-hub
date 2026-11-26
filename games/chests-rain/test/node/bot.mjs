@@ -27,6 +27,7 @@ function progress() {
 }
 
 const held = {};
+let goBoss = false;
 let sweep = 0, buys = 0, runsStarted = 0, boughtThisCamp = false;
 const totalFrames = minutes * 60 * 60;
 for (let f = 0; f < totalFrames; f++) {
@@ -48,7 +49,7 @@ for (let f = 0; f < totalFrames; f++) {
 			// Pan the camera toward the sleeping boss with held WASD keys so the challenge is offered.
 			const nav = E(`(() => { const b = G$GAME.boss, c = G$E.cam; if (!b || b.dead || G$GAME.challenge) return null; return [b.x - (c.x + G$E.ViewWidth() / 2), b.y - (c.y + G$E.ViewHeight() / 2), G$GAME.ChallengeOffered()]; })()`);
 			const want = new Set();
-			if (nav) {
+			if (nav && goBoss) {
 				const [dx, dy, offered] = nav;
 				if (dx > 60) want.add("KeyD"); else if (dx < -60) want.add("KeyA");
 				if (dy > 60) want.add("KeyS"); else if (dy < -60) want.add("KeyW");
@@ -73,6 +74,7 @@ for (let f = 0; f < totalFrames; f++) {
 				boughtThisCamp = true;
 				const n = E(`(() => { let n = 0; for (let pass = 0; pass < 5; pass++) for (const nd of G$TREE$cc().nodes) { try { if (G$TREE.CanAfford(nd.id) && G$TREE.Buy(nd.id)) n++; } catch (e) { } } return n; })()`);
 				buys += n;
+				goBoss = E(`G$TREE$cc().nodes.every((nd) => G$TREE.State(nd.id) !== "available")`);
 				log.push(`${t.toFixed(1)}s camp bought ${n} nodes, ${progress()}`);
 			}
 			if (inState > 1.5) { E("G$GAME.StartRun()"); runsStarted++; boughtThisCamp = false; }

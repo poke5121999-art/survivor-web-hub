@@ -57,12 +57,15 @@
 		Unity.screen.width = w; Unity.screen.height = h;
 		Host.layout();
 	}
+	let lastRect = [0, 0, 640, 360];
 	Host.onLayout = (x, y, w, h) => {
 		const c = Gfx.canvas;
 		c.style.left = x + "px";
 		c.style.top = y + "px";
 		c.style.width = w + "px";
 		c.style.height = h + "px";
+		lastRect = [x, y, w, h];
+		Touch.layout(x, y, w, h);
 		// The hub link sits in a letterbox bar when there is one, otherwise over the bottom-left corner,
 		// which no game screen uses for buttons.
 		const back = document.getElementById("back");
@@ -85,14 +88,16 @@
 
 	function wireInput() {
 		const btn = (b) => b === 0 ? 0 : b === 2 ? 1 : b === 1 ? 2 : -1;
-		window.addEventListener("pointermove", (e) => Unity.mouseMove(e.clientX, e.clientY));
+		window.addEventListener("pointermove", (e) => { if (e.pointerType !== "touch") Unity.mouseMove(e.clientX, e.clientY); });
 		window.addEventListener("pointerdown", (e) => {
 			unlockAudio();
+			if (e.pointerType === "touch") return;
 			Unity.mouseMove(e.clientX, e.clientY);
 			const b = btn(e.button);
 			if (b >= 0) Unity.mouseButton(b, true);
 		});
 		window.addEventListener("pointerup", (e) => {
+			if (e.pointerType === "touch") return;
 			Unity.mouseMove(e.clientX, e.clientY);
 			const b = btn(e.button);
 			if (b >= 0) Unity.mouseButton(b, false);
@@ -122,6 +127,7 @@
 		const dt = last ? Math.min(0.25, (t - last) / 1000) : 1 / 60;
 		last = t;
 		try { Host.frame(dt); } catch (e) { Host.fail("frame", e); }
+		Touch.update();
 	}
 
 	async function start() {
@@ -138,6 +144,7 @@
 			Host.boot();
 			layout();
 			wireInput();
+			if (Touch.init()) Touch.layout(...lastRect);
 			loader.remove();
 			window.__ready = true;
 			requestAnimationFrame(loop);
