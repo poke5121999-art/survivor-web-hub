@@ -1179,7 +1179,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/chests-rain.png",
     // Dựng bên linux (~/chestrain-work, ref ~/chestrain-ref): C# Mono của bản Steam 5057800 dịch máy sang JS (tools/xlate), Canvas 2D + Web Audio thật.
     path: "games/chests-rain/index.html",
-    rev: "20261126c",
+    rev: "20261126d",
     status: "available",
     tags: ["Hành động","Roguelite","Màn ngang"]
   }

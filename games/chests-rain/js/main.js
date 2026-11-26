@@ -26,7 +26,7 @@
 				const r = await fetch(url, { cache: attempt > 1 ? "reload" : "default" });
 				if (r.ok) {
 					if (!onProgress || !r.body) return new Uint8Array(await r.arrayBuffer());
-					const total = Number(r.headers.get("content-length")) || 0;
+					const total = r.headers.get("content-encoding") ? 0 : Number(r.headers.get("content-length")) || 0;
 					const reader = r.body.getReader(), parts = [];
 					let got = 0;
 					for (;;) {
