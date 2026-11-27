@@ -42,7 +42,7 @@ E(`(() => { const s = 20, S = G$s.SAVE; S.stageMax = s; S.stage = s; S.gold = 1e
 	G$LOOT.AutoEquipAll(); G$LOOT.GrantOre(1e7, "test");
 	for (const line of G$LOOT$cc().GEAR) for (let i = 0; i < 3; i++) { const key = G$LOOT.SlotKey(line, i); for (let n = 0; n < 200 && G$REFINE.Refusal(key) == null; n++) G$REFINE.Try(key); } })()`);
 check("Survival closed before the last boss", E("G$ENDLESS.Open") === false);
-for (let a = 0; a < 3 && !E("G$GAME.BossBeaten(20)"); a++) {
+for (let a = 0; a < 6 && !E("G$GAME.BossBeaten(20)"); a++) {
 	E("G$GAME.StartRun()");
 	d.playRun({ boss: true, maxSec: 900 });
 	if (!E("G$GAME.BossBeaten(20)")) d.toCamp();

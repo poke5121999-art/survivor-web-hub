@@ -8,7 +8,16 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 
 // Runs in this realm (vm contexts route global lookups through interceptors and are ~100x slower).
 // One game per process.
+// Math.random is seeded (mulberry32, CR_SEED, default 1) so a harness replays the same fights every time.
 export function loadGame({ storage } = {}) {
+	let seed = Number(process.env.CR_SEED || 1) >>> 0;
+	Math.random = () => {
+		seed = (seed + 0x6D2B79F5) >>> 0;
+		let t = seed;
+		t = Math.imul(t ^ (t >>> 15), t | 1);
+		t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
 	const store = storage || new Map();
 	globalThis.localStorage = {
 		getItem: (k) => (store.has(k) ? store.get(k) : null),

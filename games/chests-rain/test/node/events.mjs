@@ -38,6 +38,32 @@ check(`events fire across ${RUNS} runs`, ev.begun.length >= RUNS, `(${ev.begun.l
 check("several event kinds", kinds.length >= 4, `(${kinds.length} kinds)`);
 check("started events go live and finish", ev.live > 0 && ev.done >= ev.live - 1, `(live ${ev.live}, finished ${ev.done})`);
 
+// Cards: slot the owned cards (CARDS.Equip, what a click in the Cards tab calls) and play a run with them.
+for (let i = 0; i < 600 && E("G$GAME.state") !== "tree"; i++) { if (i % 30 === 0) d.tap("Enter"); frame(); }
+const slots = E("G$CARDS.Slots()");
+const owned = JSON.parse(E("JSON.stringify([...G$s.SAVE.cards].map((kv) => kv[0]).filter((id) => G$CARDS.Stars(id) > 0))"));
+let slotted = 0;
+for (const id of owned) if (slotted < slots && E(`G$CARDS.Equip(${JSON.stringify(id)}, ${slotted})`)) slotted++;
+check("owned cards slot into the card slots", slots > 0 && slotted > 0, `(${owned.length} owned, ${slots} slots, ${slotted} slotted)`);
+const activeIds = JSON.parse(E("JSON.stringify(G$s.SAVE.cardSlots.filter(Boolean))"));
+E("G$GAME.StartRun()");
+for (let i = 0; i < 300; i++) frame();
+check("slotted cards are active in the run", activeIds.length > 0 && activeIds.every((id) => E(`G$CARDS.Active(${JSON.stringify(id)})`)), `(${activeIds})`);
+d.playRun({ boss: false, maxSec: 900 });
+d.toCamp();
+
+// Kinds the planner did not roll: start a run and fire each with EVENTS.Trigger (the planner's own entry point,
+// marked "forced" below), then play the run out.
+const ALL = ["rain", "stampede", "wanted", "vein", "goblin", "swarm", "lucky", "outlaw", "runners"].filter((k) => E(`G$EVENTS.KindOf(${JSON.stringify(k)}) != null`));
+for (const k of ALL.filter((k) => !kinds.includes(k))) {
+	const live0 = E("__ev.live"), done0 = E("__ev.done"), e0 = realErrors();
+	E("G$GAME.StartRun()");
+	for (let i = 0; i < 180; i++) frame();
+	const ok = E(`G$EVENTS.Trigger(${JSON.stringify(k)}) != null`);
+	d.playRun({ boss: false, maxSec: 900 });
+	d.toCamp();
+	check(`forced "${k}" event goes live and finishes`, ok && E("__ev.live") > live0 && E("__ev.done") > done0 && realErrors() === e0, `(live +${E("__ev.live") - live0}, finished +${E("__ev.done") - done0})`);
+}
 for (let i = 0; i < 600 && E("G$GAME.state") !== "tree"; i++) { if (i % 30 === 0) d.tap("Enter"); frame(); }
 for (let i = 0; i < 120; i++) frame();
 const bookOpen = E("G$UI.TabOpen('book')");

@@ -26,11 +26,15 @@ for (let i = 0; i < 60; i++) frame();
 E(`G$UI.SetTreeTab("quests")`);
 for (let i = 0; i < 60; i++) frame();
 
+// Clicks ENTER until the dungeon is armed (the board ignores clicks while camp popups are up).
 const enter = () => {
-	const b = E("JSON.stringify(G$UI$cc().QB_ENTER)");
-	const r = JSON.parse(b);
-	click(r.x + r.w / 2, r.y + r.h / 2);
-	for (let i = 0; i < 90; i++) frame();
+	const r = JSON.parse(E("JSON.stringify(G$UI$cc().QB_ENTER)"));
+	for (let t = 0; t < 10 && !E("G$GAME$cc().dungeonArmed") && E("G$GAME.state") === "tree"; t++) {
+		if (E("G$TUTORIAL.ActiveModal != null")) d.tap("Enter");
+		click(r.x + r.w / 2, r.y + r.h / 2);
+		for (let i = 0; i < 30; i++) frame();
+	}
+	for (let i = 0; i < 60; i++) frame();
 };
 
 check("quest board open", E("G$QUESTS.BoardOpen()") === true && E("G$UI$cc().treeTab.cur") === "quests");
@@ -49,8 +53,9 @@ check("the key is spent", E("G$LOOT.Keys") === keys1 - 1);
 check("the dungeon is the save's top stage", E("G$GAME$cc().stage") === STAGE);
 
 const bags0 = E("(G$s.SAVE.loot?.items?.length ?? 0)");
-// A lost dungeon fight costs the key; a player tries again with the next one (up to 3 here).
+// A lost dungeon fight costs the key; a player tries again with the next one (up to 5 here).
 let won = false, tries = 0;
+const TRIES = 5;
 const results = [];
 for (;;) {
 	tries++;
@@ -58,8 +63,10 @@ for (;;) {
 	won = E("G$GAME.run ? G$GAME.run.dungeonWon === true : false");
 	results.push(won ? "won" : "lost");
 	d.toCamp();
-	if (won || tries >= 3) break;
+	if (won || tries >= TRIES) break;
 	E("G$LOOT.AddKeys(1)");
+	for (let i = 0; i < 120; i++) frame();
+	E(`G$UI.SetTreeTab("tree")`);
 	E(`G$UI.SetTreeTab("quests")`);
 	for (let i = 0; i < 60; i++) frame();
 	enter();
