@@ -1,0 +1,9638 @@
+{
+"": {
+"w": 2048,
+"h": 1024,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "globalgamemanagers.assets"
+},
+"UIMask": {
+"w": 28,
+"h": 28,
+"border": [
+10.0,
+10.0,
+10.0,
+10.0
+],
+"ppu": 200.0,
+"file": "resources.assets"
+},
+"rocket": {
+"w": 229,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"quest": {
+"w": 223,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"feedback_general": {
+"w": 236,
+"h": 201,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"xp_color": {
+"w": 238,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_c": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"send": {
+"w": 238,
+"h": 202,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"White1px": {
+"w": 1,
+"h": 1,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"back": {
+"w": 238,
+"h": 211,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"boost_money": {
+"w": 221,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"camera": {
+"w": 236,
+"h": 196,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"crown": {
+"w": 238,
+"h": 176,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_s": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"pump": {
+"w": 214,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_ctrl": {
+"w": 100,
+"h": 76,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_q": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_tab": {
+"w": 100,
+"h": 76,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_arrow_left": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"stats": {
+"w": 224,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_f": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_3": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_a": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"feedback_bug": {
+"w": 238,
+"h": 222,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"gold_bar_color": {
+"w": 238,
+"h": 189,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"grip": {
+"w": 238,
+"h": 162,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"face_bad": {
+"w": 237,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"stopwatch": {
+"w": 206,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_5": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"face_very_bad": {
+"w": 238,
+"h": 237,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"face_good": {
+"w": 232,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_space": {
+"w": 100,
+"h": 60,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"feedback_gameplay": {
+"w": 236,
+"h": 161,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_escape": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_arrow_down": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"feather": {
+"w": 195,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_page_up": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"magnet": {
+"w": 233,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"vacuum": {
+"w": 238,
+"h": 199,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"document": {
+"w": 202,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"chain": {
+"w": 238,
+"h": 233,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"multiplier": {
+"w": 238,
+"h": 215,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_f10": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"boost_golden": {
+"w": 238,
+"h": 237,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"gear": {
+"w": 237,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"UIFoldoutClosed": {
+"w": 11,
+"h": 11,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"wrench": {
+"w": 235,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_4": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"saw": {
+"w": 238,
+"h": 235,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"scroll": {
+"w": 222,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"point_color": {
+"w": 235,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"paw": {
+"w": 238,
+"h": 205,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"flow": {
+"w": 238,
+"h": 151,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"boost_timewarp": {
+"w": 238,
+"h": 224,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_i": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"boost_flight": {
+"w": 238,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"clover": {
+"w": 203,
+"h": 232,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"reach": {
+"w": 236,
+"h": 132,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_w": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"face_neutral": {
+"w": 237,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"UIFoldoutOpened": {
+"w": 11,
+"h": 11,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_page_down": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_shift": {
+"w": 100,
+"h": 68,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"throw": {
+"w": 238,
+"h": 202,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"anvil": {
+"w": 238,
+"h": 142,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"moon": {
+"w": 228,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"clock": {
+"w": 238,
+"h": 237,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"dice": {
+"w": 230,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"UICheckMark": {
+"w": 11,
+"h": 11,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"handcuffs": {
+"w": 238,
+"h": 175,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"battery": {
+"w": 238,
+"h": 128,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_numpad_enter": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_arrows_all": {
+"w": 96,
+"h": 64,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"fist": {
+"w": 223,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"feedback_visual": {
+"w": 238,
+"h": 221,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"capacity": {
+"w": 238,
+"h": 235,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_d": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"boost_magnet": {
+"w": 238,
+"h": 209,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_1": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_2": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"face_excellent": {
+"w": 233,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"currency": {
+"w": 188,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_arrow_right": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"trophy": {
+"w": 238,
+"h": 235,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"UIElement8px": {
+"w": 8,
+"h": 8,
+"border": [
+0.0,
+2.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"conveyor": {
+"w": 238,
+"h": 163,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"hourglass": {
+"w": 187,
+"h": 232,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"target": {
+"w": 238,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"close": {
+"w": 238,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"crit": {
+"w": 238,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_arrow_up": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"feedback_performance": {
+"w": 238,
+"h": 156,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"pipe": {
+"w": 238,
+"h": 198,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"boost_auto": {
+"w": 236,
+"h": 223,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_e": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"keyboard_enter": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"boost_frenzy": {
+"w": 211,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"tornado": {
+"w": 234,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"radius": {
+"w": 238,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"boost_bag": {
+"w": 224,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "resources.assets"
+},
+"BILLS_1K": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BILLS_1K~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"VAULT_CLEARED": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"VAULT_CLEARED~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"AUTOPUMP": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"AUTOPUMP~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"HAND_500": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"HAND_500~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DPS_1B": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DPS_1B~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"FIRST_SHRED": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"FIRST_SHRED~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"FLIGHT_2MIN": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"FLIGHT_2MIN~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"WALK_10KM": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"WALK_10KM~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"JETPACK": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"JETPACK~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_FRIEND": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_FRIEND~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_HOUR": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_HOUR~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DEPTH_10": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DEPTH_10~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"WALLET_1M": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"WALLET_1M~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"UPGRADE_FIRST": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"UPGRADE_FIRST~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"JUMPS_500": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"JUMPS_500~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_FINALE": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_FINALE~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"RELIC_FIRST": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"RELIC_FIRST~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LEVEL_25": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LEVEL_25~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_MILLION": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_MILLION~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_HOST": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_HOST~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LEVEL_50": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LEVEL_50~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"SPEED_FINALE": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"SPEED_FINALE~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DEPTH_20": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DEPTH_20~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"AUTOPUMP_100": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"AUTOPUMP_100~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"PAPER_PLANE": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"PAPER_PLANE~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"RELIC_ALL": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"RELIC_ALL~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COMPLETIONIST": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COMPLETIONIST~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLDEN_KEY": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLDEN_KEY~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_BOOSTS": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_BOOSTS~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLD_PERK_ALL": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLD_PERK_ALL~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TREE_10": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TREE_10~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DRONE_500": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DRONE_500~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TOOL_BUCKET": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TOOL_BUCKET~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLD_BAR": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLD_BAR~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"VACUUM_20MIN": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"VACUUM_20MIN~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DIG_BUNDLE": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DIG_BUNDLE~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BARE_HANDS": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BARE_HANDS~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_HANDS": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_HANDS~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DIG_STACK": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DIG_STACK~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"CRIT_FIRST": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"CRIT_FIRST~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"UPGRADES_150": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"UPGRADES_150~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"SPENT_1B": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"SPENT_1B~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1M": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1M~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LEVEL_10": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LEVEL_10~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLD_PERK_25": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLD_PERK_25~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"SPEED_MILLION": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"SPEED_MILLION~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"Knob": {
+"w": 40,
+"h": 40,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 200.0,
+"file": "sharedassets0.assets"
+},
+"economy_tax_haven": {
+"w": 238,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_rt": {
+"w": 100,
+"h": 92,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_stick_r_press": {
+"w": 100,
+"h": 108,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"face_excellent~2": {
+"w": 233,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_jetpack_thrust": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_critical_mass": {
+"w": 256,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"card_selected": {
+"w": 422,
+"h": 233,
+"border": [
+44.0,
+44.0,
+44.0,
+44.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_long_hose": {
+"w": 256,
+"h": 228,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hand": {
+"w": 235,
+"h": 232,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_dividends": {
+"w": 233,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_rhythm_dig": {
+"w": 217,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_steady_pour": {
+"w": 218,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"feedback_performance~2": {
+"w": 238,
+"h": 156,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_stick_r": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_round_numbers": {
+"w": 178,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hat_viking": {
+"w": 216,
+"h": 180,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"point_color~2": {
+"w": 235,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"capacity~2": {
+"w": 238,
+"h": 235,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"btn_secondary": {
+"w": 378,
+"h": 129,
+"border": [
+50.0,
+56.0,
+50.0,
+50.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_hurricane": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_stick_r_press": {
+"w": 100,
+"h": 108,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"spring": {
+"w": 149,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"trail_stars": {
+"w": 138,
+"h": 88,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bag_firm_squeeze": {
+"w": 245,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_feed_rollers": {
+"w": 256,
+"h": 246,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_panel_border": {
+"w": 64,
+"h": 64,
+"border": [
+12.0,
+12.0,
+12.0,
+12.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_lb": {
+"w": 100,
+"h": 68,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"currency~2": {
+"w": 188,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"drone": {
+"w": 238,
+"h": 229,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_long_handle": {
+"w": 256,
+"h": 245,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_button_x": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"fist~2": {
+"w": 223,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hat_cone": {
+"w": 216,
+"h": 190,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket": {
+"w": 197,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_trail_shoes": {
+"w": 256,
+"h": 219,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hat_crown": {
+"w": 216,
+"h": 152,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_power_head": {
+"w": 256,
+"h": 255,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"sparkle": {
+"w": 238,
+"h": 229,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_heaped_bucket": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_cyclone": {
+"w": 174,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"btn_gold_plain": {
+"w": 377,
+"h": 129,
+"border": [
+50.0,
+56.0,
+50.0,
+50.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_featherweight": {
+"w": 250,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_chrome": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boost_flight~2": {
+"w": 238,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_big_hands": {
+"w": 256,
+"h": 251,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_sprinkles": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_dust_bag": {
+"w": 232,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"quest~2": {
+"w": 223,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_heavy_chests": {
+"w": 249,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_jetpack": {
+"w": 256,
+"h": 245,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_drone_rotors": {
+"w": 256,
+"h": 222,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_stick_l": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_army": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_cruise_control": {
+"w": 228,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hand~2": {
+"w": 235,
+"h": 232,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"crown~2": {
+"w": 238,
+"h": 176,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_warm_up": {
+"w": 226,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bag": {
+"w": 191,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_jetpack_refuel": {
+"w": 244,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_cash_cow": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bag_reinforced_sack": {
+"w": 240,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_fast_learner": {
+"w": 256,
+"h": 228,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_compound_interest": {
+"w": 256,
+"h": 246,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_twin_rollers": {
+"w": 256,
+"h": 239,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_fine_shred": {
+"w": 256,
+"h": 243,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_money_filter": {
+"w": 256,
+"h": 228,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_sly_talk1": {
+"w": 156,
+"h": 104,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"drone~2": {
+"w": 238,
+"h": 229,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_glow": {
+"w": 124,
+"h": 124,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_pump_pressure": {
+"w": 254,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_sly": {
+"w": 768,
+"h": 932,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"face_bad~2": {
+"w": 237,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_trigger_r1": {
+"w": 84,
+"h": 92,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_marathon": {
+"w": 194,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_button_l1": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_outfit_gold_mask": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tornado~2": {
+"w": 234,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mm_chevron": {
+"w": 192,
+"h": 110,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_yellow_cab": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_bank_straps": {
+"w": 256,
+"h": 202,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"saw~2": {
+"w": 238,
+"h": 235,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"gold_gold_fever": {
+"w": 256,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hat_cowboy": {
+"w": 216,
+"h": 122,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"pump~2": {
+"w": 214,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_dpad_up": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"crouch": {
+"w": 194,
+"h": 189,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_cross_cut": {
+"w": 248,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tool_automation": {
+"w": 327,
+"h": 295,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"arrow_right": {
+"w": 122,
+"h": 94,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_bar": {
+"w": 32,
+"h": 16,
+"border": [
+7.0,
+7.0,
+7.0,
+7.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_sack_cart": {
+"w": 244,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_bill": {
+"w": 246,
+"h": 203,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"stopwatch~2": {
+"w": 206,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_sharp_tip": {
+"w": 230,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_mint": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_double_scoop": {
+"w": 194,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_rush_hour": {
+"w": 246,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_brick_grip": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tool_vacuum": {
+"w": 344,
+"h": 333,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_deep_pockets": {
+"w": 246,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_second_try": {
+"w": 166,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"crit~2": {
+"w": 238,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bill_up": {
+"w": 226,
+"h": 232,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_neutral_blink": {
+"w": 300,
+"h": 148,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"face_neutral~2": {
+"w": 237,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_sharp_eye": {
+"w": 256,
+"h": 247,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_key": {
+"w": 231,
+"h": 196,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_button_menu": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum~2": {
+"w": 238,
+"h": 199,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_gold": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_golden_ticket": {
+"w": 256,
+"h": 202,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_round_ring": {
+"w": 128,
+"h": 128,
+"border": [
+46.0,
+46.0,
+46.0,
+46.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_button_square": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_early_events": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"send~2": {
+"w": 238,
+"h": 202,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_rocket_boots": {
+"w": 256,
+"h": 239,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boost_magnet~2": {
+"w": 238,
+"h": 209,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_outfit_neon": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_rim_guard": {
+"w": 242,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"face_very_bad~2": {
+"w": 238,
+"h": 237,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"face_good~2": {
+"w": 232,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tree_square_ring": {
+"w": 128,
+"h": 128,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_none": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"multiplier~2": {
+"w": 238,
+"h": 215,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"gear~2": {
+"w": 237,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"check": {
+"w": 238,
+"h": 187,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_drone_bay": {
+"w": 256,
+"h": 207,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tool_mobility": {
+"w": 343,
+"h": 298,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_tip_chute": {
+"w": 248,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_side_hustle": {
+"w": 254,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"loading_backdrop": {
+"w": 1280,
+"h": 720,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_badge_shown": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bag_long_pour": {
+"w": 256,
+"h": 233,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"trail_cash": {
+"w": 188,
+"h": 179,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_tip_jar": {
+"w": 180,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_scoop_rhythm": {
+"w": 256,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_drone_motors": {
+"w": 256,
+"h": 192,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_drone_battery": {
+"w": 198,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_hang_time": {
+"w": 256,
+"h": 233,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_long_fuse": {
+"w": 256,
+"h": 245,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"feedback_visual~2": {
+"w": 238,
+"h": 221,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_offshore": {
+"w": 256,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_golden_grip": {
+"w": 256,
+"h": 251,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_tool_belt": {
+"w": 256,
+"h": 210,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_dpad_down": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_button_b": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hat_propeller": {
+"w": 216,
+"h": 166,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boost_golden~2": {
+"w": 238,
+"h": 237,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_gold": {
+"w": 197,
+"h": 151,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_wide_nozzle": {
+"w": 256,
+"h": 200,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_lucky_break": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_gold": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"trail_gold": {
+"w": 121,
+"h": 194,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_fast_lane": {
+"w": 256,
+"h": 224,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"glyph_thumb_up": {
+"w": 150,
+"h": 146,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tab": {
+"w": 253,
+"h": 256,
+"border": [
+56.0,
+56.0,
+56.0,
+56.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boost_money~2": {
+"w": 221,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tab_selected": {
+"w": 254,
+"h": 257,
+"border": [
+56.0,
+56.0,
+56.0,
+56.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bag_vault_trunk": {
+"w": 244,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_delighted_talk2": {
+"w": 168,
+"h": 132,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hat_miner": {
+"w": 216,
+"h": 124,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"trail_hearts": {
+"w": 197,
+"h": 139,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_drone_fleet": {
+"w": 256,
+"h": 172,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_outfit_velvet": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_circle": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_fistful": {
+"w": 218,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_dpad": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_long_reach": {
+"w": 256,
+"h": 200,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"battery~2": {
+"w": 238,
+"h": 128,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xp_color~2": {
+"w": 238,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"btn_gold_hover_plain": {
+"w": 378,
+"h": 132,
+"border": [
+50.0,
+56.0,
+50.0,
+50.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_reinforced": {
+"w": 240,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_stick_l_press": {
+"w": 100,
+"h": 108,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_cash_cow": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_air_brakes": {
+"w": 212,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_dpad_right": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_surprised_blink": {
+"w": 228,
+"h": 148,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_nimble_fingers": {
+"w": 256,
+"h": 199,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mm_trash": {
+"w": 184,
+"h": 218,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder": {
+"w": 218,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_quick_start": {
+"w": 252,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"info_panel": {
+"w": 328,
+"h": 368,
+"border": [
+40.0,
+40.0,
+40.0,
+40.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_quick_dig": {
+"w": 219,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_wide_blade": {
+"w": 245,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"gem": {
+"w": 238,
+"h": 187,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boost_frenzy~2": {
+"w": 211,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_button_options": {
+"w": 84,
+"h": 44,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TL_IconPause": {
+"w": 64,
+"h": 86,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_drone_cradle": {
+"w": 256,
+"h": 214,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"card": {
+"w": 422,
+"h": 215,
+"border": [
+36.0,
+36.0,
+36.0,
+36.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_wide_hopper": {
+"w": 256,
+"h": 242,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_magnet_blade": {
+"w": 240,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"star": {
+"w": 238,
+"h": 224,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"dice~2": {
+"w": 230,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_cash_fan": {
+"w": 252,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hat_chef": {
+"w": 216,
+"h": 214,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_deep_sleeves": {
+"w": 256,
+"h": 190,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TL_IconPlay": {
+"w": 71,
+"h": 86,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_standard": {
+"w": 197,
+"h": 151,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mouse_right": {
+"w": 72,
+"h": 92,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"feedback_gameplay~2": {
+"w": 236,
+"h": 161,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_aftershock": {
+"w": 255,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_police": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_drone_tips": {
+"w": 252,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_bucket_brigade": {
+"w": 256,
+"h": 173,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_steel_edge": {
+"w": 171,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_button_x": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_early_bird": {
+"w": 182,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_unlock": {
+"w": 226,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_orb_net": {
+"w": 256,
+"h": 251,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_dpad_up": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vault_money": {
+"w": 892,
+"h": 560,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_round_ring_thick": {
+"w": 128,
+"h": 128,
+"border": [
+46.0,
+46.0,
+46.0,
+46.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"gold_heavy_lifter": {
+"w": 255,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mm_tick": {
+"w": 48,
+"h": 42,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mouse_move": {
+"w": 96,
+"h": 108,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_twin_fans": {
+"w": 256,
+"h": 181,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"rocket~2": {
+"w": 229,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_sharp_teeth": {
+"w": 256,
+"h": 194,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_stick_l_press": {
+"w": 100,
+"h": 108,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_shadow": {
+"w": 128,
+"h": 128,
+"border": [
+32.0,
+32.0,
+32.0,
+32.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"eye": {
+"w": 238,
+"h": 147,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"pip": {
+"w": 40,
+"h": 22,
+"border": [
+11.0,
+10.0,
+11.0,
+10.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"back~2": {
+"w": 238,
+"h": 211,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_none": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_sweet_spot": {
+"w": 246,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_fire_sale": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_pill": {
+"w": 64,
+"h": 64,
+"border": [
+31.0,
+31.0,
+31.0,
+31.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mystery": {
+"w": 99,
+"h": 156,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"crosshair": {
+"w": 64,
+"h": 64,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"gold_smelter": {
+"w": 256,
+"h": 253,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"social_discord": {
+"w": 200,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_supporter_badge": {
+"w": 128,
+"h": 128,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"eye~2": {
+"w": 238,
+"h": 147,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_spring_heels": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_second_wind": {
+"w": 256,
+"h": 229,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"gold_bar~3": {
+"w": 236,
+"h": 175,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tree_circle": {
+"w": 128,
+"h": 128,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_gloves_white_tie": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_trigger_r2": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boost_timewarp~2": {
+"w": 238,
+"h": 224,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_button_r2": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel": {
+"w": 233,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_sprinkles": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_cherry": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"camera~2": {
+"w": 236,
+"h": 196,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_flow_state": {
+"w": 256,
+"h": 241,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_greenback": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tree_diamond": {
+"w": 128,
+"h": 128,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_dpad": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_button_view": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"trail_bubbles": {
+"w": 196,
+"h": 130,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_drone_hauler": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"event_arrow": {
+"w": 108,
+"h": 115,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_outfit_black_tie": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_magnet_rim": {
+"w": 204,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_turbo": {
+"w": 256,
+"h": 220,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"clover~2": {
+"w": 203,
+"h": 232,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_dpad_right": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_jet_stream": {
+"w": 256,
+"h": 250,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mouse_scroll": {
+"w": 72,
+"h": 92,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hat_police": {
+"w": 216,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_trigger_l2": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_double_trouble": {
+"w": 249,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_sturdy_handle": {
+"w": 207,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_duffel": {
+"w": 256,
+"h": 228,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_button_y": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"clock~2": {
+"w": 238,
+"h": 237,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boost_speed": {
+"w": 174,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_badge_hidden": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mm_logo": {
+"w": 907,
+"h": 643,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tool_hands": {
+"w": 304,
+"h": 321,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_steady_hands": {
+"w": 231,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_button_a": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boot": {
+"w": 238,
+"h": 172,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boot~2": {
+"w": 238,
+"h": 172,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_grip_tape": {
+"w": 238,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"spring~2": {
+"w": 149,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"feedback_bug~2": {
+"w": 238,
+"h": 222,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"card_ring": {
+"w": 128,
+"h": 128,
+"border": [
+48.0,
+48.0,
+48.0,
+48.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_long_lasting": {
+"w": 216,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_stick_l": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_neutral": {
+"w": 768,
+"h": 932,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_four_leaf": {
+"w": 240,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_unlock": {
+"w": 256,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"stats~2": {
+"w": 224,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_dpad_down": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tree_square": {
+"w": 128,
+"h": 128,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_standard": {
+"w": 183,
+"h": 184,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_outfit_classic": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_extra_innings": {
+"w": 194,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_lt": {
+"w": 100,
+"h": 92,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"card_locked": {
+"w": 426,
+"h": 212,
+"border": [
+36.0,
+36.0,
+36.0,
+36.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boost_bag~2": {
+"w": 224,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bag_stitched_seams": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_supercharge": {
+"w": 256,
+"h": 211,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_button_b": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"lock": {
+"w": 198,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_storm_intake": {
+"w": 253,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tree_ring": {
+"w": 128,
+"h": 128,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"title_plate": {
+"w": 443,
+"h": 147,
+"border": [
+60.0,
+50.0,
+60.0,
+50.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_private_mint": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"arrow": {
+"w": 64,
+"h": 56,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_delighted_blink": {
+"w": 284,
+"h": 140,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bill_up~2": {
+"w": 226,
+"h": 232,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_surprised_talk1": {
+"w": 64,
+"h": 72,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_lucky_streak": {
+"w": 252,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"depth": {
+"w": 238,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_long_blade": {
+"w": 228,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_confetti": {
+"w": 32,
+"h": 48,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_titan_spade": {
+"w": 216,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_hepa": {
+"w": 224,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_gloves_classic": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation5_button_options": {
+"w": 44,
+"h": 96,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_study_group": {
+"w": 240,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"voice_mic": {
+"w": 140,
+"h": 216,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mouse_hold_mark": {
+"w": 64,
+"h": 64,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"trail_confetti": {
+"w": 154,
+"h": 152,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steam_glyph": {
+"w": 152,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_vault_bag": {
+"w": 252,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bag_ride_the_flow": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_steady_arm": {
+"w": 194,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_bubblegum": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_wide_rim": {
+"w": 238,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"lock~2": {
+"w": 198,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_unlock": {
+"w": 256,
+"h": 252,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"walk": {
+"w": 164,
+"h": 237,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"flow~2": {
+"w": 238,
+"h": 151,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_work_gloves": {
+"w": 254,
+"h": 254,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_wet_thumb": {
+"w": 248,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_sly_blink": {
+"w": 208,
+"h": 144,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_button_circle": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_lucky_coin": {
+"w": 221,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_pill_hud": {
+"w": 32,
+"h": 32,
+"border": [
+15.0,
+15.0,
+15.0,
+15.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_panel": {
+"w": 64,
+"h": 64,
+"border": [
+12.0,
+12.0,
+12.0,
+12.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mouse_left": {
+"w": 72,
+"h": 92,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_getaway": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tool_economy": {
+"w": 328,
+"h": 303,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_dpad_left": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"gold_bar_color~2": {
+"w": 238,
+"h": 189,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_button_l2": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_stick_r": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_magnet_nozzle": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_heaping": {
+"w": 256,
+"h": 242,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"gold_bullion_bag": {
+"w": 256,
+"h": 244,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tool_bucket~3": {
+"w": 299,
+"h": 310,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_quick_charge": {
+"w": 256,
+"h": 248,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_tropical": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel~2": {
+"w": 233,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tree_diamond_ring": {
+"w": 128,
+"h": 128,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_long_arms": {
+"w": 256,
+"h": 241,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_padded_straps": {
+"w": 256,
+"h": 244,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_round": {
+"w": 128,
+"h": 128,
+"border": [
+46.0,
+46.0,
+46.0,
+46.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"coin": {
+"w": 68,
+"h": 68,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_orb_spotter": {
+"w": 256,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_eager_fingers": {
+"w": 206,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"star~2": {
+"w": 238,
+"h": 224,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_gloves_gold_leaf": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"btn_disabled_plain": {
+"w": 377,
+"h": 129,
+"border": [
+50.0,
+56.0,
+50.0,
+50.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"window": {
+"w": 375,
+"h": 377,
+"border": [
+64.0,
+64.0,
+64.0,
+64.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boost_speed~2": {
+"w": 174,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_rb": {
+"w": 100,
+"h": 68,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"close~2": {
+"w": 174,
+"h": 172,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"reveal_pointer": {
+"w": 291,
+"h": 444,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_quick_dock": {
+"w": 256,
+"h": 222,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mouse_scroll_down": {
+"w": 72,
+"h": 92,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"depth~2": {
+"w": 238,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"sparkle~2": {
+"w": 238,
+"h": 229,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_sure_strike": {
+"w": 148,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_big_cheese": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"voice_speaker": {
+"w": 192,
+"h": 186,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_vacuum_gilded": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_earth_mover": {
+"w": 256,
+"h": 216,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"lifebuoy": {
+"w": 238,
+"h": 235,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hud_jetpack": {
+"w": 128,
+"h": 128,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"voice_mic_off": {
+"w": 186,
+"h": 216,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_golden_hour": {
+"w": 256,
+"h": 228,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"scroll~2": {
+"w": 222,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_quick_drop": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"throw~2": {
+"w": 238,
+"h": 202,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"pipe~2": {
+"w": 238,
+"h": 198,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hat_pirate": {
+"w": 216,
+"h": 146,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"check~2": {
+"w": 238,
+"h": 187,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_sneakers": {
+"w": 256,
+"h": 230,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_button_cross": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_steel_bucket": {
+"w": 228,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"grip~2": {
+"w": 238,
+"h": 162,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"gem~2": {
+"w": 238,
+"h": 187,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_broad_dip": {
+"w": 256,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_pump_ready": {
+"w": 256,
+"h": 245,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_deep_scoop": {
+"w": 236,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_stick_r_press": {
+"w": 100,
+"h": 108,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_vector_nozzles": {
+"w": 226,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_golden_blades": {
+"w": 256,
+"h": 187,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_bumblebee": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tool_shovel": {
+"w": 291,
+"h": 341,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_button_a": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"trail_rainbow": {
+"w": 207,
+"h": 134,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_button_triangle": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"close~3": {
+"w": 238,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"radius~2": {
+"w": 238,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_drone_drill": {
+"w": 226,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_jackpot": {
+"w": 256,
+"h": 200,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_pocket_change": {
+"w": 237,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_pail_master": {
+"w": 237,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"trail_smoke": {
+"w": 189,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"gold_gold_rush": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_rare_taste": {
+"w": 188,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mm_globe": {
+"w": 232,
+"h": 232,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_dpad_up": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_stealth": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_dpad_down": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_delighted_talk1": {
+"w": 168,
+"h": 124,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_button_y": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_ice_cream": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_vault": {
+"w": 246,
+"h": 246,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_button": {
+"w": 64,
+"h": 64,
+"border": [
+14.0,
+14.0,
+14.0,
+14.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"glyph_twitch": {
+"w": 107,
+"h": 124,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"checkbox": {
+"w": 152,
+"h": 149,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_overtime": {
+"w": 237,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"feather~2": {
+"w": 195,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_industrial": {
+"w": 256,
+"h": 246,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_surprised": {
+"w": 768,
+"h": 932,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_snow_day": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_quick_lift": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hat_gold": {
+"w": 170,
+"h": 147,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_shredder_gold": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_neutral_talk2": {
+"w": 112,
+"h": 68,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_gilded": {
+"w": 183,
+"h": 184,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_cargo_sack": {
+"w": 253,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_hyper_pump": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_surprised_talk2": {
+"w": 64,
+"h": 84,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_trigger_l1": {
+"w": 84,
+"h": 92,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"target~2": {
+"w": 238,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_overdrive": {
+"w": 256,
+"h": 218,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"conveyor~2": {
+"w": 238,
+"h": 163,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_hair_trigger": {
+"w": 207,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder~2": {
+"w": 218,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"btn_maxed": {
+"w": 379,
+"h": 129,
+"border": [
+50.0,
+56.0,
+50.0,
+50.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_drone_cargo": {
+"w": 218,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"price_chip": {
+"w": 128,
+"h": 72,
+"border": [
+30.0,
+30.0,
+30.0,
+30.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_dpad": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_sly_talk2": {
+"w": 156,
+"h": 112,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_button_view": {
+"w": 84,
+"h": 44,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"moon~2": {
+"w": 228,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"reach~2": {
+"w": 236,
+"h": 132,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_stick_l_press": {
+"w": 100,
+"h": 108,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vacuum_overdrive_motor": {
+"w": 256,
+"h": 254,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_quick_tip": {
+"w": 256,
+"h": 251,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_jetpack_fuel": {
+"w": 218,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_shredder_standard": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_delighted": {
+"w": 768,
+"h": 932,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tool_shredder": {
+"w": 312,
+"h": 341,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"livery_big_cheese": {
+"w": 200,
+"h": 118,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_heavy_cut": {
+"w": 256,
+"h": 249,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hands_quick_wrists": {
+"w": 256,
+"h": 172,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mobility_parkour": {
+"w": 242,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tool_boosts": {
+"w": 262,
+"h": 330,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"trophy~2": {
+"w": 238,
+"h": 235,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_button_r1": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"trail_pixie": {
+"w": 200,
+"h": 104,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_tile": {
+"w": 237,
+"h": 230,
+"border": [
+48.0,
+48.0,
+48.0,
+48.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_stick_r": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_dpad_left": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_gloves_neon_grip": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"tool_gold": {
+"w": 300,
+"h": 300,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"mouse_scroll_up": {
+"w": 72,
+"h": 106,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bag~2": {
+"w": 191,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bag_speedy_spout": {
+"w": 256,
+"h": 247,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket_long_bail": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"badge": {
+"w": 146,
+"h": 148,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_pill_ring": {
+"w": 64,
+"h": 64,
+"border": [
+31.0,
+31.0,
+31.0,
+31.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"btn_gold_pressed_plain": {
+"w": 377,
+"h": 120,
+"border": [
+50.0,
+50.0,
+50.0,
+50.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boost_auto~2": {
+"w": 236,
+"h": 223,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_overcharge": {
+"w": 232,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_drone_swarm": {
+"w": 256,
+"h": 200,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shovel_excavator": {
+"w": 243,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_crisp_bills": {
+"w": 256,
+"h": 238,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_trust_fund": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"automation_pump_premium": {
+"w": 236,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_ribbon_cutter": {
+"w": 256,
+"h": 245,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"bucket~2": {
+"w": 197,
+"h": 236,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"feedback_general~2": {
+"w": 236,
+"h": 201,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"economy_hedge_fund": {
+"w": 254,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_ring": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"shredder_mega_hopper": {
+"w": 250,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"thief_neutral_talk1": {
+"w": 112,
+"h": 56,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"paint_night_shift": {
+"w": 161,
+"h": 154,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ui_square": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"wallet": {
+"w": 407,
+"h": 140,
+"border": [
+44.0,
+46.0,
+44.0,
+46.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation5_button_create": {
+"w": 52,
+"h": 94,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"playstation_dpad_right": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"anvil~2": {
+"w": 238,
+"h": 142,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"steamdeck_dpad_left": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hat_wizard": {
+"w": 216,
+"h": 210,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"xbox_stick_l": {
+"w": 100,
+"h": 100,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"icon_vacuum_standard": {
+"w": 256,
+"h": 256,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"hourglass~2": {
+"w": 187,
+"h": 232,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"gold_bar~4": {
+"w": 236,
+"h": 175,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"vault_gold": {
+"w": 892,
+"h": 560,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"voice_speaker_off": {
+"w": 216,
+"h": 186,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"boosts_patient_orbs": {
+"w": 256,
+"h": 234,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_SHARED_BUY": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_SHARED_BUY~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BULK_ORDER": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BULK_ORDER~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLD_PERK": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLD_PERK~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BOOST_ALL": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BOOST_ALL~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1B": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1B~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DIG_CRATE": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DIG_CRATE~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TREE_25": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TREE_25~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TREE_FIRST": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TREE_FIRST~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_SHOVEL": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_SHOVEL~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DIG_BRICK": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DIG_BRICK~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1K": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1K~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_BILLION": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_BILLION~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_GUEST": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_GUEST~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_MOBILITY": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_MOBILITY~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"SPENT_1QA": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"SPENT_1QA~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"RELIC_DIAMOND": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"RELIC_DIAMOND~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"OLD_SCHOOL": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"OLD_SCHOOL~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BOOST_FIRST": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BOOST_FIRST~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BAG_DUMPS_100": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BAG_DUMPS_100~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ROCK_BOTTOM": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"ROCK_BOTTOM~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LUCKY_FIRST": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LUCKY_FIRST~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DPS_1T": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DPS_1T~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"HOARDER": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"HOARDER~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BILLS_1B": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BILLS_1B~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BIG_TICKET": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BIG_TICKET~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BILLS_1M": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BILLS_1M~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TOOL_VACUUM~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TOOL_VACUUM~3": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_BUCKET": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_BUCKET~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TOOL_SHOVEL~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"TOOL_SHOVEL~3": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAXED_OUT": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAXED_OUT~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"UPGRADES_25": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"UPGRADES_25~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"PLAY_3H": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"PLAY_3H~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"FIRST_THROW": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"FIRST_THROW~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"PLAY_1H": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"PLAY_1H~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DRONE_SWARM": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DRONE_SWARM~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DOUBLE_LUCKY": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DOUBLE_LUCKY~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"SHOVEL_500": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"SHOVEL_500~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"RELIC_5": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"RELIC_5~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_ECONOMY": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_ECONOMY~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DPS_1M": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DPS_1M~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DRONES": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"DRONES~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_CREW": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"COOP_CREW~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BOOST_TRIPLE": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BOOST_TRIPLE~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1T": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1T~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_VACUUM": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_VACUUM~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_SHREDDER": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MAX_SHREDDER~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LUCKY_100": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LUCKY_100~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"CRIT_1000": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"CRIT_1000~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BOOST_20": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"BOOST_20~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1QA": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1QA~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLD_BARS_100": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"GOLD_BARS_100~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"UPGRADES_75": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"UPGRADES_75~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1QI": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"MONEY_1QI~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LEVEL_100": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+},
+"LEVEL_100~2": {
+"w": 160,
+"h": 160,
+"border": [
+0.0,
+0.0,
+0.0,
+0.0
+],
+"ppu": 100.0,
+"file": "sharedassets0.assets"
+}
+}

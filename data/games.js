@@ -1182,5 +1182,20 @@ window.HUB_GAMES = [
     rev: "20261127a",
     status: "available",
     tags: ["Hành động","Roguelite","Màn ngang"]
+  },
+  {
+    id: "shred-a-billion",
+    title: "Nghiền Một Tỉ",
+    tagline: "Nhặt tiền, hốt xô, ném vào máy nghiền — lên đời, mở drone, đào sâu tới một tỉ.",
+    desc: "Làm lại Shred a Billion (Steam) trên web bằng three.js, art/tiếng/số liệu lấy từ bản gốc. Góc nhìn thứ nhất: nhặt tiền, hốt xô, hút máy, đem tới máy nghiền lấy tiền sạch, lên nâng cấp, mở drone tự đào, xuống sâu tới chìa khoá vàng và cái kết bị bắt. Chơi chung 4 người ví chung, có chat và voice. Màn ngang hoặc cảm ứng.",
+    genre: "thu-gian",
+    accent: "#45c17a",
+    en: { title: "Shred a Billion", tagline: "Grab cash, scoop it, feed the shredder, upgrade and dig down to a billion.", desc: "A web remake of Shred a Billion (Steam) in three.js, with the original art, sound and numbers. First-person: grab cash by hand, scoop and vacuum it, haul it to the shredder for clean money, buy upgrades, unlock self-digging drones, and descend to the golden key and a busted ending. Co-op for up to four with a shared wallet, text and voice chat. Landscape, mouse and WASD or touch, saved in the browser." },
+    thumbnail: "assets/thumbnails/shred-a-billion.png",
+    // Dựng bên linux (~/shred-work, ref ~/shred-ref): Unity IL2CPP bản Steam 5472090 dựng lại bằng three.js; luật từ serialized fields + dump.cs + Ghidra, co-op Unity Relay.
+    path: "games/shred-a-billion/index.html",
+    rev: "20261127f",
+    status: "available",
+    tags: ["Thư giãn", "Góc nhìn thứ nhất", "Màn ngang"]
   }
 ];

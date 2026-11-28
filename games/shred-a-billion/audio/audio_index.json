@@ -1,0 +1,730 @@
+[
+{
+"name": "bucket_take_4",
+"len": 0.136,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_tool_unlock",
+"len": 0.287,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "bucket_take_3",
+"len": 0.097,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_carry_pick",
+"len": 0.157,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_step_concrete_5",
+"len": 0.312,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_delivery_cough",
+"len": 0.3,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "hand_swish_4",
+"len": 0.187,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_held_chimes_loop",
+"len": 10.0,
+"ch": 1,
+"hz": 48000,
+"loadType": 1,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_return_button",
+"len": 0.371,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_finale_shutter",
+"len": 0.426,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_finale_clang",
+"len": 1.705,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_board_learn",
+"len": 1.8,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_ability_heave",
+"len": 0.756,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_teller_gulp",
+"len": 0.242,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_ui_tick_01",
+"len": 0.045,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_floor_land",
+"len": 0.28,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_tab_proficiencies",
+"len": 1.4,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_delivery_hiss",
+"len": 0.85,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "radio_click",
+"len": 0.315,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "shredder_run_loop",
+"len": 7.558,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_chest_open",
+"len": 0.41,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_skill_learn",
+"len": 0.42,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "hand_swish_2",
+"len": 0.138,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_drone_hum_loop",
+"len": 6.0,
+"ch": 1,
+"hz": 48000,
+"loadType": 1,
+"file": "sharedassets0.assets"
+},
+{
+"name": "coin_drop_buy",
+"len": 0.262,
+"ch": 2,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "shovel_hit_3",
+"len": 0.515,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "hand_swish_5",
+"len": 0.154,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_golden_note_pop",
+"len": 0.298,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_hand_grab_02",
+"len": 0.383,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "bucket_take_1",
+"len": 0.089,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_shovel_whiff",
+"len": 0.225,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_hand_grab_01",
+"len": 0.216,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_ui_hover",
+"len": 0.083,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "pockets_blip_2",
+"len": 0.06,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_teller_insert",
+"len": 0.732,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_delivery_hatch",
+"len": 0.71,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "shred_pop",
+"len": 0.279,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_carry_throw",
+"len": 0.15,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "game_vault_chillhop",
+"len": 423.074,
+"ch": 2,
+"hz": 48000,
+"loadType": 2,
+"file": "sharedassets0.assets"
+},
+{
+"name": "hand_swish_3",
+"len": 0.138,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_delivery_relay",
+"len": 0.49,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "menu_lounge_a",
+"len": 166.872,
+"ch": 2,
+"hz": 48000,
+"loadType": 2,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_step_concrete_3",
+"len": 0.312,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "relic_find_bonk",
+"len": 0.512,
+"ch": 2,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "board_learn_2",
+"len": 0.32,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "VoiceFlat",
+"len": 0.1,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_chest_item_pop",
+"len": 0.604,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "pockets_blip_3",
+"len": 0.06,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_ui_tick_02",
+"len": 0.045,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "shovel_hit_1",
+"len": 0.437,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "menu_lounge_b",
+"len": 166.632,
+"ch": 2,
+"hz": 48000,
+"loadType": 2,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_step_money_1",
+"len": 0.312,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_ability_rally",
+"len": 0.407,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_ability_overload",
+"len": 1.172,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "shovel_hit_4",
+"len": 0.483,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "pinatas_blip_soft",
+"len": 0.087,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "pockets_blip_1",
+"len": 0.06,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_appear",
+"len": 0.46,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_shredder_tier_up",
+"len": 1.051,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_side_task_done",
+"len": 0.806,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_step_concrete_4",
+"len": 0.312,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_step_concrete_6",
+"len": 0.312,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "hand_swish_6",
+"len": 0.197,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_board_gold",
+"len": 2.0,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_ui_deny",
+"len": 0.169,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "drone_takeoff_land",
+"len": 0.811,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "shovel_hit_2",
+"len": 0.49,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_shove_hit",
+"len": 0.559,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "board_learn_4",
+"len": 0.328,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_delivery_pump_loop",
+"len": 2.727,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "pockets_blip_4",
+"len": 0.06,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "drone_dump",
+"len": 0.853,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_ability_armful",
+"len": 0.508,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "hand_swish_1",
+"len": 0.229,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_tab_upgrades",
+"len": 0.85,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "bucket_take_2",
+"len": 0.1,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_step_concrete_1",
+"len": 0.312,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "board_learn_3",
+"len": 0.36,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "game_shredding_millions",
+"len": 161.003,
+"ch": 2,
+"hz": 48000,
+"loadType": 2,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_delivery_hum",
+"len": 2.0,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_step_money_2",
+"len": 0.312,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_step_money_3",
+"len": 0.312,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_boost_pickup",
+"len": 0.782,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_vacuum_pop",
+"len": 0.026,
+"ch": 2,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_teller_prize",
+"len": 2.16,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_step_concrete_2",
+"len": 0.312,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "vacuum_loop",
+"len": 8.67,
+"ch": 2,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_step_money_4",
+"len": 0.312,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "game_shredding_millions_chill",
+"len": 176.032,
+"ch": 2,
+"hz": 48000,
+"loadType": 2,
+"file": "sharedassets0.assets"
+},
+{
+"name": "board_learn_1",
+"len": 0.382,
+"ch": 1,
+"hz": 44100,
+"loadType": 0,
+"file": "sharedassets0.assets"
+},
+{
+"name": "sfx_ui_click",
+"len": 0.207,
+"ch": 1,
+"hz": 48000,
+"loadType": 0,
+"file": "sharedassets0.assets"
+}
+]

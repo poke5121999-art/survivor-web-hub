@@ -1,0 +1,542 @@
+{
+ "sfx": {
+  "UiClick": {
+   "clips": [
+    "sfx_ui_click"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.48,
+   "jitter": 0.0,
+   "fixedPitch": 0
+  },
+  "UiHover": {
+   "clips": [
+    "sfx_ui_hover"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.21,
+   "jitter": 0.03,
+   "fixedPitch": 0
+  },
+  "UiDeny": {
+   "clips": [
+    "sfx_ui_deny"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.19,
+   "jitter": 0.0,
+   "fixedPitch": 0
+  },
+  "HandSwoosh": {
+   "clips": [
+    "hand_swish_1",
+    "hand_swish_2",
+    "hand_swish_3",
+    "hand_swish_4",
+    "hand_swish_5",
+    "hand_swish_6"
+   ],
+   "gain": [
+    1.207233,
+    1.044962,
+    0.82862,
+    0.618312,
+    0.739476,
+    0.769251
+   ],
+   "volume": 0.119,
+   "jitter": 0.07,
+   "fixedPitch": 0
+  },
+  "HandGrab": {
+   "clips": [
+    "sfx_hand_grab_01",
+    "sfx_hand_grab_02"
+   ],
+   "gain": [
+    1.2,
+    0.82
+   ],
+   "volume": 0.337,
+   "jitter": 0.05,
+   "fixedPitch": 0
+  },
+  "UiTick": {
+   "clips": [
+    "sfx_ui_tick_01",
+    "sfx_ui_tick_02"
+   ],
+   "gain": [
+    1.0,
+    1.12
+   ],
+   "volume": 0.21,
+   "jitter": 0.02,
+   "fixedPitch": 0
+  },
+  "TabUpgrades": {
+   "clips": [
+    "sfx_tab_upgrades"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.25,
+   "jitter": 0.0,
+   "fixedPitch": 0
+  },
+  "TabProficiencies": {
+   "clips": [
+    "sfx_tab_proficiencies"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.28,
+   "jitter": 0.0,
+   "fixedPitch": 0
+  },
+  "SkillLearn": {
+   "clips": [
+    "sfx_skill_learn"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.13,
+   "jitter": 0.0,
+   "fixedPitch": 0
+  },
+  "SkillMax": {
+   "clips": [
+    "sfx_skill_learn"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.165,
+   "jitter": 0.0,
+   "fixedPitch": 0
+  },
+  "UpgradeBuy": {
+   "clips": [
+    "coin_drop_buy"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.27,
+   "jitter": 0.04,
+   "fixedPitch": 0
+  },
+  "BoardLearn": {
+   "clips": [
+    "board_learn_1",
+    "board_learn_2",
+    "board_learn_3",
+    "board_learn_4"
+   ],
+   "gain": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "volume": 0.75,
+   "jitter": 0.09,
+   "fixedPitch": 0
+  },
+  "Appear": {
+   "clips": [
+    "sfx_appear"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.8,
+   "jitter": 0.04,
+   "fixedPitch": 0
+  },
+  "ToolUnlock": {
+   "clips": [
+    "sfx_tool_unlock"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.32,
+   "jitter": 0.02,
+   "fixedPitch": 0
+  },
+  "CarryPick": {
+   "clips": [
+    "sfx_carry_pick"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.5,
+   "jitter": 0.04,
+   "fixedPitch": 0
+  },
+  "CarryThrow": {
+   "clips": [
+    "sfx_carry_throw"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.5,
+   "jitter": 0.05,
+   "fixedPitch": 0
+  },
+  "AbilityHeave": {
+   "clips": [
+    "sfx_ability_heave"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.42,
+   "jitter": 0.04,
+   "fixedPitch": 0
+  },
+  "AbilityArmful": {
+   "clips": [
+    "sfx_ability_armful"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.55,
+   "jitter": 0.04,
+   "fixedPitch": 0
+  },
+  "AbilityOverload": {
+   "clips": [
+    "sfx_ability_overload"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.3,
+   "jitter": 0.03,
+   "fixedPitch": 0
+  },
+  "AbilityRally": {
+   "clips": [
+    "sfx_ability_rally"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.45,
+   "jitter": 0.02,
+   "fixedPitch": 0
+  },
+  "BoostPickup": {
+   "clips": [
+    "sfx_boost_pickup"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.48,
+   "jitter": 0.04,
+   "fixedPitch": 0
+  },
+  "TellerInsert": {
+   "clips": [
+    "sfx_teller_insert"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.5,
+   "jitter": 0.03,
+   "fixedPitch": 0
+  },
+  "TellerGulp": {
+   "clips": [
+    "sfx_teller_gulp"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.5,
+   "jitter": 0.04,
+   "fixedPitch": 0
+  },
+  "TellerPrize": {
+   "clips": [
+    "sfx_teller_prize"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.55,
+   "jitter": 0.0,
+   "fixedPitch": 1
+  },
+  "ChestOpen": {
+   "clips": [
+    "sfx_chest_open"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.6,
+   "jitter": 0.03,
+   "fixedPitch": 0
+  },
+  "GoldenNotePop": {
+   "clips": [
+    "sfx_golden_note_pop"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.7,
+   "jitter": 0.04,
+   "fixedPitch": 0
+  },
+  "ChestItemPop": {
+   "clips": [
+    "sfx_chest_item_pop"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.45,
+   "jitter": 0.0,
+   "fixedPitch": 1
+  },
+  "ReturnButton": {
+   "clips": [
+    "sfx_return_button"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.5,
+   "jitter": 0.02,
+   "fixedPitch": 0
+  },
+  "FloorLand": {
+   "clips": [
+    "sfx_floor_land"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.5,
+   "jitter": 0.08,
+   "fixedPitch": 0
+  },
+  "ShoveHit": {
+   "clips": [
+    "sfx_shove_hit"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.6,
+   "jitter": 0.05,
+   "fixedPitch": 0
+  },
+  "SideTaskDone": {
+   "clips": [
+    "sfx_side_task_done"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.3,
+   "jitter": 0.0,
+   "fixedPitch": 1
+  },
+  "FinaleClang": {
+   "clips": [
+    "sfx_finale_clang"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.75,
+   "jitter": 0.0,
+   "fixedPitch": 1
+  },
+  "FinaleShutter": {
+   "clips": [
+    "sfx_finale_shutter"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.6,
+   "jitter": 0.0,
+   "fixedPitch": 1
+  },
+  "RelicPop": {
+   "clips": [
+    "sfx_golden_note_pop"
+   ],
+   "gain": [
+    1.0
+   ],
+   "volume": 0.5,
+   "jitter": 0.04,
+   "fixedPitch": 0
+  }
+ },
+ "other": {
+  "Game.Machines.Shredder.m_GameObject": "<GameObject>",
+  "Game.Machines.Shredder.m_Script": "<MonoScript>",
+  "Game.Machines.Shredder.intake": "<BoxCollider>",
+  "Game.Machines.Shredder.intakePoint": "<Transform>",
+  "Game.Machines.Shredder.inletPoint": "<Transform>",
+  "Game.Machines.Shredder.interactPoint": "<Transform>",
+  "Game.Machines.Shredder.mouthFrame": "<Transform>",
+  "Game.Machines.Shredder.body": "<Transform>",
+  "Game.Machines.Shredder.hopper": "<Transform>",
+  "Game.Machines.Shredder.bin": "<Transform>",
+  "Game.Machines.Shredder.rollers": [
+   "<Transform>",
+   "<Transform>"
+  ],
+  "Game.Machines.Shredder.lamps": [
+   "<MeshRenderer>",
+   "<MeshRenderer>"
+  ],
+  "Game.Machines.Shredder.glows": [
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>"
+  ],
+  "Game.Machines.Shredder.mouthLight": "<Light>",
+  "Game.Machines.Shredder.output": "<Transform>",
+  "Game.Machines.Shredder.runLoop": null,
+  "Game.Machines.Shredder.pops": "<MonoBehaviour>",
+  "Game.Machines.Shredder.strips": "<ParticleSystem>",
+  "Game.Machines.Shredder.confetti": "<ParticleSystem>",
+  "Game.Machines.Shredder.sparkles": "<ParticleSystem>",
+  "Game.Machines.Shredder.flash": "<ParticleSystem>",
+  "Game.Machines.Shredder.mouthBits": "<ParticleSystem>",
+  "Game.Machines.Shredder.suckWind": "<ParticleSystem>",
+  "Game.Machines.Shredder.meterCells": [
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>"
+  ],
+  "Game.Machines.ShredderTiers.m_GameObject": "<GameObject>",
+  "Game.Machines.ShredderTiers.m_Script": "<MonoScript>",
+  "Game.Machines.ShredderTiers.shredder": "<MonoBehaviour>",
+  "Game.Machines.ShredderTiers.view": "<MeshRenderer>",
+  "Game.Machines.ShredderTiers.tierVoice": null,
+  "Game.Machines.ShredderTiers.tierClip": "sfx_shredder_tier_up",
+  "Game.Tools.VacuumTool.m_GameObject": "<GameObject>",
+  "Game.Tools.VacuumTool.m_Script": "<MonoScript>",
+  "Game.Tools.VacuumTool.model": "<Transform>",
+  "Game.Tools.VacuumTool.muzzle": "<Transform>",
+  "Game.Tools.VacuumTool.armWrist": "<Transform>",
+  "Game.Tools.VacuumTool.arm": "<Transform>",
+  "Game.Tools.VacuumTool.supportWrist": "<Transform>",
+  "Game.Tools.VacuumTool.supportArm": "<Transform>",
+  "Game.Tools.VacuumTool.fan": "<Transform>",
+  "Game.Tools.VacuumTool.suckFx": "<ParticleSystem>",
+  "Game.Tools.VacuumTool.fx": "<MonoBehaviour>",
+  "Game.Tools.VacuumTool.motorAudio": "<MonoBehaviour>",
+  "Game.Tools.VacuumTool.suckPops": "<MonoBehaviour>",
+  "Game.Tools.TakePops.m_GameObject": "<GameObject>",
+  "Game.Tools.TakePops.m_Script": "<MonoScript>",
+  "Game.Tools.TakePops.voices": [
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  "Game.Tools.TakePops.clips": [
+   "bucket_take_1",
+   "bucket_take_2",
+   "bucket_take_3",
+   "bucket_take_4"
+  ],
+  "Game.Tools.ShovelTool.m_GameObject": "<GameObject>",
+  "Game.Tools.ShovelTool.m_Script": "<MonoScript>",
+  "Game.Tools.ShovelTool.model": "<Transform>",
+  "Game.Tools.ShovelTool.muzzle": "<Transform>",
+  "Game.Tools.ShovelTool.armWrist": "<Transform>",
+  "Game.Tools.ShovelTool.arm": "<Transform>",
+  "Game.Tools.ShovelTool.supportWrist": "<Transform>",
+  "Game.Tools.ShovelTool.supportArm": "<Transform>",
+  "Game.Tools.ShovelTool.loadBills": [
+   "<Transform>",
+   "<Transform>",
+   "<Transform>",
+   "<Transform>",
+   "<Transform>",
+   "<Transform>"
+  ],
+  "Game.Tools.ShovelTool.loadFilters": [
+   "<MeshFilter>",
+   "<MeshFilter>",
+   "<MeshFilter>",
+   "<MeshFilter>",
+   "<MeshFilter>",
+   "<MeshFilter>"
+  ],
+  "Game.Tools.ShovelTool.loadRenderers": [
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>",
+   "<MeshRenderer>"
+  ],
+  "Game.Tools.ShovelTool.supportGrip": "<Transform>",
+  "Game.Tools.ShovelTool.gripRig": "<MonoBehaviour>",
+  "Game.Tools.ShovelTool.supportRig": "<MonoBehaviour>",
+  "Game.Tools.ShovelTool.hitVoices": [
+   null,
+   null
+  ],
+  "Game.Tools.ShovelTool.hitClips": [
+   "shovel_hit_1",
+   "shovel_hit_2",
+   "shovel_hit_3",
+   "shovel_hit_4"
+  ],
+  "Game.Tools.ShovelTool.whiffClip": "sfx_shovel_whiff"
+ }
+}

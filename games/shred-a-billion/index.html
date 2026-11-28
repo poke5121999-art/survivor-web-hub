@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="rev" content="20261127f">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d0f22">
+<link rel="icon" href="../../assets/favicon.svg">
+<title>Nghiền Một Tỉ — SHRED A BILLION</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./css/game.css?v=20261127f">
+<script type="importmap">
+{
+ "imports": {
+  "three": "./vendor/three.module.min.js?v=20261127f",
+  "./js/main.js": "./js/main.js?v=20261127f",
+  "./js/net/mirror.js": "./js/net/mirror.js?v=20261127f",
+  "./js/net/relay.js": "./js/net/relay.js?v=20261127f",
+  "./js/net/room.js": "./js/net/room.js?v=20261127f",
+  "./js/net/session.js": "./js/net/session.js?v=20261127f",
+  "./js/net/ugs.js": "./js/net/ugs.js?v=20261127f",
+  "./js/net/voice.js": "./js/net/voice.js?v=20261127f",
+  "./js/rev.js": "./js/rev.js?v=20261127f",
+  "./js/save.js": "./js/save.js?v=20261127f",
+  "./js/sim/abilities.js": "./js/sim/abilities.js?v=20261127f",
+  "./js/sim/achievements.js": "./js/sim/achievements.js?v=20261127f",
+  "./js/sim/boosts.js": "./js/sim/boosts.js?v=20261127f",
+  "./js/sim/bot.js": "./js/sim/bot.js?v=20261127f",
+  "./js/sim/collide.js": "./js/sim/collide.js?v=20261127f",
+  "./js/sim/coop.js": "./js/sim/coop.js?v=20261127f",
+  "./js/sim/economy.js": "./js/sim/economy.js?v=20261127f",
+  "./js/sim/events.js": "./js/sim/events.js?v=20261127f",
+  "./js/sim/finale.js": "./js/sim/finale.js?v=20261127f",
+  "./js/sim/finds.js": "./js/sim/finds.js?v=20261127f",
+  "./js/sim/fun.js": "./js/sim/fun.js?v=20261127f",
+  "./js/sim/game.js": "./js/sim/game.js?v=20261127f",
+  "./js/sim/i18n.js": "./js/sim/i18n.js?v=20261127f",
+  "./js/sim/intro.js": "./js/sim/intro.js?v=20261127f",
+  "./js/sim/pile.js": "./js/sim/pile.js?v=20261127f",
+  "./js/sim/player.js": "./js/sim/player.js?v=20261127f",
+  "./js/sim/rng.js": "./js/sim/rng.js?v=20261127f",
+  "./js/view/arrest.js": "./js/view/arrest.js?v=20261127f",
+  "./js/view/audio.js": "./js/view/audio.js?v=20261127f",
+  "./js/view/avatarpose.js": "./js/view/avatarpose.js?v=20261127f",
+  "./js/view/bustedstage.js": "./js/view/bustedstage.js?v=20261127f",
+  "./js/view/chat.js": "./js/view/chat.js?v=20261127f",
+  "./js/view/coopui.js": "./js/view/coopui.js?v=20261127f",
+  "./js/view/dialogue.js": "./js/view/dialogue.js?v=20261127f",
+  "./js/view/drones.js": "./js/view/drones.js?v=20261127f",
+  "./js/view/ending.js": "./js/view/ending.js?v=20261127f",
+  "./js/view/extras.js": "./js/view/extras.js?v=20261127f",
+  "./js/view/finaleview.js": "./js/view/finaleview.js?v=20261127f",
+  "./js/view/findsview.js": "./js/view/findsview.js?v=20261127f",
+  "./js/view/funplay.js": "./js/view/funplay.js?v=20261127f",
+  "./js/view/fx.js": "./js/view/fx.js?v=20261127f",
+  "./js/view/hud.js": "./js/view/hud.js?v=20261127f",
+  "./js/view/input.js": "./js/view/input.js?v=20261127f",
+  "./js/view/lighting.js": "./js/view/lighting.js?v=20261127f",
+  "./js/view/markers.js": "./js/view/markers.js?v=20261127f",
+  "./js/view/menu.js": "./js/view/menu.js?v=20261127f",
+  "./js/view/pileview.js": "./js/view/pileview.js?v=20261127f",
+  "./js/view/post.js": "./js/view/post.js?v=20261127f",
+  "./js/view/prof.js": "./js/view/prof.js?v=20261127f",
+  "./js/view/remotes.js": "./js/view/remotes.js?v=20261127f",
+  "./js/view/scenegraph.js": "./js/view/scenegraph.js?v=20261127f",
+  "./js/view/shop.js": "./js/view/shop.js?v=20261127f",
+  "./js/view/stats.js": "./js/view/stats.js?v=20261127f",
+  "./js/view/vm.js": "./js/view/vm.js?v=20261127f",
+  "./js/view/voiceui.js": "./js/view/voiceui.js?v=20261127f",
+  "./js/view/world.js": "./js/view/world.js?v=20261127f",
+  "./vendor/BufferGeometryUtils.js": "./vendor/BufferGeometryUtils.js?v=20261127f",
+  "./vendor/GLTFLoader.js": "./vendor/GLTFLoader.js?v=20261127f",
+  "./vendor/SkeletonUtils.js": "./vendor/SkeletonUtils.js?v=20261127f",
+  "./vendor/meshopt_decoder.js": "./vendor/meshopt_decoder.js?v=20261127f",
+  "./vendor/three.module.min.js": "./vendor/three.module.min.js?v=20261127f"
+ }
+}
+</script>
+</head>
+<body>
+<div id="stage"></div>
+<div id="hud" class="hidden"></div>
+<div id="white" style="display:none"></div>
+<div id="moment" class="hidden"><div class="roll"></div><div class="t"></div><div class="n"></div></div>
+<div id="ui"></div>
+<div id="loading"><img src="./art/ui/mm_logo.webp" style="width:min(50vw,320px)" alt=""><div class="bar"><div class="fill"></div></div><div class="tip"></div></div>
+<div id="rotate">Xoay ngang điện thoại để chơi<br>Rotate your phone to landscape</div>
+<script type="module" src="./js/main.js?v=20261127f"></script>
+</body>
+</html>
